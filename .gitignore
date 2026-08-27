@@ -1,0 +1,14 @@
+node_modules/
+
+# Build output — shipped via GitHub releases, not committed.
+main.js
+dist/
+*.js.map
+
+# Obsidian plugin runtime state
+data.json
+
+.DS_Store
+coverage/
+CLAUDE.md
+.claude/

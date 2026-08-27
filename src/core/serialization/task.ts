@@ -1,0 +1,220 @@
+/**
+ * Task frontmatter ↔ domain object (§4.1).
+ *
+ * `parseTask` takes the *already-parsed* YAML object, never a string — that's
+ * what keeps this module free of the Obsidian API (and of a YAML dependency)
+ * while still being the thing unit tests exercise.
+ */
+
+import { basename, formatLink, formatLinkList, parseLink, parseLinkList } from "../links";
+import { MIDDLE_RANK, isValidRank } from "../ranking/lexorank";
+import { emptyRelations, type Task, type TaskRelations } from "../types";
+import {
+	IssueLog,
+	asBoolean,
+	asDate,
+	asDateTime,
+	asNumber,
+	asString,
+	asStringArray,
+	asRecord,
+	compact,
+	nowIso,
+	type ParseResult,
+} from "./coerce";
+
+export interface TaskParseOptions {
+	/** Vault path of the note, which is also its identity. */
+	path: string;
+	/** Workspace's configured default, used when `status` is missing (§5.1). */
+	defaultStatus: string;
+	/** `Person.id`s @mentioned in the body — computed by the caller. */
+	mentions?: string[];
+}
+
+export function parseTask(
+	raw: unknown,
+	options: TaskParseOptions,
+): ParseResult<Task> {
+	const fm = asRecord(raw);
+	const log = new IssueLog();
+
+	// The filename is the ID (Golden Rule), so it wins over the frontmatter
+	// field if they ever disagree — the file is the thing wikilinks resolve to.
+	const fileId = basename(options.path);
+	const declaredId = asString(fm.id);
+	if (declaredId && declaredId !== fileId) {
+		log.add(
+			`Frontmatter id "${declaredId}" does not match filename "${fileId}"; using the filename.`,
+		);
+	}
+
+	const status = asString(fm.status);
+	if (!status) {
+		log.add(`Missing status; defaulting to "${options.defaultStatus}".`);
+	}
+
+	const rawRank = asString(fm.rank);
+	let rank = rawRank ?? MIDDLE_RANK;
+	if (rawRank && !isValidRank(rawRank)) {
+		log.add(`Invalid rank ${JSON.stringify(rawRank)}; reset to the middle.`);
+		rank = MIDDLE_RANK;
+	}
+
+	const rawCycleRank = asString(fm.cycleRank);
+	let cycleRank: string | null = rawCycleRank;
+	if (rawCycleRank && !isValidRank(rawCycleRank)) {
+		log.add(`Invalid cycleRank ${JSON.stringify(rawCycleRank)}; ignored.`);
+		cycleRank = null;
+	}
+
+	let project = parseLink(fm.project);
+	let initiative = parseLink(fm.initiative);
+	const parent = parseLink(fm.parent);
+
+	// A task has exactly one primary parent (Golden Rule). If a note somehow
+	// names two, keep the more specific one rather than guessing.
+	if (project && initiative) {
+		log.add(
+			"Task names both a project and an initiative; keeping the project as its primary parent.",
+		);
+		initiative = null;
+	}
+	// A sub-task may still carry its parent's `project` link — that's redundancy,
+	// not a second parent, and it's what lets a project view find sub-tasks
+	// without walking the whole tree. `parent` remains the primary parent.
+
+	const createdAt = asDateTime(fm.createdAt);
+	const updatedAt = asDateTime(fm.updatedAt);
+	const archived = asBoolean(fm.archived, false);
+	const archivedAt = asDateTime(fm.archivedAt);
+
+	const task: Task = {
+		type: "task",
+		id: fileId,
+		title: asString(fm.title) ?? fileId,
+		taskType: asString(fm.taskType),
+		status: status ?? options.defaultStatus,
+		priority: asString(fm.priority),
+		rank,
+		cycleRank,
+		project,
+		initiative,
+		parent,
+		cycle: parseLink(fm.cycle),
+		assignee: asString(fm.assignee),
+		estimate: asNumber(fm.estimate),
+		labels: asStringArray(fm.labels),
+		startDate: asDate(fm.startDate),
+		dueDate: asDate(fm.dueDate),
+		// `archivedAt` alone is enough to mean archived — §7.7 allows either
+		// spelling, and a note carrying only the timestamp shouldn't reappear.
+		archived: archived || archivedAt != null,
+		archivedAt,
+		relations: parseRelations(fm.relations),
+		createdAt: createdAt ?? nowIso(),
+		updatedAt: updatedAt ?? createdAt ?? nowIso(),
+		path: options.path,
+		mentions: options.mentions ?? [],
+	};
+
+	if (task.parent && task.parent === task.path) {
+		log.add("Task is its own parent; parent cleared.");
+		task.parent = null;
+	}
+
+	return { value: task, issues: log.issues };
+}
+
+export function parseRelations(raw: unknown): TaskRelations {
+	if (raw == null) return emptyRelations();
+	const record = asRecord(raw);
+	return {
+		blocks: parseLinkList(record.blocks),
+		blockedBy: parseLinkList(record.blockedBy),
+		related: parseLinkList(record.related),
+		duplicateOf: parseLink(record.duplicateOf),
+	};
+}
+
+function hasAnyRelation(relations: TaskRelations): boolean {
+	return (
+		relations.blocks.length > 0 ||
+		relations.blockedBy.length > 0 ||
+		relations.related.length > 0 ||
+		relations.duplicateOf != null
+	);
+}
+
+/**
+ * Domain object → frontmatter object, ready for the YAML writer.
+ *
+ * Key order matters: it's what a human sees when they open the note, and it's
+ * what git diffs line up against. Empty fields are dropped entirely rather than
+ * written as `null`.
+ */
+export function serializeTask(task: Task): Record<string, unknown> {
+	const base = compact({
+		type: "task",
+		taskType: task.taskType,
+		id: task.id,
+		title: task.title,
+		status: task.status,
+		priority: task.priority,
+		rank: task.rank,
+		cycleRank: task.cycleRank,
+		project: formatLink(task.project),
+		initiative: formatLink(task.initiative),
+		parent: formatLink(task.parent),
+		cycle: formatLink(task.cycle),
+		assignee: task.assignee,
+		estimate: task.estimate,
+		labels: task.labels,
+		startDate: task.startDate,
+		dueDate: task.dueDate,
+		archivedAt: task.archivedAt,
+		createdAt: task.createdAt,
+		updatedAt: task.updatedAt,
+	});
+
+	// `archived` is written explicitly even when false: it's a toggle users look
+	// for in the note, and an absent field reads as "unknown" rather than "no".
+	base.archived = task.archived;
+
+	if (hasAnyRelation(task.relations)) {
+		base.relations = compact({
+			blocks: formatLinkList(task.relations.blocks),
+			blockedBy: formatLinkList(task.relations.blockedBy),
+			related: formatLinkList(task.relations.related),
+			duplicateOf: formatLink(task.relations.duplicateOf),
+		});
+	}
+
+	return base;
+}
+
+/** Field order for the writer, so notes stay diff-stable across edits. */
+export const TASK_FIELD_ORDER: readonly string[] = [
+	"type",
+	"taskType",
+	"id",
+	"title",
+	"status",
+	"priority",
+	"rank",
+	"cycleRank",
+	"project",
+	"initiative",
+	"parent",
+	"cycle",
+	"assignee",
+	"estimate",
+	"labels",
+	"startDate",
+	"dueDate",
+	"archived",
+	"archivedAt",
+	"relations",
+	"createdAt",
+	"updatedAt",
+] as const;

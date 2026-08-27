@@ -1,0 +1,575 @@
+/*
+ * Vertex Flow
+ *
+ * Visual target: Linear's density and speed, Featurebase's airier cards.
+ * Everything is expressed through Obsidian's own CSS variables so the plugin
+ * inherits whatever theme the user has installed — light, dark, or otherwise —
+ * rather than fighting it with hard-coded colours.
+ */
+
+/*
+ * The drag preview is portaled into <body>, outside the plugin's own subtree,
+ * so it has to declare these variables too — otherwise a dragged card loses
+ * every colour and radius the moment it lifts.
+ */
+.vertex-flow,
+.vf-drag-layer {
+	--vf-gap: 8px;
+	--vf-radius: 6px;
+	--vf-row-height: 34px;
+	--vf-column-width: 300px;
+	--vf-muted: var(--text-muted);
+	--vf-border: var(--background-modifier-border);
+}
+
+.vertex-flow {
+	height: 100%;
+	overflow: hidden;
+	font-size: var(--font-ui-small);
+}
+
+.vf-shell {
+	display: flex;
+	height: 100%;
+	outline: none;
+}
+
+/* --------------------------------------------------------------- Sidebar -- */
+
+.vf-sidebar {
+	width: 220px;
+	flex: 0 0 220px;
+	padding: 12px 8px;
+	overflow-y: auto;
+	border-right: 1px solid var(--vf-border);
+	background: var(--background-secondary);
+}
+
+.vf-workspace-name,
+.vf-workspace-switcher {
+	width: 100%;
+	margin-bottom: 14px;
+	padding: 4px 6px;
+	font-weight: 600;
+	font-size: var(--font-ui-medium);
+}
+
+.vf-sidebar-section {
+	margin-bottom: 16px;
+}
+
+.vf-sidebar-heading {
+	padding: 0 6px 4px;
+	color: var(--vf-muted);
+	font-size: var(--font-ui-smaller);
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+
+.vf-nav-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	width: 100%;
+	height: 28px;
+	padding: 0 6px;
+	border: none;
+	border-radius: var(--vf-radius);
+	background: transparent;
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+	text-align: left;
+	cursor: pointer;
+}
+
+.vf-nav-row:hover {
+	background: var(--background-modifier-hover);
+}
+
+.vf-nav-row.is-active {
+	background: var(--background-modifier-active-hover, var(--background-modifier-hover));
+	font-weight: 600;
+}
+
+.vf-nav-label {
+	flex: 1;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.vf-view-icon {
+	width: 14px;
+	color: var(--vf-muted);
+	text-align: center;
+}
+
+/* --------------------------------------------------------------- Toolbar -- */
+
+.vf-main {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.vf-toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 10px 14px;
+	border-bottom: 1px solid var(--vf-border);
+}
+
+.vf-toolbar-title {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+}
+
+.vf-toolbar-title h2 {
+	margin: 0;
+	font-size: var(--font-ui-medium);
+}
+
+.vf-toolbar-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.vf-count {
+	color: var(--vf-muted);
+	font-size: var(--font-ui-smaller);
+	font-variant-numeric: tabular-nums;
+}
+
+.vf-toggle {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	color: var(--vf-muted);
+	font-size: var(--font-ui-smaller);
+	cursor: pointer;
+}
+
+/* ------------------------------------------------------------------ List -- */
+
+.vf-list {
+	flex: 1;
+	overflow-y: auto;
+	padding-bottom: 40px;
+}
+
+.vf-list-group {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 14px 4px;
+	background: var(--background-primary);
+	color: var(--vf-muted);
+	font-size: var(--font-ui-smaller);
+	font-weight: 600;
+}
+
+.vf-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	height: var(--vf-row-height);
+	padding: 0 14px;
+	border-bottom: 1px solid var(--vf-border);
+	cursor: default;
+	user-select: none;
+}
+
+.vf-row:hover {
+	background: var(--background-modifier-hover);
+}
+
+.vf-row.is-focused {
+	box-shadow: inset 2px 0 0 var(--interactive-accent);
+}
+
+.vf-row.is-selected {
+	background: var(--text-selection);
+}
+
+.vf-row.is-archived,
+.vf-card.is-archived {
+	opacity: 0.55;
+}
+
+.vf-row-title {
+	flex: 1;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.vf-row-meta {
+	display: flex;
+	flex-shrink: 0;
+	align-items: center;
+	gap: 6px;
+}
+
+.vf-id {
+	flex-shrink: 0;
+	color: var(--vf-muted);
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-smaller);
+}
+
+.vf-subtask-marker {
+	margin-right: 4px;
+	color: var(--vf-muted);
+}
+
+/* ----------------------------------------------------------------- Board -- */
+
+.vf-board {
+	display: flex;
+	flex: 1;
+	gap: var(--vf-gap);
+	padding: 12px;
+	overflow-x: auto;
+	overflow-y: hidden;
+}
+
+.vf-column {
+	display: flex;
+	width: var(--vf-column-width);
+	flex: 0 0 var(--vf-column-width);
+	flex-direction: column;
+	border-radius: var(--vf-radius);
+	background: var(--background-secondary);
+}
+
+.vf-column.is-drop-target {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+}
+
+/* A collapsed column stays a drop target — it just becomes a thin rail. */
+.vf-column.is-collapsed {
+	width: 40px;
+	flex: 0 0 40px;
+	cursor: pointer;
+}
+
+.vf-column-rail {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	height: 100%;
+	padding: 10px 0;
+	writing-mode: vertical-rl;
+}
+
+.vf-rail-label {
+	color: var(--vf-muted);
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.vf-column-header {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 10px 10px 8px;
+	font-weight: 600;
+}
+
+.vf-column-title {
+	flex: 1;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.vf-collapse {
+	width: 20px;
+	height: 20px;
+	padding: 0;
+	border: none;
+	background: transparent;
+	color: var(--vf-muted);
+	cursor: pointer;
+}
+
+.vf-column-body {
+	flex: 1;
+	padding: 0 8px 8px;
+	overflow-y: auto;
+}
+
+.vf-column-empty {
+	padding: 16px 8px;
+	border: 1px dashed var(--vf-border);
+	border-radius: var(--vf-radius);
+	color: var(--vf-muted);
+	font-size: var(--font-ui-smaller);
+	text-align: center;
+}
+
+.vf-card {
+	margin-bottom: var(--vf-gap);
+	padding: 10px;
+	border: 1px solid var(--vf-border);
+	border-radius: var(--vf-radius);
+	background: var(--background-primary);
+	cursor: default;
+	user-select: none;
+	/* Let vertical scrolling through a card work; a lifted drag suppresses it. */
+	touch-action: pan-y;
+}
+
+.vf-card:hover {
+	border-color: var(--background-modifier-border-hover);
+}
+
+.vf-card.is-focused {
+	border-color: var(--interactive-accent);
+}
+
+.vf-card.is-selected {
+	box-shadow: 0 0 0 2px var(--interactive-accent);
+}
+
+/*
+ * The card left behind in the column while its preview is in flight. Kept
+ * visible rather than removed so the list doesn't reflow under the cursor and
+ * so you can still see where the task came from.
+ */
+.vf-card.is-dragging {
+	opacity: 0.3;
+}
+
+/* --- Drag preview ------------------------------------------------------- */
+
+.vf-drag-layer {
+	position: fixed;
+	top: 0;
+	left: 0;
+	z-index: var(--layer-notice, 60);
+	font-size: var(--font-ui-small);
+	/* Never intercept the hit-test that locates the drop column. */
+	pointer-events: none;
+	will-change: transform;
+}
+
+.vf-card-preview {
+	margin: 0;
+	background: var(--background-primary);
+	box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+	/* A slight tilt reads as "lifted" far more immediately than a shadow
+	   alone, and matches how Linear and Trello render a card in flight. */
+	transform: rotate(1.5deg);
+	opacity: 0.95;
+}
+
+body.vf-dragging,
+body.vf-dragging .vf-card {
+	cursor: grabbing;
+}
+
+.vf-card-top,
+.vf-card-bottom {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.vf-card-top {
+	margin-bottom: 6px;
+}
+
+.vf-card-bottom {
+	margin-top: 8px;
+}
+
+.vf-card-title {
+	line-height: 1.35;
+}
+
+.vf-drop-indicator {
+	height: 2px;
+	margin: 3px 0;
+	border-radius: 2px;
+	background: var(--interactive-accent);
+}
+
+/* Suppress page scrolling for the duration of a lifted touch drag. */
+body.vf-dragging {
+	overflow: hidden;
+	touch-action: none;
+}
+
+/* ------------------------------------------------------------------ Bits -- */
+
+.vf-status-dot {
+	width: 9px;
+	height: 9px;
+	flex-shrink: 0;
+	border-radius: 50%;
+	background: var(--vf-muted);
+}
+
+.vf-chip {
+	padding: 1px 6px;
+	border: 1px solid var(--vf-border);
+	border-radius: 10px;
+	color: var(--vf-muted);
+	font-size: var(--font-ui-smaller);
+	white-space: nowrap;
+}
+
+.vf-labels {
+	display: inline-flex;
+	gap: 4px;
+}
+
+.vf-avatar {
+	display: inline-flex;
+	width: 20px;
+	height: 20px;
+	flex-shrink: 0;
+	align-items: center;
+	justify-content: center;
+	border-radius: 50%;
+	background: var(--background-modifier-border);
+	font-size: 10px;
+	font-weight: 600;
+}
+
+.vf-progress {
+	display: inline-block;
+	width: 48px;
+	height: 4px;
+	overflow: hidden;
+	border-radius: 2px;
+	background: var(--background-modifier-border);
+}
+
+.vf-progress-fill {
+	display: block;
+	height: 100%;
+	background: var(--interactive-accent);
+}
+
+.vf-due {
+	color: var(--vf-muted);
+	font-size: var(--font-ui-smaller);
+	white-space: nowrap;
+}
+
+.vf-due.is-today {
+	color: var(--text-warning, orange);
+}
+
+.vf-due.is-overdue {
+	color: var(--text-error, red);
+}
+
+.vf-blocked {
+	padding: 1px 5px;
+	border-radius: 3px;
+	background: var(--background-modifier-error);
+	color: var(--text-error);
+	font-size: var(--font-ui-smaller);
+}
+
+/* ------------------------------------------------------------ Empty state -- */
+
+.vf-empty {
+	display: flex;
+	height: 100%;
+	align-items: center;
+	justify-content: center;
+	padding: 24px;
+}
+
+.vf-empty-card {
+	width: 100%;
+	max-width: 440px;
+}
+
+.vf-empty-card h1 {
+	margin: 0 0 8px;
+	font-size: var(--font-ui-large);
+}
+
+.vf-empty-lead {
+	margin: 0 0 20px;
+	color: var(--vf-muted);
+	line-height: 1.5;
+}
+
+.vf-empty-actions {
+	display: flex;
+	gap: 8px;
+	margin: 16px 0;
+}
+
+.vf-empty-note {
+	color: var(--vf-muted);
+	font-size: var(--font-ui-smaller);
+	line-height: 1.5;
+}
+
+.vf-empty-view {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 4px;
+	color: var(--vf-muted);
+}
+
+.vf-field {
+	display: block;
+	margin-bottom: 12px;
+}
+
+.vf-field span {
+	display: block;
+	margin-bottom: 4px;
+	font-weight: 600;
+}
+
+.vf-field input {
+	width: 100%;
+}
+
+.vf-field small {
+	display: block;
+	margin-top: 4px;
+	color: var(--vf-muted);
+}
+
+.vf-error {
+	color: var(--text-error);
+}
+
+/* ---------------------------------------------------------------- Mobile -- */
+
+.is-mobile .vf-sidebar {
+	display: none;
+}
+
+.is-mobile .vf-column {
+	width: 82vw;
+	flex-basis: 82vw;
+}
+
+.is-mobile .vf-row {
+	height: auto;
+	padding: 10px 12px;
+}
