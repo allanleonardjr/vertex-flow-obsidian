@@ -22,6 +22,10 @@ import {
 	withComments,
 } from "../core/serialization/comments";
 import {
+	extractDescription,
+	withDescription,
+} from "../core/serialization/description";
+import {
 	serializeCycle,
 	serializeInitiative,
 	serializeProject,
@@ -198,14 +202,14 @@ export class Mutations {
 		siblings: Task[],
 		toIndex: number,
 		field: RankField = "rank",
-		statusChange?: string,
+		fieldEdit?: Partial<Task>,
 	): Promise<void> {
 		const assignment = planReorder(task, siblings, toIndex, field);
 		await this.updateTask(task, {
 			...(assignment.field === "cycleRank"
 				? { cycleRank: assignment.rank }
 				: { rank: assignment.rank }),
-			...(statusChange ? { status: statusChange } : {}),
+			...fieldEdit,
 		});
 	}
 
@@ -215,6 +219,33 @@ export class Mutations {
 			await this.updateTask(task, patch);
 		}
 		new Notice(`Updated ${tasks.length} task${tasks.length === 1 ? "" : "s"}`);
+	}
+
+	// -- Note body ------------------------------------------------------------
+
+	/**
+	 * The parts of a task that live in the body rather than in frontmatter.
+	 * Read on demand — the index deliberately doesn't hold these, so opening a
+	 * board never costs a file read per card.
+	 */
+	async readDocument(
+		task: Task,
+	): Promise<{ description: string; comments: Comment[] }> {
+		const file = this.io.getFile(task.path);
+		if (!file) return { description: "", comments: [] };
+		const body = await this.io.readBody(file);
+		return { description: extractDescription(body), comments: parseComments(body) };
+	}
+
+	/**
+	 * Write the description into the note's `## Description` section, leaving
+	 * every other section — and the comment block — untouched.
+	 */
+	async setDescription(task: Task, text: string): Promise<void> {
+		const file = this.requireFile(task.path);
+		await this.io.processBody(file, (body) => withDescription(body, text));
+		// Stamp `updatedAt`; the body write doesn't touch frontmatter.
+		await this.updateTask(task, {});
 	}
 
 	// -- Comments -------------------------------------------------------------

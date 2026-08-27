@@ -1,0 +1,100 @@
+/**
+ * One task, rendered as a List-view row.
+ *
+ * Extracted from `ListView` so the same row — status dot, ID, title,
+ * sub-task marker, and the whole trailing meta cluster — renders identically
+ * wherever a task is listed: the List view itself, a parent's sub-tasks, and
+ * a task's relations. Previously relations were bare chips showing only a
+ * filename, which told you nothing about the thing you were linking to.
+ */
+
+import { childTasks, computeProgress, scopeOf } from "../../core/hierarchy";
+import type { WorkspaceTaxonomies } from "../../core/taxonomy";
+import type { Task, WorkspaceSnapshot } from "../../core/types";
+import {
+	Assignee,
+	DueDate,
+	Labels,
+	ProgressBar,
+	RelationBadge,
+	StatusDot,
+	TaxonomyChip,
+} from "./TaskBits";
+
+/**
+ * The row's contents, with no interaction of its own — the caller supplies
+ * the wrapper, so this works equally inside List's draggable `<div>`, the
+ * drag preview, and a plain clickable button.
+ */
+export function TaskRowContent({
+	task,
+	snapshot,
+	taxonomies,
+}: {
+	task: Task;
+	snapshot: WorkspaceSnapshot;
+	taxonomies: WorkspaceTaxonomies;
+}) {
+	const scope = scopeOf(snapshot);
+	const progress = computeProgress(childTasks(scope, task.path), taxonomies.status);
+
+	return (
+		<>
+			<StatusDot taxonomies={taxonomies} status={task.status} />
+
+			<span className="vf-id">{task.id}</span>
+
+			<span className="vf-row-title">
+				{task.parent && (
+					<span className="vf-subtask-marker" title="Sub-task">
+						↳
+					</span>
+				)}
+				{task.title}
+			</span>
+
+			<span className="vf-row-meta">
+				<RelationBadge task={task} />
+				<ProgressBar progress={progress} />
+				<Labels taxonomies={taxonomies} labels={task.labels} />
+				<TaxonomyChip taxonomies={taxonomies} kind="priority" id={task.priority} />
+				<DueDate task={task} />
+				<Assignee people={snapshot.workspace.people} assignee={task.assignee} />
+			</span>
+		</>
+	);
+}
+
+/**
+ * A relation pointing at something the index can't resolve — a note outside
+ * any workspace, or one deleted while the link survived. Shown rather than
+ * hidden: a dangling relation the user can see and remove beats one that
+ * silently disappears from the UI but stays in the file.
+ */
+export function MissingTaskRow({
+	label,
+	onRemove,
+	removeTitle,
+}: {
+	label: string;
+	onRemove?: () => void;
+	removeTitle?: string;
+}) {
+	// Same `vf-row-with-action` shape as a real row carrying a trailing
+	// control, so a dangling relation lines up with the resolved ones above it.
+	return (
+		<div className="vf-row vf-row-with-action">
+			<span className="vf-row-missing">
+				<span className="vf-row-title">{label}</span>
+				<span className="vf-row-meta">
+					<span className="vf-blocked">not found</span>
+				</span>
+			</span>
+			{onRemove && (
+				<button className="vf-icon-button vf-row-remove" title={removeTitle} onClick={onRemove}>
+					✕
+				</button>
+			)}
+		</div>
+	);
+}

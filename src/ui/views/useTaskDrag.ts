@@ -1,5 +1,5 @@
 /**
- * Board drag-and-drop for both pointer types (§9.2).
+ * Drag-and-drop for both pointer types (§9.2), shared by List and Board.
  *
  * Built on Pointer Events rather than HTML5 drag-and-drop, because HTML5 DnD
  * has no touch support at all on mobile — and full Obsidian Mobile support is a
@@ -10,8 +10,10 @@
  *   - **Touch**: lifts only after a long press. A plain touch-drag would be
  *     indistinguishable from scrolling a column, so it must not start a drag.
  *
- * Once a touch drag lifts, page scrolling is suppressed until it ends —
- * otherwise the column scrolls out from under the finger that's dragging.
+ * Nothing here knows what a column looks like. Targets are resolved from the
+ * live DOM via two data attributes, so any view that renders
+ * `[data-group-key]` containers holding `[data-task-path]` items gets drag and
+ * drop for free — that's how the List view reuses this unchanged.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -21,57 +23,68 @@ const MOUSE_THRESHOLD_PX = 4;
 /** How far a finger may wander before a long press is treated as a scroll. */
 const TOUCH_SLOP_PX = 10;
 
+/**
+ * How far below-right of the pointer the preview hangs.
+ *
+ * The preview is deliberately *not* anchored to where you grabbed the card.
+ * The drop indicator is drawn at the insertion point, which is right about
+ * where the cursor is — a card centred under the cursor covers the very line
+ * it's meant to be helping you aim. Hanging it below-right, the way an OS drag
+ * image behaves, keeps the indicator clear.
+ */
+export const PREVIEW_OFFSET_PX = 14;
+
 export interface DropTarget {
-	/** Group key of the column under the pointer. */
-	columnKey: string;
-	/** Insert position within that column. */
+	/** Group key of the column/section under the pointer. */
+	groupKey: string;
+	/** Insert position within that group. */
 	index: number;
 }
 
 export interface DragState {
 	taskPath: string;
-	fromColumn: string;
+	fromGroup: string;
 	/** Current pointer position, in viewport coordinates. */
 	x: number;
 	y: number;
-	/**
-	 * Where inside the card the pointer grabbed it, and how wide the card was.
-	 * The preview renders at `pointer - offset` so the card stays exactly where
-	 * it was under the cursor instead of snapping its corner to the pointer.
-	 */
-	offsetX: number;
-	offsetY: number;
+	/** Width of the source element, so the preview matches it. */
 	width: number;
 	target: DropTarget | null;
 }
 
-export interface BoardDragApi {
+export interface TaskDragApi {
 	drag: DragState | null;
-	/** Attach to each card's `onPointerDown`. */
+	/** Attach to each draggable item's `onPointerDown`. */
 	onPointerDown: (
 		event: React.PointerEvent,
 		taskPath: string,
-		columnKey: string,
+		groupKey: string,
 	) => void;
-	/** True while this card is the one being dragged. */
 	isDragging: (taskPath: string) => boolean;
+	/**
+	 * True if the gesture that just ended was a drag rather than a click.
+	 *
+	 * Needed because a drag always ends with a `click` event too, and without
+	 * this guard dropping a card would also open its editor.
+	 */
+	consumeDragClick: () => boolean;
+	/** Insert index within a group, or null when it isn't the drop target. */
+	dropIndexFor: (groupKey: string) => number | null;
 }
 
-export function useBoardDrag(
+export function useTaskDrag(
 	onDrop: (taskPath: string, target: DropTarget) => void,
-): BoardDragApi {
+): TaskDragApi {
 	const [drag, setDrag] = useState<DragState | null>(null);
 
 	// Everything the live gesture needs, kept in a ref so the global pointer
 	// listeners never go stale between renders.
 	const gesture = useRef<{
 		taskPath: string;
-		columnKey: string;
+		groupKey: string;
 		pointerId: number;
 		startX: number;
 		startY: number;
-		offsetX: number;
-		offsetY: number;
 		width: number;
 		lifted: boolean;
 		longPress: number | null;
@@ -79,6 +92,9 @@ export function useBoardDrag(
 
 	const dragRef = useRef<DragState | null>(null);
 	dragRef.current = drag;
+
+	/** Set when a drag completes, cleared by the click handler that follows. */
+	const suppressClick = useRef(false);
 
 	const cancelLongPress = () => {
 		const current = gesture.current;
@@ -102,34 +118,30 @@ export function useBoardDrag(
 		document.body.classList.add("vf-dragging");
 		setDrag({
 			taskPath: current.taskPath,
-			fromColumn: current.columnKey,
+			fromGroup: current.groupKey,
 			x,
 			y,
-			offsetX: current.offsetX,
-			offsetY: current.offsetY,
 			width: current.width,
 			target: resolveTarget(x, y, current.taskPath),
 		});
 	}, []);
 
 	const onPointerDown = useCallback(
-		(event: React.PointerEvent, taskPath: string, columnKey: string) => {
+		(event: React.PointerEvent, taskPath: string, groupKey: string) => {
 			// Ignore right-clicks and anything starting on an interactive control.
 			if (event.button !== 0) return;
 			const target = event.target as HTMLElement;
 			if (target.closest("button, input, select, a, textarea")) return;
 
-			// Measure now, while the card is still in its resting position.
+			// Measure now, while the element is still in its resting position.
 			const rect = event.currentTarget.getBoundingClientRect();
 
 			gesture.current = {
 				taskPath,
-				columnKey,
+				groupKey,
 				pointerId: event.pointerId,
 				startX: event.clientX,
 				startY: event.clientY,
-				offsetX: event.clientX - rect.left,
-				offsetY: event.clientY - rect.top,
 				width: rect.width,
 				lifted: false,
 				longPress: null,
@@ -170,11 +182,9 @@ export function useBoardDrag(
 
 			setDrag({
 				taskPath: current.taskPath,
-				fromColumn: current.columnKey,
+				fromGroup: current.groupKey,
 				x: event.clientX,
 				y: event.clientY,
-				offsetX: current.offsetX,
-				offsetY: current.offsetY,
 				width: current.width,
 				target: resolveTarget(event.clientX, event.clientY, current.taskPath),
 			});
@@ -184,9 +194,12 @@ export function useBoardDrag(
 			const current = gesture.current;
 			if (!current || event.pointerId !== current.pointerId) return;
 
-			const active = dragRef.current;
-			if (current.lifted && active?.target) {
-				onDrop(current.taskPath, active.target);
+			if (current.lifted) {
+				const active = dragRef.current;
+				if (active?.target) onDrop(current.taskPath, active.target);
+				// A drag always emits a trailing click; swallow it so dropping a
+				// card doesn't also open it.
+				suppressClick.current = true;
 			}
 			endGesture();
 		};
@@ -213,37 +226,44 @@ export function useBoardDrag(
 		drag,
 		onPointerDown,
 		isDragging: (taskPath) => drag?.taskPath === taskPath,
+		consumeDragClick: () => {
+			const suppressed = suppressClick.current;
+			suppressClick.current = false;
+			return suppressed;
+		},
+		dropIndexFor: (groupKey) =>
+			drag?.target?.groupKey === groupKey ? drag.target.index : null,
 	};
 }
 
 /**
  * Work out where the pointer is hovering, from the DOM.
  *
- * Reading the live layout beats tracking card rectangles in state: columns
- * scroll independently and cards reflow as the placeholder moves, so any cached
+ * Reading the live layout beats tracking item rectangles in state: groups
+ * scroll independently and items reflow as the indicator moves, so any cached
  * geometry would be wrong within one frame.
  */
 function resolveTarget(x: number, y: number, movingPath: string): DropTarget | null {
 	const element = document.elementFromPoint(x, y) as HTMLElement | null;
-	const column = element?.closest("[data-column-key]") as HTMLElement | null;
-	if (!column) return null;
+	const group = element?.closest("[data-group-key]") as HTMLElement | null;
+	if (!group) return null;
 
-	const columnKey = column.dataset.columnKey as string;
+	const groupKey = group.dataset.groupKey as string;
 
 	// A collapsed column is still a valid drop target (§8.2) — it just has no
-	// cards to position against, so anything landing on it goes to the top.
-	const cards = [...column.querySelectorAll<HTMLElement>("[data-task-path]")].filter(
-		(card) => card.dataset.taskPath !== movingPath,
+	// items to position against, so anything landing on it goes to the top.
+	const items = [...group.querySelectorAll<HTMLElement>("[data-task-path]")].filter(
+		(item) => item.dataset.taskPath !== movingPath,
 	);
 
-	let index = cards.length;
-	for (let i = 0; i < cards.length; i++) {
-		const rect = cards[i].getBoundingClientRect();
+	let index = items.length;
+	for (let i = 0; i < items.length; i++) {
+		const rect = items[i].getBoundingClientRect();
 		if (y < rect.top + rect.height / 2) {
 			index = i;
 			break;
 		}
 	}
 
-	return { columnKey, index };
+	return { groupKey, index };
 }

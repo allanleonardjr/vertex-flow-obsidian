@@ -1,11 +1,13 @@
 /**
- * Sidebar (§9.5): workspace switcher, Saved Views, and quick hierarchy nav.
+ * Sidebar (§9.5): workspace switcher, Saved Views, and navigation to the
+ * Initiatives/Projects/Cycles browse tabs and workspace Settings.
  */
 
-import { computeProgress, projectTasks, scopeOf } from "../core/hierarchy";
-import { workspaceTaxonomies } from "../core/taxonomy";
+import { useEffect, useState } from "react";
 import type { SavedView, WorkspaceSnapshot } from "../core/types";
 import { usePlugin, useSettingsWriter, useWorkspaces } from "./context";
+import { WorkspaceDialog, type WorkspaceDialogMode } from "./modals/WorkspaceDialog";
+import { useTabs } from "./tabs-context";
 
 export function Sidebar({
 	snapshot,
@@ -16,107 +18,152 @@ export function Sidebar({
 	activeViewId: string;
 	onSelectView: (id: string) => void;
 }) {
-	const plugin = usePlugin();
-	const workspaces = useWorkspaces();
-	const writeSettings = useSettingsWriter();
-
-	const scope = scopeOf(snapshot);
-	const statuses = workspaceTaxonomies(snapshot.workspace).status;
+	const { activeId, openScreen } = useTabs();
+	const onWorkspaceTab = activeId === "workspace";
 
 	return (
 		<aside className="vf-sidebar">
-			{workspaces.length > 1 ? (
-				<select
-					className="vf-workspace-switcher"
-					value={snapshot.workspace.root}
-					onChange={(event) =>
-						writeSettings({ activeWorkspaceRoot: event.target.value })
-					}
-				>
-					{workspaces.map((entry) => (
-						<option key={entry.workspace.root} value={entry.workspace.root}>
-							{entry.workspace.name}
-						</option>
-					))}
-				</select>
-			) : (
-				<div className="vf-workspace-name">{snapshot.workspace.name}</div>
-			)}
+			<WorkspaceSwitcher snapshot={snapshot} />
 
 			<Section title="Views">
 				{snapshot.views.map((view) => (
 					<ViewRow
 						key={view.id}
 						view={view}
-						active={view.id === activeViewId}
+						active={onWorkspaceTab && view.id === activeViewId}
 						onClick={() => onSelectView(view.id)}
 					/>
 				))}
 			</Section>
 
-			{snapshot.initiatives.length > 0 && (
-				<Section title="Initiatives">
-					{snapshot.initiatives.map((initiative) => (
-						<button
-							key={initiative.path}
-							className="vf-nav-row"
-							onClick={() => void plugin.mutations.open(initiative.path)}
-						>
-							<span className="vf-nav-label">{initiative.title}</span>
-						</button>
-					))}
-				</Section>
-			)}
+			<Section title="Workspace">
+				<ScreenRow
+					label="Initiatives"
+					icon="◆"
+					active={activeId === "initiatives"}
+					onClick={() => openScreen("initiatives")}
+				/>
+				<ScreenRow
+					label="Projects"
+					icon="▣"
+					active={activeId === "projects"}
+					onClick={() => openScreen("projects")}
+				/>
+				{/* Cycles are opt-in (§7.5) — the nav entry only exists once a
+				    workspace has actually turned them on. */}
+				{snapshot.workspace.cycles.enabled && (
+					<ScreenRow
+						label={`${snapshot.workspace.cycles.termLabel}s`}
+						icon="↻"
+						active={activeId === "cycles"}
+						onClick={() => openScreen("cycles")}
+					/>
+				)}
+			</Section>
 
-			{snapshot.projects.length > 0 && (
-				<Section title="Projects">
-					{snapshot.projects.map((project) => {
-						// Progress is computed at render time, never stored, and
-						// never synced with the project's own status (§7.1).
-						const progress = computeProgress(
-							projectTasks(scope, project.path),
-							statuses,
-						);
-						return (
-							<button
-								key={project.path}
-								className="vf-nav-row"
-								onClick={() => void plugin.mutations.open(project.path)}
-							>
-								<span className="vf-nav-label">{project.title}</span>
-								<span className="vf-progress" title={`${progress.percent}% complete`}>
-									<span
-										className="vf-progress-fill"
-										style={{ width: `${progress.percent}%` }}
-									/>
-								</span>
-							</button>
-						);
-					})}
-				</Section>
-			)}
+			<div className="vf-sidebar-spacer" />
 
-			{snapshot.workspace.cycles.enabled && snapshot.cycles.length > 0 && (
-				<Section title={`${snapshot.workspace.cycles.termLabel}s`}>
-					{snapshot.cycles.map((cycle) => (
-						<button
-							key={cycle.path}
-							className="vf-nav-row"
-							onClick={() => void plugin.mutations.open(cycle.path)}
-						>
-							<span className="vf-nav-label">{cycle.title}</span>
-						</button>
-					))}
-				</Section>
-			)}
+			<Section title="">
+				<ScreenRow
+					label="Settings"
+					icon="⚙"
+					active={activeId === "settings"}
+					onClick={() => openScreen("settings")}
+				/>
+			</Section>
 		</aside>
+	);
+}
+
+/**
+ * Workspace switcher, and the only route to creating another one.
+ *
+ * Always rendered, even with a single workspace: without it, a vault that
+ * already has one workspace offers no way to make a second, and the onboarding
+ * screen that used to offer that is unreachable once any workspace exists.
+ */
+function WorkspaceSwitcher({ snapshot }: { snapshot: WorkspaceSnapshot }) {
+	const workspaces = useWorkspaces();
+	const writeSettings = useSettingsWriter();
+	const [open, setOpen] = useState(false);
+	const [dialog, setDialog] = useState<WorkspaceDialogMode | null>(null);
+
+	// Any click outside closes the menu.
+	useEffect(() => {
+		if (!open) return;
+		const close = () => setOpen(false);
+		window.addEventListener("click", close);
+		return () => window.removeEventListener("click", close);
+	}, [open]);
+
+	return (
+		<div className="vf-workspace">
+			<button
+				className="vf-workspace-button"
+				aria-expanded={open}
+				onClick={(event) => {
+					event.stopPropagation();
+					setOpen((current) => !current);
+				}}
+			>
+				<span className="vf-nav-label">{snapshot.workspace.name}</span>
+				<span className="vf-caret">⌄</span>
+			</button>
+
+			{open && (
+				<div className="vf-menu" onClick={(event) => event.stopPropagation()}>
+					{workspaces.map((entry) => (
+						<button
+							key={entry.workspace.root}
+							className={`vf-menu-item${
+								entry.workspace.root === snapshot.workspace.root
+									? " is-active"
+									: ""
+							}`}
+							onClick={() => {
+								writeSettings({ activeWorkspaceRoot: entry.workspace.root });
+								setOpen(false);
+							}}
+						>
+							<span className="vf-nav-label">{entry.workspace.name}</span>
+							<span className="vf-menu-hint">{entry.workspace.idPrefix}</span>
+						</button>
+					))}
+
+					<div className="vf-menu-separator" />
+
+					<button
+						className="vf-menu-item"
+						onClick={() => {
+							setDialog("create");
+							setOpen(false);
+						}}
+					>
+						New workspace…
+					</button>
+					<button
+						className="vf-menu-item"
+						onClick={() => {
+							setDialog("sample");
+							setOpen(false);
+						}}
+					>
+						Sample workspace…
+					</button>
+				</div>
+			)}
+
+			{dialog && (
+				<WorkspaceDialog mode={dialog} onClose={() => setDialog(null)} />
+			)}
+		</div>
 	);
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
 	return (
 		<div className="vf-sidebar-section">
-			<div className="vf-sidebar-heading">{title}</div>
+			{title && <div className="vf-sidebar-heading">{title}</div>}
 			{children}
 		</div>
 	);
@@ -139,6 +186,29 @@ function ViewRow({
 		>
 			<span className="vf-view-icon">{view.viewType === "board" ? "▦" : "☰"}</span>
 			<span className="vf-nav-label">{view.name}</span>
+		</button>
+	);
+}
+
+function ScreenRow({
+	label,
+	icon,
+	active,
+	onClick,
+}: {
+	label: string;
+	icon: string;
+	active: boolean;
+	onClick: () => void;
+}) {
+	return (
+		<button
+			className={`vf-nav-row${active ? " is-active" : ""}`}
+			onClick={onClick}
+			aria-current={active ? "page" : undefined}
+		>
+			<span className="vf-view-icon">{icon}</span>
+			<span className="vf-nav-label">{label}</span>
 		</button>
 	);
 }

@@ -4,8 +4,8 @@
 
 import type { EvaluatedView } from "../core/views";
 import type { SavedView, WorkspaceSnapshot } from "../core/types";
+import { useCreateTask } from "./actions";
 import { usePlugin, useSettingsWriter } from "./context";
-import { QuickCaptureModal } from "./modals/QuickCaptureModal";
 import { useSelection } from "./selection";
 
 export function Toolbar({
@@ -20,6 +20,7 @@ export function Toolbar({
 	const plugin = usePlugin();
 	const writeSettings = useSettingsWriter();
 	const selection = useSelection();
+	const createTask = useCreateTask();
 	const selectedCount = selection.selectedPaths.length;
 
 	return (
@@ -51,10 +52,7 @@ export function Toolbar({
 					<span>Show archived</span>
 				</label>
 
-				<button
-					className="mod-cta"
-					onClick={() => new QuickCaptureModal(plugin.app, plugin, snapshot).open()}
-				>
+				<button className="mod-cta" onClick={() => void createTask(snapshot)}>
 					New task
 				</button>
 			</div>

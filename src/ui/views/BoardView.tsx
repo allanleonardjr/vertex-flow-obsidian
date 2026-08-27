@@ -2,17 +2,22 @@
  * Board / Kanban view (§8.1, §8.2).
  *
  * Columns come from the Saved View's `groupBy`, so this is a board over any
- * grouping — status is just the default. Dropping a card writes two things at
- * most: a new rank, and (when the column represents a status) a new status.
+ * grouping — status is just the default. What a drop *means* lives in
+ * `useDropHandler`, shared with the List view.
  */
 
-import { useCallback } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
 import { childTasks, computeProgress, scopeOf } from "../../core/hierarchy";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { EvaluatedView } from "../../core/views";
 import { toggleColumnCollapsed } from "../../core/views";
-import { NONE, type SavedView, type Task, type TaskGroup, type WorkspaceSnapshot } from "../../core/types";
+import type {
+	SavedView,
+	Task,
+	TaskGroup,
+	WorkspaceSnapshot,
+} from "../../core/types";
 import {
 	Assignee,
 	DueDate,
@@ -22,8 +27,15 @@ import {
 	TaxonomyChip,
 } from "../components/TaskBits";
 import { usePlugin } from "../context";
-import { useSelection } from "../selection";
-import { useBoardDrag, type DragState, type DropTarget } from "./useBoardDrag";
+import { useTabs, type TabsApi } from "../tabs-context";
+import { useScrollFocusIntoView, useSelection } from "../selection";
+import { useTaskDropHandler } from "./useDropHandler";
+import {
+	PREVIEW_OFFSET_PX,
+	useTaskDrag,
+	type DragState,
+	type TaskDragApi,
+} from "./useTaskDrag";
 
 export function BoardView({
 	snapshot,
@@ -36,46 +48,18 @@ export function BoardView({
 	evaluated: EvaluatedView;
 	taxonomies: WorkspaceTaxonomies;
 }) {
-	const plugin = usePlugin();
-
-	// A cycle board is the one context with its own order (§6).
-	const rankField = view.sortBy === "cycleRank" ? "cycleRank" : "rank";
-
-	const handleDrop = useCallback(
-		(taskPath: string, target: DropTarget) => {
-			const task = evaluated.tasks.find((candidate) => candidate.path === taskPath);
-			const column = evaluated.groups.find((group) => group.key === target.columnKey);
-			if (!task || !column) return;
-
-			// Moving between columns only changes a field when the grouping maps
-			// onto one. Grouping by label is many-to-many — a card can sit in two
-			// columns at once — so dragging there would be ambiguous, and is
-			// treated as a reorder only.
-			const statusChange =
-				view.groupBy === "status" && target.columnKey !== NONE
-					? target.columnKey
-					: undefined;
-
-			void plugin.mutations.moveTask(
-				task,
-				column.tasks,
-				target.index,
-				rankField,
-				statusChange,
-			);
-		},
-		[evaluated, view.groupBy, plugin, rankField],
-	);
-
-	const drag = useBoardDrag(handleDrop);
+	const drag = useTaskDrag(useTaskDropHandler(view, evaluated));
 	const visible = evaluated.groups.filter((group) => !group.hidden);
 
 	const draggedTask = drag.drag
 		? evaluated.tasks.find((task) => task.path === drag.drag?.taskPath)
 		: undefined;
 
+	const [board, setBoard] = useState<HTMLDivElement | null>(null);
+	useScrollFocusIntoView(board);
+
 	return (
-		<div className="vf-board">
+		<div className="vf-board" ref={setBoard}>
 			{visible.map((group) => (
 				<Column
 					key={group.key}
@@ -84,12 +68,6 @@ export function BoardView({
 					snapshot={snapshot}
 					taxonomies={taxonomies}
 					drag={drag}
-					isDropTarget={drag.drag?.target?.columnKey === group.key}
-					dropIndex={
-						drag.drag?.target?.columnKey === group.key
-							? drag.drag.target.index
-							: null
-					}
 				/>
 			))}
 
@@ -117,7 +95,7 @@ export function BoardView({
  * column with `elementFromPoint`, and a preview sitting under the cursor would
  * be the only thing it ever found.
  */
-function DragPreview({
+export function DragPreview({
 	drag,
 	task,
 	snapshot,
@@ -132,7 +110,9 @@ function DragPreview({
 		<div
 			className="vf-drag-layer"
 			style={{
-				transform: `translate(${drag.x - drag.offsetX}px, ${drag.y - drag.offsetY}px)`,
+				transform: `translate(${drag.x + PREVIEW_OFFSET_PX}px, ${
+					drag.y + PREVIEW_OFFSET_PX
+				}px)`,
 				width: drag.width,
 			}}
 			aria-hidden
@@ -151,26 +131,23 @@ function Column({
 	snapshot,
 	taxonomies,
 	drag,
-	isDropTarget,
-	dropIndex,
 }: {
 	group: TaskGroup;
 	view: SavedView;
 	snapshot: WorkspaceSnapshot;
 	taxonomies: WorkspaceTaxonomies;
-	drag: ReturnType<typeof useBoardDrag>;
-	isDropTarget: boolean;
-	dropIndex: number | null;
+	drag: TaskDragApi;
 }) {
 	const plugin = usePlugin();
+	const dropIndex = drag.dropIndexFor(group.key);
+	const isDropTarget = dropIndex !== null;
 
-	// Collapse state belongs to the Saved View (§8.2), so toggling it persists
-	// to `_views.md` rather than living in component state.
 	const toggle = () => {
+		const live = plugin.index.get(snapshot.workspace.root) ?? snapshot;
 		const next = toggleColumnCollapsed(view, group.key);
 		void plugin.mutations.saveViews(
-			snapshot,
-			snapshot.views.map((candidate) => (candidate.id === view.id ? next : candidate)),
+			live,
+			live.views.map((candidate) => (candidate.id === view.id ? next : candidate)),
 		);
 	};
 
@@ -178,8 +155,8 @@ function Column({
 		// Collapsed to a rail, but still a live drop target (§8.2).
 		return (
 			<div
-				className="vf-column is-collapsed"
-				data-column-key={group.key}
+				className={`vf-column is-collapsed${isDropTarget ? " is-drop-target" : ""}`}
+				data-group-key={group.key}
 				onClick={toggle}
 			>
 				<div className="vf-column-rail">
@@ -193,7 +170,7 @@ function Column({
 	return (
 		<div
 			className={`vf-column${isDropTarget ? " is-drop-target" : ""}`}
-			data-column-key={group.key}
+			data-group-key={group.key}
 		>
 			<header className="vf-column-header">
 				{group.color && (
@@ -212,7 +189,7 @@ function Column({
 						{dropIndex === index && <div className="vf-drop-indicator" />}
 						<Card
 							task={task}
-							columnKey={group.key}
+							groupKey={group.key}
 							snapshot={snapshot}
 							taxonomies={taxonomies}
 							drag={drag}
@@ -231,19 +208,19 @@ function Column({
 
 function Card({
 	task,
-	columnKey,
+	groupKey,
 	snapshot,
 	taxonomies,
 	drag,
 }: {
 	task: Task;
-	columnKey: string;
+	groupKey: string;
 	snapshot: WorkspaceSnapshot;
 	taxonomies: WorkspaceTaxonomies;
-	drag: ReturnType<typeof useBoardDrag>;
+	drag: TaskDragApi;
 }) {
-	const plugin = usePlugin();
 	const selection = useSelection();
+	const tabs = useTabs();
 
 	const focused = selection.focusedPath === task.path;
 	const selected = selection.isSelected(task.path);
@@ -260,18 +237,36 @@ function Card({
 				.filter(Boolean)
 				.join(" ")}
 			data-task-path={task.path}
-			onPointerDown={(event) => drag.onPointerDown(event, task.path, columnKey)}
-			onClick={(event) =>
-				selection.select(task.path, {
-					toggle: event.metaKey || event.ctrlKey,
-					range: event.shiftKey,
-				})
-			}
-			onDoubleClick={() => void plugin.mutations.open(task.path)}
+			onPointerDown={(event) => drag.onPointerDown(event, task.path, groupKey)}
+			onClick={(event) => openOrSelect(event, task.path, drag, selection, tabs)}
 		>
 			<CardContent task={task} snapshot={snapshot} taxonomies={taxonomies} />
 		</article>
 	);
+}
+
+/**
+ * Shared click behaviour for cards and rows.
+ *
+ * A plain click opens the task in its own tab, the way Linear behaves;
+ * modifier clicks build a multi-selection instead. The drag guard matters
+ * because every drag ends with a trailing click — without it, dropping a
+ * card would also open its tab.
+ */
+export function openOrSelect(
+	event: React.MouseEvent,
+	path: string,
+	drag: TaskDragApi,
+	selection: ReturnType<typeof useSelection>,
+	tabs: TabsApi,
+): void {
+	if (drag.consumeDragClick()) return;
+
+	const toggle = event.metaKey || event.ctrlKey;
+	const range = event.shiftKey;
+
+	selection.select(path, { toggle, range });
+	if (!toggle && !range) tabs.openTask(path);
 }
 
 /**

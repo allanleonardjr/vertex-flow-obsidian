@@ -1,132 +1,119 @@
 /**
- * List view (§8.1) — dense, Linear-style rows, grouped by whatever the Saved
- * View groups by.
+ * List view (§8.1) — the Saved View rendered as dense, Linear-style rows.
+ *
+ * The rows, groups, and sections all come from the shared `TaskList` module,
+ * so this file is now only what makes it a *view*: turning an evaluated Saved
+ * View into groups, and layering on drag-and-drop, selection, and keyboard
+ * focus. Reordering is the whole point of a manually-ranked backlog (§6), so
+ * a list you can't drag in would be the wrong half of the feature.
  */
 
-import { Fragment } from "react";
-import { childTasks, computeProgress, scopeOf } from "../../core/hierarchy";
+import { useState } from "react";
+import { createPortal } from "react-dom";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { EvaluatedView } from "../../core/views";
-import type { Task, WorkspaceSnapshot } from "../../core/types";
-import {
-	Assignee,
-	DueDate,
-	Labels,
-	ProgressBar,
-	RelationBadge,
-	StatusDot,
-	TaxonomyChip,
-} from "../components/TaskBits";
-import { usePlugin } from "../context";
-import { useSelection } from "../selection";
+import type { SavedView, Task, WorkspaceSnapshot } from "../../core/types";
+import { TaskList, type TaskListInteraction } from "../components/TaskList";
+import { TaskRowContent } from "../components/TaskRow";
+import { useTabs } from "../tabs-context";
+import { useScrollFocusIntoView, useSelection } from "../selection";
+import { openOrSelect } from "./BoardView";
+import { useTaskDropHandler } from "./useDropHandler";
+import { PREVIEW_OFFSET_PX, useTaskDrag, type DragState } from "./useTaskDrag";
 
 export function ListView({
 	snapshot,
+	view,
 	evaluated,
 	taxonomies,
 }: {
 	snapshot: WorkspaceSnapshot;
+	view: SavedView;
 	evaluated: EvaluatedView;
 	taxonomies: WorkspaceTaxonomies;
 }) {
+	const drag = useTaskDrag(useTaskDropHandler(view, evaluated));
+	const selection = useSelection();
+	const tabs = useTabs();
+
+	const draggedTask = drag.drag
+		? evaluated.tasks.find((task) => task.path === drag.drag?.taskPath)
+		: undefined;
+
+	const [list, setList] = useState<HTMLDivElement | null>(null);
+	useScrollFocusIntoView(list);
+
 	if (evaluated.total === 0) {
 		return (
 			<div className="vf-empty-view">
 				<p>Nothing here yet.</p>
 				<p className="vf-empty-note">
-					Press <kbd>c</kbd> to capture a task.
+					Press <kbd>c</kbd> to create a task.
 				</p>
 			</div>
 		);
 	}
 
-	const groups = evaluated.groups.filter((group) => !group.hidden);
+	const interaction: TaskListInteraction = {
+		isFocused: (task) => selection.focusedPath === task.path,
+		isSelected: (task) => selection.isSelected(task.path),
+		isDragging: (task) => drag.isDragging(task.path),
+		onRowPointerDown: (event, task, groupKey) =>
+			drag.onPointerDown(event, task.path, groupKey),
+		onRowClick: (event, task) =>
+			openOrSelect(event, task.path, drag, selection, tabs),
+		dropIndexFor: (groupKey) => drag.dropIndexFor(groupKey),
+	};
 
 	return (
-		<div className="vf-list">
-			{groups.map((group) => (
-				<Fragment key={group.key}>
-					{evaluated.view.groupBy !== "none" && (
-						<div className="vf-list-group">
-							{group.color && (
-								<span
-									className="vf-status-dot"
-									style={{ backgroundColor: group.color }}
-								/>
-							)}
-							<span>{group.label}</span>
-							<span className="vf-count">{group.tasks.length}</span>
-						</div>
-					)}
-					{!group.collapsed &&
-						group.tasks.map((task) => (
-							<TaskRow
-								key={task.path}
-								task={task}
-								snapshot={snapshot}
-								taxonomies={taxonomies}
-							/>
-						))}
-				</Fragment>
-			))}
-		</div>
+		<TaskList
+			groups={evaluated.groups.filter((group) => !group.hidden)}
+			snapshot={snapshot}
+			taxonomies={taxonomies}
+			grouped={evaluated.view.groupBy !== "none"}
+			interaction={interaction}
+			emptyGroupLabel="Drop tasks here"
+			containerRef={setList}
+		>
+			{drag.drag && draggedTask && (
+				<RowPreview
+					drag={drag.drag}
+					task={draggedTask}
+					snapshot={snapshot}
+					taxonomies={taxonomies}
+				/>
+			)}
+		</TaskList>
 	);
 }
 
-function TaskRow({
+/** The row that follows the pointer while dragging. See `DragPreview`. */
+function RowPreview({
+	drag,
 	task,
 	snapshot,
 	taxonomies,
 }: {
+	drag: DragState;
 	task: Task;
 	snapshot: WorkspaceSnapshot;
 	taxonomies: WorkspaceTaxonomies;
 }) {
-	const plugin = usePlugin();
-	const selection = useSelection();
-
-	const scope = scopeOf(snapshot);
-	const children = childTasks(scope, task.path);
-	const progress = computeProgress(children, taxonomies.status);
-
-	const focused = selection.focusedPath === task.path;
-	const selected = selection.isSelected(task.path);
-
-	return (
+	return createPortal(
 		<div
-			className={[
-				"vf-row",
-				focused ? "is-focused" : "",
-				selected ? "is-selected" : "",
-				task.archived ? "is-archived" : "",
-			]
-				.filter(Boolean)
-				.join(" ")}
-			onClick={(event) =>
-				selection.select(task.path, {
-					toggle: event.metaKey || event.ctrlKey,
-					range: event.shiftKey,
-				})
-			}
-			onDoubleClick={() => void plugin.mutations.open(task.path)}
+			className="vf-drag-layer"
+			style={{
+				transform: `translate(${drag.x + PREVIEW_OFFSET_PX}px, ${
+					drag.y + PREVIEW_OFFSET_PX
+				}px)`,
+				width: drag.width,
+			}}
+			aria-hidden
 		>
-			<StatusDot taxonomies={taxonomies} status={task.status} />
-
-			<span className="vf-id">{task.id}</span>
-
-			<span className="vf-row-title">
-				{task.parent && <span className="vf-subtask-marker" title="Sub-task">↳</span>}
-				{task.title}
-			</span>
-
-			<span className="vf-row-meta">
-				<RelationBadge task={task} />
-				<ProgressBar progress={progress} />
-				<Labels taxonomies={taxonomies} labels={task.labels} />
-				<TaxonomyChip taxonomies={taxonomies} kind="priority" id={task.priority} />
-				<DueDate task={task} />
-				<Assignee people={snapshot.workspace.people} assignee={task.assignee} />
-			</span>
-		</div>
+			<div className="vf-row vf-row-preview">
+				<TaskRowContent task={task} snapshot={snapshot} taxonomies={taxonomies} />
+			</div>
+		</div>,
+		document.body,
 	);
 }

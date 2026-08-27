@@ -15,6 +15,16 @@ export interface VertexFlowSettings {
 	showArchived: boolean;
 	/** Where new workspaces are offered by default. */
 	defaultWorkspaceFolder: string;
+	/** Width, in pixels, of the property rail in the task editor. */
+	editorRailWidth: number;
+	/**
+	 * Whether opening a task note anywhere in Obsidian (search, a wikilink,
+	 * the quick switcher) redirects into Vertex Flow's editor instead of the
+	 * plain Markdown view. Plugin-global rather than per-workspace — this
+	 * governs Obsidian navigation behaviour, not anything about a workspace's
+	 * data, so it lives here rather than in `_workspace.md`.
+	 */
+	redirectTaskNotes: boolean;
 }
 
 export const DEFAULT_SETTINGS: VertexFlowSettings = {
@@ -22,4 +32,6 @@ export const DEFAULT_SETTINGS: VertexFlowSettings = {
 	activeViewByWorkspace: {},
 	showArchived: false,
 	defaultWorkspaceFolder: "Vertex Flow",
+	editorRailWidth: 264,
+	redirectTaskNotes: true,
 };

@@ -81,18 +81,22 @@ function initials(name: string): string {
 }
 
 /**
- * Sub-task progress bar (§7.2). Shows completion only — it never completes the
- * parent for you.
+ * Progress bar plus its "X/Y done" count — sub-tasks (§7.2), or a Project's,
+ * Initiative's, or Cycle's task rollup (§7.1). Always shown together: the bar
+ * alone doesn't say whether "almost full" means 9/10 or 90/100, and the
+ * fraction alone is slower to scan across a whole column of cards.
  */
 export function ProgressBar({ progress }: { progress: Progress }) {
 	if (progress.total === 0) return null;
 	const countable = progress.total - progress.canceled;
 	return (
-		<span
-			className="vf-progress"
-			title={`${progress.completed} of ${countable} sub-tasks done`}
-		>
-			<span className="vf-progress-fill" style={{ width: `${progress.percent}%` }} />
+		<span className="vf-progress-wrap" title={`${progress.completed} of ${countable} done`}>
+			<span className="vf-progress">
+				<span className="vf-progress-fill" style={{ width: `${progress.percent}%` }} />
+			</span>
+			<span className="vf-progress-count">
+				{progress.completed}/{countable} done
+			</span>
 		</span>
 	);
 }
