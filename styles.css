@@ -14,152 +14,155 @@
  */
 .vertex-flow,
 .vf-drag-layer {
-	--vf-gap: 8px;
-	--vf-radius: 6px;
-	--vf-row-height: 34px;
-	--vf-column-width: 300px;
-	--vf-muted: var(--text-muted);
-	--vf-border: var(--background-modifier-border);
+  --vf-gap: 8px;
+  --vf-radius: 6px;
+  --vf-row-height: 34px;
+  --vf-column-width: 300px;
+  --vf-muted: var(--text-muted);
+  --vf-border: var(--background-modifier-border);
 }
 
 .vertex-flow {
-	height: 100%;
-	overflow: hidden;
-	font-size: var(--font-ui-small);
+  height: 100%;
+  overflow: hidden;
+  font-size: var(--font-ui-small);
 }
 
 .vf-shell {
-	display: flex;
-	height: 100%;
-	outline: none;
+  display: flex;
+  height: 100%;
+  outline: none;
 }
 
 /* --------------------------------------------------------------- Sidebar -- */
 
 .vf-sidebar {
-	display: flex;
-	flex-direction: column;
-	width: 220px;
-	flex: 0 0 220px;
-	padding: 12px 8px;
-	overflow-y: auto;
-	border-right: 1px solid var(--vf-border);
-	background: var(--background-secondary);
+  display: flex;
+  flex-direction: column;
+  width: 220px;
+  flex: 0 0 220px;
+  padding: 12px 8px;
+  overflow-y: auto;
+  border-right: 1px solid var(--vf-border);
+  background: var(--background-secondary);
 }
 
 /* Pushes Settings to the bottom of the sidebar, Linear-style. */
 .vf-sidebar-spacer {
-	flex: 1;
+  flex: 1;
 }
 
 .vf-sidebar-section {
-	margin-bottom: 16px;
+  margin-bottom: 16px;
 }
 
 .vf-sidebar-heading {
-	padding: 0 6px 4px;
-	color: var(--vf-muted);
-	font-size: var(--font-ui-smaller);
-	font-weight: 600;
-	letter-spacing: 0.04em;
-	text-transform: uppercase;
+  padding: 0 6px 4px;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .vf-nav-row {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	width: 100%;
-	height: 28px;
-	padding: 0 6px;
-	border: none;
-	border-radius: var(--vf-radius);
-	background: transparent;
-	color: var(--text-normal);
-	font-size: var(--font-ui-small);
-	text-align: left;
-	cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 28px;
+  padding: 0 6px;
+  border: none;
+  border-radius: var(--vf-radius);
+  background: transparent;
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  text-align: left;
+  cursor: pointer;
 }
 
 .vf-nav-row:hover {
-	background: var(--background-modifier-hover);
+  background: var(--background-modifier-hover);
 }
 
 .vf-nav-row.is-active {
-	background: var(--background-modifier-active-hover, var(--background-modifier-hover));
-	font-weight: 600;
+  background: var(
+    --background-modifier-active-hover,
+    var(--background-modifier-hover)
+  );
+  font-weight: 600;
 }
 
 .vf-nav-label {
-	flex: 1;
-	overflow: hidden;
-	white-space: nowrap;
-	text-overflow: ellipsis;
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .vf-view-icon {
-	width: 14px;
-	color: var(--vf-muted);
-	text-align: center;
+  width: 14px;
+  color: var(--vf-muted);
+  text-align: center;
 }
 
 /* --------------------------------------------------------------- Toolbar -- */
 
 .vf-main {
-	display: flex;
-	flex: 1;
-	flex-direction: column;
-	min-width: 0;
-	min-height: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
 }
 
 .vf-toolbar {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 12px;
-	padding: 10px 14px;
-	border-bottom: 1px solid var(--vf-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--vf-border);
 }
 
 .vf-toolbar-title {
-	display: flex;
-	align-items: baseline;
-	gap: 8px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
 }
 
 .vf-toolbar-title h2 {
-	margin: 0;
-	font-size: var(--font-ui-medium);
+  margin: 0;
+  font-size: var(--font-ui-medium);
 }
 
 .vf-toolbar-actions {
-	display: flex;
-	align-items: center;
-	gap: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .vf-count {
-	color: var(--vf-muted);
-	font-size: var(--font-ui-smaller);
-	font-variant-numeric: tabular-nums;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  font-variant-numeric: tabular-nums;
 }
 
 .vf-toggle {
-	display: flex;
-	align-items: center;
-	gap: 4px;
-	color: var(--vf-muted);
-	font-size: var(--font-ui-smaller);
-	cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
 }
 
 /* ------------------------------------------------------------------ List -- */
 
 .vf-list {
-	flex: 1;
-	overflow-y: auto;
-	padding-bottom: 40px;
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 40px;
 }
 
 /*
@@ -169,25 +172,57 @@
  * short list inside a scrolling page, not the page itself.
  */
 .vf-list-embedded {
-	flex: none;
-	padding-bottom: 0;
-	border: 1px solid var(--vf-border);
-	border-radius: var(--vf-radius);
-	/* Clips row hover/selection backgrounds to the rounded corners. Applied
+  flex: none;
+  padding-bottom: 0;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  /* Clips row hover/selection backgrounds to the rounded corners. Applied
 	   to the container, not the inner section — unresolvable relation rows
 	   render as siblings of the section and would otherwise escape it. */
-	overflow: hidden;
+  overflow: hidden;
 }
 
 .vf-list-embedded .vf-row:last-child {
-	border-bottom: none;
+  border-bottom: none;
+}
+
+/* Container holding the list and the footer trigger */
+.vf-list-embedded-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Bottom footer button styling */
+.vf-embedded-list-footer {
+  display: flex;
+  align-items: center;
+  padding-top: 2px;
+}
+
+.vf-embedded-list-footer .vf-select {
+  background: transparent;
+  border: 1px dashed var(--vf-border);
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  padding: 4px 8px;
+  border-radius: var(--vf-radius);
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.vf-embedded-list-footer .vf-select:hover {
+  border-style: solid;
+  border-color: var(--background-modifier-border-hover);
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
 }
 
 /* Rows carrying a trailing control split into a click target plus that
    control, so the row itself stops being the thing you click. */
 .vf-row-with-action {
-	padding: 0;
-	gap: 0;
+  padding: 0;
+  gap: 0;
 }
 
 /*
@@ -198,212 +233,238 @@
  * identical to a plain row, indistinguishable at rest, until hovered.
  */
 .vf-row-open {
-	display: flex;
-	flex: 1;
-	align-items: center;
-	gap: 10px;
-	min-width: 0;
-	height: 100%;
-	padding: 0 14px;
-	border: none !important;
-	border-radius: 0 !important;
-	background: transparent !important;
-	box-shadow: none !important;
-	color: var(--text-normal);
-	font-size: inherit;
-	text-align: left;
-	cursor: pointer;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  height: 100%;
+  padding: 0 14px;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--text-normal);
+  font-size: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
+/* Linear-style integrated action button */
 .vf-row-remove {
-	flex-shrink: 0;
-	margin-right: 8px;
-	opacity: 0.45;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: 6px;
+  margin-right: 4px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--vf-muted);
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.12s ease-in-out;
+  cursor: pointer;
 }
 
-.vf-row:hover .vf-row-remove {
-	opacity: 1;
+/* Reveal cleanly on row hover */
+.vf-row:hover .vf-row-remove,
+.vf-row-with-action:hover .vf-row-remove {
+  opacity: 0.6;
+  pointer-events: auto;
+}
+
+/* Direct hover state: soft background tint, muted text */
+.vf-row-remove:hover {
+  opacity: 1 !important;
+  background: var(--background-modifier-error-hover, rgba(239, 68, 68, 0.12));
+  color: var(
+    --text-muted
+  ); /* Keeps the icon subtle while the background confirms target */
 }
 
 .vf-list-group {
-	position: sticky;
-	top: 0;
-	z-index: 1;
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	padding: 8px 14px 4px;
-	background: var(--background-primary);
-	color: var(--vf-muted);
-	font-size: var(--font-ui-smaller);
-	font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px 4px;
+  background: var(--background-primary);
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
 }
 
 .vf-row {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	height: var(--vf-row-height);
-	padding: 0 14px;
-	border-bottom: 1px solid var(--vf-border);
-	cursor: default;
-	user-select: none;
-	/* Let vertical scrolling through a row work; a lifted drag suppresses it. */
-	touch-action: pan-y;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: var(--vf-row-height);
+  padding: 0 14px;
+  border-bottom: 1px solid var(--vf-border);
+  cursor: default;
+  user-select: none;
+  /* Let vertical scrolling through a row work; a lifted drag suppresses it. */
+  touch-action: pan-y;
 }
 
 .vf-row:hover {
-	background: var(--background-modifier-hover);
+  background: var(--background-modifier-hover);
 }
 
 .vf-row.is-focused {
-	box-shadow: inset 2px 0 0 var(--interactive-accent);
+  box-shadow: inset 2px 0 0 var(--interactive-accent);
 }
 
 .vf-row.is-selected {
-	background: var(--text-selection);
+  background: var(--text-selection);
 }
 
 .vf-row.is-archived,
 .vf-card.is-archived {
-	opacity: 0.55;
+  opacity: 0.55;
 }
 
 .vf-row-title {
-	flex: 1;
-	overflow: hidden;
-	white-space: nowrap;
-	text-overflow: ellipsis;
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .vf-row-meta {
-	display: flex;
-	flex-shrink: 0;
-	align-items: center;
-	gap: 6px;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
 }
 
 .vf-id {
-	flex-shrink: 0;
-	color: var(--vf-muted);
-	font-family: var(--font-monospace);
-	font-size: var(--font-ui-smaller);
+  flex-shrink: 0;
+  color: var(--vf-muted);
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
 }
 
 .vf-subtask-marker {
-	margin-right: 4px;
-	color: var(--vf-muted);
+  margin-right: 4px;
+  color: var(--vf-muted);
 }
 
 /* ----------------------------------------------------------------- Board -- */
 
 .vf-board {
-	display: flex;
-	flex: 1;
-	gap: var(--vf-gap);
-	padding: 12px;
-	overflow-x: auto;
-	overflow-y: hidden;
+  display: flex;
+  flex: 1;
+  gap: var(--vf-gap);
+  padding: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .vf-column {
-	display: flex;
-	width: var(--vf-column-width);
-	flex: 0 0 var(--vf-column-width);
-	flex-direction: column;
-	border-radius: var(--vf-radius);
-	background: var(--background-secondary);
+  display: flex;
+  width: var(--vf-column-width);
+  flex: 0 0 var(--vf-column-width);
+  flex-direction: column;
+  border-radius: var(--vf-radius);
+  background: var(--background-secondary);
 }
 
 .vf-column.is-drop-target {
-	outline: 2px solid var(--interactive-accent);
-	outline-offset: -2px;
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: -2px;
 }
 
 /* A collapsed column stays a drop target — it just becomes a thin rail. */
 .vf-column.is-collapsed {
-	width: 40px;
-	flex: 0 0 40px;
-	cursor: pointer;
+  width: 40px;
+  flex: 0 0 40px;
+  cursor: pointer;
 }
 
 .vf-column-rail {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	height: 100%;
-	padding: 10px 0;
-	writing-mode: vertical-rl;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 100%;
+  padding: 10px 0;
+  writing-mode: vertical-rl;
 }
 
 .vf-rail-label {
-	color: var(--vf-muted);
-	font-weight: 600;
-	white-space: nowrap;
+  color: var(--vf-muted);
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .vf-column-header {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	padding: 10px 10px 8px;
-	font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 10px 8px;
+  font-weight: 600;
 }
 
 .vf-column-title {
-	flex: 1;
-	overflow: hidden;
-	white-space: nowrap;
-	text-overflow: ellipsis;
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .vf-collapse {
-	width: 20px;
-	height: 20px;
-	padding: 0;
-	border: none;
-	background: transparent;
-	color: var(--vf-muted);
-	cursor: pointer;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--vf-muted);
+  cursor: pointer;
 }
 
 .vf-column-body {
-	flex: 1;
-	padding: 0 8px 8px;
-	overflow-y: auto;
+  flex: 1;
+  padding: 0 8px 8px;
+  overflow-y: auto;
 }
 
 .vf-column-empty {
-	padding: 16px 8px;
-	border: 1px dashed var(--vf-border);
-	border-radius: var(--vf-radius);
-	color: var(--vf-muted);
-	font-size: var(--font-ui-smaller);
-	text-align: center;
+  padding: 16px 8px;
+  border: 1px dashed var(--vf-border);
+  border-radius: var(--vf-radius);
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  text-align: center;
 }
 
 .vf-card {
-	margin-bottom: var(--vf-gap);
-	padding: 10px;
-	border: 1px solid var(--vf-border);
-	border-radius: var(--vf-radius);
-	background: var(--background-primary);
-	cursor: default;
-	user-select: none;
-	/* Let vertical scrolling through a card work; a lifted drag suppresses it. */
-	touch-action: pan-y;
+  margin-bottom: var(--vf-gap);
+  padding: 10px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-primary);
+  cursor: default;
+  user-select: none;
+  /* Let vertical scrolling through a card work; a lifted drag suppresses it. */
+  touch-action: pan-y;
 }
 
 .vf-card:hover {
-	border-color: var(--background-modifier-border-hover);
+  border-color: var(--background-modifier-border-hover);
 }
 
 .vf-card.is-focused {
-	border-color: var(--interactive-accent);
+  border-color: var(--interactive-accent);
 }
 
 .vf-card.is-selected {
-	box-shadow: 0 0 0 2px var(--interactive-accent);
+  box-shadow: 0 0 0 2px var(--interactive-accent);
 }
 
 /*
@@ -412,54 +473,54 @@
  * so you can still see where the task came from.
  */
 .vf-card.is-dragging {
-	opacity: 0.3;
+  opacity: 0.3;
 }
 
 /* --- Drag preview ------------------------------------------------------- */
 
 .vf-drag-layer {
-	position: fixed;
-	top: 0;
-	left: 0;
-	z-index: var(--layer-notice, 60);
-	font-size: var(--font-ui-small);
-	/* Never intercept the hit-test that locates the drop column. */
-	pointer-events: none;
-	will-change: transform;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: var(--layer-notice, 60);
+  font-size: var(--font-ui-small);
+  /* Never intercept the hit-test that locates the drop column. */
+  pointer-events: none;
+  will-change: transform;
 }
 
 .vf-card-preview {
-	margin: 0;
-	background: var(--background-primary);
-	box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
-	/* A slight tilt reads as "lifted" far more immediately than a shadow
+  margin: 0;
+  background: var(--background-primary);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  /* A slight tilt reads as "lifted" far more immediately than a shadow
 	   alone, and matches how Linear and Trello render a card in flight. */
-	transform: rotate(1.5deg);
-	opacity: 0.95;
+  transform: rotate(1.5deg);
+  opacity: 0.95;
 }
 
 body.vf-dragging,
 body.vf-dragging .vf-card {
-	cursor: grabbing;
+  cursor: grabbing;
 }
 
 .vf-card-top,
 .vf-card-bottom {
-	display: flex;
-	align-items: center;
-	gap: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .vf-card-top {
-	margin-bottom: 6px;
+  margin-bottom: 6px;
 }
 
 .vf-card-bottom {
-	margin-top: 8px;
+  margin-top: 8px;
 }
 
 .vf-card-title {
-	line-height: 1.35;
+  line-height: 1.35;
 }
 
 /*
@@ -467,207 +528,209 @@ body.vf-dragging .vf-card {
  * readable against a card that may be passing close by it mid-drag.
  */
 .vf-drop-indicator {
-	height: 3px;
-	margin: 3px 0;
-	border-radius: 3px;
-	background: var(--interactive-accent);
-	box-shadow: 0 0 0 1px var(--background-primary), 0 0 8px var(--interactive-accent);
+  height: 3px;
+  margin: 3px 0;
+  border-radius: 3px;
+  background: var(--interactive-accent);
+  box-shadow:
+    0 0 0 1px var(--background-primary),
+    0 0 8px var(--interactive-accent);
 }
 
 /* Suppress page scrolling for the duration of a lifted touch drag. */
 body.vf-dragging {
-	overflow: hidden;
-	touch-action: none;
+  overflow: hidden;
+  touch-action: none;
 }
 
 /* ------------------------------------------------------------------ Bits -- */
 
 .vf-status-dot {
-	width: 9px;
-	height: 9px;
-	flex-shrink: 0;
-	border-radius: 50%;
-	background: var(--vf-muted);
+  width: 9px;
+  height: 9px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--vf-muted);
 }
 
 .vf-chip {
-	padding: 1px 6px;
-	border: 1px solid var(--vf-border);
-	border-radius: 10px;
-	color: var(--vf-muted);
-	font-size: var(--font-ui-smaller);
-	white-space: nowrap;
+  padding: 1px 6px;
+  border: 1px solid var(--vf-border);
+  border-radius: 10px;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  white-space: nowrap;
 }
 
 .vf-labels {
-	display: inline-flex;
-	gap: 4px;
+  display: inline-flex;
+  gap: 4px;
 }
 
 .vf-avatar {
-	display: inline-flex;
-	width: 20px;
-	height: 20px;
-	flex-shrink: 0;
-	align-items: center;
-	justify-content: center;
-	border-radius: 50%;
-	background: var(--background-modifier-border);
-	font-size: 10px;
-	font-weight: 600;
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--background-modifier-border);
+  font-size: 10px;
+  font-weight: 600;
 }
 
 /* Bar + "X/Y done" count, always shown together (§7.1, §7.2). */
 .vf-progress-wrap {
-	display: inline-flex;
-	flex-shrink: 0;
-	align-items: center;
-	gap: 6px;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
 }
 
 .vf-progress {
-	display: inline-block;
-	width: 48px;
-	flex-shrink: 0;
-	height: 4px;
-	overflow: hidden;
-	border-radius: 2px;
-	background: var(--background-modifier-border);
+  display: inline-block;
+  width: 48px;
+  flex-shrink: 0;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--background-modifier-border);
 }
 
 .vf-progress-fill {
-	display: block;
-	height: 100%;
-	background: var(--interactive-accent);
+  display: block;
+  height: 100%;
+  background: var(--interactive-accent);
 }
 
 .vf-progress-count {
-	color: var(--vf-muted);
-	font-size: var(--font-ui-smaller);
-	font-variant-numeric: tabular-nums;
-	white-space: nowrap;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .vf-due {
-	color: var(--vf-muted);
-	font-size: var(--font-ui-smaller);
-	white-space: nowrap;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  white-space: nowrap;
 }
 
 .vf-due.is-today {
-	color: var(--text-warning, orange);
+  color: var(--text-warning, orange);
 }
 
 .vf-due.is-overdue {
-	color: var(--text-error, red);
+  color: var(--text-error, red);
 }
 
 .vf-blocked {
-	padding: 1px 5px;
-	border-radius: 3px;
-	background: var(--background-modifier-error);
-	color: var(--text-error);
-	font-size: var(--font-ui-smaller);
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--background-modifier-error);
+  color: var(--text-error);
+  font-size: var(--font-ui-smaller);
 }
 
 /* ------------------------------------------------------------ Empty state -- */
 
 .vf-empty {
-	display: flex;
-	height: 100%;
-	align-items: center;
-	justify-content: center;
-	padding: 24px;
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
 }
 
 .vf-empty-card {
-	width: 100%;
-	max-width: 440px;
+  width: 100%;
+  max-width: 440px;
 }
 
 .vf-empty-card h1 {
-	margin: 0 0 8px;
-	font-size: var(--font-ui-large);
+  margin: 0 0 8px;
+  font-size: var(--font-ui-large);
 }
 
 .vf-empty-lead {
-	margin: 0 0 20px;
-	color: var(--vf-muted);
-	line-height: 1.5;
+  margin: 0 0 20px;
+  color: var(--vf-muted);
+  line-height: 1.5;
 }
 
 .vf-empty-actions {
-	display: flex;
-	gap: 8px;
-	margin: 16px 0;
+  display: flex;
+  gap: 8px;
+  margin: 16px 0;
 }
 
 .vf-empty-note {
-	color: var(--vf-muted);
-	font-size: var(--font-ui-smaller);
-	line-height: 1.5;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.5;
 }
 
 .vf-empty-view {
-	display: flex;
-	flex: 1;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	gap: 4px;
-	color: var(--vf-muted);
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: var(--vf-muted);
 }
 
 .vf-field {
-	display: block;
-	margin-bottom: 12px;
+  display: block;
+  margin-bottom: 12px;
 }
 
 .vf-field span {
-	display: block;
-	margin-bottom: 4px;
-	font-weight: 600;
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 600;
 }
 
 .vf-field input {
-	width: 100%;
+  width: 100%;
 }
 
 .vf-folder-field {
-	display: flex;
-	gap: 6px;
+  display: flex;
+  gap: 6px;
 }
 
 .vf-folder-field input {
-	flex: 1;
-	width: auto;
-	min-width: 0;
+  flex: 1;
+  width: auto;
+  min-width: 0;
 }
 
 .vf-field small {
-	display: block;
-	margin-top: 4px;
-	color: var(--vf-muted);
+  display: block;
+  margin-top: 4px;
+  color: var(--vf-muted);
 }
 
 .vf-error {
-	color: var(--text-error);
+  color: var(--text-error);
 }
 
 /* ---------------------------------------------------------------- Mobile -- */
 
 .is-mobile .vf-sidebar {
-	display: none;
+  display: none;
 }
 
 .is-mobile .vf-column {
-	width: 82vw;
-	flex-basis: 82vw;
+  width: 82vw;
+  flex-basis: 82vw;
 }
 
 .is-mobile .vf-row {
-	height: auto;
-	padding: 10px 12px;
+  height: auto;
+  padding: 10px 12px;
 }
 
 /* =========================================================================
@@ -675,78 +738,78 @@ body.vf-dragging {
    ========================================================================= */
 
 .vf-workspace {
-	position: relative;
-	margin-bottom: 12px;
+  position: relative;
+  margin-bottom: 12px;
 }
 
 .vf-workspace-button {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	width: 100%;
-	padding: 6px 8px;
-	border-radius: var(--vf-radius);
-	background: transparent;
-	box-shadow: none;
-	font-weight: 600;
-	text-align: left;
-	cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: var(--vf-radius);
+  background: transparent;
+  box-shadow: none;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
 }
 
 .vf-workspace-button:hover {
-	background: var(--background-modifier-hover);
+  background: var(--background-modifier-hover);
 }
 
 .vf-caret {
-	margin-left: auto;
-	color: var(--vf-muted);
-	font-size: 11px;
+  margin-left: auto;
+  color: var(--vf-muted);
+  font-size: 11px;
 }
 
 .vf-menu {
-	position: absolute;
-	top: calc(100% + 4px);
-	left: 0;
-	right: 0;
-	z-index: 30;
-	padding: 4px;
-	border: 1px solid var(--vf-border);
-	border-radius: var(--vf-radius);
-	background: var(--background-primary);
-	box-shadow: 0 8px 20px rgba(0, 0, 0, 0.24);
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  padding: 4px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-primary);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.24);
 }
 
 .vf-menu-item {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	width: 100%;
-	padding: 6px 8px;
-	border-radius: 4px;
-	background: transparent;
-	box-shadow: none;
-	text-align: left;
-	cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+  cursor: pointer;
 }
 
 .vf-menu-item:hover {
-	background: var(--background-modifier-hover);
+  background: var(--background-modifier-hover);
 }
 
 .vf-menu-item.is-active {
-	color: var(--text-accent);
+  color: var(--text-accent);
 }
 
 .vf-menu-hint {
-	margin-left: auto;
-	color: var(--vf-muted);
-	font-size: 11px;
+  margin-left: auto;
+  color: var(--vf-muted);
+  font-size: 11px;
 }
 
 .vf-menu-separator {
-	height: 1px;
-	margin: 4px 0;
-	background: var(--vf-border);
+  height: 1px;
+  margin: 4px 0;
+  background: var(--vf-border);
 }
 
 /* =========================================================================
@@ -754,29 +817,29 @@ body.vf-dragging {
    ========================================================================= */
 
 .vf-list-section.is-drop-target {
-	background: var(--background-modifier-hover);
-	border-radius: var(--vf-radius);
+  background: var(--background-modifier-hover);
+  border-radius: var(--vf-radius);
 }
 
 .vf-list-empty {
-	padding: 10px 12px;
-	color: var(--vf-muted);
-	font-style: italic;
+  padding: 10px 12px;
+  color: var(--vf-muted);
+  font-style: italic;
 }
 
 /* A row lifted out of the list, following the pointer. */
 .vf-row-preview {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	padding: 0 10px;
-	height: var(--vf-row-height);
-	border: 1px solid var(--vf-border);
-	border-radius: var(--vf-radius);
-	background: var(--background-primary);
-	box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
-	transform: rotate(1deg);
-	opacity: 0.95;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  height: var(--vf-row-height);
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-primary);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  transform: rotate(1deg);
+  opacity: 0.95;
 }
 
 /* =========================================================================
@@ -785,207 +848,207 @@ body.vf-dragging {
    ========================================================================= */
 
 .vf-editor-backdrop {
-	position: fixed;
-	inset: 0;
-	z-index: 40;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	padding: 24px;
-	background: rgba(0, 0, 0, 0.42);
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.42);
 }
 
 .vf-dialog {
-	--vf-gap: 8px;
-	--vf-radius: 6px;
-	--vf-muted: var(--text-muted);
-	--vf-border: var(--background-modifier-border);
+  --vf-gap: 8px;
+  --vf-radius: 6px;
+  --vf-muted: var(--text-muted);
+  --vf-border: var(--background-modifier-border);
 
-	display: flex;
-	flex-direction: column;
-	width: min(460px, 100%);
-	padding: 20px;
-	gap: 14px;
-	border: 1px solid var(--vf-border);
-	border-radius: 10px;
-	background: var(--background-primary);
-	box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
-	font-size: var(--font-ui-small);
+  display: flex;
+  flex-direction: column;
+  width: min(460px, 100%);
+  padding: 20px;
+  gap: 14px;
+  border: 1px solid var(--vf-border);
+  border-radius: 10px;
+  background: var(--background-primary);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+  font-size: var(--font-ui-small);
 }
 
 .vf-dialog h3 {
-	margin: 0;
+  margin: 0;
 }
 
 .vf-dialog-lead {
-	margin: 0;
-	color: var(--vf-muted);
-	line-height: 1.5;
+  margin: 0;
+  color: var(--vf-muted);
+  line-height: 1.5;
 }
 
 .vf-dialog-actions {
-	display: flex;
-	justify-content: flex-end;
-	gap: 8px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 /* --- Tabs (internal sub-tabs: several open tasks, one Vertex Flow tab) --- */
 
 .vf-tabs {
-	display: flex;
-	flex-shrink: 0;
-	align-items: stretch;
-	gap: 2px;
-	padding: 6px 8px 0;
-	overflow-x: auto;
-	background: var(--background-secondary);
-	border-bottom: 1px solid var(--vf-border);
+  display: flex;
+  flex-shrink: 0;
+  align-items: stretch;
+  gap: 2px;
+  padding: 6px 8px 0;
+  overflow-x: auto;
+  background: var(--background-secondary);
+  border-bottom: 1px solid var(--vf-border);
 }
 
 /* The Board/List tab — never closable, so it never carries a close button;
    a slightly heavier weight marks it as the "home" tab among any others. */
 .vf-tab.is-pinned .vf-tab-title {
-	font-weight: 600;
+  font-weight: 600;
 }
 
 .vf-tab {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	max-width: 200px;
-	padding: 6px 8px;
-	border-radius: 6px 6px 0 0;
-	background: transparent;
-	color: var(--vf-muted);
-	white-space: nowrap;
-	cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 200px;
+  padding: 6px 8px;
+  border-radius: 6px 6px 0 0;
+  background: transparent;
+  color: var(--vf-muted);
+  white-space: nowrap;
+  cursor: pointer;
 }
 
 .vf-tab:hover {
-	background: var(--background-modifier-hover);
+  background: var(--background-modifier-hover);
 }
 
 .vf-tab.is-active {
-	background: var(--background-primary);
-	color: var(--text-normal);
+  background: var(--background-primary);
+  color: var(--text-normal);
 }
 
 .vf-tab-title {
-	overflow: hidden;
-	text-overflow: ellipsis;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .vf-tab-close {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	width: 18px;
-	height: 18px;
-	margin-left: 6px;
-	padding: 0;
-	border: none;
-	border-radius: 4px;
-	background: transparent;
-	box-shadow: none;
-	color: inherit;
-	opacity: 0.6;
-	cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
 }
 
 .vf-tab-close:hover {
-	opacity: 1;
-	background: transparent;
+  opacity: 1;
+  background: transparent;
 }
 
 .vf-editor-header {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	padding: 10px 14px;
-	border-bottom: 1px solid var(--vf-border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--vf-border);
 }
 
 .vf-editor-spacer {
-	flex: 1;
+  flex: 1;
 }
 
 .vf-icon-button {
-	padding: 2px 7px;
-	border: none;
-	border-radius: 4px;
-	background: transparent;
-	box-shadow: none;
-	color: var(--vf-muted);
-	cursor: pointer;
+  padding: 2px 7px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--vf-muted);
+  cursor: pointer;
 }
 
 .vf-icon-button:hover {
-	background: var(--background-modifier-hover);
-	color: var(--text-normal);
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
 }
 
 .vf-editor-body {
-	display: flex;
-	flex: 1;
-	min-height: 0;
+  display: flex;
+  flex: 1;
+  min-height: 0;
 }
 
 .vf-editor-main {
-	flex: 1;
-	min-width: 0;
-	padding: 18px 20px;
-	overflow-y: auto;
+  flex: 1;
+  min-width: 0;
+  padding: 18px 20px;
+  overflow-y: auto;
 }
 
 .vf-editor-rail {
-	/* Width comes from an inline style — draggable via the resize handle,
+  /* Width comes from an inline style — draggable via the resize handle,
 	   persisted in plugin settings. This is just the un-resized fallback. */
-	width: 264px;
-	flex-shrink: 0;
-	padding: 14px;
-	overflow-y: auto;
-	background: var(--background-secondary);
+  width: 264px;
+  flex-shrink: 0;
+  padding: 14px;
+  overflow-y: auto;
+  background: var(--background-secondary);
 }
 
 .vf-editor-resize-handle {
-	flex-shrink: 0;
-	width: 5px;
-	margin: 0 -2px;
-	border-left: 1px solid var(--vf-border);
-	cursor: col-resize;
-	touch-action: none;
-	z-index: 1;
+  flex-shrink: 0;
+  width: 5px;
+  margin: 0 -2px;
+  border-left: 1px solid var(--vf-border);
+  cursor: col-resize;
+  touch-action: none;
+  z-index: 1;
 }
 
 .vf-editor-resize-handle:hover,
 .vf-editor-resize-handle:active {
-	border-left: 2px solid var(--interactive-accent);
+  border-left: 2px solid var(--interactive-accent);
 }
 
 .vf-editor-title {
-	width: 100%;
-	padding: 0;
-	border: none;
-	background: transparent;
-	box-shadow: none;
-	resize: none;
-	overflow: hidden;
-	font-size: 1.45em;
-	font-weight: 600;
-	line-height: 1.3;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  resize: none;
+  overflow: hidden;
+  font-size: 1.45em;
+  font-weight: 600;
+  line-height: 1.3;
 }
 
 .vf-editor-title:focus {
-	box-shadow: none;
+  box-shadow: none;
 }
 
 .vf-editor-description {
-	margin-top: 10px;
+  margin-top: 10px;
 }
 
 .vf-editor-loading {
-	margin-top: 12px;
-	color: var(--vf-muted);
+  margin-top: 12px;
+  color: var(--vf-muted);
 }
 
 /*
@@ -995,9 +1058,9 @@ body.vf-dragging {
  */
 
 .vf-markdown-field {
-	display: flex;
-	flex-direction: column;
-	gap: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 /*
@@ -1005,249 +1068,249 @@ body.vf-dragging {
  * place as you type, so there's no separate preview pane to style here.
  */
 .vf-markdown-native {
-	position: relative;
-	min-height: 100px;
-	padding: 6px 8px;
-	border: 1px solid var(--vf-border);
-	border-radius: var(--vf-radius);
-	background: var(--background-primary);
+  position: relative;
+  min-height: 100px;
+  padding: 6px 8px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-primary);
 }
 
 .vf-markdown-native:focus-within {
-	border-color: var(--interactive-accent);
+  border-color: var(--interactive-accent);
 }
 
 /* Obsidian's editor ships its own page-level padding and min-height, sized
    for a full note view; neither belongs in a field this size. */
 .vf-markdown-native .cm-editor {
-	background: transparent;
+  background: transparent;
 }
 
 .vf-markdown-native .cm-scroller {
-	padding: 0;
+  padding: 0;
 }
 
 .vf-markdown-native .cm-content {
-	padding: 0;
+  padding: 0;
 }
 
 .vf-markdown-native .cm-line {
-	padding-left: 0;
-	padding-right: 0;
+  padding-left: 0;
+  padding-right: 0;
 }
 
 /* CodeMirror renders its own content, so there's no `:empty` to hang a
    placeholder off — it's a real element, positioned over the first line and
    click-through so it never blocks focusing the editor underneath. */
 .vf-markdown-placeholder {
-	position: absolute;
-	top: 6px;
-	left: 8px;
-	right: 8px;
-	color: var(--vf-muted);
-	font-style: italic;
-	pointer-events: none;
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  right: 8px;
+  color: var(--vf-muted);
+  font-style: italic;
+  pointer-events: none;
 }
 
 .vf-markdown-edit {
-	width: 100%;
-	min-height: 100px;
-	padding: 8px;
-	border: 1px solid var(--vf-border);
-	border-radius: var(--vf-radius);
-	resize: vertical;
-	background: var(--background-primary);
-	line-height: 1.6;
-	font-family: var(--font-text);
+  width: 100%;
+  min-height: 100px;
+  padding: 8px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  resize: vertical;
+  background: var(--background-primary);
+  line-height: 1.6;
+  font-family: var(--font-text);
 }
 
 .vf-markdown-edit:focus {
-	border-color: var(--interactive-accent);
+  border-color: var(--interactive-accent);
 }
 
 .vf-markdown-preview {
-	padding: 8px 10px;
-	border-left: 2px solid var(--vf-border);
-	color: var(--text-muted);
-	line-height: 1.6;
+  padding: 8px 10px;
+  border-left: 2px solid var(--vf-border);
+  color: var(--text-muted);
+  line-height: 1.6;
 }
 
 .vf-markdown-preview :is(.markdown-rendered) > :first-child {
-	margin-top: 0;
+  margin-top: 0;
 }
 
 .vf-markdown-preview :is(.markdown-rendered) > :last-child {
-	margin-bottom: 0;
+  margin-bottom: 0;
 }
 
 /* --- `[[wikilink]]` autocomplete ----------------------------------------- */
 
 .vf-autocomplete {
-	position: fixed;
-	z-index: var(--layer-menu, 70);
-	min-width: 220px;
-	max-width: 360px;
-	max-height: 260px;
-	overflow-y: auto;
-	padding: 4px;
-	border: 1px solid var(--vf-border);
-	border-radius: var(--vf-radius);
-	background: var(--background-primary);
-	box-shadow: 0 8px 20px rgba(0, 0, 0, 0.24);
+  position: fixed;
+  z-index: var(--layer-menu, 70);
+  min-width: 220px;
+  max-width: 360px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-primary);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.24);
 }
 
 .vf-autocomplete-item {
-	display: flex;
-	align-items: baseline;
-	gap: 8px;
-	padding: 5px 8px;
-	border-radius: 4px;
-	cursor: pointer;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  cursor: pointer;
 }
 
 .vf-autocomplete-item.is-active {
-	background: var(--background-modifier-hover);
+  background: var(--background-modifier-hover);
 }
 
 .vf-autocomplete-label {
-	overflow: hidden;
-	white-space: nowrap;
-	text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .vf-autocomplete-sublabel {
-	overflow: hidden;
-	flex-shrink: 1;
-	color: var(--vf-muted);
-	font-size: var(--font-ui-smaller);
-	white-space: nowrap;
-	text-overflow: ellipsis;
-	direction: rtl;
-	text-align: left;
+  overflow: hidden;
+  flex-shrink: 1;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  direction: rtl;
+  text-align: left;
 }
 
 /* Comments render read-only — no click-to-edit toggle, so no text cursor. */
 .vf-comment-body {
-	line-height: 1.5;
+  line-height: 1.5;
 }
 
 .vf-comment-body :is(.markdown-rendered) > :first-child {
-	margin-top: 0;
+  margin-top: 0;
 }
 
 .vf-comment-body :is(.markdown-rendered) > :last-child {
-	margin-bottom: 0;
+  margin-bottom: 0;
 }
 
 .vf-editor-section {
-	margin-top: 22px;
+  margin-top: 22px;
 }
 
 .vf-editor-section h4 {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	margin: 0 0 8px;
-	color: var(--vf-muted);
-	font-size: 11px;
-	font-weight: 600;
-	letter-spacing: 0.04em;
-	text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  color: var(--vf-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 /* --- Properties --------------------------------------------------------- */
 
 .vf-prop {
-	display: flex;
-	align-items: flex-start;
-	gap: 8px;
-	padding: 5px 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 5px 0;
 }
 
 .vf-prop-label {
-	width: 82px;
-	flex-shrink: 0;
-	padding-top: 5px;
-	color: var(--vf-muted);
-	font-size: 11px;
+  width: 82px;
+  flex-shrink: 0;
+  padding-top: 5px;
+  color: var(--vf-muted);
+  font-size: 11px;
 }
 
 .vf-prop-control {
-	flex: 1;
-	min-width: 0;
+  flex: 1;
+  min-width: 0;
 }
 
 .vf-prop-empty {
-	color: var(--vf-muted);
-	font-style: italic;
+  color: var(--vf-muted);
+  font-style: italic;
 }
 
 .vf-select,
 .vf-input {
-	width: 100%;
-	max-width: 100%;
-	padding: 4px 6px;
-	border-radius: 4px;
-	font-size: var(--font-ui-smaller);
+  width: 100%;
+  max-width: 100%;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: var(--font-ui-smaller);
 }
 
 .vf-label-picker {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 .vf-chip-button {
-	background: transparent;
-	box-shadow: none;
-	cursor: pointer;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
 }
 
 .vf-chip-button.is-on {
-	background: var(--background-modifier-hover);
-	color: var(--text-normal);
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
 }
 
 .vf-relation-groups {
-	display: flex;
-	flex-direction: column;
-	gap: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .vf-relation-group {
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .vf-relation-group-header {
-	display: flex;
-	align-items: center;
-	gap: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .vf-relation-group-label {
-	color: var(--vf-muted);
-	font-size: var(--font-ui-smaller);
-	font-weight: 600;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
 }
 
 .vf-relation-group .vf-select {
-	width: auto;
-	min-width: 160px;
-	max-width: 280px;
+  width: auto;
+  min-width: 160px;
+  max-width: 280px;
 }
 
 /* A dangling relation — no task to link to, so nothing to click. */
 .vf-row-missing {
-	display: flex;
-	flex: 1;
-	align-items: center;
-	gap: 10px;
-	min-width: 0;
-	padding: 0 14px;
-	color: var(--vf-muted);
-	cursor: default;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 0 14px;
+  color: var(--vf-muted);
+  cursor: default;
 }
 
 /* --- Comments ----------------------------------------------------------- */
@@ -1259,64 +1322,62 @@ body.vf-dragging {
  * draft field too.
  */
 .vf-comments {
-	display: flex;
-	flex-direction: column;
-	gap: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .vf-comments > button {
-	align-self: flex-start;
+  align-self: flex-start;
 }
 
 .vf-comment {
-	width: 100%;
-	padding: 8px 10px;
-	border: 1px solid var(--vf-border);
-	border-radius: var(--vf-radius);
-	background: var(--background-secondary);
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-secondary);
 }
 
 .vf-comment header {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
 }
 
 .vf-comment-date {
-	color: var(--vf-muted);
-	font-size: 11px;
+  color: var(--vf-muted);
+  font-size: 11px;
 }
 
 .vf-comment header .vf-icon-button {
-	margin-left: auto;
+  margin-left: auto;
 }
 
-
 .vf-reactions {
-	display: flex;
-	gap: 4px;
-	margin-top: 6px;
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
 }
 
 .vf-reaction {
-	padding: 1px 6px;
-	border: 1px solid var(--vf-border);
-	border-radius: 10px;
-	font-size: 11px;
+  padding: 1px 6px;
+  border: 1px solid var(--vf-border);
+  border-radius: 10px;
+  font-size: 11px;
 }
-
 
 /* --- Mobile ------------------------------------------------------------- */
 
 .is-mobile .vf-editor-body {
-	flex-direction: column;
+  flex-direction: column;
 }
 
 .is-mobile .vf-editor-rail {
-	width: 100%;
-	border-left: none;
-	border-top: 1px solid var(--vf-border);
+  width: 100%;
+  border-left: none;
+  border-top: 1px solid var(--vf-border);
 }
 
 /* =========================================================================
@@ -1324,84 +1385,84 @@ body.vf-dragging {
    ========================================================================= */
 
 .vf-browse {
-	display: flex;
-	flex: 1;
-	flex-direction: column;
-	min-height: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .vf-browse-list {
-	display: flex;
-	flex: 1;
-	flex-direction: column;
-	gap: var(--vf-gap);
-	padding: 14px;
-	overflow-y: auto;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--vf-gap);
+  padding: 14px;
+  overflow-y: auto;
 }
 
 /* Same top-left position and padding as the populated list — an empty
    workspace shouldn't look like a different kind of page. */
 .vf-browse-empty {
-	padding: 14px;
-	color: var(--vf-muted);
+  padding: 14px;
+  color: var(--vf-muted);
 }
 
 .vf-browse-empty p:first-child {
-	margin-top: 0;
-	color: var(--text-normal);
+  margin-top: 0;
+  color: var(--text-normal);
 }
 
 .vf-browse-card {
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-	padding: 12px 14px;
-	border: 1px solid var(--vf-border);
-	border-radius: var(--vf-radius);
-	background: var(--background-primary);
-	text-align: left;
-	cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-primary);
+  text-align: left;
+  cursor: pointer;
 }
 
 .vf-browse-card:hover {
-	border-color: var(--background-modifier-border-hover);
-	background: var(--background-modifier-hover);
+  border-color: var(--background-modifier-border-hover);
+  background: var(--background-modifier-hover);
 }
 
 .vf-browse-card-top {
-	display: flex;
-	align-items: center;
-	gap: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .vf-browse-title {
-	font-weight: 600;
+  font-weight: 600;
 }
 
 .vf-browse-meta {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 12px;
-	color: var(--vf-muted);
-	font-size: var(--font-ui-smaller);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
 }
 
 .vf-browse-progress .vf-progress-wrap {
-	width: 100%;
+  width: 100%;
 }
 
 .vf-browse-progress .vf-progress {
-	flex: 1;
-	max-width: 240px;
+  flex: 1;
+  max-width: 240px;
 }
 
 .vf-cycle-status {
-	text-transform: capitalize;
+  text-transform: capitalize;
 }
 
 .vf-cycle-status.is-active {
-	border-color: var(--interactive-accent);
-	color: var(--interactive-accent);
+  border-color: var(--interactive-accent);
+  color: var(--interactive-accent);
 }
 
 /* =========================================================================
@@ -1409,126 +1470,126 @@ body.vf-dragging {
    ========================================================================= */
 
 .vf-settings {
-	display: flex;
-	flex: 1;
-	flex-direction: column;
-	min-height: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .vf-settings-body {
-	display: flex;
-	flex: 1;
-	flex-direction: column;
-	gap: 8px;
-	padding: 8px 20px 40px;
-	overflow-y: auto;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 20px 40px;
+  overflow-y: auto;
 }
 
 .vf-settings-section {
-	padding: 16px 0;
-	border-bottom: 1px solid var(--vf-border);
+  padding: 16px 0;
+  border-bottom: 1px solid var(--vf-border);
 }
 
 .vf-settings-section:last-child {
-	border-bottom: none;
+  border-bottom: none;
 }
 
 .vf-settings-section h3 {
-	margin: 0 0 4px;
-	font-size: var(--font-ui-medium);
+  margin: 0 0 4px;
+  font-size: var(--font-ui-medium);
 }
 
 .vf-settings-description {
-	margin: 0 0 12px;
-	color: var(--vf-muted);
-	font-size: var(--font-ui-smaller);
-	line-height: 1.5;
-	max-width: 640px;
+  margin: 0 0 12px;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.5;
+  max-width: 640px;
 }
 
 /* --- Taxonomy editor rows ------------------------------------------------ */
 
 .vf-taxonomy-table {
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-	max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 640px;
 }
 
 .vf-taxonomy-row {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	padding: 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
 }
 
 .vf-color-swatch {
-	width: 22px;
-	height: 22px;
-	flex-shrink: 0;
-	padding: 0;
-	border: 1px solid var(--vf-border);
-	border-radius: 5px;
-	background: none;
-	cursor: pointer;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid var(--vf-border);
+  border-radius: 5px;
+  background: none;
+  cursor: pointer;
 }
 
 .vf-taxonomy-name {
-	flex: 1;
-	min-width: 0;
+  flex: 1;
+  min-width: 0;
 }
 
 .vf-taxonomy-category {
-	width: 140px;
-	flex-shrink: 0;
+  width: 140px;
+  flex-shrink: 0;
 }
 
 .vf-reorder {
-	display: flex;
-	gap: 2px;
-	flex-shrink: 0;
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
 }
 
 .vf-taxonomy-delete {
-	flex-shrink: 0;
+  flex-shrink: 0;
 }
 
 .vf-taxonomy-add {
-	margin-top: 6px;
-	padding-top: 10px;
-	border-top: 1px dashed var(--vf-border);
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--vf-border);
 }
 
 /* --- People table --------------------------------------------------------- */
 
 .vf-people-table {
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-	max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 640px;
 }
 
 .vf-people-row {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	padding: 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
 }
 
 .vf-people-row input[type="text"]:first-of-type {
-	flex: 1;
+  flex: 1;
 }
 
 .vf-people-row input[type="text"]:last-of-type {
-	flex: 1;
+  flex: 1;
 }
 
 .vf-people-add {
-	margin-top: 6px;
-	padding-top: 10px;
-	border-top: 1px dashed var(--vf-border);
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--vf-border);
 }
 
 .vf-people-add input {
-	flex: 1;
+  flex: 1;
 }
