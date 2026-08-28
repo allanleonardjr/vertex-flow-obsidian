@@ -18,6 +18,7 @@ import {
 	useMemo,
 	useRef,
 	useState,
+	type PointerEvent as ReactPointerEvent,
 	type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
@@ -68,10 +69,12 @@ export function TaskSelectMenu({
 	});
 	const anchorRef = useRef<HTMLSpanElement>(null);
 	const resize = useRef<{
+		edge: "left" | "right";
 		startX: number;
 		startY: number;
 		startW: number;
 		startH: number;
+		startLeft: number;
 	} | null>(null);
 
 	const close = useCallback(() => {
@@ -82,6 +85,64 @@ export function TaskSelectMenu({
 	const choose = (next: string | null) => {
 		onSelect(next);
 		close();
+	};
+
+	const beginResize =
+		(edge: "left" | "right") => (event: ReactPointerEvent) => {
+			if (!pos) return;
+			event.preventDefault();
+			resize.current = {
+				edge,
+				startX: event.clientX,
+				startY: event.clientY,
+				startW: size.w,
+				startH: size.h,
+				startLeft: pos.left,
+			};
+			(event.target as HTMLElement).setPointerCapture(event.pointerId);
+		};
+
+	const moveResize = (event: ReactPointerEvent) => {
+		const s = resize.current;
+		if (!s || !pos) return;
+		const dx = event.clientX - s.startX;
+		const h = Math.min(
+			window.innerHeight - pos.top - MARGIN,
+			Math.max(MIN_H, s.startH + (event.clientY - s.startY)),
+		);
+
+		if (s.edge === "right") {
+			// Left edge fixed; grow right, then spill leftward once the viewport
+			// edge is hit — so a picker pinned to the rail can still expand.
+			const w = Math.max(
+				MIN_W,
+				Math.min(window.innerWidth - 2 * MARGIN, s.startW + dx),
+			);
+			const left = Math.max(
+				MARGIN,
+				Math.min(s.startLeft, window.innerWidth - w - MARGIN),
+			);
+			setSize({ w, h });
+			setPos((p) => (p ? { ...p, left } : p));
+		} else {
+			// Right edge fixed; left edge follows the cursor.
+			const right = s.startLeft + s.startW;
+			const left = Math.min(
+				right - MIN_W,
+				Math.max(MARGIN, s.startLeft + dx),
+			);
+			setSize({ w: right - left, h });
+			setPos((p) => (p ? { ...p, left } : p));
+		}
+	};
+
+	const endResize = (event: ReactPointerEvent) => {
+		if (!resize.current) return;
+		resize.current = null;
+		(event.target as HTMLElement).releasePointerCapture(event.pointerId);
+		plugin.settings.taskPickerWidth = size.w;
+		plugin.settings.taskPickerHeight = size.h;
+		void plugin.saveSettings();
 	};
 
 	const place = useCallback(() => {
@@ -219,45 +280,22 @@ export function TaskSelectMenu({
 						</div>
 
 						<div
-							className="vf-task-menu-grip"
+							className="vf-task-menu-grip is-left"
 							role="separator"
 							aria-label="Resize"
 							title="Drag to resize"
-							onPointerDown={(event) => {
-								event.preventDefault();
-								resize.current = {
-									startX: event.clientX,
-									startY: event.clientY,
-									startW: size.w,
-									startH: size.h,
-								};
-								(event.target as HTMLElement).setPointerCapture(
-									event.pointerId,
-								);
-							}}
-							onPointerMove={(event) => {
-								const start = resize.current;
-								if (!start) return;
-								const w = Math.min(
-									window.innerWidth - (pos?.left ?? 0) - MARGIN,
-									Math.max(MIN_W, start.startW + (event.clientX - start.startX)),
-								);
-								const h = Math.min(
-									window.innerHeight - (pos?.top ?? 0) - MARGIN,
-									Math.max(MIN_H, start.startH + (event.clientY - start.startY)),
-								);
-								setSize({ w, h });
-							}}
-							onPointerUp={(event) => {
-								if (!resize.current) return;
-								resize.current = null;
-								(event.target as HTMLElement).releasePointerCapture(
-									event.pointerId,
-								);
-								plugin.settings.taskPickerWidth = size.w;
-								plugin.settings.taskPickerHeight = size.h;
-								void plugin.saveSettings();
-							}}
+							onPointerDown={beginResize("left")}
+							onPointerMove={moveResize}
+							onPointerUp={endResize}
+						/>
+						<div
+							className="vf-task-menu-grip is-right"
+							role="separator"
+							aria-label="Resize"
+							title="Drag to resize"
+							onPointerDown={beginResize("right")}
+							onPointerMove={moveResize}
+							onPointerUp={endResize}
 						/>
 					</div>,
 					document.body,

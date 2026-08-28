@@ -2514,29 +2514,51 @@ body.vf-dragging {
   overflow-y: auto;
 }
 
-/* Drag corner over the menu's bottom-right — a hatched grip, always visible,
-   picking up the accent on hover so it also reads as interactive. */
+/* Hatched drag corners on both bottom edges, always visible, picking up the
+   accent on hover. Two grips so a picker pinned to the rail's right edge can
+   be widened toward the open editor on its left. */
 .vf-task-menu-grip {
   position: absolute;
-  right: 0;
   bottom: 0;
   width: 22px;
   height: 22px;
-  cursor: nwse-resize;
   touch-action: none;
-  /* Lower-right triangle only, so it reads as a corner grip. */
+  transition: background 100ms ease;
+}
+
+.vf-task-menu-grip.is-right {
+  right: 0;
+  cursor: nwse-resize;
   clip-path: polygon(100% 0, 100% 100%, 0 100%);
   background: repeating-linear-gradient(
     -45deg,
     transparent 0 3px,
     var(--text-muted) 3px 4.5px
   );
-  transition: background 100ms ease;
 }
 
-.vf-task-menu-grip:hover {
+.vf-task-menu-grip.is-left {
+  left: 0;
+  cursor: nesw-resize;
+  clip-path: polygon(0 0, 100% 100%, 0 100%);
+  background: repeating-linear-gradient(
+    45deg,
+    transparent 0 3px,
+    var(--text-muted) 3px 4.5px
+  );
+}
+
+.vf-task-menu-grip.is-right:hover {
   background: repeating-linear-gradient(
     -45deg,
+    transparent 0 3px,
+    var(--text-accent) 3px 4.5px
+  );
+}
+
+.vf-task-menu-grip.is-left:hover {
+  background: repeating-linear-gradient(
+    45deg,
     transparent 0 3px,
     var(--text-accent) 3px 4.5px
   );
