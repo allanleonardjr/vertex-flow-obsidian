@@ -392,6 +392,18 @@ describe("parseWorkspace", () => {
 		const second = parseWorkspace(serializeWorkspace(first), { path }).value;
 		expect(second).toEqual(first);
 	});
+
+	it("round-trips an icon, and leaves it undefined when absent", () => {
+		const withIcon = parseWorkspace(
+			{ name: "W", idPrefix: "WWW", icon: "layers" },
+			{ path },
+		).value;
+		expect(withIcon.icon).toBe("layers");
+		expect(parseWorkspace(serializeWorkspace(withIcon), { path }).value).toEqual(
+			withIcon,
+		);
+		expect(parseWorkspace({ name: "W" }, { path }).value.icon).toBeUndefined();
+	});
 });
 
 describe("parseViews", () => {
@@ -476,5 +488,17 @@ describe("parseViews", () => {
 			views: [{ id: "v", name: "V", viewType: "board", filters: { status: ["todo"] } }],
 		}).value;
 		expect(parseViews(serializeViews(first)).value).toEqual(first);
+	});
+
+	it("round-trips an icon, and leaves it undefined when absent", () => {
+		const { value } = parseViews({
+			views: [
+				{ id: "a", name: "A", icon: "rocket" },
+				{ id: "b", name: "B" },
+			],
+		});
+		expect(value[0].icon).toBe("rocket");
+		expect(value[1].icon).toBeUndefined();
+		expect(parseViews(serializeViews(value)).value).toEqual(value);
 	});
 });

@@ -37,14 +37,70 @@
 /* --------------------------------------------------------------- Sidebar -- */
 
 .vf-sidebar {
+  position: relative;
   display: flex;
   flex-direction: column;
-  width: 220px;
-  flex: 0 0 220px;
+  flex-grow: 0;
+  flex-shrink: 0;
+  /* width + flex-basis are set inline from settings.sidebarWidth */
+  min-width: 0;
   padding: 12px 8px;
   overflow-y: auto;
   border-right: 1px solid var(--vf-border);
   background: var(--background-secondary);
+}
+
+.vf-sidebar.is-minimized {
+  padding: 12px 0;
+  overflow: hidden;
+}
+
+/* -- Top row: the minimize / expand toggle ------------------------------- */
+
+.vf-sidebar-top {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 4px 6px;
+}
+
+.vf-sidebar.is-minimized .vf-sidebar-top {
+  justify-content: center;
+  padding: 0;
+}
+
+.vf-sidebar-minimize {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: none !important;
+  border-radius: 4px;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--vf-muted);
+  cursor: pointer;
+}
+
+.vf-sidebar-minimize:hover {
+  background: var(--background-modifier-hover) !important;
+  color: var(--text-normal);
+}
+
+/* -- Drag-to-resize strip on the right edge ----------------------------- */
+
+.vf-sidebar-resize {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 5;
+}
+
+.vf-sidebar-resize:hover {
+  background: var(--interactive-accent);
+  opacity: 0.35;
 }
 
 /* Pushes Settings to the bottom of the sidebar, Linear-style. */
@@ -52,72 +108,107 @@
   flex: 1;
 }
 
-.vf-sidebar-section {
-  margin-bottom: 16px;
+/* -- Collapsible section: header toggles, "+" creates ---------------------- */
+
+.vf-section {
+  margin-bottom: 2px;
 }
 
-.vf-sidebar-heading {
+.vf-section-head {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 6px 4px;
+}
+
+.vf-section-toggle {
+  display: flex;
+  align-items: center;
+  /* Obsidian's base `button` centers its content — force left. */
+  justify-content: flex-start !important;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
   color: var(--vf-muted);
   font-size: var(--font-ui-smaller);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-}
-
-.vf-sidebar-heading-action {
-  padding: 0 4px;
-  border: none;
-  background: transparent;
-  box-shadow: none;
-  color: var(--vf-muted);
-  font-size: 14px;
-  line-height: 1;
+  text-align: left !important;
   cursor: pointer;
 }
 
-.vf-sidebar-heading-action:hover {
+.vf-section-toggle:hover {
   color: var(--text-normal);
 }
 
-/* -- Sidebar view rows: a nav row plus a hover-revealed options menu -------- */
+.vf-section-chevron {
+  display: inline-flex;
+  width: 12px;
+  justify-content: center;
+  font-size: 12px;
+  transition: transform 100ms ease;
+}
 
-.vf-view-row {
+.vf-section-chevron.is-open {
+  transform: rotate(90deg);
+}
+
+.vf-section-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.vf-section-count {
+  flex: 0 0 auto;
+  margin-left: 2px;
+  font-weight: 400;
+  opacity: 0.65;
+}
+
+.vf-section-action,
+.vf-section-add-anchor {
   position: relative;
+  display: inline-flex;
+  align-items: center;
 }
 
-.vf-view-row .vf-nav-row {
-  padding-right: 22px;
-}
-
-.vf-view-row-menu {
-  position: absolute;
-  top: 50%;
-  right: 4px;
-  transform: translateY(-50%);
-  padding: 0 4px;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  box-shadow: none;
+.vf-section-add {
+  padding: 0 6px;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
   color: var(--vf-muted);
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1;
-  opacity: 0;
   cursor: pointer;
 }
 
-.vf-view-row:hover .vf-view-row-menu,
-.vf-view-row .vf-view-row-menu:focus-visible {
-  opacity: 1;
+.vf-section-add:hover {
+  color: var(--text-normal);
 }
 
-.vf-view-row-menu:hover {
-  background: var(--background-modifier-hover);
-  color: var(--text-normal);
+.vf-section-body {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 8px;
+}
+
+.vf-section-empty {
+  margin: 2px 0 2px 20px;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  font-style: italic;
+}
+
+/* -- Rows: flat hoverable text, accent when active ------------------------ */
+
+.vf-nav-row-wrap {
+  position: relative;
 }
 
 .vf-nav-row {
@@ -125,11 +216,12 @@
   align-items: center;
   gap: 6px;
   width: 100%;
-  height: 28px;
-  padding: 0 6px;
-  border: none;
+  height: 26px;
+  padding: 0 22px 0 20px;
+  border: none !important;
   border-radius: var(--vf-radius);
-  background: transparent;
+  background: transparent !important;
+  box-shadow: none !important;
   color: var(--text-normal);
   font-size: var(--font-ui-small);
   text-align: left;
@@ -137,15 +229,41 @@
 }
 
 .vf-nav-row:hover {
-  background: var(--background-modifier-hover);
+  background: var(--background-modifier-hover) !important;
 }
 
-.vf-nav-row.is-active {
-  background: var(
-    --background-modifier-active-hover,
-    var(--background-modifier-hover)
-  );
-  font-weight: 600;
+/* An active *view* reads as accent text. */
+.vf-nav-row.is-active,
+.vf-nav-row.is-active .vf-nav-icon {
+  color: var(--text-accent);
+  font-weight: 500;
+}
+
+/* The current *workspace* is the primary selection, so it reverses the accent:
+   filled background, regular-weight text on top. */
+.vf-nav-row.is-current {
+  background: var(--interactive-accent) !important;
+  font-weight: 400;
+}
+
+.vf-nav-row.is-current,
+.vf-nav-row.is-current .vf-nav-icon {
+  color: var(--text-on-accent);
+}
+
+.vf-nav-row.is-current:hover {
+  background: var(--interactive-accent-hover, var(--interactive-accent)) !important;
+}
+
+.vf-nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 14px;
+  color: var(--vf-muted);
+  text-align: center;
+  font-size: 11px;
 }
 
 .vf-nav-label {
@@ -155,10 +273,32 @@
   text-overflow: ellipsis;
 }
 
-.vf-view-icon {
-  width: 14px;
+/* Per-row options menu (⋯) — revealed on row hover. */
+.vf-nav-row-menu {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  padding: 0 4px;
+  border: none !important;
+  border-radius: 4px;
+  background: transparent !important;
+  box-shadow: none !important;
   color: var(--vf-muted);
-  text-align: center;
+  font-size: 13px;
+  line-height: 1;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.vf-nav-row-wrap:hover .vf-nav-row-menu,
+.vf-nav-row-menu:focus-visible {
+  opacity: 1;
+}
+
+.vf-nav-row-menu:hover {
+  background: var(--background-modifier-hover) !important;
+  color: var(--text-normal);
 }
 
 /* --------------------------------------------------------------- Toolbar -- */
@@ -711,6 +851,100 @@ body.vf-dragging {
   flex-shrink: 0;
 }
 
+/* ------------------------------------------------------------- Labels -- */
+
+/* Task editor: current labels stacked, a create-or-attach box below. */
+.vf-label-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vf-label-editor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.vf-label-editor-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: var(--font-ui-smaller);
+}
+
+.vf-label-editor-row:hover {
+  background: var(--background-modifier-hover);
+}
+
+.vf-label-editor-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.vf-label-editor-row .vf-icon-button {
+  opacity: 0;
+  font-size: 10px;
+}
+
+.vf-label-editor-row:hover .vf-icon-button {
+  opacity: 1;
+}
+
+.vf-label-editor-input {
+  position: relative;
+}
+
+.vf-label-editor-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  padding: 4px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-primary);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.24);
+}
+
+.vf-label-editor-create {
+  color: var(--text-accent);
+}
+
+/* Label dialog: colour swatch grid. */
+.vf-swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+}
+
+.vf-swatch {
+  aspect-ratio: 1;
+  border: 2px solid transparent !important;
+  border-radius: 5px;
+  box-shadow: none !important;
+  cursor: pointer;
+}
+
+.vf-swatch.is-on {
+  border-color: var(--text-normal) !important;
+}
+
+/* Delete dialog: reassign-vs-remove choice. */
+.vf-radio {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  cursor: pointer;
+}
+
 /* ------------------------------------------------------------ Empty state -- */
 
 .vf-empty {
@@ -795,6 +1029,113 @@ body.vf-dragging {
   color: var(--text-error);
 }
 
+/* -- Icon field: a trigger button opening a searchable grid --------------- */
+
+.vf-icon-name-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.vf-icon-name-row .vf-field {
+  margin-bottom: 0;
+}
+
+.vf-field-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.vf-icon-field {
+  position: relative;
+  display: inline-flex;
+}
+
+.vf-icon-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  padding: 0 !important;
+  border: 1px solid var(--vf-border) !important;
+  border-radius: var(--vf-radius);
+  background: var(--background-primary) !important;
+  box-shadow: none !important;
+  color: var(--text-normal);
+  cursor: pointer;
+}
+
+.vf-icon-trigger:hover,
+.vf-icon-trigger.is-on {
+  background: var(--background-modifier-hover) !important;
+  color: var(--text-accent);
+}
+
+.vf-icon-popover {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  z-index: 50;
+  width: 300px;
+  max-width: 80vw;
+  padding: 8px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-primary);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.32);
+}
+
+.vf-icon-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vf-icon-search {
+  width: 100%;
+}
+
+.vf-icon-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.vf-icon-empty {
+  grid-column: 1 / -1;
+  margin: 8px 0;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  text-align: center;
+}
+
+.vf-icon-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 4px;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--vf-muted);
+  cursor: pointer;
+}
+
+.vf-icon-option:hover {
+  background: var(--background-modifier-hover) !important;
+  color: var(--text-normal);
+}
+
+.vf-icon-option.is-on {
+  background: var(--background-modifier-hover) !important;
+  color: var(--text-accent);
+}
+
 /* ---------------------------------------------------------------- Mobile -- */
 
 .is-mobile .vf-sidebar {
@@ -812,37 +1153,8 @@ body.vf-dragging {
 }
 
 /* =========================================================================
-   Workspace switcher
+   Menus (sidebar row options, section "+" menu)
    ========================================================================= */
-
-.vf-workspace {
-  position: relative;
-  margin-bottom: 12px;
-}
-
-.vf-workspace-button {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  padding: 6px 8px;
-  border-radius: var(--vf-radius);
-  background: transparent;
-  box-shadow: none;
-  font-weight: 600;
-  text-align: left;
-  cursor: pointer;
-}
-
-.vf-workspace-button:hover {
-  background: var(--background-modifier-hover);
-}
-
-.vf-caret {
-  margin-left: auto;
-  color: var(--vf-muted);
-  font-size: 11px;
-}
 
 .vf-menu {
   position: absolute;
@@ -850,11 +1162,19 @@ body.vf-dragging {
   left: 0;
   right: 0;
   z-index: 30;
+  min-width: 150px;
   padding: 4px;
   border: 1px solid var(--vf-border);
   border-radius: var(--vf-radius);
   background: var(--background-primary);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.24);
+}
+
+/* The section "+" menu anchors to a tiny button, so pin it to the right edge
+   and let it size to its content rather than stretch to the anchor. */
+.vf-section-add-anchor .vf-menu {
+  left: auto;
+  right: 0;
 }
 
 .vf-menu-item {
@@ -1015,6 +1335,22 @@ body.vf-dragging {
 .vf-tab-title {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.vf-tab-icon.vf-label-dot {
+  width: 8px;
+  height: 8px;
+}
+
+.vf-tab-icon {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  color: var(--vf-muted);
+}
+
+.vf-tab.is-active .vf-tab-icon {
+  color: var(--text-normal);
 }
 
 .vf-tab-close {
@@ -1787,6 +2123,17 @@ body.vf-dragging {
 .vf-bar-dir {
   padding: 3px 5px;
   color: var(--text-accent);
+}
+
+/* Unsaved-changes actions. Save reads as accent so it's clearly the next step;
+   Reset stays quiet so discarding is never the eye-catching option. */
+.vf-bar-save {
+  color: var(--text-accent) !important;
+  font-weight: 500;
+}
+
+.vf-bar-reset {
+  color: var(--vf-muted) !important;
 }
 
 /* Filters: flat tags, no outline. The ✕ appears on hover. */

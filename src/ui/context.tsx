@@ -16,7 +16,7 @@ import {
 	type ReactNode,
 } from "react";
 import type VertexFlowPlugin from "../main";
-import { snapshotContext, type ViewContext } from "../core/views";
+import { snapshotContext, type ViewContext, BUILT_IN_VIEW_ID } from "../core/views";
 import { workspaceTaxonomies, type WorkspaceTaxonomies } from "../core/taxonomy";
 import type { SavedView, WorkspaceSnapshot } from "../core/types";
 
@@ -84,12 +84,24 @@ export function useActiveWorkspace(): ActiveWorkspace | null {
 	}, [plugin, workspaces]);
 }
 
-/** The Saved View currently open, falling back to the workspace's first. */
-export function useActiveView(snapshot: WorkspaceSnapshot): SavedView {
-	const plugin = usePlugin();
-	const id = plugin.settings.activeViewByWorkspace[snapshot.workspace.root];
+/**
+ * The built-in "Tasks" view — what the pinned workspace tab always renders.
+ * User Saved Views open in their own tabs (see `tabs-context`), so this no
+ * longer depends on any "active view" setting.
+ */
+export function useBuiltInView(snapshot: WorkspaceSnapshot): SavedView {
 	return (
-		snapshot.views.find((view) => view.id === id) ?? snapshot.views[0]
+		snapshot.views.find((view) => view.id === BUILT_IN_VIEW_ID) ??
+		snapshot.views[0]
+	);
+}
+
+/** Resolve a view id to its definition, falling back to the built-in. */
+export function viewById(snapshot: WorkspaceSnapshot, id: string): SavedView {
+	return (
+		snapshot.views.find((view) => view.id === id) ??
+		snapshot.views.find((view) => view.id === BUILT_IN_VIEW_ID) ??
+		snapshot.views[0]
 	);
 }
 

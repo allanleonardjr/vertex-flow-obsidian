@@ -51,13 +51,6 @@ export function WorkspaceSettingsView({ snapshot }: { snapshot: WorkspaceSnapsho
 					snapshot={snapshot}
 				/>
 
-				<TaxonomySection
-					title="Labels"
-					description="Multi-select and workspace-scoped, chosen over native Obsidian tags for per-workspace colour control (§5.4)."
-					kind="label"
-					taxonomy={taxonomies.label}
-					snapshot={snapshot}
-				/>
 
 				<PeopleSection snapshot={snapshot} />
 				{FEATURES.cycles && <CyclesSection snapshot={snapshot} />}

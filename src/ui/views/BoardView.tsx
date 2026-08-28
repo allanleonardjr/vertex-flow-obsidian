@@ -16,6 +16,7 @@ import type {
   SavedView,
   Task,
   TaskGroup,
+  ViewColumnState,
   WorkspaceSnapshot,
 } from "../../core/types";
 import {
@@ -29,7 +30,6 @@ import {
 import { useTabs, type TabsApi } from "../tabs-context";
 import { useScrollFocusIntoView, useSelection } from "../selection";
 import { useTaskDropHandler } from "./useDropHandler";
-import { useViewWriter } from "./useViewWriter";
 import {
   PREVIEW_OFFSET_PX,
   useTaskDrag,
@@ -42,6 +42,8 @@ export interface BoardViewProps {
   view: SavedView;
   evaluated: EvaluatedView;
   taxonomies: WorkspaceTaxonomies;
+  /** Collapse/hide writes straight through to disk — see `useViewDraft`. */
+  onColumnsChange: (columns: ViewColumnState) => void;
 }
 
 export function BoardView({
@@ -49,6 +51,7 @@ export function BoardView({
   view,
   evaluated,
   taxonomies,
+  onColumnsChange,
 }: BoardViewProps) {
   const drag = useTaskDrag(useTaskDropHandler(view, evaluated));
   const visible = evaluated.groups.filter((group) => !group.hidden);
@@ -66,10 +69,12 @@ export function BoardView({
         <Column
           key={group.key}
           group={group}
-          view={view}
           snapshot={snapshot}
           taxonomies={taxonomies}
           drag={drag}
+          onToggleCollapse={() =>
+            onColumnsChange(toggleColumnCollapsed(view, group.key).columns)
+          }
         />
       ))}
 
@@ -120,22 +125,21 @@ export function DragPreview({
 
 function Column({
   group,
-  view,
   snapshot,
   taxonomies,
   drag,
+  onToggleCollapse,
 }: {
   group: TaskGroup;
-  view: SavedView;
   snapshot: WorkspaceSnapshot;
   taxonomies: WorkspaceTaxonomies;
   drag: TaskDragApi;
+  onToggleCollapse: () => void;
 }) {
   const dropIndex = drag.dropIndexFor(group.key);
   const isDropTarget = dropIndex !== null;
-  const writeView = useViewWriter(snapshot, view);
 
-  const toggle = () => writeView(toggleColumnCollapsed(view, group.key));
+  const toggle = onToggleCollapse;
 
   if (group.collapsed) {
     return (

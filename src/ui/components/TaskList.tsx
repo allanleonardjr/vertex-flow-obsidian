@@ -171,8 +171,20 @@ function TaskListRow({
 	// The row's content becomes its own button, the action sits beside it.
 	if (rowAction) {
 		return (
-			<div className={className} data-task-path={task.path}>
-				<button className="vf-row-open" onClick={() => onOpenTask?.(task.path)}>
+			<div
+				className={className}
+				data-task-path={task.path}
+				onPointerDown={(event) =>
+					interaction?.onRowPointerDown?.(event, task, groupKey)
+				}
+			>
+				<button
+					className="vf-row-open"
+					onClick={(event) => {
+						if (interaction?.onRowClick) interaction.onRowClick(event, task);
+						else onOpenTask?.(task.path);
+					}}
+				>
 					{content}
 				</button>
 				{rowAction(task)}

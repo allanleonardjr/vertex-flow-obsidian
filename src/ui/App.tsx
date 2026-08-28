@@ -5,12 +5,14 @@
 
 import { useEffect, useState } from "react";
 import {
-	useActiveView,
+	useBuiltInView,
+	viewById,
 	useActiveWorkspace,
 	usePlugin,
-	useSettingsWriter,
 	type ActiveWorkspace,
 } from "./context";
+import { workspaceTaxonomies } from "../core/taxonomy";
+import type { SavedView, WorkspaceSnapshot } from "../core/types";
 import { EmptyState } from "./EmptyState";
 import { SelectionProvider, useSelection } from "./selection";
 import { CyclesBrowseView } from "./browse/CyclesBrowseView";
@@ -42,7 +44,6 @@ export function App() {
 
 function Workspace({ active }: { active: ActiveWorkspace }) {
 	const plugin = usePlugin();
-	const writeSettings = useSettingsWriter();
 	const selection = useSelection();
 	const tabs = useTabs();
 	// A state-backed ref, not `useRef`: attaching a plain ref doesn't re-render,
@@ -51,8 +52,47 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
 	const [container, setContainer] = useState<HTMLDivElement | null>(null);
 
 	const { snapshot } = active;
-	const view = useActiveView(snapshot);
-	const onWorkspaceTab = tabs.activeTab.kind === "workspace";
+	const builtInView = useBuiltInView(snapshot);
+	const activeTab = tabs.activeTab;
+	const onWorkspaceTab = activeTab.kind === "workspace";
+
+	// The view the sidebar should highlight: the built-in on the pinned tab, or
+	// whichever view tab is in front.
+	const activeViewId =
+		activeTab.kind === "view"
+			? activeTab.viewId
+			: activeTab.kind === "workspace"
+				? builtInView.id
+				: "";
+
+	// The view a TaskViewport renders. A view tab renders its own Saved View; a
+	// label tab renders a synthesised, never-persisted view filtered to that
+	// label; everything else falls back to the built-in "Tasks" view.
+	const activeLabelId = activeTab.kind === "label" ? activeTab.labelId : null;
+	const viewportView: SavedView =
+		activeTab.kind === "view"
+			? viewById(snapshot, activeTab.viewId)
+			: activeLabelId
+				? labelView(snapshot, activeLabelId)
+				: builtInView;
+
+	// Opening a Saved View: the built-in lives on the pinned tab, everything
+	// else gets its own. Shared by the sidebar and the viewport's "Save as…".
+	const selectView = (id: string) => {
+		if (id === builtInView.id) tabs.activateWorkspace();
+		else tabs.openView(id);
+	};
+
+	// Drop view/label tabs whose target is gone — after a delete, or a workspace
+	// switch (this component is keyed on the root, so it re-runs with new data).
+	useEffect(() => {
+		tabs.pruneViews((id) => snapshot.views.some((v) => v.id === id));
+	}, [tabs, snapshot.views]);
+	useEffect(() => {
+		tabs.pruneLabels((id) =>
+			snapshot.workspace.labels.some((l) => l.id === id),
+		);
+	}, [tabs, snapshot.workspace.labels]);
 
 	// Escape closes whatever tab you're on (falling back to the pinned
 	// Board/List tab, which can never itself be closed); on that pinned tab,
@@ -89,20 +129,12 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
 		<div className="vf-shell" ref={setContainer} tabIndex={-1}>
 			<Sidebar
 				snapshot={snapshot}
-				activeViewId={view.id}
-				onSelectView={(id) => {
-					tabs.activateWorkspace();
-					writeSettings({
-						activeViewByWorkspace: {
-							...plugin.settings.activeViewByWorkspace,
-							[snapshot.workspace.root]: id,
-						},
-					});
-				}}
+				activeViewId={activeViewId}
+				onSelectView={selectView}
 			/>
 
 			<main className="vf-main">
-				<TabStrip snapshot={snapshot} view={view} />
+				<TabStrip snapshot={snapshot} builtInView={builtInView} />
 
 				{tabs.activeTab.kind === "task" ? (
 					<TaskPane path={tabs.activeTab.path} />
@@ -117,14 +149,40 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
 				) : (
 					<TaskViewport
 						snapshot={snapshot}
-						view={view}
+						view={viewportView}
 						taxonomies={active.taxonomies}
 						context={active.context}
 						containerRef={container}
-						active={onWorkspaceTab}
+						active={
+							onWorkspaceTab ||
+							activeTab.kind === "view" ||
+							activeTab.kind === "label"
+						}
+						onSelectView={selectView}
 					/>
 				)}
 			</main>
 		</div>
 	);
+}
+
+/** A synthesised, never-persisted view showing only tasks carrying `labelId`. */
+function labelView(
+	snapshot: WorkspaceSnapshot,
+	labelId: string,
+): SavedView {
+	const label = workspaceTaxonomies(snapshot.workspace).label.values.find(
+		(v) => v.id === labelId,
+	);
+	return {
+		id: `label:${labelId}`,
+		name: label?.name ?? labelId,
+		viewType: "list",
+		filters: { labels: [labelId] },
+		groupBy: "status",
+		sortBy: "rank",
+		sortDirection: "asc",
+		columns: { collapsed: [], hidden: [] },
+		emptyColumnBehavior: "show-normal",
+	};
 }

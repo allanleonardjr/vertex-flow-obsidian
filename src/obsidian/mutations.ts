@@ -37,17 +37,23 @@ import {
 	serializeWorkspace,
 } from "../core/serialization/workspace";
 import {
+	addValue,
 	applyTaxonomyDeletion,
+	findValueByName,
 	reassignValue,
 	reassignValues,
+	updateValue,
+	workspaceTaxonomies,
 	type Taxonomy,
 	type TaxonomyDeletionPlan,
 } from "../core/taxonomy";
 import { withTaxonomy } from "../core/taxonomy";
+import { TAXONOMY_PALETTE } from "../core/taxonomy/defaults";
 import { defaultViews } from "../core/views/defaults";
 import {
 	emptyRelations,
 	type Comment,
+	type Project,
 	type SavedView,
 	type Task,
 	type WorkspaceConfig,
@@ -360,7 +366,15 @@ export class Mutations {
 		const kind = taxonomy.schema.kind;
 		const to = result.replacementId;
 
-		if (to) {
+		if (result.removeFromAll) {
+			// Multi-select only (labels): just strip the value everywhere.
+			for (const task of snapshot.tasks) {
+				if (!task.labels.includes(plan.valueId)) continue;
+				await this.updateTask(task, {
+					labels: task.labels.filter((id) => id !== plan.valueId),
+				});
+			}
+		} else if (to) {
 			for (const task of snapshot.tasks) {
 				if (kind === "label") {
 					const labels = reassignValues(task.labels, plan.valueId, to);
@@ -389,6 +403,58 @@ export class Mutations {
 		}
 
 		await this.saveWorkspaceConfig(withTaxonomy(snapshot.workspace, result.taxonomy));
+	}
+
+	// -- Labels (§5.4) — fluid: created and edited outside Settings ----------
+
+	/** First palette colour not already used by a label, cycling if all are. */
+	private nextLabelColor(snapshot: WorkspaceSnapshot): string {
+		const used = new Set(snapshot.workspace.labels.map((l) => l.color));
+		return (
+			TAXONOMY_PALETTE.find((c) => !used.has(c)) ??
+			TAXONOMY_PALETTE[snapshot.workspace.labels.length % TAXONOMY_PALETTE.length]
+		);
+	}
+
+	/**
+	 * Attach-or-create by name: returns the id of the matching label (any case)
+	 * or a freshly created one. The "no two labels alike" rule (§5.4) lives in
+	 * `addValue`; this makes typing a dup a no-op rather than an error.
+	 */
+	async addLabel(snapshot: WorkspaceSnapshot, name: string): Promise<string> {
+		const labels = workspaceTaxonomies(snapshot.workspace).label;
+		const existing = findValueByName(labels, name);
+		if (existing) return existing.id;
+
+		const next = addValue(labels, {
+			name: name.trim(),
+			color: this.nextLabelColor(snapshot),
+		});
+		const created = next.values[next.values.length - 1];
+		await this.saveWorkspaceConfig(withTaxonomy(snapshot.workspace, next));
+		return created.id;
+	}
+
+	async createLabel(
+		snapshot: WorkspaceSnapshot,
+		name: string,
+		color: string,
+	): Promise<string> {
+		const labels = workspaceTaxonomies(snapshot.workspace).label;
+		const next = addValue(labels, { name: name.trim(), color });
+		const created = next.values[next.values.length - 1];
+		await this.saveWorkspaceConfig(withTaxonomy(snapshot.workspace, next));
+		return created.id;
+	}
+
+	async updateLabel(
+		snapshot: WorkspaceSnapshot,
+		id: string,
+		patch: { name?: string; color?: string },
+	): Promise<void> {
+		const labels = workspaceTaxonomies(snapshot.workspace).label;
+		const next = updateValue(labels, id, patch);
+		await this.saveWorkspaceConfig(withTaxonomy(snapshot.workspace, next));
 	}
 
 	// -- Config notes ---------------------------------------------------------
@@ -447,6 +513,7 @@ export class Mutations {
 		snapshot: WorkspaceSnapshot,
 		title: string,
 		initiative: string | null = null,
+		icon?: string,
 	): Promise<TFile> {
 		const now = new Date().toISOString();
 		const path = this.io.availablePath(
@@ -457,6 +524,7 @@ export class Mutations {
 			serializeProject({
 				type: "project",
 				title,
+				icon,
 				status: snapshot.workspace.defaultNewTaskStatus,
 				initiative,
 				archived: false,
@@ -469,6 +537,22 @@ export class Mutations {
 		);
 		await this.index.rebuild();
 		return file;
+	}
+
+	/**
+	 * Patch a project's frontmatter (rename, icon). The note's *filename* is
+	 * never touched — the vault schema makes the frontmatter `title` the display
+	 * override, so a rename here can't cascade through wikilinks.
+	 */
+	async updateProject(project: Project, patch: Partial<Project>): Promise<void> {
+		const file = this.requireFile(project.path);
+		const merged: Project = {
+			...project,
+			...patch,
+			updatedAt: new Date().toISOString(),
+		};
+		await this.io.replaceFrontmatter(file, serializeProject(merged));
+		await this.index.rebuild();
 	}
 
 	async createInitiative(
@@ -531,11 +615,12 @@ export class Mutations {
 		name: string,
 		root: string,
 		idPrefix?: string,
+		icon?: string,
 	): Promise<WorkspaceConfig> {
 		const prefix = (
 			idPrefix?.trim() || suggestPrefix(name, this.index.takenPrefixes())
 		).toUpperCase();
-		const workspace = createWorkspaceConfig(name, prefix, root);
+		const workspace = createWorkspaceConfig(name, prefix, root, icon);
 
 		await this.io.ensureFolder(root);
 		for (const folder of Object.values(FOLDERS)) {

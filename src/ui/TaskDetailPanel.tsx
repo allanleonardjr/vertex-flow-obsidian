@@ -15,7 +15,6 @@ import type { Comment, Task, WorkspaceSnapshot } from "../core/types";
 import { NEW_TASK_TITLE } from "./actions";
 import {
   DateField,
-  LabelPicker,
   NumberField,
   OptionSelect,
   PersonSelect,
@@ -27,6 +26,7 @@ import {
 import { MarkdownContent, MarkdownField } from "./components/Markdown";
 import { ProgressBar, StatusDot } from "./components/TaskBits";
 import { EmbeddedTaskList } from "./components/EmbeddedTaskList";
+import { LabelEditor } from "./components/LabelEditor";
 import { RelationsEditor } from "./components/RelationsEditor";
 import { usePlugin } from "./context";
 import { FEATURES } from "./features";
@@ -197,7 +197,8 @@ export function TaskDetailPanel({
           </PropertyRow>
 
           <PropertyRow label="Labels">
-            <LabelPicker
+            <LabelEditor
+              snapshot={snapshot}
               taxonomy={taxonomies.label}
               value={task.labels}
               onChange={(labels) => update({ labels })}

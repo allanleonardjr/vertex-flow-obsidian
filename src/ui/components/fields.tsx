@@ -123,47 +123,6 @@ export function OptionSelect({
 	);
 }
 
-/** Labels are the one multi-select taxonomy (§5.4), so they get chips. */
-export function LabelPicker({
-	taxonomy,
-	value,
-	onChange,
-}: {
-	taxonomy: Taxonomy;
-	value: string[];
-	onChange: (value: string[]) => void;
-}) {
-	const all = listValues(taxonomy);
-	if (all.length === 0) {
-		return <span className="vf-prop-empty">No labels configured</span>;
-	}
-
-	return (
-		<div className="vf-label-picker">
-			{all.map((label) => {
-				const on = value.includes(label.id);
-				return (
-					<button
-						key={label.id}
-						type="button"
-						className={`vf-chip vf-chip-button${on ? " is-on" : ""}`}
-						style={{ borderColor: label.color, color: on ? undefined : label.color }}
-						onClick={() =>
-							onChange(
-								on
-									? value.filter((id) => id !== label.id)
-									: [...value, label.id],
-							)
-						}
-					>
-						{label.name}
-					</button>
-				);
-			})}
-		</div>
-	);
-}
-
 export function DateField({
 	value,
 	onChange,

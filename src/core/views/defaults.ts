@@ -33,6 +33,7 @@ export function defaultViews(): SavedView[] {
 		view({
 			id: BUILT_IN_VIEW_ID,
 			name: "Tasks",
+			icon: "list",
 			viewType: "list",
 			groupBy: "status",
 			// Sub-tasks show nested under their parent in the List view rather
@@ -43,10 +44,16 @@ export function defaultViews(): SavedView[] {
 }
 
 /** A blank view for the "new view" flow in the sidebar. */
-export function newView(id: string, name: string, viewType: SavedView["viewType"]): SavedView {
+export function newView(
+	id: string,
+	name: string,
+	viewType: SavedView["viewType"],
+	icon?: string,
+): SavedView {
 	return view({
 		id,
 		name,
+		icon: icon ?? (viewType === "board" ? "columns-3" : "list"),
 		viewType,
 		groupBy: viewType === "board" ? "status" : "none",
 	});

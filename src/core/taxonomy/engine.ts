@@ -102,6 +102,15 @@ export function hasValue(taxonomy: Taxonomy, id: string): boolean {
 	return taxonomy.values.some((value) => value.id === id);
 }
 
+/** Case-insensitive, trimmed name lookup — the "no two labels alike" check. */
+export function findValueByName<V extends TaxonomyValue>(
+	taxonomy: Taxonomy<V>,
+	name: string,
+): V | undefined {
+	const needle = name.trim().toLowerCase();
+	return taxonomy.values.find((value) => value.name.trim().toLowerCase() === needle);
+}
+
 /**
  * Display order: ordered taxonomies by `order`, unordered ones alphabetically.
  * Ties fall back to `id` so the result is deterministic across reloads.
@@ -198,6 +207,10 @@ export function addValue<V extends TaxonomyValue>(
 	const name = input.name.trim();
 	if (!name) throw new Error(`A ${taxonomy.schema.label} needs a name`);
 
+	if (findValueByName(taxonomy, name)) {
+		throw new Error(`A ${taxonomy.schema.label} named "${name}" already exists`);
+	}
+
 	const taken = taxonomy.values.map((value) => value.id);
 	const id = input.id?.trim() || slugify(name, taken);
 	if (taken.includes(id)) {
@@ -231,6 +244,14 @@ export function updateValue<V extends TaxonomyValue>(
 ): Taxonomy<V> {
 	if (!hasValue(taxonomy, id)) {
 		throw new Error(`No ${taxonomy.schema.label} with id "${id}"`);
+	}
+	if (typeof patch.name === "string") {
+		const clash = findValueByName(taxonomy, patch.name);
+		if (clash && clash.id !== id) {
+			throw new Error(
+				`A ${taxonomy.schema.label} named "${patch.name.trim()}" already exists`,
+			);
+		}
 	}
 	return {
 		...taxonomy,
@@ -325,8 +346,14 @@ export function applyTaxonomyDeletion<V extends TaxonomyValue>(
 	taxonomy: Taxonomy<V>,
 	plan: TaxonomyDeletionPlan,
 	replacementId: string | null,
-): { taxonomy: Taxonomy<V>; replacementId: string | null } {
-	if (plan.blocked) {
+): { taxonomy: Taxonomy<V>; replacementId: string | null; removeFromAll: boolean } {
+	// A multi-select taxonomy (labels) can drop a value from every entity that
+	// carries it — a task with no labels is fine. A single-select one can't: a
+	// task must always have a status, so a blocked delete needs a replacement.
+	const removeFromAll =
+		plan.blocked && replacementId == null && taxonomy.schema.multiSelect;
+
+	if (plan.blocked && !removeFromAll) {
 		if (!replacementId) {
 			throw new Error(
 				`Cannot delete ${plan.label} "${plan.valueName}" — it is used by ` +
@@ -351,7 +378,8 @@ export function applyTaxonomyDeletion<V extends TaxonomyValue>(
 
 	return {
 		taxonomy: { ...taxonomy, values: renumbered },
-		replacementId: plan.blocked ? replacementId : null,
+		replacementId: plan.blocked && !removeFromAll ? replacementId : null,
+		removeFromAll,
 	};
 }
 

@@ -1,11 +1,12 @@
 /**
- * The one tab strip — always visible, holding the pinned Board/List tab plus
- * whatever Initiatives/Projects/Cycles/Settings/task tabs are open. Nothing
+ * The one tab strip — always visible, holding the pinned "Tasks" tab plus
+ * whatever Saved View / Projects / Settings / task tabs are open. Nothing
  * closable can ever leave you without a way back to it.
  */
 
-import { workspaceTaxonomies } from "../core/taxonomy";
+import { getValue, workspaceTaxonomies } from "../core/taxonomy";
 import type { SavedView, WorkspaceSnapshot } from "../core/types";
+import { Icon } from "./components/Icon";
 import { StatusDot } from "./components/TaskBits";
 import { usePlugin } from "./context";
 import { useTabs, type BrowseKind, type Tab } from "./tabs-context";
@@ -24,10 +25,10 @@ function browseLabel(kind: BrowseKind, snapshot: WorkspaceSnapshot): string {
 
 export function TabStrip({
 	snapshot,
-	view,
+	builtInView,
 }: {
 	snapshot: WorkspaceSnapshot;
-	view: SavedView;
+	builtInView: SavedView;
 }) {
 	const plugin = usePlugin();
 	const { tabs, activeId, activate, close } = useTabs();
@@ -40,7 +41,7 @@ export function TabStrip({
 					tab={tab}
 					active={tab.id === activeId}
 					snapshot={snapshot}
-					view={view}
+					builtInView={builtInView}
 					onActivate={() => activate(tab.id)}
 					onClose={tab.id === "workspace" ? null : () => close(tab.id)}
 					plugin={plugin}
@@ -54,7 +55,7 @@ function TabRow({
 	tab,
 	active,
 	snapshot,
-	view,
+	builtInView,
 	onActivate,
 	onClose,
 	plugin,
@@ -62,7 +63,7 @@ function TabRow({
 	tab: Tab;
 	active: boolean;
 	snapshot: WorkspaceSnapshot;
-	view: SavedView;
+	builtInView: SavedView;
 	onActivate: () => void;
 	onClose: (() => void) | null;
 	plugin: ReturnType<typeof usePlugin>;
@@ -71,8 +72,38 @@ function TabRow({
 	let label: string;
 
 	if (tab.kind === "workspace") {
-		icon = <span className="vf-view-icon">{view.viewType === "board" ? "▦" : "☰"}</span>;
+		icon = (
+			<span className="vf-tab-icon">
+				<Icon id={builtInView.icon} fallback="list" size={13} />
+			</span>
+		);
+		label = builtInView.name;
+	} else if (tab.kind === "view") {
+		const view = snapshot.views.find((v) => v.id === tab.viewId);
+		if (!view) return null;
+		icon = (
+			<span className="vf-tab-icon">
+				<Icon
+					id={view.icon}
+					fallback={view.viewType === "board" ? "columns-3" : "list"}
+					size={13}
+				/>
+			</span>
+		);
 		label = view.name;
+	} else if (tab.kind === "label") {
+		const labelValue = getValue(
+			workspaceTaxonomies(snapshot.workspace).label,
+			tab.labelId,
+		);
+		if (!labelValue) return null;
+		icon = (
+			<span
+				className="vf-label-dot vf-tab-icon"
+				style={{ backgroundColor: labelValue.color }}
+			/>
+		);
+		label = labelValue.name;
 	} else if (tab.kind === "task") {
 		// Resolved fresh via the index, not the currently-active `snapshot` —
 		// a task tab can outlive a workspace switch, so it has to find its own

@@ -27,6 +27,7 @@ import { useTabs } from "../tabs-context";
 import { BoardView } from "./BoardView";
 import { ListView } from "./ListView";
 import { ViewControls } from "./ViewControls";
+import { useViewDraft } from "./useViewDraft";
 
 export function TaskViewport({
 	snapshot,
@@ -35,6 +36,7 @@ export function TaskViewport({
 	context,
 	containerRef,
 	active,
+	onSelectView,
 }: {
 	snapshot: WorkspaceSnapshot;
 	view: SavedView;
@@ -44,6 +46,8 @@ export function TaskViewport({
 	containerRef: HTMLElement | null;
 	/** True while this viewport's tab is the one on screen. */
 	active: boolean;
+	/** Switch the sidebar/tab to another Saved View, after "Save as…". */
+	onSelectView: (id: string) => void;
 }) {
 	const plugin = usePlugin();
 	const selection = useSelection();
@@ -52,14 +56,19 @@ export function TaskViewport({
 
 	const showArchived = plugin.settings.showArchived;
 
+	// Bar edits are held as an unsaved draft (see `useViewDraft`) — everything
+	// below renders `draft.effective`, never the on-disk view directly.
+	const draft = useViewDraft(snapshot, view);
+	const effective = draft.effective;
+
 	const evaluated = useMemo(() => {
 		// "Show archived" is a session preference layered over the saved view,
 		// not an edit to it (§7.7).
 		const filters = showArchived
-			? { ...view.filters, includeArchived: true }
-			: view.filters;
-		return evaluateView(snapshot, { ...view, filters }, context);
-	}, [snapshot, context, view, showArchived]);
+			? { ...effective.filters, includeArchived: true }
+			: effective.filters;
+		return evaluateView(snapshot, { ...effective, filters }, context);
+	}, [snapshot, context, effective, showArchived]);
 
 	/**
 	 * The layout keyboard navigation walks.
@@ -78,10 +87,10 @@ export function TaskViewport({
 		const paths = (group: (typeof visible)[number]) =>
 			group.collapsed ? [] : group.tasks.map((task) => task.path);
 
-		return view.viewType === "board"
+		return effective.viewType === "board"
 			? visible.map(paths)
 			: [visible.flatMap(paths)];
-	}, [evaluated.groups, view.viewType]);
+	}, [evaluated.groups, effective.viewType]);
 
 	useVisualLayout(layout);
 
@@ -158,21 +167,25 @@ export function TaskViewport({
 		<>
 			<ViewControls
 				snapshot={snapshot}
-				view={view}
+				view={effective}
+				savedView={view}
+				draft={draft}
 				taxonomies={taxonomies}
 				evaluated={evaluated}
+				onSelectView={onSelectView}
 			/>
-			{view.viewType === "board" ? (
+			{effective.viewType === "board" ? (
 				<BoardView
 					snapshot={snapshot}
-					view={view}
+					view={effective}
 					evaluated={evaluated}
 					taxonomies={taxonomies}
+					onColumnsChange={draft.setColumns}
 				/>
 			) : (
 				<ListView
 					snapshot={snapshot}
-					view={view}
+					view={effective}
 					evaluated={evaluated}
 					taxonomies={taxonomies}
 				/>

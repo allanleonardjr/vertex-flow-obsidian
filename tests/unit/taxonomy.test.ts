@@ -119,6 +119,22 @@ describe("mutation", () => {
 		).toThrow(/already exists/);
 	});
 
+	it("rejects a duplicate name, case-insensitively", () => {
+		expect(() =>
+			addValue(labels(), { name: "  DESIGN ", color: "#f00" }),
+		).toThrow(/already exists/);
+	});
+
+	it("rejects renaming a value onto another value's name", () => {
+		expect(() => updateValue(labels(), "perf", { name: "Design" })).toThrow(
+			/already exists/,
+		);
+		// Renaming to its own name (different case) is fine.
+		expect(() =>
+			updateValue(labels(), "design", { name: "design" }),
+		).not.toThrow();
+	});
+
 	it("never mutates the original taxonomy", () => {
 		const original = priorities();
 		addValue(original, { name: "Urgent", color: "#f00" });
@@ -163,13 +179,24 @@ describe("the uniform deletion guard (§5.6)", () => {
 		);
 	});
 
-	it("applies identically to all four taxonomies", () => {
-		for (const taxonomy of [statuses(), priorities(), labels()]) {
+	it("blocks single-select taxonomies from an unreplaced delete", () => {
+		for (const taxonomy of [statuses(), priorities()]) {
 			const id = taxonomy.values[0].id;
 			const plan = planTaxonomyDeletion(taxonomy, id, 1);
 			expect(plan.blocked).toBe(true);
 			expect(() => applyTaxonomyDeletion(taxonomy, plan, null)).toThrow();
 		}
+	});
+
+	it("lets a multi-select taxonomy (labels) drop the value from everything", () => {
+		const taxonomy = labels();
+		const id = taxonomy.values[0].id;
+		const plan = planTaxonomyDeletion(taxonomy, id, 3);
+		expect(plan.blocked).toBe(true);
+		const result = applyTaxonomyDeletion(taxonomy, plan, null);
+		expect(result.removeFromAll).toBe(true);
+		expect(result.replacementId).toBeNull();
+		expect(result.taxonomy.values.some((v) => v.id === id)).toBe(false);
 	});
 
 	it("rejects a value replacing itself, or a replacement that doesn't exist", () => {

@@ -36,6 +36,7 @@ export function parseProject(
 		value: {
 			type: "project",
 			title: asString(fm.title) ?? basename(options.path),
+			icon: asString(fm.icon) ?? undefined,
 			status: asString(fm.status) ?? options.defaultStatus,
 			initiative: parseLink(fm.initiative),
 			archived: asBoolean(fm.archived, false) || archivedAt != null,
@@ -52,6 +53,7 @@ export function serializeProject(project: Project): Record<string, unknown> {
 	const base = compact({
 		type: "project",
 		title: project.title,
+		icon: project.icon,
 		status: project.status,
 		initiative: formatLink(project.initiative),
 		archivedAt: project.archivedAt,

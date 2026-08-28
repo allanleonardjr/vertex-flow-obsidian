@@ -26,10 +26,14 @@ import { usePlugin, useSettingsWriter } from "./context";
 export type BrowseKind = "initiatives" | "projects" | "cycles" | "settings";
 
 export type Tab =
-	/** The Board/List — pinned, always present, always first, never closed. */
+	/** The built-in "Tasks" view — pinned, always present, always first, never closed. */
 	| { id: "workspace"; kind: "workspace" }
 	| { id: BrowseKind; kind: BrowseKind }
-	| { id: string; kind: "task"; path: string };
+	| { id: string; kind: "task"; path: string }
+	/** A user Saved View, opened from the sidebar. Closable. */
+	| { id: string; kind: "view"; viewId: string }
+	/** A label's tasks — a synthesised, never-persisted view. Closable. */
+	| { id: string; kind: "label"; labelId: string };
 
 const WORKSPACE_TAB: Tab = { id: "workspace", kind: "workspace" };
 
@@ -37,6 +41,15 @@ function taskTabId(path: string): string {
 	// Paths always contain a slash (they're vault-relative), so this can never
 	// collide with the fixed "workspace"/"initiatives"/… ids above.
 	return path;
+}
+
+/** Prefixed so a view id like "tasks" can't collide with a fixed tab id. */
+function viewTabId(viewId: string): string {
+	return `view:${viewId}`;
+}
+
+function labelTabId(labelId: string): string {
+	return `label:${labelId}`;
 }
 
 export interface TabsApi {
@@ -48,6 +61,10 @@ export interface TabsApi {
 	openTask: (path: string) => void;
 	/** Open (or reveal) one of the singleton browse/settings tabs. */
 	openScreen: (kind: BrowseKind) => void;
+	/** Open (or reveal) a Saved View as its own tab. */
+	openView: (viewId: string) => void;
+	/** Open (or reveal) a label's tasks as its own transient tab. */
+	openLabel: (labelId: string) => void;
 	/** Switch to the pinned Board/List tab without opening anything new. */
 	activateWorkspace: () => void;
 	activate: (id: string) => void;
@@ -58,6 +75,10 @@ export interface TabsApi {
 	closeAllTasks: () => void;
 	/** Drop task tabs whose task no longer exists. Browse/settings tabs are never pruned. */
 	pruneTasks: (existing: (path: string) => boolean) => void;
+	/** Drop view tabs whose Saved View no longer exists (deleted, or a workspace switch). */
+	pruneViews: (existing: (viewId: string) => boolean) => void;
+	/** Drop label tabs whose label no longer exists. */
+	pruneLabels: (existing: (labelId: string) => boolean) => void;
 }
 
 const TabsCtx = createContext<TabsApi | null>(null);
@@ -96,6 +117,26 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			current.some((tab) => tab.id === kind) ? current : [...current, { id: kind, kind }],
 		);
 		setActiveId(kind);
+	}, []);
+
+	const openView = useCallback((viewId: string) => {
+		const id = viewTabId(viewId);
+		setTabs((current) =>
+			current.some((tab) => tab.id === id)
+				? current
+				: [...current, { id, kind: "view", viewId }],
+		);
+		setActiveId(id);
+	}, []);
+
+	const openLabel = useCallback((labelId: string) => {
+		const id = labelTabId(labelId);
+		setTabs((current) =>
+			current.some((tab) => tab.id === id)
+				? current
+				: [...current, { id, kind: "label", labelId }],
+		);
+		setActiveId(id);
 	}, []);
 
 	const activateWorkspace = useCallback(() => setActiveId("workspace"), []);
@@ -145,6 +186,32 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 		});
 	}, []);
 
+	const pruneViews = useCallback((existing: (viewId: string) => boolean) => {
+		setTabs((current) => {
+			const next = current.filter(
+				(tab) => tab.kind !== "view" || existing(tab.viewId),
+			);
+			if (next.length === current.length) return current;
+			setActiveId((active) =>
+				next.some((tab) => tab.id === active) ? active : "workspace",
+			);
+			return next;
+		});
+	}, []);
+
+	const pruneLabels = useCallback((existing: (labelId: string) => boolean) => {
+		setTabs((current) => {
+			const next = current.filter(
+				(tab) => tab.kind !== "label" || existing(tab.labelId),
+			);
+			if (next.length === current.length) return current;
+			setActiveId((active) =>
+				next.some((tab) => tab.id === active) ? active : "workspace",
+			);
+			return next;
+		});
+	}, []);
+
 	// Drop task tabs whose task is gone from the vault entirely — not
 	// conditioned on any particular screen being mounted, since a task can be
 	// deleted (from the Board, from another device via sync, by hand) while
@@ -163,12 +230,16 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			activeTab,
 			openTask,
 			openScreen,
+			openView,
+			openLabel,
 			activateWorkspace,
 			activate,
 			close,
 			closeActive,
 			closeAllTasks,
 			pruneTasks,
+			pruneViews,
+			pruneLabels,
 		}),
 		[
 			tabs,
@@ -176,12 +247,15 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			activeTab,
 			openTask,
 			openScreen,
+			openView,
+			openLabel,
 			activateWorkspace,
 			activate,
 			close,
 			closeActive,
 			closeAllTasks,
 			pruneTasks,
+			pruneViews,
 		],
 	);
 

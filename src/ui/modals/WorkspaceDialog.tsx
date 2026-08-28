@@ -11,6 +11,7 @@ import { TFolder } from "obsidian";
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { suggestPrefix } from "../../core/ids";
+import { IconField } from "../components/Icon";
 import { usePlugin, useSettingsWriter } from "../context";
 import { FolderSuggestModal } from "./FolderSuggestModal";
 
@@ -35,6 +36,7 @@ export function WorkspaceDialog({
 			: plugin.settings.defaultWorkspaceFolder,
 	);
 	const [prefix, setPrefix] = useState("");
+	const [icon, setIcon] = useState<string | undefined>("layers");
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
@@ -71,6 +73,7 @@ export function WorkspaceDialog({
 					name.trim(),
 					root,
 					prefix || suggested,
+					icon,
 				);
 			}
 			writeSettings({ activeWorkspaceRoot: root });
@@ -101,15 +104,21 @@ export function WorkspaceDialog({
 				)}
 
 				{mode === "create" && (
-					<label className="vf-field">
-						<span>Name</span>
-						<input
-							type="text"
-							value={name}
-							autoFocus
-							onChange={(event) => setName(event.target.value)}
-						/>
-					</label>
+					<div className="vf-icon-name-row">
+						<div className="vf-field vf-field-icon">
+							<span>Icon</span>
+							<IconField value={icon} fallback="layers" onChange={setIcon} />
+						</div>
+						<label className="vf-field vf-field-name">
+							<span>Name</span>
+							<input
+								type="text"
+								value={name}
+								autoFocus
+								onChange={(event) => setName(event.target.value)}
+							/>
+						</label>
+					</div>
 				)}
 
 				<label className="vf-field">

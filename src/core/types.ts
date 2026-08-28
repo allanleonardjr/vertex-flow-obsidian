@@ -175,6 +175,8 @@ export interface TaskDocument {
 export interface Project {
 	type: "project";
 	title: string;
+	/** Curated icon id (see `ui/components/Icon.tsx`); optional, falls back at render. */
+	icon?: string;
 	/** Reuses the Task status taxonomy (§5.1) — no separate system. */
 	status: string;
 	initiative: LinkTarget | null;
@@ -230,6 +232,8 @@ export interface ArchivingConfig {
 export interface WorkspaceConfig {
 	type: "workspace";
 	name: string;
+	/** Curated icon id (see `ui/components/Icon.tsx`); optional, falls back at render. */
+	icon?: string;
 	/** Must be unique vault-wide, not just per-workspace (§3). */
 	idPrefix: string;
 	cycles: CyclesConfig;
@@ -318,6 +322,8 @@ export interface ViewColumnState {
 export interface SavedView {
 	id: string;
 	name: string;
+	/** Curated icon id (see `ui/components/Icon.tsx`); optional, falls back at render. */
+	icon?: string;
 	viewType: ViewType;
 	filters: ViewFilters;
 	groupBy: GroupByField;

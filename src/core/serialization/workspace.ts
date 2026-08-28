@@ -207,6 +207,7 @@ export function parseWorkspace(
 	const workspace: WorkspaceConfig = {
 		type: "workspace",
 		name,
+		icon: asString(fm.icon) ?? undefined,
 		idPrefix: (asString(fm.idPrefix) ?? "WRK").toUpperCase(),
 		cycles: {
 			enabled: asBoolean(cycles.enabled, false),
@@ -236,6 +237,7 @@ export function serializeWorkspace(
 	return compact({
 		type: "workspace",
 		name: workspace.name,
+		icon: workspace.icon,
 		idPrefix: workspace.idPrefix,
 		cycles: {
 			enabled: workspace.cycles.enabled,
@@ -287,10 +289,12 @@ export function createWorkspaceConfig(
 	name: string,
 	idPrefix: string,
 	root: string,
+	icon?: string,
 ): WorkspaceConfig {
 	return {
 		type: "workspace",
 		name,
+		icon,
 		idPrefix: idPrefix.toUpperCase(),
 		cycles: {
 			enabled: false,
