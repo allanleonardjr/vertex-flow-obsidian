@@ -23,6 +23,7 @@ import {
 import { createPortal } from "react-dom";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { Task, WorkspaceSnapshot } from "../../core/types";
+import { usePlugin } from "../context";
 import { TaskRowContent } from "./TaskRow";
 
 export interface TaskSelectExtraOption {
@@ -32,8 +33,9 @@ export interface TaskSelectExtraOption {
 	search?: string;
 }
 
-const MENU_WIDTH = 380;
 const MARGIN = 8;
+const MIN_W = 260;
+const MIN_H = 180;
 
 export function TaskSelectMenu({
 	candidates,
@@ -56,10 +58,21 @@ export function TaskSelectMenu({
 	extraOptions?: TaskSelectExtraOption[];
 	trigger: (args: { open: boolean; toggle: () => void }) => ReactNode;
 }) {
+	const plugin = usePlugin();
 	const [open, setOpen] = useState(false);
 	const [query, setQuery] = useState("");
 	const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+	const [size, setSize] = useState({
+		w: plugin.settings.taskPickerWidth,
+		h: plugin.settings.taskPickerHeight,
+	});
 	const anchorRef = useRef<HTMLSpanElement>(null);
+	const resize = useRef<{
+		startX: number;
+		startY: number;
+		startW: number;
+		startH: number;
+	} | null>(null);
 
 	const close = useCallback(() => {
 		setOpen(false);
@@ -74,13 +87,16 @@ export function TaskSelectMenu({
 	const place = useCallback(() => {
 		const rect = anchorRef.current?.getBoundingClientRect();
 		if (!rect) return;
-		const width = Math.min(MENU_WIDTH, window.innerWidth - 2 * MARGIN);
+		const width = Math.min(
+			plugin.settings.taskPickerWidth,
+			window.innerWidth - 2 * MARGIN,
+		);
 		const left = Math.min(
 			Math.max(MARGIN, rect.right - width),
 			window.innerWidth - width - MARGIN,
 		);
 		setPos({ top: rect.bottom + 4, left });
-	}, []);
+	}, [plugin]);
 
 	useLayoutEffect(() => {
 		if (!open) return;
@@ -128,7 +144,12 @@ export function TaskSelectMenu({
 				createPortal(
 					<div
 						className="vf-task-menu"
-						style={{ top: pos.top, left: pos.left }}
+						style={{
+							top: pos.top,
+							left: pos.left,
+							width: size.w,
+							height: size.h,
+						}}
 						onClick={(event) => event.stopPropagation()}
 					>
 						<input
@@ -154,15 +175,13 @@ export function TaskSelectMenu({
 								type="button"
 								role="option"
 								aria-selected={value == null}
-								className={`vf-menu-item${value == null ? " is-active" : ""}`}
+								className={`vf-menu-item vf-menu-none${value == null ? " is-active" : ""}`}
 								onClick={() => choose(null)}
 							>
 								{noneLabel}
 							</button>
 
-							{(shownExtras.length > 0 || shownTasks.length > 0) && (
-								<div className="vf-menu-divider" aria-hidden />
-							)}
+							<div className="vf-menu-divider" aria-hidden />
 
 							{shownExtras.map((option) => (
 								<button
@@ -198,6 +217,48 @@ export function TaskSelectMenu({
 								<p className="vf-task-menu-empty">No matches</p>
 							)}
 						</div>
+
+						<div
+							className="vf-task-menu-grip"
+							role="separator"
+							aria-label="Resize"
+							title="Drag to resize"
+							onPointerDown={(event) => {
+								event.preventDefault();
+								resize.current = {
+									startX: event.clientX,
+									startY: event.clientY,
+									startW: size.w,
+									startH: size.h,
+								};
+								(event.target as HTMLElement).setPointerCapture(
+									event.pointerId,
+								);
+							}}
+							onPointerMove={(event) => {
+								const start = resize.current;
+								if (!start) return;
+								const w = Math.min(
+									window.innerWidth - (pos?.left ?? 0) - MARGIN,
+									Math.max(MIN_W, start.startW + (event.clientX - start.startX)),
+								);
+								const h = Math.min(
+									window.innerHeight - (pos?.top ?? 0) - MARGIN,
+									Math.max(MIN_H, start.startH + (event.clientY - start.startY)),
+								);
+								setSize({ w, h });
+							}}
+							onPointerUp={(event) => {
+								if (!resize.current) return;
+								resize.current = null;
+								(event.target as HTMLElement).releasePointerCapture(
+									event.pointerId,
+								);
+								plugin.settings.taskPickerWidth = size.w;
+								plugin.settings.taskPickerHeight = size.h;
+								void plugin.saveSettings();
+							}}
+						/>
 					</div>,
 					document.body,
 				)}

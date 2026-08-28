@@ -35,7 +35,8 @@ export function PropertyRow({
  * Priority, a tinted pill for Type. A native `<select>` can't draw any of that.
  *
  * `renderOption(null)` is the "no value" row; pass `allowNone: false` (Status)
- * to drop it. `dividerAfterNone` sets it apart from an ordered scale.
+ * to drop it. When shown it renders in italics with a rule beneath, set apart
+ * from the real values.
  */
 function TaxonomyMenuSelect({
 	taxonomy,
@@ -43,14 +44,12 @@ function TaxonomyMenuSelect({
 	onChange,
 	allowNone,
 	renderOption,
-	dividerAfterNone = false,
 }: {
 	taxonomy: Taxonomy;
 	value: string | null;
 	onChange: (value: string | null) => void;
 	allowNone: boolean;
 	renderOption: (entry: TaxonomyValue | null) => ReactNode;
-	dividerAfterNone?: boolean;
 }) {
 	const [open, setOpen] = useState(false);
 	const values = listValues(taxonomy);
@@ -76,7 +75,13 @@ function TaxonomyMenuSelect({
 			type="button"
 			role="option"
 			aria-selected={(entry?.id ?? null) === value}
-			className={`vf-menu-item${(entry?.id ?? null) === value ? " is-active" : ""}`}
+			className={[
+				"vf-menu-item",
+				entry === null ? "vf-menu-none" : "",
+				(entry?.id ?? null) === value ? "is-active" : "",
+			]
+				.filter(Boolean)
+				.join(" ")}
 			onClick={() => choose(entry?.id ?? null)}
 		>
 			{renderOption(entry)}
@@ -105,7 +110,7 @@ function TaxonomyMenuSelect({
 				<Popover align="left" onClose={() => setOpen(false)}>
 					<div className="vf-option-list" role="listbox">
 						{allowNone && row(null, "__none__")}
-						{allowNone && dividerAfterNone && (
+						{allowNone && values.length > 0 && (
 							<div className="vf-menu-divider" aria-hidden />
 						)}
 						{values.map((entry) => row(entry, entry.id))}
@@ -159,7 +164,6 @@ export function PrioritySelect(props: {
 		<TaxonomyMenuSelect
 			{...props}
 			allowNone
-			dividerAfterNone
 			renderOption={(entry) => (
 				<IconLabel glyph={priorityGlyph(entry)} name={entry?.name ?? "None"} />
 			)}

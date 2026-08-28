@@ -384,7 +384,8 @@ function DescriptionField({ task, initial }: { task: Task; initial: string }) {
 }
 
 const RAIL_MIN_WIDTH = 200;
-const RAIL_MAX_WIDTH = 520;
+/** Keep at least this much for the description/sub-tasks column. */
+const EDITOR_MAIN_MIN_WIDTH = 280;
 
 function RailResizeHandle({
   width,
@@ -395,7 +396,11 @@ function RailResizeHandle({
   onResize: (width: number) => void;
   onResizeEnd: (width: number) => void;
 }) {
-  const drag = useRef<{ startX: number; startWidth: number } | null>(null);
+  const drag = useRef<{
+    startX: number;
+    startWidth: number;
+    max: number;
+  } | null>(null);
 
   return (
     <div
@@ -405,14 +410,22 @@ function RailResizeHandle({
       aria-valuenow={width}
       onPointerDown={(event) => {
         if (event.button !== 0) return;
-        drag.current = { startX: event.clientX, startWidth: width };
+        // Cap only so the description column keeps a usable minimum; there is
+        // no fixed upper bound beyond that.
+        const bodyWidth =
+          event.currentTarget.parentElement?.clientWidth ?? window.innerWidth;
+        drag.current = {
+          startX: event.clientX,
+          startWidth: width,
+          max: Math.max(RAIL_MIN_WIDTH, bodyWidth - EDITOR_MAIN_MIN_WIDTH),
+        };
         event.currentTarget.setPointerCapture(event.pointerId);
       }}
       onPointerMove={(event) => {
         if (!drag.current) return;
         const delta = event.clientX - drag.current.startX;
         const next = Math.min(
-          RAIL_MAX_WIDTH,
+          drag.current.max,
           Math.max(RAIL_MIN_WIDTH, drag.current.startWidth - delta),
         );
         onResize(next);

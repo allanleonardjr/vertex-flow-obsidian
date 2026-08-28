@@ -889,8 +889,8 @@ body.vf-dragging {
 
 .vf-menu-divider {
   height: 1px;
-  margin: 4px 6px;
-  background: var(--vf-border);
+  margin: 5px 4px;
+  background: var(--background-modifier-border);
 }
 
 /* Linear-style Label Pills */
@@ -1344,6 +1344,13 @@ body.vf-dragging {
   padding-left: 8px;
   color: var(--text-accent);
   font-size: 11px;
+}
+
+/* The "no value" row — italic, muted, and ruled off from the real values. */
+.vf-menu-none,
+.vf-menu-none .vf-icon-select-name {
+  color: var(--vf-muted);
+  font-style: italic;
 }
 
 .vf-menu-hint {
@@ -2485,8 +2492,8 @@ body.vf-dragging {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width: 380px;
   max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
   padding: 6px;
   border: 1px solid var(--vf-border);
   border-radius: var(--vf-radius);
@@ -2500,10 +2507,33 @@ body.vf-dragging {
 }
 
 .vf-task-menu-list {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  max-height: 320px;
   overflow-y: auto;
+}
+
+/* Drag corner over the menu's bottom-right. */
+.vf-task-menu-grip {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+.vf-task-menu-grip::after {
+  content: "";
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid var(--vf-muted);
+  border-bottom: 2px solid var(--vf-muted);
 }
 
 .vf-task-menu-empty {
@@ -2531,7 +2561,6 @@ body.vf-dragging {
 .vf-task-option-plain {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
@@ -2540,11 +2569,13 @@ body.vf-dragging {
 
 .vf-task-option-kind {
   flex-shrink: 0;
+  margin-right: 7px;
   padding: 1px 5px;
   border-radius: 3px;
   background: var(--background-modifier-hover);
   color: var(--vf-muted);
   font-size: 10px;
+  font-style: normal;
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }

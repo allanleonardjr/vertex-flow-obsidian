@@ -28,6 +28,9 @@ export interface VertexFlowSettings {
 	queryBarOpen: boolean;
 	/** Whether the raw-source section at the bottom of the task editor is open. */
 	editorSourceOpen: boolean;
+	/** Size of the Parent / relation task-picker popover, drag-resizable. */
+	taskPickerWidth: number;
+	taskPickerHeight: number;
 	/**
 	 * Whether opening a task note anywhere in Obsidian (search, a wikilink,
 	 * the quick switcher) redirects into Vertex Flow's editor instead of the
@@ -48,5 +51,7 @@ export const DEFAULT_SETTINGS: VertexFlowSettings = {
 	sidebarMinimized: false,
 	queryBarOpen: false,
 	editorSourceOpen: false,
+	taskPickerWidth: 380,
+	taskPickerHeight: 360,
 	redirectTaskNotes: true,
 };
