@@ -25,6 +25,7 @@ import { DEFAULT_DEFINITION } from "../views/defaults";
 import type { QueryContext, QueryEntity } from "./context";
 import {
 	EMPTY_VALUES,
+	FIELD_VALUES,
 	FILTER_FIELDS,
 	FLAG_TOKENS,
 	GROUP_VALUES,
@@ -214,6 +215,10 @@ export function printQuery(
 	);
 	if (canonical.emptyColumnBehavior !== DEFAULT_DEFINITION.emptyColumnBehavior) {
 		parts.push(`empty:${EMPTY_VALUES[canonical.emptyColumnBehavior].token}`);
+	}
+	if (canonical.hiddenFields.length > 0) {
+		const tokens = canonical.hiddenFields.map((field) => FIELD_VALUES[field].token);
+		parts.push(`hide:${tokens.join(",")}`);
 	}
 
 	return parts.join(" ");

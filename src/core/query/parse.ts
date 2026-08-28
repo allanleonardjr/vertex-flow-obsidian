@@ -15,6 +15,7 @@ import type {
 	EmptyColumnBehavior,
 	GroupByField,
 	SortField,
+	TaskField,
 	ViewDefinition,
 	ViewFilters,
 	ViewType,
@@ -25,6 +26,7 @@ import type { QueryContext } from "./context";
 import {
 	ALL_FIELD_TOKENS,
 	EMPTY_BY_TOKEN,
+	FIELD_BY_TOKEN,
 	FILTER_FIELDS,
 	FILTER_FIELD_BY_TOKEN,
 	FLAG_FIELD_ALIASES,
@@ -85,6 +87,7 @@ export function parseQuery(
 	let sortDirection = DEFAULT_DEFINITION.sortDirection;
 	let emptyColumnBehavior: EmptyColumnBehavior =
 		DEFAULT_DEFINITION.emptyColumnBehavior;
+	const hiddenFields: TaskField[] = [...DEFAULT_DEFINITION.hiddenFields];
 
 	const seen = new Set<string>();
 
@@ -208,6 +211,26 @@ export function parseQuery(
 			continue;
 		}
 
+		/* -- hidden fields (§8.4) -- */
+
+		if (field === "hide") {
+			if (token.values.length === 0) {
+				fail("empty-value", `"hide" needs a value`, token.span);
+				continue;
+			}
+			noteDuplicate("hide", token.span);
+			for (const value of token.values) {
+				const raw = value.text.trim().toLowerCase();
+				const match = FIELD_BY_TOKEN.get(raw);
+				if (!match) {
+					fail("unknown-value", `"${raw}" isn't a task field`, value.span);
+				} else if (!hiddenFields.includes(match)) {
+					hiddenFields.push(match);
+				}
+			}
+			continue;
+		}
+
 		/* -- filters -- */
 
 		const filterKey = FILTER_FIELD_BY_TOKEN.get(field);
@@ -254,6 +277,7 @@ export function parseQuery(
 		sortBy,
 		sortDirection,
 		emptyColumnBehavior,
+		hiddenFields,
 	});
 
 	return {

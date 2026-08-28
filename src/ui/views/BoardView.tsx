@@ -12,12 +12,14 @@ import { childTasks, computeProgress, scopeOf } from "../../core/hierarchy";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { EvaluatedView } from "../../core/views";
 import { toggleColumnCollapsed } from "../../core/views";
-import type {
-  SavedView,
-  Task,
-  TaskGroup,
-  ViewColumnState,
-  WorkspaceSnapshot,
+import {
+  emptyProgress,
+  type SavedView,
+  type Task,
+  type TaskField,
+  type TaskGroup,
+  type ViewColumnState,
+  type WorkspaceSnapshot,
 } from "../../core/types";
 import {
   Assignee,
@@ -72,6 +74,7 @@ export function BoardView({
           snapshot={snapshot}
           taxonomies={taxonomies}
           drag={drag}
+          hiddenFields={view.hiddenFields}
           onToggleCollapse={() =>
             onColumnsChange(toggleColumnCollapsed(view, group.key).columns)
           }
@@ -84,6 +87,7 @@ export function BoardView({
           task={draggedTask}
           snapshot={snapshot}
           taxonomies={taxonomies}
+          hiddenFields={view.hiddenFields}
         />
       )}
     </div>
@@ -98,11 +102,13 @@ export function DragPreview({
   task,
   snapshot,
   taxonomies,
+  hiddenFields,
 }: {
   drag: DragState;
   task: Task;
   snapshot: WorkspaceSnapshot;
   taxonomies: WorkspaceTaxonomies;
+  hiddenFields?: readonly TaskField[];
 }) {
   return createPortal(
     <div
@@ -116,7 +122,12 @@ export function DragPreview({
       aria-hidden
     >
       <article className="vf-card vf-card-preview">
-        <CardContent task={task} snapshot={snapshot} taxonomies={taxonomies} />
+        <CardContent
+          task={task}
+          snapshot={snapshot}
+          taxonomies={taxonomies}
+          hiddenFields={hiddenFields}
+        />
       </article>
     </div>,
     document.body,
@@ -128,12 +139,14 @@ function Column({
   snapshot,
   taxonomies,
   drag,
+  hiddenFields,
   onToggleCollapse,
 }: {
   group: TaskGroup;
   snapshot: WorkspaceSnapshot;
   taxonomies: WorkspaceTaxonomies;
   drag: TaskDragApi;
+  hiddenFields?: readonly TaskField[];
   onToggleCollapse: () => void;
 }) {
   const dropIndex = drag.dropIndexFor(group.key);
@@ -190,6 +203,7 @@ function Column({
               snapshot={snapshot}
               taxonomies={taxonomies}
               drag={drag}
+              hiddenFields={hiddenFields}
             />
           </div>
         ))}
@@ -211,12 +225,14 @@ function Card({
   snapshot,
   taxonomies,
   drag,
+  hiddenFields,
 }: {
   task: Task;
   groupKey: string;
   snapshot: WorkspaceSnapshot;
   taxonomies: WorkspaceTaxonomies;
   drag: TaskDragApi;
+  hiddenFields?: readonly TaskField[];
 }) {
   const selection = useSelection();
   const tabs = useTabs();
@@ -239,7 +255,12 @@ function Card({
       onPointerDown={(event) => drag.onPointerDown(event, task.path, groupKey)}
       onClick={(event) => openOrSelect(event, task.path, drag, selection, tabs)}
     >
-      <CardContent task={task} snapshot={snapshot} taxonomies={taxonomies} />
+      <CardContent
+        task={task}
+        snapshot={snapshot}
+        taxonomies={taxonomies}
+        hiddenFields={hiddenFields}
+      />
     </article>
   );
 }
@@ -267,59 +288,75 @@ function CardContent({
   task,
   snapshot,
   taxonomies,
+  hiddenFields,
 }: {
   task: Task;
   snapshot: WorkspaceSnapshot;
   taxonomies: WorkspaceTaxonomies;
+  /** Fields this view hides (§8.4). Omitted = show all. */
+  hiddenFields?: readonly TaskField[];
 }) {
+  const off = (field: TaskField) => hiddenFields?.includes(field) ?? false;
+
   const scope = scopeOf(snapshot);
-  const progress = computeProgress(
-    childTasks(scope, task.path),
-    taxonomies.status,
-  );
+  const progress = off("progress")
+    ? emptyProgress()
+    : computeProgress(childTasks(scope, task.path), taxonomies.status);
+
+  const showPriority = !off("priority");
+  const showDue = !off("dueDate");
+  const showAssignee = !off("assignee");
 
   return (
     <>
       {/* Top Header: ID + Type + Relation */}
       <div className="vf-card-top">
         <span className="vf-id">{task.id}</span>
-        <TaxonomyChip
-          taxonomies={taxonomies}
-          kind="taskType"
-          id={task.taskType}
-        />
-        <RelationBadge task={task} />
+        {!off("type") && (
+          <TaxonomyChip
+            taxonomies={taxonomies}
+            kind="taskType"
+            id={task.taskType}
+          />
+        )}
+        {!off("relations") && <RelationBadge task={task} />}
       </div>
 
       {/* Prominent Task Title */}
       <div className="vf-card-title">{task.title}</div>
 
       {/* Sub-task Progress Bar (Wrapped for block spacing) */}
-      {progress.total > 0 && (
+      {!off("progress") && progress.total > 0 && (
         <div className="vf-card-progress">
           <ProgressBar progress={progress} />
         </div>
       )}
 
       {/* Tinted Label Badges */}
-      {task.labels && task.labels.length > 0 && (
+      {!off("labels") && task.labels && task.labels.length > 0 && (
         <div className="vf-card-labels">
           <Labels taxonomies={taxonomies} labels={task.labels} />
         </div>
       )}
 
       {/* Bottom Meta Row: Priority Icon + Due Date + Assignee Avatar */}
-      <div className="vf-card-bottom">
-        <div className="vf-card-meta-group">
-          <TaxonomyChip
-            taxonomies={taxonomies}
-            kind="priority"
-            id={task.priority}
-          />
-          <DueDate task={task} />
+      {(showPriority || showDue || showAssignee) && (
+        <div className="vf-card-bottom">
+          <div className="vf-card-meta-group">
+            {showPriority && (
+              <TaxonomyChip
+                taxonomies={taxonomies}
+                kind="priority"
+                id={task.priority}
+              />
+            )}
+            {showDue && <DueDate task={task} />}
+          </div>
+          {showAssignee && (
+            <Assignee people={snapshot.workspace.people} assignee={task.assignee} />
+          )}
         </div>
-        <Assignee people={snapshot.workspace.people} assignee={task.assignee} />
-      </div>
+      )}
     </>
   );
 }

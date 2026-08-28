@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import { sampleSnapshot } from "../../src/core/sample/generate";
 import {
 	applyFilters,
+	canonicalizeDefinition,
+	canonicalizeHiddenFields,
+	DEFAULT_DEFINITION,
 	defaultViews,
+	definitionsEqual,
 	newView,
 	evaluateView,
 	groupTasks,
@@ -14,9 +18,17 @@ import {
 	setColumnsCollapsed,
 	toggleColumnCollapsed,
 	toggleColumnHidden,
+	viewDefinition,
 	visibleGroups,
 } from "../../src/core/views";
-import { NONE, SELF, emptyRelations, type SavedView, type Task } from "../../src/core/types";
+import {
+	NONE,
+	SELF,
+	TASK_FIELDS,
+	emptyRelations,
+	type SavedView,
+	type Task,
+} from "../../src/core/types";
 
 const snapshot = sampleSnapshot();
 const context = snapshotContext(snapshot);
@@ -385,5 +397,39 @@ describe("column state toggles", () => {
 
 		const expanded = setColumnsCollapsed(all, ["todo", "done"], false);
 		expect(expanded.columns.collapsed).toEqual(["queue"]);
+	});
+});
+
+describe("hiddenFields", () => {
+	it("defaults to an empty list", () => {
+		expect(DEFAULT_DEFINITION.hiddenFields).toEqual([]);
+		expect(view().hiddenFields).toEqual([]);
+		expect(defaultViews()[0].hiddenFields).toEqual([]);
+	});
+
+	it("canonicalises to TASK_FIELDS order and dedupes", () => {
+		expect(
+			canonicalizeHiddenFields(["labels", "priority", "priority", "type"]),
+		).toEqual(["type", "priority", "labels"]);
+		expect(canonicalizeHiddenFields(undefined)).toEqual([]);
+	});
+
+	it("makes view equality insensitive to hidden-field order", () => {
+		const a = view({ hiddenFields: ["priority", "labels"] });
+		const b = view({ hiddenFields: ["labels", "priority"] });
+		expect(definitionsEqual(a, b)).toBe(true);
+	});
+
+	it("is carried through viewDefinition and canonicalizeDefinition", () => {
+		const v = view({ hiddenFields: ["dueDate", "type"] });
+		expect(viewDefinition(v).hiddenFields).toEqual(["dueDate", "type"]);
+		expect(canonicalizeDefinition(viewDefinition(v)).hiddenFields).toEqual([
+			"type",
+			"dueDate",
+		]);
+	});
+
+	it("keeps every TASK_FIELDS member representable", () => {
+		expect(canonicalizeHiddenFields([...TASK_FIELDS])).toEqual([...TASK_FIELDS]);
 	});
 });

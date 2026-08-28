@@ -319,6 +319,24 @@ export interface ViewColumnState {
 	hidden: string[];
 }
 
+/**
+ * Task fields a Saved View can hide from its rows/cards (§8.4).
+ *
+ * Status icon, Task ID and Task title are mandatory and never members here.
+ * `type` only renders on Board cards; other layouts ignore an entry they can't
+ * show. Order is canonical — `canonicalizeHiddenFields` sorts into it.
+ */
+export const TASK_FIELDS = [
+	"type",
+	"priority",
+	"assignee",
+	"labels",
+	"dueDate",
+	"progress",
+	"relations",
+] as const;
+export type TaskField = (typeof TASK_FIELDS)[number];
+
 export interface SavedView {
 	id: string;
 	name: string;
@@ -331,6 +349,8 @@ export interface SavedView {
 	sortDirection: SortDirection;
 	columns: ViewColumnState;
 	emptyColumnBehavior: EmptyColumnBehavior;
+	/** Task fields hidden from this view's rows/cards (§8.4); `[]` shows all. */
+	hiddenFields: TaskField[];
 }
 
 /**
@@ -350,6 +370,7 @@ export type ViewDefinition = Pick<
 	| "sortBy"
 	| "sortDirection"
 	| "emptyColumnBehavior"
+	| "hiddenFields"
 >;
 
 // ---------------------------------------------------------------------------

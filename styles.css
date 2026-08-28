@@ -2653,3 +2653,9 @@ body.vf-dragging {
   flex-wrap: wrap;
   gap: 4px;
 }
+
+.vf-fields-note {
+  margin: 6px 2px 0;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+}

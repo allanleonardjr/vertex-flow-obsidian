@@ -15,6 +15,7 @@ import { DEFAULT_DEFINITION } from "../../src/core/views/defaults";
 import {
 	NONE,
 	SELF,
+	TASK_FIELDS,
 	type ViewDefinition,
 	type ViewFilters,
 } from "../../src/core/types";
@@ -84,6 +85,8 @@ describe("round-trip (Invariant A)", () => {
 		["sorting", def({ sortBy: "dueDate" })],
 		["descending", def({ sortBy: "dueDate", sortDirection: "desc" })],
 		["empty behaviour", def({ emptyColumnBehavior: "auto-collapse" })],
+		["hidden fields", def({ hiddenFields: ["priority", "labels"] })],
+		["all fields hidden", def({ hiddenFields: [...TASK_FIELDS] })],
 		[
 			"everything at once",
 			def({
@@ -92,6 +95,7 @@ describe("round-trip (Invariant A)", () => {
 				sortBy: "updatedAt",
 				sortDirection: "desc",
 				emptyColumnBehavior: "auto-hide",
+				hiddenFields: ["type", "progress"],
 				filters: {
 					status: ["todo", "in-progress"],
 					priority: ["high", NONE],
@@ -128,6 +132,9 @@ describe("round-trip (Invariant A)", () => {
 		}
 		for (const viewType of ["list", "board"] as const) {
 			expectRoundTrip(def({ viewType }));
+		}
+		for (const field of TASK_FIELDS) {
+			expectRoundTrip(def({ hiddenFields: [field] }));
 		}
 	});
 });
@@ -170,9 +177,12 @@ describe("round-trip (generative)", () => {
 			if (next() < 0.2) filters.topLevelOnly = true;
 			if (next() < 0.2) filters.includeArchived = true;
 
+			const hiddenFields = TASK_FIELDS.filter(() => next() < 0.3);
+
 			expectRoundTrip(
 				def({
 					filters,
+					hiddenFields,
 					viewType: pick(["list", "board"] as const),
 					groupBy: pick(["none", "status", "priority", "label"] as const),
 					sortBy: pick(["rank", "title", "dueDate", "estimate"] as const),
@@ -238,7 +248,8 @@ describe("canonicalisation", () => {
 
 	it("viewDefinition drops identity and column state", () => {
 		expect(Object.keys(viewDefinition(defaultViews()[0])).sort()).toEqual([
-			"emptyColumnBehavior", "filters", "groupBy", "sortBy", "sortDirection", "viewType",
+			"emptyColumnBehavior", "filters", "groupBy", "hiddenFields",
+			"sortBy", "sortDirection", "viewType",
 		]);
 	});
 
@@ -277,6 +288,54 @@ describe("defaults", () => {
 		expect(parseQuery("group:priority", ctx).definition).toEqual(
 			canonicalizeDefinition(def({ groupBy: "priority" })),
 		);
+	});
+
+	it("prints no hide: clause when nothing is hidden", () => {
+		expect(printQuery(def(), ctx)).not.toContain("hide:");
+		expect(printQuery(viewDefinition(defaultViews()[0]), ctx)).not.toContain(
+			"hide:",
+		);
+	});
+});
+
+/* --------------------------------------------------------- hidden fields -- */
+
+describe("hide: clause", () => {
+	it("parses a comma-separated list into hiddenFields", () => {
+		expect(parseQuery("hide:priority,labels", ctx).definition.hiddenFields).toEqual(
+			["priority", "labels"],
+		);
+	});
+
+	it("maps a field alias to its canonical member", () => {
+		expect(parseQuery("hide:due", ctx).definition.hiddenFields).toEqual([
+			"dueDate",
+		]);
+	});
+
+	it("prints hiddenFields in canonical order", () => {
+		expect(
+			printQuery(def({ hiddenFields: ["labels", "type"] }), ctx),
+		).toContain("hide:type,labels");
+	});
+
+	it("errors on an unknown field", () => {
+		const parsed = parseQuery("hide:bogus", ctx);
+		expect(parsed.ok).toBe(false);
+		expect(parsed.issues[0].code).toBe("unknown-value");
+	});
+
+	it("errors on hide: with no value", () => {
+		const parsed = parseQuery("hide:", ctx);
+		expect(parsed.ok).toBe(false);
+		expect(parsed.issues[0].code).toBe("empty-value");
+	});
+
+	it("warns but still parses a repeated hide:", () => {
+		const parsed = parseQuery("hide:priority hide:labels", ctx);
+		expect(parsed.ok).toBe(true);
+		expect(parsed.issues.map((i) => i.code)).toContain("duplicate-field");
+		expect(parsed.definition.hiddenFields).toEqual(["priority", "labels"]);
 	});
 });
 

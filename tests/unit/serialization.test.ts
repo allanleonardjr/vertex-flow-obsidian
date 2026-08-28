@@ -501,4 +501,41 @@ describe("parseViews", () => {
 		expect(value[1].icon).toBeUndefined();
 		expect(parseViews(serializeViews(value)).value).toEqual(value);
 	});
+
+	it("parses hiddenFields, canonicalising and coercing a scalar", () => {
+		const { value, issues } = parseViews({
+			views: [
+				{ id: "a", name: "A", hiddenFields: ["labels", "priority"] },
+				{ id: "b", name: "B", hiddenFields: "assignee" },
+			],
+		});
+		expect(issues).toEqual([]);
+		expect(value[0].hiddenFields).toEqual(["priority", "labels"]);
+		expect(value[1].hiddenFields).toEqual(["assignee"]);
+	});
+
+	it("drops unknown hiddenFields values and reports each", () => {
+		const { value, issues } = parseViews({
+			views: [{ id: "v", name: "V", hiddenFields: ["priority", "bogus"] }],
+		});
+		expect(value[0].hiddenFields).toEqual(["priority"]);
+		expect(issues).toHaveLength(1);
+	});
+
+	it("defaults hiddenFields to [] and omits it from serialized frontmatter", () => {
+		const { value } = parseViews({ views: [{ id: "v", name: "V" }] });
+		expect(value[0].hiddenFields).toEqual([]);
+		const serialized = serializeViews(value) as { views: Record<string, unknown>[] };
+		expect(serialized.views[0]).not.toHaveProperty("hiddenFields");
+		expect(parseViews(serialized).value).toEqual(value);
+	});
+
+	it("round-trips a view carrying hiddenFields", () => {
+		const first = parseViews({
+			views: [
+				{ id: "v", name: "V", viewType: "board", hiddenFields: ["type", "dueDate"] },
+			],
+		}).value;
+		expect(parseViews(serializeViews(first)).value).toEqual(first);
+	});
 });

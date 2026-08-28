@@ -17,6 +17,7 @@ import { toggleColumnCollapsed } from "../../core/views";
 import type {
   SavedView,
   Task,
+  TaskField,
   ViewColumnState,
   WorkspaceSnapshot,
 } from "../../core/types";
@@ -91,6 +92,7 @@ export function ListView({
       taxonomies={taxonomies}
       grouped={evaluated.view.groupBy !== "none"}
       interaction={interaction}
+      hiddenFields={view.hiddenFields}
       emptyGroupLabel="Drop tasks here"
       containerRef={setList}
       rowAction={(task) => (
@@ -113,6 +115,7 @@ export function ListView({
           task={draggedTask}
           snapshot={snapshot}
           taxonomies={taxonomies}
+          hiddenFields={view.hiddenFields}
         />
       )}
     </TaskList>
@@ -125,11 +128,13 @@ function RowPreview({
   task,
   snapshot,
   taxonomies,
+  hiddenFields,
 }: {
   drag: DragState;
   task: Task;
   snapshot: WorkspaceSnapshot;
   taxonomies: WorkspaceTaxonomies;
+  hiddenFields?: readonly TaskField[];
 }) {
   return createPortal(
     <div
@@ -147,6 +152,7 @@ function RowPreview({
           task={task}
           snapshot={snapshot}
           taxonomies={taxonomies}
+          hiddenFields={hiddenFields}
         />
       </div>
     </div>,

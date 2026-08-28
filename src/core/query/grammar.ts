@@ -17,6 +17,7 @@ import type {
 	EmptyColumnBehavior,
 	GroupByField,
 	SortField,
+	TaskField,
 	ViewType,
 } from "../types";
 import type { ArrayFilterKey } from "../views/filter";
@@ -172,6 +173,17 @@ export const EMPTY_VALUES: Record<EmptyColumnBehavior, EnumValueSpec> = {
 	"auto-hide": { token: "auto-hide", aliases: ["hide"], advertise: true },
 };
 
+/** Task fields the `hide:` clause can name (§8.4). Keyed for exhaustiveness. */
+export const FIELD_VALUES: Record<TaskField, EnumValueSpec> = {
+	type: { token: "type", aliases: ["tasktype", "kind"], advertise: true },
+	priority: { token: "priority", aliases: ["p"], advertise: true },
+	assignee: { token: "assignee", aliases: ["owner", "assigned"], advertise: true },
+	labels: { token: "labels", aliases: ["label", "tag", "tags"], advertise: true },
+	dueDate: { token: "due", aliases: ["duedate"], advertise: true },
+	progress: { token: "progress", aliases: [], advertise: true },
+	relations: { token: "relations", aliases: ["rel", "relation"], advertise: true },
+};
+
 /* ----------------------------------------------------------- keywords ----- */
 
 /** Resolves to `SELF`. `self` is accepted because it's the literal stored value. */
@@ -271,6 +283,10 @@ export const EMPTY_BY_TOKEN = indexBy(
 	Object.entries(EMPTY_VALUES) as [EmptyColumnBehavior, EnumValueSpec][],
 ) as Map<string, EmptyColumnBehavior>;
 
+export const FIELD_BY_TOKEN = indexBy(
+	Object.entries(FIELD_VALUES) as [TaskField, EnumValueSpec][],
+) as Map<string, TaskField>;
+
 /** Every field token the parser recognises — the pool for "did you mean…". */
 export const ALL_FIELD_TOKENS: readonly string[] = [
 	...FILTER_FIELD_BY_TOKEN.keys(),
@@ -278,6 +294,7 @@ export const ALL_FIELD_TOKENS: readonly string[] = [
 	"sort",
 	"layout",
 	"empty",
+	"hide",
 	"is",
 	"show",
 	"include",

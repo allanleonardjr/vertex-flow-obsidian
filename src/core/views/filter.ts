@@ -11,9 +11,11 @@ import { linksMatch } from "../links";
 import {
 	NONE,
 	SELF,
+	TASK_FIELDS,
 	type LinkTarget,
 	type SavedView,
 	type Task,
+	type TaskField,
 	type ViewDefinition,
 	type ViewFilters,
 } from "../types";
@@ -184,6 +186,21 @@ export function filtersEqual(a: ViewFilters, b: ViewFilters): boolean {
 	);
 }
 
+/**
+ * One hidden-fields set, one representation: deduped and reordered into
+ * `TASK_FIELDS` order so equality is a `JSON.stringify` comparison.
+ *
+ * Filter values stay unsorted (the query bar re-prints them under the user's
+ * cursor), but a field checklist has no such concern — a fixed order also keeps
+ * `_views.md` diffs stable when the same set is toggled in a different sequence.
+ */
+export function canonicalizeHiddenFields(
+	fields: readonly TaskField[] | undefined,
+): TaskField[] {
+	const set = new Set(fields ?? []);
+	return TASK_FIELDS.filter((field) => set.has(field));
+}
+
 /** Strip a view down to what it *is*, dropping identity and column furniture. */
 export function viewDefinition(view: SavedView): ViewDefinition {
 	return {
@@ -193,6 +210,7 @@ export function viewDefinition(view: SavedView): ViewDefinition {
 		sortBy: view.sortBy,
 		sortDirection: view.sortDirection,
 		emptyColumnBehavior: view.emptyColumnBehavior,
+		hiddenFields: view.hiddenFields,
 	};
 }
 
@@ -206,6 +224,7 @@ export function canonicalizeDefinition(
 		sortBy: definition.sortBy,
 		sortDirection: definition.sortDirection,
 		emptyColumnBehavior: definition.emptyColumnBehavior,
+		hiddenFields: canonicalizeHiddenFields(definition.hiddenFields),
 	};
 }
 

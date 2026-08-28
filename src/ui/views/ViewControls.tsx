@@ -22,6 +22,7 @@ import { NamedIconDialog } from "../modals/NamedIconDialog";
 import { useSelection } from "../selection";
 import {
 	EmptyColumnsChip,
+	FieldsControl,
 	GroupChip,
 	LayoutToggle,
 	SortChip,
@@ -81,6 +82,7 @@ export function ViewControls({
 			sortBy: view.sortBy,
 			sortDirection: view.sortDirection,
 			emptyColumnBehavior: view.emptyColumnBehavior,
+			hiddenFields: view.hiddenFields,
 		};
 		void plugin.mutations.addView(snapshot, created).then(() => {
 			// Drop the draft before switching, or it would follow us to the new
@@ -134,6 +136,8 @@ export function ViewControls({
 				)}
 				<span className="vf-bar-divider" />
 				<SortChip view={view} onChange={editView} />
+				<span className="vf-bar-divider" />
+				<FieldsControl view={view} onChange={editView} />
 				<span className="vf-bar-divider" />
 				<FilterControls
 					snapshot={snapshot}

@@ -18,7 +18,7 @@
 
 import { Fragment, type ReactNode } from "react";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
-import type { Task, WorkspaceSnapshot } from "../../core/types";
+import type { Task, TaskField, WorkspaceSnapshot } from "../../core/types";
 import { TaskRowContent } from "./TaskRow";
 
 /** A titled run of tasks. A single group with no label renders as a flat list. */
@@ -59,6 +59,8 @@ export interface TaskListProps {
 	onOpenTask?: (path: string) => void;
 	/** Trailing per-row control — relations use it for "remove". */
 	rowAction?: (task: Task) => ReactNode;
+	/** Fields to hide from every row (§8.4). Omitted = show all. */
+	hiddenFields?: readonly TaskField[];
 	/** Placeholder inside an empty *group* (List's "Drop tasks here"). */
 	emptyGroupLabel?: string;
 	className?: string;
@@ -75,6 +77,7 @@ export function TaskList({
 	interaction,
 	onOpenTask,
 	rowAction,
+	hiddenFields,
 	emptyGroupLabel,
 	className,
 	children,
@@ -113,6 +116,7 @@ export function TaskList({
 											interaction={interaction}
 											onOpenTask={onOpenTask}
 											rowAction={rowAction}
+											hiddenFields={hiddenFields}
 										/>
 									</Fragment>
 								))}
@@ -185,6 +189,7 @@ function TaskListRow({
 	interaction,
 	onOpenTask,
 	rowAction,
+	hiddenFields,
 }: {
 	task: Task;
 	groupKey: string;
@@ -193,6 +198,7 @@ function TaskListRow({
 	interaction?: TaskListInteraction;
 	onOpenTask?: (path: string) => void;
 	rowAction?: (task: Task) => ReactNode;
+	hiddenFields?: readonly TaskField[];
 }) {
 	const className = [
 		"vf-row",
@@ -205,7 +211,14 @@ function TaskListRow({
 		.filter(Boolean)
 		.join(" ");
 
-	const content = <TaskRowContent task={task} snapshot={snapshot} taxonomies={taxonomies} />;
+	const content = (
+		<TaskRowContent
+			task={task}
+			snapshot={snapshot}
+			taxonomies={taxonomies}
+			hiddenFields={hiddenFields}
+		/>
+	);
 
 	// With a trailing action the row can't be one big click target — a button
 	// inside a button is invalid, and the two would fight for the same click.

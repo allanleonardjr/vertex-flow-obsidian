@@ -184,5 +184,6 @@ function labelView(
 		sortDirection: "asc",
 		columns: { collapsed: [], hidden: [] },
 		emptyColumnBehavior: "show-normal",
+		hiddenFields: [],
 	};
 }

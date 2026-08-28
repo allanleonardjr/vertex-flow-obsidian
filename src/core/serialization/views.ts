@@ -7,7 +7,9 @@
  */
 
 import { parseLink } from "../links";
+import { canonicalizeHiddenFields } from "../views/filter";
 import {
+	TASK_FIELDS,
 	type EmptyColumnBehavior,
 	type GroupByField,
 	type SavedView,
@@ -68,6 +70,24 @@ function pick<T extends string>(
 	if (allowed.includes(value)) return value;
 	log.add(`Unknown ${field} "${value}"; using "${fallback}".`);
 	return fallback;
+}
+
+/** `pick` for a closed-enum *list* — drops unknown members and logs each. */
+function pickAll<T extends string>(
+	raw: unknown,
+	allowed: readonly T[],
+	log: IssueLog,
+	field: string,
+): T[] {
+	const out: T[] = [];
+	for (const value of asStringArray(raw)) {
+		if (allowed.includes(value as T)) {
+			if (!out.includes(value as T)) out.push(value as T);
+		} else {
+			log.add(`Unknown ${field} "${value}"; ignoring.`);
+		}
+	}
+	return out;
 }
 
 /** Link filters accept wikilinks or bare paths; both normalize to a target. */
@@ -144,6 +164,9 @@ export function parseView(raw: unknown, index: number): ParseResult<SavedView> {
 				log,
 				"emptyColumnBehavior",
 			),
+			hiddenFields: canonicalizeHiddenFields(
+				pickAll(record.hiddenFields, TASK_FIELDS, log, "hiddenFields"),
+			),
 		},
 		issues: log.issues.map((issue) => `View "${id}": ${issue}`),
 	};
@@ -183,6 +206,7 @@ export function serializeView(view: SavedView): Record<string, unknown> {
 			hidden: view.columns.hidden,
 		},
 		emptyColumnBehavior: view.emptyColumnBehavior,
+		hiddenFields: view.hiddenFields,
 	});
 }
 

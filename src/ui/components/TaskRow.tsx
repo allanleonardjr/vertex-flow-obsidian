@@ -10,7 +10,12 @@
 
 import { childTasks, computeProgress, scopeOf } from "../../core/hierarchy";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
-import type { Task, WorkspaceSnapshot } from "../../core/types";
+import {
+	emptyProgress,
+	type Task,
+	type TaskField,
+	type WorkspaceSnapshot,
+} from "../../core/types";
 import {
 	Assignee,
 	DueDate,
@@ -30,13 +35,20 @@ export function TaskRowContent({
 	task,
 	snapshot,
 	taxonomies,
+	hiddenFields,
 }: {
 	task: Task;
 	snapshot: WorkspaceSnapshot;
 	taxonomies: WorkspaceTaxonomies;
+	/** Fields this view hides (§8.4). Omitted (relations lists, pickers) shows all. */
+	hiddenFields?: readonly TaskField[];
 }) {
+	const off = (field: TaskField) => hiddenFields?.includes(field) ?? false;
+
 	const scope = scopeOf(snapshot);
-	const progress = computeProgress(childTasks(scope, task.path), taxonomies.status);
+	const progress = off("progress")
+		? emptyProgress()
+		: computeProgress(childTasks(scope, task.path), taxonomies.status);
 
 	return (
 		<>
@@ -54,12 +66,16 @@ export function TaskRowContent({
 			</span>
 
 			<span className="vf-row-meta">
-				<RelationBadge task={task} />
-				<ProgressBar progress={progress} />
-				<Labels taxonomies={taxonomies} labels={task.labels} />
-				<TaxonomyChip taxonomies={taxonomies} kind="priority" id={task.priority} />
-				<DueDate task={task} />
-				<Assignee people={snapshot.workspace.people} assignee={task.assignee} />
+				{!off("relations") && <RelationBadge task={task} />}
+				{!off("progress") && <ProgressBar progress={progress} />}
+				{!off("labels") && <Labels taxonomies={taxonomies} labels={task.labels} />}
+				{!off("priority") && (
+					<TaxonomyChip taxonomies={taxonomies} kind="priority" id={task.priority} />
+				)}
+				{!off("dueDate") && <DueDate task={task} />}
+				{!off("assignee") && (
+					<Assignee people={snapshot.workspace.people} assignee={task.assignee} />
+				)}
 			</span>
 		</>
 	);

@@ -26,12 +26,15 @@ export const DEFAULT_DEFINITION: ViewDefinition = {
 	sortBy: "rank",
 	sortDirection: DEFAULT_SORT_DIRECTION,
 	emptyColumnBehavior: "show-normal",
+	hiddenFields: [],
 };
 
 function view(partial: Partial<SavedView> & Pick<SavedView, "id" | "name">): SavedView {
 	return {
 		...DEFAULT_DEFINITION,
+		// Fresh mutable copies, not the shared `DEFAULT_DEFINITION` references.
 		columns: { collapsed: [], hidden: [] },
+		hiddenFields: [],
 		...partial,
 	};
 }

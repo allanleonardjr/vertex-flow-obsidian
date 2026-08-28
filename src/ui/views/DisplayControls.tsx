@@ -16,9 +16,11 @@ import type {
 import { Popover } from "../components/Popover";
 import {
 	EMPTY_COLUMN_OPTIONS,
+	FIELD_OPTIONS,
 	GROUP_OPTIONS,
 	SORT_OPTIONS,
 	optionLabel,
+	type TaskField,
 } from "./viewOptions";
 
 export function LayoutToggle({
@@ -144,6 +146,78 @@ export function EmptyColumnsChip({
 				onChange({ ...view, emptyColumnBehavior })
 			}
 		/>
+	);
+}
+
+/**
+ * Which task fields this view's rows/cards show (§8.4). Stored as `hiddenFields`
+ * but presented positively — a lit chip means "visible". Status icon, ID and
+ * title are mandatory and never listed. All fields are offered in both layouts;
+ * one a layout can't render (e.g. Type on a list) is simply inert there.
+ */
+export function FieldsControl({
+	view,
+	onChange,
+}: {
+	view: SavedView;
+	onChange: (next: SavedView) => void;
+}) {
+	const [open, setOpen] = useState(false);
+	const hidden = view.hiddenFields;
+	const visibleCount = FIELD_OPTIONS.length - hidden.length;
+
+	const toggle = (field: TaskField) =>
+		onChange({
+			...view,
+			hiddenFields: hidden.includes(field)
+				? hidden.filter((f) => f !== field)
+				: [...hidden, field],
+		});
+
+	return (
+		<span className="vf-control-anchor">
+			<button
+				type="button"
+				className={`vf-bar-item${open ? " is-on" : ""}`}
+				onClick={(event) => {
+					event.stopPropagation();
+					setOpen((current) => !current);
+				}}
+			>
+				<span className="vf-bar-label">Fields</span>
+				<span className="vf-bar-value">
+					{hidden.length === 0
+						? "All"
+						: `${visibleCount}/${FIELD_OPTIONS.length}`}
+				</span>
+				<span className="vf-bar-caret" aria-hidden>
+					⌄
+				</span>
+			</button>
+			{open && (
+				<Popover align="left" onClose={() => setOpen(false)}>
+					<div className="vf-chip-set">
+						{FIELD_OPTIONS.map((option) => {
+							const shown = !hidden.includes(option.value);
+							return (
+								<button
+									key={option.value}
+									type="button"
+									className={`vf-chip vf-chip-button${shown ? " is-on" : ""}`}
+									aria-pressed={shown}
+									onClick={() => toggle(option.value)}
+								>
+									{option.label}
+								</button>
+							);
+						})}
+					</div>
+					<p className="vf-fields-note">
+						Status, ID and title are always shown.
+					</p>
+				</Popover>
+			)}
+		</span>
 	);
 }
 

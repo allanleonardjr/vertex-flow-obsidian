@@ -11,13 +11,19 @@ import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import {
 	NONE,
 	SELF,
+	TASK_FIELDS,
 	type EmptyColumnBehavior,
 	type GroupByField,
 	type SortField,
+	type TaskField,
 	type ViewFilters,
 	type WorkspaceSnapshot,
 } from "../../core/types";
 import { FEATURES } from "../features";
+
+/** Re-exported so bar components import field metadata from one place. */
+export { TASK_FIELDS };
+export type { TaskField };
 
 export const GROUP_OPTIONS: { value: GroupByField; label: string }[] = [
 	{ value: "none", label: "No grouping" },
@@ -56,6 +62,20 @@ export const EMPTY_COLUMN_OPTIONS: {
 	{ value: "show-normal", label: "Show" },
 	{ value: "auto-collapse", label: "Collapse" },
 	{ value: "auto-hide", label: "Hide" },
+];
+
+/**
+ * The task fields a view can hide (§8.4), in `TASK_FIELDS` (canonical) order.
+ * `type` only renders on Board cards but is always offered — see §8.4.
+ */
+export const FIELD_OPTIONS: { value: TaskField; label: string }[] = [
+	{ value: "type", label: "Type" },
+	{ value: "priority", label: "Priority" },
+	{ value: "assignee", label: "Assignee" },
+	{ value: "labels", label: "Labels" },
+	{ value: "dueDate", label: "Due date" },
+	{ value: "progress", label: "Progress" },
+	{ value: "relations", label: "Relations" },
 ];
 
 export const optionLabel = <T extends string>(
