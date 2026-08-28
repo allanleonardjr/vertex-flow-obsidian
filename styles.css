@@ -1201,18 +1201,26 @@ body.vf-dragging {
   max-width: 480px;
 }
 
-.vf-template-back {
-  padding: 2px 0;
+.vf-template-config .vf-template-back {
+  display: inline;
+  width: auto;
+  height: auto;
+  padding: 0;
   margin-bottom: 14px;
   border: none;
+  border-radius: 0;
   background: none;
+  background-color: transparent;
   box-shadow: none;
-  color: var(--vf-muted);
+  font-size: var(--font-ui-small);
+  color: var(--text-accent);
   cursor: pointer;
 }
 
-.vf-template-back:hover {
-  color: var(--text-normal);
+.vf-template-config .vf-template-back:hover {
+  background-color: transparent;
+  color: var(--text-accent-hover);
+  text-decoration: underline;
 }
 
 .vf-template-config-head {
@@ -1291,6 +1299,14 @@ body.vf-dragging {
   display: block;
   margin-top: 4px;
   color: var(--vf-muted);
+}
+
+.vf-field small.vf-field-error {
+  color: var(--text-error);
+}
+
+.vf-field input[aria-invalid="true"] {
+  border-color: var(--text-error);
 }
 
 .vf-error {
@@ -2322,6 +2338,7 @@ body.vf-dragging {
 }
 
 .vf-taxonomy-add {
+  max-width: 640px;
   margin-top: 6px;
   padding-top: 10px;
   border-top: 1px dashed var(--vf-border);
@@ -2341,22 +2358,27 @@ body.vf-dragging {
   padding: 4px 0;
 }
 
-.vf-people-row input[type="text"]:first-of-type {
-  flex: 1;
+.vf-person-self {
+  width: 16px;
+  flex-shrink: 0;
+  margin: 0;
 }
 
-.vf-people-row input[type="text"]:last-of-type {
-  flex: 1;
+.vf-person-name {
+  flex: 2;
+  min-width: 0;
+}
+
+.vf-person-aliases {
+  flex: 3;
+  min-width: 0;
 }
 
 .vf-people-add {
+  max-width: 640px;
   margin-top: 6px;
   padding-top: 10px;
   border-top: 1px dashed var(--vf-border);
-}
-
-.vf-people-add input {
-  flex: 1;
 }
 
 /* ===================================================== View controls == */

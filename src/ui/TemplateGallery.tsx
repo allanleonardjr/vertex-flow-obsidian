@@ -17,6 +17,8 @@ import {
 	type TemplateSetting,
 	type WorkspaceTemplate,
 } from "../core/templates";
+import { joinPath, sanitizeFileName } from "../core/links";
+import { suggestPrefix } from "../core/ids";
 import { Icon } from "./components/Icon";
 import { usePlugin, useSettingsWriter } from "./context";
 import { FolderSuggestModal } from "./modals/FolderSuggestModal";
@@ -134,9 +136,12 @@ function ConfigStep({
 	const writeSettings = useSettingsWriter();
 
 	const [name, setName] = useState(template.name);
-	const [folder, setFolder] = useState(plugin.settings.defaultWorkspaceFolder);
-	const [prefix, setPrefix] = useState("");
-	const [populate, setPopulate] = useState(true);
+	const [location, setLocation] = useState(plugin.settings.defaultWorkspaceFolder);
+	// The prefix tracks the name until the user types their own — then it sticks.
+	// Clearing the field re-links it to the name.
+	const [prefixOverride, setPrefixOverride] = useState<string | null>(null);
+	const [selfName, setSelfName] = useState("");
+	const [populate, setPopulate] = useState(false);
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
@@ -151,17 +156,46 @@ function ConfigStep({
 		[plugin],
 	);
 
-	const taken = folder.trim()
-		? plugin.app.vault.getAbstractFileByPath(folder.trim()) != null
-		: false;
+	const takenPrefixes = useMemo(
+		() =>
+			new Set(
+				plugin.index.takenPrefixes().map((p) => p.trim().toUpperCase()),
+			),
+		[plugin],
+	);
 
-	const valid = folder.trim().length > 0 && name.trim().length > 0;
+	const suggestedPrefix = useMemo(() => {
+		// Derived live from the name (§3) until the user types their own prefix.
+		if (!name.trim()) return template.defaultIdPrefix;
+		return suggestPrefix(name, plugin.index.takenPrefixes());
+	}, [name, plugin, template.defaultIdPrefix]);
+	const prefix = prefixOverride ?? suggestedPrefix;
+
+	// Only a hand-typed prefix can collide — the derived one is already
+	// disambiguated by `suggestPrefix`.
+	const prefixTaken =
+		prefix.trim().length > 0 &&
+		takenPrefixes.has(prefix.trim().toUpperCase());
+
+	// The selected folder is the *parent* — the workspace folder itself is
+	// named from the workspace and created inside it.
+	const parent = location.trim();
+	const folderName = sanitizeFileName(name);
+	const targetPath = joinPath(parent, folderName);
+	const taken =
+		targetPath.length > 0 &&
+		plugin.app.vault.getAbstractFileByPath(targetPath) != null;
+	const parentMissing =
+		parent.length > 0 &&
+		plugin.app.vault.getAbstractFileByPath(parent) == null;
+
+	const valid = name.trim().length > 0 && !prefixTaken;
 
 	const submit = async () => {
 		setBusy(true);
 		setError(null);
 		try {
-			const root = plugin.io.availablePath(folder.trim());
+			const root = plugin.io.availableFolderPath(targetPath);
 			await plugin.mutations.createWorkspaceFromTemplate({
 				template,
 				name: name.trim(),
@@ -169,6 +203,7 @@ function ConfigStep({
 				idPrefix: prefix.trim() || undefined,
 				icon: template.icon,
 				includeExampleContent: populate,
+				selfPersonName: selfName.trim() || undefined,
 			});
 			writeSettings({ activeWorkspaceRoot: root });
 			onDone();
@@ -201,21 +236,21 @@ function ConfigStep({
 			</label>
 
 			<label className="vf-field">
-				<span>Folder</span>
+				<span>Location</span>
 				<div className="vf-folder-field">
 					<input
 						type="text"
 						list="vf-template-folder-options"
-						value={folder}
-						placeholder="Where should this workspace live?"
-						onChange={(event) => setFolder(event.target.value)}
+						value={location}
+						placeholder="Vault root"
+						onChange={(event) => setLocation(event.target.value)}
 					/>
 					<button
 						type="button"
 						title="Browse for a folder"
 						onClick={() =>
 							new FolderSuggestModal(plugin.app, (chosen) =>
-								setFolder(chosen.isRoot() ? "" : chosen.path),
+								setLocation(chosen.isRoot() ? "" : chosen.path),
 							).open()
 						}
 					>
@@ -227,12 +262,14 @@ function ConfigStep({
 						<option key={path} value={path} />
 					))}
 				</datalist>
-				{taken && (
-					<small>
-						<code>{folder.trim()}</code> already exists — a numbered folder will
-						be created next to it.
-					</small>
-				)}
+				<small>
+					Creates <code>{targetPath || folderName}/</code>.
+					{taken
+						? " A folder is already there, so a numbered one will be created instead."
+						: parentMissing
+							? " This location doesn't exist yet and will be created."
+							: ""}
+				</small>
 			</label>
 
 			<label className="vf-field">
@@ -241,12 +278,37 @@ function ConfigStep({
 					type="text"
 					value={prefix}
 					placeholder={template.defaultIdPrefix}
-					onChange={(event) => setPrefix(event.target.value.toUpperCase())}
+					aria-invalid={prefixTaken}
+					onChange={(event) => {
+						const next = event.target.value.toUpperCase();
+						setPrefixOverride(next === "" ? null : next);
+					}}
+				/>
+				{prefixTaken ? (
+					<small className="vf-field-error">
+						<code>{prefix.trim().toUpperCase()}</code> is already used by
+						another workspace — pick a different prefix.
+					</small>
+				) : (
+					<small>
+						Task files are named by ID —{" "}
+						<code>{prefix.trim() || template.defaultIdPrefix}-0001.md</code>.
+						Must be unique across the whole vault.
+					</small>
+				)}
+			</label>
+
+			<label className="vf-field">
+				<span>Your name (optional)</span>
+				<input
+					type="text"
+					value={selfName}
+					placeholder="How your name appears on tasks and in comments"
+					onChange={(event) => setSelfName(event.target.value)}
 				/>
 				<small>
-					Task files are named by ID —{" "}
-					<code>{prefix.trim() || template.defaultIdPrefix}-0001.md</code>. Must
-					be unique across the whole vault.
+					Adds you to the People register as “me”, so “Assigned to Me” and
+					“Mentions Me” work right away. You can change this later in Settings.
 				</small>
 			</label>
 

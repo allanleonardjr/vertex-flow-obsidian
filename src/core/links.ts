@@ -68,6 +68,15 @@ export function dirname(target: LinkTarget): string {
 	return slash === -1 ? "" : target.slice(0, slash);
 }
 
+/**
+ * Strip characters Obsidian rejects in a file or folder name, collapsing the
+ * result to `"Untitled"` if nothing usable is left. Shared by the mutation
+ * layer and the workspace-creation UI so both derive the same folder name.
+ */
+export function sanitizeFileName(name: string): string {
+	return name.replace(/[\\/:*?"<>|#^[\]]/g, "").trim() || "Untitled";
+}
+
 /** Join path segments, tolerating empty ones. */
 export function joinPath(...segments: string[]): string {
 	return segments

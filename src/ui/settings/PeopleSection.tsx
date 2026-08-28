@@ -17,6 +17,12 @@ export function PeopleSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 		void plugin.mutations.saveWorkspaceConfig({ ...snapshot.workspace, people: next });
 	};
 
+	const parseAliases = (raw: string): string[] =>
+		raw
+			.split(",")
+			.map((alias) => alias.trim())
+			.filter(Boolean);
+
 	return (
 		<section className="vf-settings-section">
 			<h3>People</h3>
@@ -31,6 +37,7 @@ export function PeopleSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 					<div key={person.id} className="vf-people-row">
 						<input
 							type="radio"
+							className="vf-person-self"
 							name="vf-self"
 							checked={person.isSelf ?? false}
 							title="This is me"
@@ -42,7 +49,7 @@ export function PeopleSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 						/>
 						<input
 							type="text"
-							className="vf-input"
+							className="vf-input vf-person-name"
 							value={person.name}
 							onChange={(event) => {
 								const name = event.target.value;
@@ -51,14 +58,11 @@ export function PeopleSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 						/>
 						<input
 							type="text"
-							className="vf-input"
+							className="vf-input vf-person-aliases"
 							placeholder="Aliases, comma-separated"
 							value={(person.aliases ?? []).join(", ")}
 							onChange={(event) => {
-								const aliases = event.target.value
-									.split(",")
-									.map((alias) => alias.trim())
-									.filter(Boolean);
+								const aliases = parseAliases(event.target.value);
 								commit(
 									people.map((p, i) => (i === index ? { ...p, aliases } : p)),
 								);
@@ -76,32 +80,55 @@ export function PeopleSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 			</div>
 
 			<AddPersonRow
-				onAdd={(name) => {
+				onAdd={(name, aliases) => {
 					const id = slugify(name, people.map((p) => p.id));
-					commit([...people, { id, name, aliases: [], isSelf: people.length === 0 }]);
+					commit([...people, { id, name, aliases, isSelf: people.length === 0 }]);
 				}}
 			/>
 		</section>
 	);
 }
 
-function AddPersonRow({ onAdd }: { onAdd: (name: string) => void }) {
+function AddPersonRow({
+	onAdd,
+}: {
+	onAdd: (name: string, aliases: string[]) => void;
+}) {
 	const [name, setName] = useState("");
+	const [aliases, setAliases] = useState("");
 	const submit = () => {
 		const trimmed = name.trim();
 		if (!trimmed) return;
-		onAdd(trimmed);
+		onAdd(
+			trimmed,
+			aliases
+				.split(",")
+				.map((alias) => alias.trim())
+				.filter(Boolean),
+		);
 		setName("");
+		setAliases("");
 	};
 
 	return (
 		<div className="vf-people-row vf-people-add">
+			<span className="vf-person-self" aria-hidden="true" />
 			<input
 				type="text"
-				className="vf-input"
+				className="vf-input vf-person-name"
 				placeholder="Add a person…"
 				value={name}
 				onChange={(event) => setName(event.target.value)}
+				onKeyDown={(event) => {
+					if (event.key === "Enter") submit();
+				}}
+			/>
+			<input
+				type="text"
+				className="vf-input vf-person-aliases"
+				placeholder="Aliases, comma-separated"
+				value={aliases}
+				onChange={(event) => setAliases(event.target.value)}
 				onKeyDown={(event) => {
 					if (event.key === "Enter") submit();
 				}}

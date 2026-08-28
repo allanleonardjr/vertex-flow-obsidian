@@ -368,6 +368,18 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 							>
 								Edit
 							</button>
+							<button
+								className="vf-menu-item"
+								onClick={() => {
+									setMenuRoot(null);
+									writeSettings({
+										activeWorkspaceRoot: entry.workspace.root,
+									});
+									tabs.openScreen("settings");
+								}}
+							>
+								Settings
+							</button>
 						</RowMenu>
 					}
 				/>

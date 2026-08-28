@@ -19,7 +19,7 @@ export function WorkspaceSettingsView({ snapshot }: { snapshot: WorkspaceSnapsho
 		<div className="vf-settings">
 			<header className="vf-toolbar">
 				<div className="vf-toolbar-title">
-					<h2>Settings</h2>
+					<h2>Settings - {snapshot.workspace.name}</h2>
 				</div>
 			</header>
 

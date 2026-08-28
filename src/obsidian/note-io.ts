@@ -160,6 +160,22 @@ export class NoteIO {
 		}
 		throw new Error(`No available path near "${path}"`);
 	}
+
+	/**
+	 * Like `availablePath` but for folders — checks the bare path (no `.md`) and
+	 * appends ` 2`, ` 3`… when a file or folder already sits there. Used when
+	 * creating a workspace folder so an existing folder is never merged into.
+	 */
+	availableFolderPath(path: string): string {
+		const base = normalizePath(path);
+		if (!base || base === "/" || base === ".") return base;
+		if (!this.app.vault.getAbstractFileByPath(base)) return base;
+		for (let n = 2; n < 1000; n++) {
+			const candidate = `${base} ${n}`;
+			if (!this.app.vault.getAbstractFileByPath(candidate)) return candidate;
+		}
+		throw new Error(`No available folder near "${path}"`);
+	}
 }
 
 // ---------------------------------------------------------------------------

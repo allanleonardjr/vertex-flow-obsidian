@@ -12,7 +12,7 @@
  */
 
 import { joinPath } from "../links";
-import { formatTaskId } from "../ids";
+import { formatTaskId, slugify } from "../ids";
 import { serializeComments } from "../serialization/comments";
 import { serializeProject } from "../serialization/entities";
 import { serializeTask } from "../serialization/task";
@@ -60,8 +60,37 @@ export interface InstantiateOptions {
 	/** When false, the workspace gets the template's taxonomy/views but no
 	 *  Projects or Tasks. */
 	includeExampleContent: boolean;
+	/** When set, ensures the `people` register has an entry for this name
+	 *  flagged `isSelf` (matching an existing entry by name if there is one,
+	 *  otherwise appending a new one and clearing `isSelf` elsewhere). This is
+	 *  what makes `self` filters — "Assigned to Me" / "Mentions Me" (§7.6) —
+	 *  resolve in a freshly created workspace. */
+	selfPersonName?: string;
 	/** Injectable clock so generated fixtures are deterministic in tests. */
 	now?: Date;
+}
+
+/** Fold the creator's own name into the `people` register as `isSelf`. */
+function seedSelfPerson(workspace: WorkspaceConfig, rawName: string): void {
+	const name = rawName.trim();
+	if (!name) return;
+
+	const existing = workspace.people.find(
+		(person) => person.name.toLowerCase() === name.toLowerCase(),
+	);
+	if (existing) {
+		workspace.people = workspace.people.map((person) => ({
+			...person,
+			isSelf: person.id === existing.id,
+		}));
+		return;
+	}
+
+	const id = slugify(name, workspace.people.map((person) => person.id));
+	workspace.people = [
+		...workspace.people.map((person) => ({ ...person, isSelf: false })),
+		{ id, name, aliases: [], isSelf: true },
+	];
 }
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -110,6 +139,7 @@ export function instantiateTemplate(
 	const workspace = createWorkspaceConfig(name, idPrefix, root, options.icon);
 	applyOverrides(workspace, template.workspace);
 	applyOverrides(workspace, content?.workspace);
+	if (options.selfPersonName) seedSelfPerson(workspace, options.selfPersonName);
 
 	// `createWorkspaceConfig` defaults `defaultNewTaskStatus` to the default
 	// backlog status id, which a taxonomy override may have removed.

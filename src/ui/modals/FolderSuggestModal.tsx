@@ -15,7 +15,7 @@ export class FolderSuggestModal extends FuzzySuggestModal<TFolder> {
 		private readonly onChoose: (folder: TFolder) => void,
 	) {
 		super(app);
-		this.setPlaceholder("Choose a folder for this workspace…");
+		this.setPlaceholder("Choose a parent folder for this workspace…");
 	}
 
 	getItems(): TFolder[] {

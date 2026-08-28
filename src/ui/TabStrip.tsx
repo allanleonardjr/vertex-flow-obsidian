@@ -119,7 +119,10 @@ function TabRow({
 		label = task.title;
 	} else {
 		icon = <span className="vf-view-icon">{BROWSE_ICON[tab.kind]}</span>;
-		label = browseLabel(tab.kind);
+		label =
+			tab.kind === "settings"
+				? `Settings - ${snapshot.workspace.name}`
+				: browseLabel(tab.kind);
 	}
 
 	return (

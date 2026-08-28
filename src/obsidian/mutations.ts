@@ -9,7 +9,7 @@
 
 import { App, Notice, TFile } from "obsidian";
 import { disambiguatePrefix, nextTaskId, suggestPrefix } from "../core/ids";
-import { formatLink, joinPath } from "../core/links";
+import { formatLink, joinPath, sanitizeFileName } from "../core/links";
 import { planReorder, rankForNewTask } from "../core/ranking";
 import {
 	instantiateTemplate,
@@ -501,7 +501,7 @@ export class Mutations {
 	): Promise<TFile> {
 		const now = new Date().toISOString();
 		const path = this.io.availablePath(
-			joinPath(snapshot.workspace.root, FOLDERS.projects, sanitize(title)),
+			joinPath(snapshot.workspace.root, FOLDERS.projects, sanitizeFileName(title)),
 		);
 		const file = await this.io.create(
 			path,
@@ -552,6 +552,10 @@ export class Mutations {
 		idPrefix?: string;
 		icon?: string;
 		includeExampleContent: boolean;
+		/** Seeds a `people` entry flagged `isSelf` so "Assigned to Me" works
+		 *  from the first task. Blank/undefined leaves the register as the
+		 *  template defines it. */
+		selfPersonName?: string;
 	}): Promise<WorkspaceConfig> {
 		const desired =
 			input.idPrefix?.trim() ||
@@ -565,6 +569,7 @@ export class Mutations {
 			idPrefix: prefix,
 			icon: input.icon,
 			includeExampleContent: input.includeExampleContent,
+			selfPersonName: input.selfPersonName,
 		});
 
 		await this.io.ensureFolder(input.root);
@@ -596,7 +601,3 @@ export class Mutations {
 	}
 }
 
-/** Strip characters Obsidian won't accept in a filename. */
-function sanitize(title: string): string {
-	return title.replace(/[\\/:*?"<>|#^[\]]/g, "").trim() || "Untitled";
-}
