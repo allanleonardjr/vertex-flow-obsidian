@@ -2514,26 +2514,34 @@ body.vf-dragging {
   overflow-y: auto;
 }
 
-/* Drag corner over the menu's bottom-right. */
+/* Drag corner over the menu's bottom-right — hatched, visible at rest and
+   picking up the accent on hover, so it clearly reads as resizable. */
 .vf-task-menu-grip {
   position: absolute;
   right: 0;
   bottom: 0;
-  width: 16px;
-  height: 16px;
+  width: 22px;
+  height: 22px;
   cursor: nwse-resize;
   touch-action: none;
+  /* Lower-right triangle only, so it reads as a corner grip. */
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent 0 3px,
+    var(--vf-muted) 3px 4.5px
+  );
+  opacity: 0.7;
+  transition: opacity 100ms ease;
 }
 
-.vf-task-menu-grip::after {
-  content: "";
-  position: absolute;
-  right: 3px;
-  bottom: 3px;
-  width: 7px;
-  height: 7px;
-  border-right: 2px solid var(--vf-muted);
-  border-bottom: 2px solid var(--vf-muted);
+.vf-task-menu-grip:hover {
+  opacity: 1;
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent 0 3px,
+    var(--text-accent) 3px 4.5px
+  );
 }
 
 .vf-task-menu-empty {
