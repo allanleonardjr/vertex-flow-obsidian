@@ -11,4 +11,5 @@ export * from "./ranking";
 export * from "./taxonomy";
 export * from "./hierarchy";
 export * from "./views";
+export * from "./query";
 export * from "./serialization";

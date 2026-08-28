@@ -8,19 +8,30 @@
  * are a two-click view the user builds themselves rather than something baked in.
  */
 
-import type { SavedView } from "../types";
+import type { SavedView, ViewDefinition } from "../types";
 
 export const DEFAULT_SORT_DIRECTION = "asc" as const;
 
+/**
+ * What a view is before anyone configures it.
+ *
+ * Exported because the text query language needs the same defaults: a query
+ * that omits `group:` means "no grouping", and both sides must agree on what
+ * that is or the round-trip breaks.
+ */
+export const DEFAULT_DEFINITION: ViewDefinition = {
+	filters: {},
+	viewType: "list",
+	groupBy: "none",
+	sortBy: "rank",
+	sortDirection: DEFAULT_SORT_DIRECTION,
+	emptyColumnBehavior: "show-normal",
+};
+
 function view(partial: Partial<SavedView> & Pick<SavedView, "id" | "name">): SavedView {
 	return {
-		viewType: "list",
-		filters: {},
-		groupBy: "none",
-		sortBy: "rank",
-		sortDirection: DEFAULT_SORT_DIRECTION,
+		...DEFAULT_DEFINITION,
 		columns: { collapsed: [], hidden: [] },
-		emptyColumnBehavior: "show-normal",
 		...partial,
 	};
 }

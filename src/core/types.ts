@@ -333,6 +333,25 @@ export interface SavedView {
 	emptyColumnBehavior: EmptyColumnBehavior;
 }
 
+/**
+ * What a view *is*, as opposed to what it's called and where its columns sit.
+ *
+ * This is the unit the text query language round-trips (`core/query`) and the
+ * unit `useViewDraft` compares to decide whether a view is unsaved — one
+ * definition of "the same view" rather than two that can drift. `name`, `icon`
+ * and `id` are identity; `columns` is per-session furniture that writes
+ * straight through to disk.
+ */
+export type ViewDefinition = Pick<
+	SavedView,
+	| "filters"
+	| "viewType"
+	| "groupBy"
+	| "sortBy"
+	| "sortDirection"
+	| "emptyColumnBehavior"
+>;
+
 // ---------------------------------------------------------------------------
 // Index snapshot
 // ---------------------------------------------------------------------------

@@ -12,16 +12,18 @@ import { Popover } from "../components/Popover";
 import {
 	FILTER_FIELDS,
 	activeFilterKeys,
+	activeReadonlyFilterKeys,
 	filterChoices,
 	filterFieldLabel,
 	summarizeClause,
 	type FilterKey,
+	type ReadonlyFilterKey,
 } from "./viewOptions";
 
 /** Drop a key when its value goes empty, so `_views.md` stays tidy. */
 function withFilter(
 	filters: ViewFilters,
-	key: FilterKey,
+	key: FilterKey | ReadonlyFilterKey,
 	value: string[] | string | undefined,
 ): ViewFilters {
 	const next: ViewFilters = { ...filters };
@@ -58,6 +60,7 @@ export function FilterControls({
 		...activeKeys,
 		...pending.filter((key) => !activeKeys.includes(key)),
 	];
+	const readonlyKeys = activeReadonlyFilterKeys(filters);
 	const availableFields = FILTER_FIELDS.filter((f) => !shownKeys.includes(f.key));
 
 	const removeClause = (key: FilterKey) => {
@@ -113,6 +116,30 @@ export function FilterControls({
 							/>
 						</Popover>
 					)}
+				</span>
+			))}
+
+			{readonlyKeys.map((key) => (
+				<span key={key} className="vf-control-anchor">
+					<span className="vf-filter-tag is-readonly">
+						<span
+							className="vf-filter-tag-face"
+							title="Editable from the query bar"
+						>
+							{filterFieldLabel(key)}:{" "}
+							<strong>
+								{summarizeClause(key, filters, snapshot, taxonomies)}
+							</strong>
+						</span>
+						<button
+							type="button"
+							className="vf-filter-tag-x"
+							aria-label={`Remove ${filterFieldLabel(key)} filter`}
+							onClick={() => setFilters(withFilter(filters, key, undefined))}
+						>
+							✕
+						</button>
+					</span>
 				</span>
 			))}
 

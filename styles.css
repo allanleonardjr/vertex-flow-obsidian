@@ -2262,6 +2262,57 @@ body.vf-dragging {
   color: var(--text-normal);
 }
 
+/* A filter the chip bar can't edit (only the query bar can) — no click target
+   on the face, but still removable. */
+.vf-filter-tag.is-readonly .vf-filter-tag-face {
+  cursor: default;
+}
+
+/* -- Text query row ----------------------------------------------------- */
+
+.vf-query-row {
+  padding: 6px 10px 8px;
+  border-top: 1px solid var(--vf-border);
+}
+
+.vf-query-input {
+  width: 100%;
+  font-family: var(--font-monospace);
+}
+
+.vf-query-input[aria-invalid="true"] {
+  border-color: var(--text-error);
+}
+
+.vf-query-issue {
+  margin: 4px 2px 0;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.vf-query-issue code {
+  padding: 0 3px;
+  border-radius: 3px;
+  background: var(--background-modifier-hover);
+  font-size: 0.9em;
+}
+
+.vf-query-count {
+  font-variant-numeric: tabular-nums;
+}
+
+.vf-query-fix {
+  padding: 0 4px !important;
+  border: none !important;
+  border-radius: 3px;
+  background: var(--background-modifier-hover) !important;
+  box-shadow: none !important;
+  color: var(--text-accent);
+  font-family: var(--font-monospace);
+  font-size: inherit;
+  cursor: pointer;
+}
+
 /* Popovers: short option lists and clause value pickers */
 
 .vf-popover {

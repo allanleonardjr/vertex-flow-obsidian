@@ -5,6 +5,7 @@
  * agree on labels and never drift.
  */
 
+import { basename } from "../../core/links";
 import { listValues } from "../../core/taxonomy";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import {
@@ -51,7 +52,7 @@ export const optionLabel = <T extends string>(
 	value: T,
 ): string => options.find((o) => o.value === value)?.label ?? value;
 
-/** The `ViewFilters` keys the bar can add as clauses. */
+/** The `ViewFilters` keys the bar can add and edit as chip clauses. */
 export type FilterKey =
 	| "status"
 	| "priority"
@@ -73,8 +74,22 @@ export const FILTER_FIELDS: { key: FilterKey; label: string }[] = [
 	{ key: "text", label: "Title" },
 ];
 
-export const filterFieldLabel = (key: FilterKey): string =>
-	FILTER_FIELDS.find((f) => f.key === key)?.label ?? key;
+/**
+ * Filter keys the query bar can set but the chip bar has no editor for — shown
+ * as a read-only tag with a ✕ so a query-only filter is never invisible and
+ * unremovable. `parent` is the only one left now that Initiatives and Cycles
+ * are gone; it would otherwise need a picker over the whole task list.
+ */
+export type ReadonlyFilterKey = "parent";
+
+export const READONLY_FILTER_FIELDS: { key: ReadonlyFilterKey; label: string }[] = [
+	{ key: "parent", label: "Parent" },
+];
+
+export const filterFieldLabel = (key: FilterKey | ReadonlyFilterKey): string =>
+	FILTER_FIELDS.find((f) => f.key === key)?.label ??
+	READONLY_FILTER_FIELDS.find((f) => f.key === key)?.label ??
+	key;
 
 export interface Choice {
 	value: string;
@@ -126,7 +141,7 @@ export function filterChoices(
 
 /** A short human summary of a clause's current value, for the pill face. */
 export function summarizeClause(
-	key: FilterKey,
+	key: FilterKey | ReadonlyFilterKey,
 	filters: ViewFilters,
 	snapshot: WorkspaceSnapshot,
 	taxonomies: WorkspaceTaxonomies,
@@ -134,8 +149,14 @@ export function summarizeClause(
 	if (key === "text") return filters.text?.trim() || "…";
 	const values = filters[key] ?? [];
 	if (values.length === 0) return "any";
-	const choices = filterChoices(key, snapshot, taxonomies);
-	const name = (v: string) => choices.find((c) => c.value === v)?.label ?? v;
+	const name =
+		key === "parent"
+			? (v: string) =>
+					snapshot.tasks.find((t) => t.path === v)?.id ?? basename(v)
+			: (v: string) => {
+					const choices = filterChoices(key, snapshot, taxonomies);
+					return choices.find((c) => c.value === v)?.label ?? v;
+				};
 	if (values.length <= 2) return values.map(name).join(", ");
 	return `${name(values[0])} +${values.length - 1}`;
 }
@@ -144,5 +165,14 @@ export function summarizeClause(
 export function activeFilterKeys(filters: ViewFilters): FilterKey[] {
 	return FILTER_FIELDS.map((f) => f.key).filter((key) =>
 		key === "text" ? Boolean(filters.text?.trim()) : (filters[key]?.length ?? 0) > 0,
+	);
+}
+
+/** Read-only clause keys currently carrying a value. */
+export function activeReadonlyFilterKeys(
+	filters: ViewFilters,
+): ReadonlyFilterKey[] {
+	return READONLY_FILTER_FIELDS.map((f) => f.key).filter(
+		(key) => (filters[key]?.length ?? 0) > 0,
 	);
 }

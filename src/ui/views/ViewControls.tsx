@@ -17,6 +17,7 @@ import { NamedIconDialog } from "../modals/NamedIconDialog";
 import { useSelection } from "../selection";
 import { GroupChip, LayoutToggle, SortChip } from "./DisplayControls";
 import { FilterControls } from "./FilterControls";
+import { QueryBar } from "./QueryBar";
 import type { ViewDraft } from "./useViewDraft";
 
 export function ViewControls({
@@ -43,6 +44,7 @@ export function ViewControls({
 	const selection = useSelection();
 	const createTask = useCreateTask();
 	const [savingAs, setSavingAs] = useState(false);
+	const queryOpen = plugin.settings.queryBarOpen;
 
 	const selectedCount = selection.selectedPaths.length;
 	const showSubtasks = !view.filters.topLevelOnly;
@@ -119,6 +121,23 @@ export function ViewControls({
 					onChange={editView}
 				/>
 
+				<button
+					type="button"
+					className={`vf-bar-item vf-query-toggle${queryOpen ? " is-on" : ""}`}
+					aria-expanded={queryOpen}
+					aria-controls="vf-query-row"
+					title="Edit this view as a text query"
+					onClick={() => writeSettings({ queryBarOpen: !queryOpen })}
+				>
+					<span
+						className={`vf-section-chevron${queryOpen ? " is-open" : ""}`}
+						aria-hidden
+					>
+						›
+					</span>
+					Query
+				</button>
+
 				{draft.dirty && (
 					<>
 						<span className="vf-bar-divider" />
@@ -171,6 +190,12 @@ export function ViewControls({
 					<span>Show archived</span>
 				</label>
 			</div>
+
+			{queryOpen && (
+				<div id="vf-query-row">
+					<QueryBar snapshot={snapshot} view={view} onChange={editView} />
+				</div>
+			)}
 
 			{savingAs && (
 				<NamedIconDialog

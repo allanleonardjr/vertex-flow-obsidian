@@ -22,6 +22,11 @@ export interface VertexFlowSettings {
 	/** Sidebar collapsed to a sliver. */
 	sidebarMinimized: boolean;
 	/**
+	 * Whether the text query row under the view bar is expanded. Plugin-global
+	 * rather than per-view: someone who works this way wants it everywhere.
+	 */
+	queryBarOpen: boolean;
+	/**
 	 * Whether opening a task note anywhere in Obsidian (search, a wikilink,
 	 * the quick switcher) redirects into Vertex Flow's editor instead of the
 	 * plain Markdown view. Plugin-global rather than per-workspace — this
@@ -39,5 +44,6 @@ export const DEFAULT_SETTINGS: VertexFlowSettings = {
 	sidebarCollapsed: {},
 	sidebarWidth: 220,
 	sidebarMinimized: false,
+	queryBarOpen: false,
 	redirectTaskNotes: true,
 };

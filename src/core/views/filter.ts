@@ -8,7 +8,15 @@
  */
 
 import { linksMatch } from "../links";
-import { NONE, SELF, type LinkTarget, type Task, type ViewFilters } from "../types";
+import {
+	NONE,
+	SELF,
+	type LinkTarget,
+	type SavedView,
+	type Task,
+	type ViewDefinition,
+	type ViewFilters,
+} from "../types";
 import type { ViewContext } from "./context";
 
 /** Expand the `self` sentinel against the workspace's `isSelf` person. */
@@ -107,6 +115,105 @@ export function applyFilters(
 	context: ViewContext,
 ): Task[] {
 	return tasks.filter((task) => matchesFilters(task, filters, context));
+}
+
+/* ------------------------------------------------------- canonicalisation -- */
+
+/**
+ * The array-valued filter fields, in the order canonical filters emit them.
+ *
+ * Typed as a `Record` key list rather than a bare array so that removing a
+ * field from `ViewFilters` surfaces here as a type error instead of leaving a
+ * silently-dead entry behind.
+ */
+export type ArrayFilterKey = Exclude<
+	keyof ViewFilters,
+	"text" | "includeArchived" | "topLevelOnly"
+>;
+
+export const FILTER_ARRAY_FIELDS: readonly ArrayFilterKey[] = [
+	"status",
+	"priority",
+	"taskType",
+	"labels",
+	"assignee",
+	"mentions",
+	"project",
+	"initiative",
+	"cycle",
+	"parent",
+];
+
+/**
+ * One filter set, one representation.
+ *
+ * `matchesFilters` already treats an empty array, a blank `text`, and a `false`
+ * boolean as no-ops, so canonical form simply drops them — and fixes key order,
+ * which is what lets equality be a `JSON.stringify` comparison.
+ *
+ * Values are de-duplicated but deliberately **not sorted**: the query bar
+ * re-prints its text from these arrays, so sorting would reorder the user's
+ * tokens under their cursor and shuffle the chip row on every click.
+ * First-occurrence dedup is idempotent, which is all canonicity needs here.
+ */
+export function canonicalizeFilters(filters: ViewFilters): ViewFilters {
+	const out: ViewFilters = {};
+
+	for (const key of FILTER_ARRAY_FIELDS) {
+		const values = filters[key];
+		if (!values || values.length === 0) continue;
+		const deduped: string[] = [];
+		for (const value of values) {
+			if (!deduped.includes(value)) deduped.push(value);
+		}
+		out[key] = deduped;
+	}
+
+	const text = filters.text?.trim();
+	if (text) out.text = text;
+	if (filters.includeArchived) out.includeArchived = true;
+	if (filters.topLevelOnly) out.topLevelOnly = true;
+
+	return out;
+}
+
+export function filtersEqual(a: ViewFilters, b: ViewFilters): boolean {
+	return (
+		JSON.stringify(canonicalizeFilters(a)) ===
+		JSON.stringify(canonicalizeFilters(b))
+	);
+}
+
+/** Strip a view down to what it *is*, dropping identity and column furniture. */
+export function viewDefinition(view: SavedView): ViewDefinition {
+	return {
+		filters: view.filters,
+		viewType: view.viewType,
+		groupBy: view.groupBy,
+		sortBy: view.sortBy,
+		sortDirection: view.sortDirection,
+		emptyColumnBehavior: view.emptyColumnBehavior,
+	};
+}
+
+export function canonicalizeDefinition(
+	definition: ViewDefinition,
+): ViewDefinition {
+	return {
+		filters: canonicalizeFilters(definition.filters),
+		viewType: definition.viewType,
+		groupBy: definition.groupBy,
+		sortBy: definition.sortBy,
+		sortDirection: definition.sortDirection,
+		emptyColumnBehavior: definition.emptyColumnBehavior,
+	};
+}
+
+export function definitionsEqual(a: ViewDefinition, b: ViewDefinition): boolean {
+	return (
+		JSON.stringify(canonicalizeDefinition(a)) ===
+		JSON.stringify(canonicalizeDefinition(b))
+	);
 }
 
 /** True when a view would show everything — used to label the empty state. */

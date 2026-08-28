@@ -13,18 +13,20 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { SavedView, ViewColumnState, WorkspaceSnapshot } from "../../core/types";
+import { canonicalizeDefinition, viewDefinition } from "../../core/views";
 import { useViewWriter } from "./useViewWriter";
 
-/** The fields a user edits from the view bar — what "unsaved" is measured over. */
+/**
+ * The fields a user edits from the view bar — what "unsaved" is measured over.
+ *
+ * Canonicalised first, so this compares what a view *means* rather than the
+ * order its keys happen to sit in. Without that, removing a filter clause and
+ * re-adding it leaves the key at the end of the object and the view reads as
+ * unsaved with an identical filter set — and the query bar, which rebuilds
+ * `filters` in token order on every keystroke, would hit that constantly.
+ */
 function definitionOf(view: SavedView) {
-	return JSON.stringify({
-		filters: view.filters,
-		viewType: view.viewType,
-		groupBy: view.groupBy,
-		sortBy: view.sortBy,
-		sortDirection: view.sortDirection,
-		emptyColumnBehavior: view.emptyColumnBehavior,
-	});
+	return JSON.stringify(canonicalizeDefinition(viewDefinition(view)));
 }
 
 export interface ViewDraft {
