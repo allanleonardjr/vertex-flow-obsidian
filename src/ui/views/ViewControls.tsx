@@ -8,9 +8,14 @@
 
 import { useState } from "react";
 import type { EvaluatedView } from "../../core/views";
-import { BUILT_IN_VIEW_ID, newView } from "../../core/views";
+import { BUILT_IN_VIEW_ID, newView, setColumnsCollapsed } from "../../core/views";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
-import type { SavedView, ViewFilters, WorkspaceSnapshot } from "../../core/types";
+import type {
+	SavedView,
+	ViewColumnState,
+	ViewFilters,
+	WorkspaceSnapshot,
+} from "../../core/types";
 import { useCreateTask } from "../actions";
 import { usePlugin, useSettingsWriter } from "../context";
 import { NamedIconDialog } from "../modals/NamedIconDialog";
@@ -117,10 +122,18 @@ export function ViewControls({
 				<LayoutToggle view={view} onChange={editView} />
 				<span className="vf-bar-divider" />
 				<GroupChip view={view} onChange={editView} />
-				<SortChip view={view} onChange={editView} />
-				{view.viewType === "board" && view.groupBy !== "none" && (
+				{view.groupBy !== "none" && view.viewType === "board" && (
 					<EmptyColumnsChip view={view} onChange={editView} />
 				)}
+				{view.groupBy !== "none" && view.viewType === "list" && (
+					<CollapseAllToggle
+						view={view}
+						evaluated={evaluated}
+						onColumnsChange={draft.setColumns}
+					/>
+				)}
+				<span className="vf-bar-divider" />
+				<SortChip view={view} onChange={editView} />
 				<span className="vf-bar-divider" />
 				<FilterControls
 					snapshot={snapshot}
@@ -223,6 +236,44 @@ export function ViewControls({
 				/>
 			)}
 		</header>
+	);
+}
+
+/**
+ * List-view "collapse all" / "expand all" for grouped rows. Flips based on
+ * current state: if every visible group is already collapsed it expands, else
+ * it collapses. Writes straight to disk like the per-group toggle (§8.2).
+ */
+function CollapseAllToggle({
+	view,
+	evaluated,
+	onColumnsChange,
+}: {
+	view: SavedView;
+	evaluated: EvaluatedView;
+	onColumnsChange: (columns: ViewColumnState) => void;
+}) {
+	const keys = evaluated.groups
+		.filter((group) => !group.hidden)
+		.map((group) => group.key);
+	if (keys.length === 0) return null;
+
+	const allCollapsed = evaluated.groups
+		.filter((group) => !group.hidden)
+		.every((group) => group.collapsed);
+
+	return (
+		<button
+			type="button"
+			className="vf-bar-item"
+			onClick={() =>
+				onColumnsChange(
+					setColumnsCollapsed(view, keys, !allCollapsed).columns,
+				)
+			}
+		>
+			{allCollapsed ? "Expand all" : "Collapse all"}
+		</button>
 	);
 }
 

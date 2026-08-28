@@ -63,6 +63,22 @@ export function toggleColumnCollapsed(view: SavedView, key: string): SavedView {
 	return { ...view, columns: { ...view.columns, collapsed } };
 }
 
+/**
+ * Collapse or expand a whole set of columns at once — the "collapse all" /
+ * "expand all" list-view control. Collapsing is a union (keys already collapsed
+ * stay collapsed); expanding removes exactly the given keys.
+ */
+export function setColumnsCollapsed(
+	view: SavedView,
+	keys: string[],
+	collapsed: boolean,
+): SavedView {
+	const next = collapsed
+		? [...new Set([...view.columns.collapsed, ...keys])]
+		: view.columns.collapsed.filter((k) => !keys.includes(k));
+	return { ...view, columns: { ...view.columns, collapsed: next } };
+}
+
 export function toggleColumnHidden(view: SavedView, key: string): SavedView {
 	const hidden = view.columns.hidden.includes(key)
 		? view.columns.hidden.filter((k) => k !== key)

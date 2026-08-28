@@ -13,7 +13,13 @@ import { createPortal } from "react-dom";
 import { Trash2 } from "lucide-react";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { EvaluatedView } from "../../core/views";
-import type { SavedView, Task, WorkspaceSnapshot } from "../../core/types";
+import { toggleColumnCollapsed } from "../../core/views";
+import type {
+  SavedView,
+  Task,
+  ViewColumnState,
+  WorkspaceSnapshot,
+} from "../../core/types";
 import { TaskList, type TaskListInteraction } from "../components/TaskList";
 import { TaskRowContent } from "../components/TaskRow";
 import { useTabs } from "../tabs-context";
@@ -28,6 +34,8 @@ export interface ListViewProps {
   view: SavedView;
   evaluated: EvaluatedView;
   taxonomies: WorkspaceTaxonomies;
+  /** Group collapse writes straight through to disk — see `useViewDraft`. */
+  onColumnsChange: (columns: ViewColumnState) => void;
 }
 
 export function ListView({
@@ -35,6 +43,7 @@ export function ListView({
   view,
   evaluated,
   taxonomies,
+  onColumnsChange,
 }: ListViewProps) {
   const plugin = usePlugin();
   const drag = useTaskDrag(useTaskDropHandler(view, evaluated));
@@ -68,6 +77,11 @@ export function ListView({
     onRowClick: (event, task) =>
       openOrSelect(event, task.path, drag, selection, tabs),
     dropIndexFor: (groupKey) => drag.dropIndexFor(groupKey),
+    onToggleGroupCollapse:
+      evaluated.view.groupBy === "none"
+        ? undefined
+        : (groupKey) =>
+            onColumnsChange(toggleColumnCollapsed(view, groupKey).columns),
   };
 
   return (

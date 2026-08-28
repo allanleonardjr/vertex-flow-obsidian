@@ -11,6 +11,7 @@ import {
 	matchesFilters,
 	snapshotContext,
 	sortTasks,
+	setColumnsCollapsed,
 	toggleColumnCollapsed,
 	toggleColumnHidden,
 	visibleGroups,
@@ -375,5 +376,14 @@ describe("column state toggles", () => {
 		const start = view();
 		toggleColumnCollapsed(start, "done");
 		expect(start.columns.collapsed).toEqual([]);
+	});
+
+	it("collapses many columns as a union and expands exactly the given keys", () => {
+		const start = toggleColumnCollapsed(view(), "queue");
+		const all = setColumnsCollapsed(start, ["todo", "done"], true);
+		expect(all.columns.collapsed).toEqual(["queue", "todo", "done"]);
+
+		const expanded = setColumnsCollapsed(all, ["todo", "done"], false);
+		expect(expanded.columns.collapsed).toEqual(["queue"]);
 	});
 });

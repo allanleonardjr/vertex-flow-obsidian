@@ -44,6 +44,8 @@ export interface TaskListInteraction {
 	onRowClick?: (event: React.MouseEvent, task: Task) => void;
 	/** Insert position for the drop indicator within a group, or null. */
 	dropIndexFor?: (groupKey: string) => number | null;
+	/** Collapse/expand a group by clicking its header. Omit for a fixed list. */
+	onToggleGroupCollapse?: (groupKey: string) => void;
 }
 
 export interface TaskListProps {
@@ -86,16 +88,10 @@ export function TaskList({
 				return (
 					<Fragment key={group.key}>
 						{grouped && group.label && (
-							<div className="vf-list-group">
-								{group.color && (
-									<span
-										className="vf-status-dot"
-										style={{ backgroundColor: group.color }}
-									/>
-								)}
-								<span>{group.label}</span>
-								<span className="vf-count">{group.tasks.length}</span>
-							</div>
+							<GroupHeader
+								group={group}
+								onToggleCollapse={interaction?.onToggleGroupCollapse}
+							/>
 						)}
 
 						{/* The section is the drop container, so an empty group is
@@ -123,7 +119,7 @@ export function TaskList({
 
 							{dropIndex === group.tasks.length && <div className="vf-drop-indicator" />}
 
-							{emptyGroupLabel && group.tasks.length === 0 && (
+							{emptyGroupLabel && group.tasks.length === 0 && !group.collapsed && (
 								<div className="vf-list-empty">{emptyGroupLabel}</div>
 							)}
 						</div>
@@ -133,6 +129,51 @@ export function TaskList({
 
 			{children}
 		</div>
+	);
+}
+
+/**
+ * A group's sticky header. Static text in a read-only list; a collapse toggle
+ * (chevron + clickable row) when the List view supplies `onToggleCollapse`.
+ */
+function GroupHeader({
+	group,
+	onToggleCollapse,
+}: {
+	group: TaskListGroup;
+	onToggleCollapse?: (groupKey: string) => void;
+}) {
+	const swatch = group.color && (
+		<span className="vf-status-dot" style={{ backgroundColor: group.color }} />
+	);
+
+	if (!onToggleCollapse) {
+		return (
+			<div className="vf-list-group">
+				{swatch}
+				<span>{group.label}</span>
+				<span className="vf-count">{group.tasks.length}</span>
+			</div>
+		);
+	}
+
+	return (
+		<button
+			type="button"
+			className="vf-list-group vf-list-group-toggle"
+			aria-expanded={!group.collapsed}
+			onClick={() => onToggleCollapse(group.key)}
+		>
+			<span
+				className={`vf-section-chevron${group.collapsed ? "" : " is-open"}`}
+				aria-hidden
+			>
+				›
+			</span>
+			{swatch}
+			<span>{group.label}</span>
+			<span className="vf-count">{group.tasks.length}</span>
+		</button>
 	);
 }
 

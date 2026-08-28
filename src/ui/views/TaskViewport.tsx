@@ -188,6 +188,7 @@ export function TaskViewport({
 					view={effective}
 					evaluated={evaluated}
 					taxonomies={taxonomies}
+					onColumnsChange={draft.setColumns}
 				/>
 			)}
 		</>

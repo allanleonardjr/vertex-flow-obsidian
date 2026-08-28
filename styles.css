@@ -477,6 +477,26 @@
   font-weight: 600;
 }
 
+button.vf-list-group-toggle {
+  width: 100%;
+  display: flex;
+  justify-content: flex-start;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--background-primary);
+  text-align: left;
+  font-family: inherit;
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button.vf-list-group-toggle:hover {
+  color: var(--text-normal);
+  background: var(--background-primary);
+}
+
 .vf-row {
   display: flex;
   align-items: center;
