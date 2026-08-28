@@ -858,6 +858,7 @@ body.vf-dragging {
 .vf-icon-select-trigger {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 6px;
   width: 100%;
   min-height: 26px;
@@ -1310,6 +1311,9 @@ body.vf-dragging {
 .vf-menu-item {
   display: flex;
   align-items: center;
+  /* Obsidian's base `button` rule sets `justify-content: center`; without this
+     override every row's icon + label sits centred instead of left-aligned. */
+  justify-content: flex-start;
   gap: 8px;
   width: 100%;
   padding: 6px 8px;
