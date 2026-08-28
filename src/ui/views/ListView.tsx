@@ -14,6 +14,7 @@ import { Trash2 } from "lucide-react";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { EvaluatedView } from "../../core/views";
 import { toggleColumnCollapsed } from "../../core/views";
+import { planDeletion, scopeOf, type DeletionPlan } from "../../core/hierarchy";
 import type {
   SavedView,
   Task,
@@ -23,9 +24,9 @@ import type {
 } from "../../core/types";
 import { TaskList, type TaskListInteraction } from "../components/TaskList";
 import { TaskRowContent } from "../components/TaskRow";
+import { DeleteEntityDialog } from "../DeleteEntityDialog";
 import { useTabs } from "../tabs-context";
 import { useSelection, useScrollFocusIntoView } from "../selection";
-import { usePlugin } from "../context";
 import { openOrSelect } from "./BoardView";
 import { useTaskDropHandler } from "./useDropHandler";
 import { PREVIEW_OFFSET_PX, useTaskDrag, type DragState } from "./useTaskDrag";
@@ -46,10 +47,10 @@ export function ListView({
   taxonomies,
   onColumnsChange,
 }: ListViewProps) {
-  const plugin = usePlugin();
   const drag = useTaskDrag(useTaskDropHandler(view, evaluated));
   const selection = useSelection();
   const tabs = useTabs();
+  const [deletePlan, setDeletePlan] = useState<DeletionPlan | null>(null);
 
   const draggedTask = drag.drag
     ? evaluated.tasks.find((task) => task.path === drag.drag?.taskPath)
@@ -86,39 +87,49 @@ export function ListView({
   };
 
   return (
-    <TaskList
-      groups={evaluated.groups.filter((group) => !group.hidden)}
-      snapshot={snapshot}
-      taxonomies={taxonomies}
-      grouped={evaluated.view.groupBy !== "none"}
-      interaction={interaction}
-      hiddenFields={view.hiddenFields}
-      emptyGroupLabel="Drop tasks here"
-      containerRef={setList}
-      rowAction={(task) => (
-        <button
-          type="button"
-          className="vf-icon-button vf-row-remove"
-          title={`Delete ${task.title}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            void plugin.mutations.deleteTask(task);
-          }}
-        >
-          <Trash2 size={13} />
-        </button>
-      )}
-    >
-      {drag.drag && draggedTask && (
-        <RowPreview
-          drag={drag.drag}
-          task={draggedTask}
+    <>
+      <TaskList
+        groups={evaluated.groups.filter((group) => !group.hidden)}
+        snapshot={snapshot}
+        taxonomies={taxonomies}
+        grouped={evaluated.view.groupBy !== "none"}
+        interaction={interaction}
+        hiddenFields={view.hiddenFields}
+        emptyGroupLabel="Drop tasks here"
+        containerRef={setList}
+        rowAction={(task) => (
+          <button
+            type="button"
+            className="vf-icon-button vf-row-remove"
+            title={`Delete ${task.title}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setDeletePlan(planDeletion(scopeOf(snapshot), task));
+            }}
+          >
+            <Trash2 size={13} />
+          </button>
+        )}
+      >
+        {drag.drag && draggedTask && (
+          <RowPreview
+            drag={drag.drag}
+            task={draggedTask}
+            snapshot={snapshot}
+            taxonomies={taxonomies}
+            hiddenFields={view.hiddenFields}
+          />
+        )}
+      </TaskList>
+
+      {deletePlan && (
+        <DeleteEntityDialog
           snapshot={snapshot}
-          taxonomies={taxonomies}
-          hiddenFields={view.hiddenFields}
+          plan={deletePlan}
+          onClose={() => setDeletePlan(null)}
         />
       )}
-    </TaskList>
+    </>
   );
 }
 

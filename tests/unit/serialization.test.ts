@@ -31,9 +31,7 @@ const SPEC_TASK = {
 	status: "in-progress",
 	priority: "high",
 	rank: "0|i00004:",
-	cycleRank: "0|i00002:",
 	project: "[[Projects/Kanban UI Engine]]",
-	cycle: "[[Cycles/2026-Cycle-18]]",
 	assignee: "alice",
 	parent: "[[Tasks/PRD-0102]]",
 	estimate: 3,
@@ -62,9 +60,7 @@ describe("parseTask", () => {
 			status: "in-progress",
 			priority: "high",
 			rank: "0|i00004:",
-			cycleRank: "0|i00002:",
 			project: "Projects/Kanban UI Engine",
-			cycle: "Cycles/2026-Cycle-18",
 			parent: "Tasks/PRD-0102",
 			assignee: "alice",
 			estimate: 3,
@@ -99,21 +95,6 @@ describe("parseTask", () => {
 		const { value, issues } = parseTask({ rank: "not-a-rank" }, opts);
 		expect(value.rank).toBe(MIDDLE_RANK);
 		expect(issues.some((i) => /Invalid rank/.test(i))).toBe(true);
-	});
-
-	it("drops a corrupt cycleRank so it falls back to rank", () => {
-		const { value } = parseTask({ rank: "0|i00004:", cycleRank: "junk" }, opts);
-		expect(value.cycleRank).toBeNull();
-	});
-
-	it("keeps exactly one primary parent when a note names two", () => {
-		const { value, issues } = parseTask(
-			{ project: "[[P/One]]", initiative: "[[I/One]]" },
-			opts,
-		);
-		expect(value.project).toBe("P/One");
-		expect(value.initiative).toBeNull();
-		expect(issues.some((i) => /both a project and an initiative/.test(i))).toBe(true);
 	});
 
 	it("refuses to let a task parent itself", () => {
@@ -305,7 +286,6 @@ describe("parseWorkspace", () => {
 				type: "workspace",
 				name: "Product Team",
 				idPrefix: "PRD",
-				cycles: { enabled: false, termLabel: "Cycle", rolloverPolicy: "auto-rollover" },
 				archiving: { autoArchiveEnabled: false, autoArchiveDays: 30 },
 				defaultNewTaskStatus: "queue",
 				statuses: [
@@ -326,14 +306,12 @@ describe("parseWorkspace", () => {
 		expect(issues).toEqual([]);
 		expect(value.name).toBe("Product Team");
 		expect(value.root).toBe("Product Team");
-		expect(value.cycles.enabled).toBe(false);
 		expect(value.statuses).toHaveLength(2);
 		expect(value.people.find((p) => p.isSelf)?.id).toBe("alice");
 	});
 
-	it("defaults cycles off and auto-archive off", () => {
+	it("defaults auto-archive off", () => {
 		const { value } = parseWorkspace({ name: "W" }, { path });
-		expect(value.cycles.enabled).toBe(false);
 		expect(value.archiving.autoArchiveEnabled).toBe(false);
 	});
 
@@ -378,15 +356,6 @@ describe("parseWorkspace", () => {
 		expect(issues.some((i) => /more than one person/i.test(i))).toBe(true);
 	});
 
-	it("rejects an unknown rollover policy", () => {
-		const { value, issues } = parseWorkspace(
-			{ cycles: { rolloverPolicy: "teleport" } },
-			{ path },
-		);
-		expect(value.cycles.rolloverPolicy).toBe("auto-rollover");
-		expect(issues.some((i) => /Unknown rolloverPolicy/.test(i))).toBe(true);
-	});
-
 	it("round-trips through serialize", () => {
 		const first = parseWorkspace({ name: "W", idPrefix: "WWW" }, { path }).value;
 		const second = parseWorkspace(serializeWorkspace(first), { path }).value;
@@ -421,12 +390,12 @@ describe("parseViews", () => {
 					emptyColumnBehavior: "auto-collapse",
 				},
 				{
-					id: "cycle-18-board",
-					name: "Cycle 18 Board",
+					id: "core-board",
+					name: "Core Board",
 					viewType: "board",
-					filters: { cycle: "Cycles/2026-Cycle-18" },
+					filters: { project: "Projects/Core App Experience" },
 					groupBy: "status",
-					sortBy: "cycleRank",
+					sortBy: "rank",
 					columns: { collapsed: [], hidden: [] },
 					emptyColumnBehavior: "show-normal",
 				},
@@ -437,8 +406,8 @@ describe("parseViews", () => {
 		expect(value[0].filters.assignee).toEqual(["self"]);
 		expect(value[0].filters.taskType).toEqual(["bug"]);
 		expect(value[0].columns.hidden).toEqual(["canceled"]);
-		expect(value[1].filters.cycle).toEqual(["Cycles/2026-Cycle-18"]);
-		expect(value[1].sortBy).toBe("cycleRank");
+		expect(value[1].filters.project).toEqual(["Projects/Core App Experience"]);
+		expect(value[1].sortBy).toBe("rank");
 	});
 
 	it("normalizes a scalar filter into an array", () => {

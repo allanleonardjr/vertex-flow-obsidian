@@ -36,15 +36,8 @@ function fieldEditFor(
 			return { taskType: value };
 		case "assignee":
 			return { assignee: value };
-		case "cycle":
-			return { cycle: value };
-		// A task has exactly one primary parent (Golden Rule), so moving it into
-		// a project clears any initiative it was attached to directly, and
-		// vice versa.
 		case "project":
-			return { project: value, initiative: null };
-		case "initiative":
-			return { initiative: value, project: null };
+			return { project: value };
 		case "label":
 		case "none":
 			return null;
@@ -56,9 +49,6 @@ export function useTaskDropHandler(
 	evaluated: EvaluatedView,
 ): (taskPath: string, target: DropTarget) => void {
 	const plugin = usePlugin();
-
-	// A cycle board is the one context with its own order (§6).
-	const rankField = view.sortBy === "cycleRank" ? "cycleRank" : "rank";
 
 	return useCallback(
 		(taskPath: string, target: DropTarget) => {
@@ -72,10 +62,9 @@ export function useTaskDropHandler(
 				task,
 				group.tasks,
 				target.index,
-				rankField,
 				edit ?? undefined,
 			);
 		},
-		[evaluated, view.groupBy, plugin, rankField],
+		[evaluated, view.groupBy, plugin],
 	);
 }

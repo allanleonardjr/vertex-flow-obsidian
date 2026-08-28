@@ -66,7 +66,6 @@ export function TaxonomySection({
 	const usageScope = {
 		tasks: snapshot.tasks,
 		projects: snapshot.projects,
-		initiatives: snapshot.initiatives,
 	};
 
 	const requestDelete = (valueId: string) => {

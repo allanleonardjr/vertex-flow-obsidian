@@ -30,9 +30,6 @@ export function evaluateView(
 	context: ViewContext = snapshotContext(snapshot),
 ): EvaluatedView {
 	const filtered = applyFilters(snapshot.tasks, view.filters, context);
-
-	// Cycle boards are the one context with an independent order (§6). Falling
-	// back through `cycleRank → rank` happens inside the ranking engine.
 	const sorted = sortTasks(filtered, view.sortBy, view.sortDirection, context);
 
 	return {

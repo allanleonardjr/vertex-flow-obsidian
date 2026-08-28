@@ -258,16 +258,14 @@ describe("usage counting", () => {
 		expect(perf.count).toBe(1);
 	});
 
-	it("counts projects and initiatives for status, since they share it (§5.1)", () => {
+	it("counts projects for status, since they share it (§5.1)", () => {
 		const usage = findTaxonomyUsage("status", "in-progress", {
 			tasks: snapshot.tasks,
 			projects: snapshot.projects,
-			initiatives: snapshot.initiatives,
 		});
 		expect(usage.projectPaths).toHaveLength(1);
-		expect(usage.initiativePaths).toHaveLength(1);
 		expect(usage.count).toBe(
-			usage.taskPaths.length + usage.projectPaths.length + usage.initiativePaths.length,
+			usage.taskPaths.length + usage.projectPaths.length,
 		);
 	});
 
@@ -285,17 +283,15 @@ describe("usage counting", () => {
 				count: 1,
 				taskPaths: ["a"],
 				projectPaths: [],
-				initiativePaths: [],
 			}),
 		).toBe("1 task");
 		expect(
 			describeUsage({
-				count: 5,
+				count: 4,
 				taskPaths: ["a", "b", "c"],
 				projectPaths: ["p"],
-				initiativePaths: ["i"],
 			}),
-		).toBe("3 tasks, 1 project and 1 initiative");
+		).toBe("3 tasks and 1 project");
 	});
 });
 

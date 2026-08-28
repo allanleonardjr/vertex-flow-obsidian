@@ -1,7 +1,7 @@
 /**
- * One tab strip for everything: the Board/List, Initiatives, Projects,
- * Cycles, Settings, and every open task all live as tabs in this single
- * strip, none of them able to block access to the others.
+ * One tab strip for everything: the Board/List, Projects, Settings, and every
+ * open task all live as tabs in this single strip, none of them able to block
+ * access to the others.
  *
  * This replaces an earlier design where opening a task took over the whole
  * content area — closing every task tab was the only way back to the board.
@@ -22,8 +22,8 @@ import {
 } from "react";
 import { usePlugin, useSettingsWriter } from "./context";
 
-/** The four non-task screens, each a single reusable tab (never duplicated). */
-export type BrowseKind = "initiatives" | "projects" | "cycles" | "settings";
+/** The non-task screens, each a single reusable tab (never duplicated). */
+export type BrowseKind = "projects" | "settings";
 
 export type Tab =
 	/** The built-in "Tasks" view — pinned, always present, always first, never closed. */
@@ -39,7 +39,7 @@ const WORKSPACE_TAB: Tab = { id: "workspace", kind: "workspace" };
 
 function taskTabId(path: string): string {
 	// Paths always contain a slash (they're vault-relative), so this can never
-	// collide with the fixed "workspace"/"initiatives"/… ids above.
+	// collide with the fixed "workspace"/"projects"/… ids above.
 	return path;
 }
 

@@ -98,8 +98,6 @@ export function matchesFilters(
 	}
 
 	if (!matchesLink(task.project, filters.project)) return false;
-	if (!matchesLink(task.initiative, filters.initiative)) return false;
-	if (!matchesLink(task.cycle, filters.cycle)) return false;
 	if (!matchesLink(task.parent, filters.parent)) return false;
 
 	if (filters.text && filters.text.trim()) {
@@ -141,8 +139,6 @@ export const FILTER_ARRAY_FIELDS: readonly ArrayFilterKey[] = [
 	"assignee",
 	"mentions",
 	"project",
-	"initiative",
-	"cycle",
 	"parent",
 ];
 
@@ -244,8 +240,6 @@ export function isEmptyFilterSet(filters: ViewFilters): boolean {
 		!filters.labels?.length &&
 		!filters.assignee?.length &&
 		!filters.project?.length &&
-		!filters.initiative?.length &&
-		!filters.cycle?.length &&
 		!filters.parent?.length &&
 		!filters.mentions?.length &&
 		!filters.text?.trim() &&

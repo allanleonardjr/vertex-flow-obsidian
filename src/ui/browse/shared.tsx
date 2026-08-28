@@ -1,5 +1,5 @@
 /**
- * Shared layout for the Initiatives / Projects / Cycles browse screens.
+ * Shared layout for the Projects browse screen.
  *
  * These three are deliberately *not* Saved Views (§8.3 is a Task-filtering
  * concept) — they're a plain manager list for the other three entity kinds,
@@ -20,7 +20,7 @@ export function BrowseHeader({
 	onAction,
 }: {
 	title: string;
-	/** Singular noun, for the count line: "3 initiatives". */
+	/** Singular noun, for the count line: "3 projects". */
 	noun: string;
 	count: number;
 	actionLabel: string;
@@ -50,7 +50,7 @@ export function BrowseList({ children }: { children: ReactNode }) {
  * mid-page) — that reads fine as "nothing matched this filter," but a browse
  * screen with zero items yet is still a real page, and centering it made the
  * whole screen look off relative to List's normal flush-top-left layout the
- * moment a workspace had no initiatives/projects/cycles.
+ * moment a workspace had no projects.
  */
 export function BrowseEmpty({ label, actionLabel }: { label: string; actionLabel: string }) {
 	return (

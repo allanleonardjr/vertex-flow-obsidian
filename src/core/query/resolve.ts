@@ -230,6 +230,7 @@ export function resolveValue(
 	const entities = entitiesFor(spec.resolveAs, context);
 	if (entities) return resolveEntity(raw, entities, spec.token);
 
-	// "opaque" — normalise a pasted wikilink, otherwise store as written.
+	// Unreachable: every `ResolveAs` is handled above. Kept as a total fallback
+	// that still normalises a pasted wikilink rather than throwing.
 	return { value: parseLink(raw) ?? raw };
 }

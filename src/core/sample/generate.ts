@@ -11,9 +11,9 @@
 
 import { formatTaskId } from "../ids";
 import { joinPath } from "../links";
-import { initialRanks, rankBefore } from "../ranking/lexorank";
+import { initialRanks } from "../ranking/lexorank";
 import { serializeComments } from "../serialization/comments";
-import { serializeCycle, serializeInitiative, serializeProject } from "../serialization/entities";
+import { serializeProject } from "../serialization/entities";
 import { serializeTask } from "../serialization/task";
 import { serializeViews } from "../serialization/views";
 import { serializeWorkspace } from "../serialization/workspace";
@@ -22,8 +22,6 @@ import { defaultViews } from "../views/defaults";
 import {
 	emptyRelations,
 	type Comment,
-	type Cycle,
-	type Initiative,
 	type Project,
 	type Task,
 	type WorkspaceConfig,
@@ -69,9 +67,6 @@ export function generateSampleWorkspace(
 
 	const workspace: WorkspaceConfig = {
 		...createWorkspaceConfig(name, prefix, root),
-		// The sample turns cycles on so the feature is discoverable. Real new
-		// workspaces still start with them off (§7.5).
-		cycles: { enabled: true, termLabel: "Cycle", rolloverPolicy: "auto-rollover" },
 		labels: [
 			{ id: "performance", name: "Performance", color: "#f97316" },
 			{ id: "design", name: "Design", color: "#a855f7" },
@@ -85,31 +80,17 @@ export function generateSampleWorkspace(
 
 	// --- Paths ----------------------------------------------------------------
 
-	const initiativePath = joinPath(root, "Initiatives", "Launch Mobile App");
 	const coreProjectPath = joinPath(root, "Projects", "Core App Experience");
 	const launchProjectPath = joinPath(root, "Projects", "App Store Launch");
-	const cyclePath = joinPath(root, "Cycles", `${now.getFullYear()}-Cycle-18`);
 	const taskPath = (n: number) => joinPath(root, "Tasks", formatTaskId(prefix, n));
 
 	// --- Entities -------------------------------------------------------------
-
-	const initiative: Initiative = {
-		type: "initiative",
-		title: "Launch Mobile App (v1.0)",
-		status: "in-progress",
-		archived: false,
-		archivedAt: null,
-		createdAt: iso(-40),
-		updatedAt: iso(-2),
-		path: initiativePath,
-	};
 
 	const projects: Project[] = [
 		{
 			type: "project",
 			title: "Core App Experience",
 			status: "in-progress",
-			initiative: initiativePath,
 			archived: false,
 			archivedAt: null,
 			createdAt: iso(-38),
@@ -122,7 +103,6 @@ export function generateSampleWorkspace(
 			// demonstrating that status and progress never auto-sync (§7.1).
 			title: "App Store Launch & Marketing",
 			status: "queue",
-			initiative: initiativePath,
 			archived: false,
 			archivedAt: null,
 			createdAt: iso(-30),
@@ -130,17 +110,6 @@ export function generateSampleWorkspace(
 			path: launchProjectPath,
 		},
 	];
-
-	const cycle: Cycle = {
-		type: "cycle",
-		title: `${now.getFullYear()}-Cycle-18`,
-		startDate: day(-7),
-		endDate: day(7),
-		status: "active",
-		createdAt: iso(-7),
-		updatedAt: iso(-7),
-		path: cyclePath,
-	};
 
 	// --- Tasks ----------------------------------------------------------------
 
@@ -156,11 +125,8 @@ export function generateSampleWorkspace(
 		status: "queue",
 		priority: "medium",
 		rank: nextRank(),
-		cycleRank: null,
 		project: null,
-		initiative: null,
 		parent: null,
-		cycle: null,
 		assignee: null,
 		estimate: null,
 		labels: [],
@@ -184,7 +150,6 @@ export function generateSampleWorkspace(
 			status: "in-progress",
 			priority: "high",
 			project: coreProjectPath,
-			cycle: cyclePath,
 			assignee: "alice",
 			estimate: 5,
 			labels: ["design"],
@@ -198,7 +163,6 @@ export function generateSampleWorkspace(
 			priority: "medium",
 			project: coreProjectPath,
 			parent: taskPath(101),
-			cycle: cyclePath,
 			assignee: "alice",
 			labels: ["design"],
 		}),
@@ -209,7 +173,6 @@ export function generateSampleWorkspace(
 			priority: "high",
 			project: coreProjectPath,
 			parent: taskPath(101),
-			cycle: cyclePath,
 			assignee: "bob",
 		}),
 
@@ -220,7 +183,6 @@ export function generateSampleWorkspace(
 			status: "in-progress",
 			priority: "urgent",
 			project: coreProjectPath,
-			cycle: cyclePath,
 			assignee: "alice",
 			estimate: 3,
 			labels: ["performance"],
@@ -231,9 +193,6 @@ export function generateSampleWorkspace(
 				related: [],
 				duplicateOf: null,
 			},
-			// A cycleRank override → the one legitimate per-context order (§6).
-			// This task sits 4th by global `rank` but leads the cycle board.
-			cycleRank: rankBefore(ranks[0]),
 		}),
 		base(105, {
 			title: "Add regression tests for the ranking engine",
@@ -241,7 +200,6 @@ export function generateSampleWorkspace(
 			status: "todo",
 			priority: "high",
 			project: coreProjectPath,
-			cycle: cyclePath,
 			assignee: "bob",
 			relations: {
 				blocks: [taskPath(104)],
@@ -270,13 +228,12 @@ export function generateSampleWorkspace(
 			labels: ["docs", "design"],
 		}),
 
-		// Attached straight to the Initiative, skipping the Project level (§2).
 		base(108, {
 			title: "Agree the launch date with the whole team",
 			taskType: "chore",
 			status: "todo",
 			priority: "urgent",
-			initiative: initiativePath,
+			project: launchProjectPath,
 			assignee: "alice",
 		}),
 
@@ -291,7 +248,7 @@ export function generateSampleWorkspace(
 		}),
 	];
 
-	// --- Comments -------------------------------------------------------------
+	// --- Comments -----------------------------------------------------------
 
 	const commentsByPath = new Map<string, Comment[]>([
 		[
@@ -308,7 +265,7 @@ export function generateSampleWorkspace(
 					id: "cmt_02",
 					author: "bob",
 					date: iso(-1),
-					body: "@alice I can take the fix. Ship it this cycle or push to the next one?",
+					body: "@alice I can take the fix. Ship it now or push to the next release?",
 					reactions: { "❤️": 1 },
 				},
 			],
@@ -341,7 +298,7 @@ export function generateSampleWorkspace(
 		task.mentions = [...mentioned];
 	}
 
-	// --- Notes ----------------------------------------------------------------
+	// --- Notes --------------------------------------------------------------
 
 	const descriptions = new Map<string, string>([
 		[
@@ -365,21 +322,11 @@ export function generateSampleWorkspace(
 			frontmatter: serializeViews(defaultViews()),
 			body: "",
 		},
-		{
-			path: initiative.path,
-			frontmatter: serializeInitiative(initiative),
-			body: "## Overview\nShip version 1.0 of the mobile app to both stores.\n",
-		},
 		...projects.map((project) => ({
 			path: project.path,
 			frontmatter: serializeProject(project),
 			body: `## Overview\n${project.title}.\n`,
 		})),
-		{
-			path: cycle.path,
-			frontmatter: serializeCycle(cycle),
-			body: "## Goal\nGet onboarding and the ranking fix shipped.\n\n## Retro\n",
-		},
 		...tasks.map((task) => {
 			const description = descriptions.get(task.path) ?? "";
 			const comments = commentsByPath.get(task.path) ?? [];
@@ -400,8 +347,6 @@ export function generateSampleWorkspace(
 			workspace,
 			tasks,
 			projects,
-			initiatives: [initiative],
-			cycles: [cycle],
 			views: defaultViews(),
 		},
 	};

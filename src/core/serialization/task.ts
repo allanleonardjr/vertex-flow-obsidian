@@ -61,25 +61,9 @@ export function parseTask(
 		rank = MIDDLE_RANK;
 	}
 
-	const rawCycleRank = asString(fm.cycleRank);
-	let cycleRank: string | null = rawCycleRank;
-	if (rawCycleRank && !isValidRank(rawCycleRank)) {
-		log.add(`Invalid cycleRank ${JSON.stringify(rawCycleRank)}; ignored.`);
-		cycleRank = null;
-	}
-
-	let project = parseLink(fm.project);
-	let initiative = parseLink(fm.initiative);
+	const project = parseLink(fm.project);
 	const parent = parseLink(fm.parent);
 
-	// A task has exactly one primary parent (Golden Rule). If a note somehow
-	// names two, keep the more specific one rather than guessing.
-	if (project && initiative) {
-		log.add(
-			"Task names both a project and an initiative; keeping the project as its primary parent.",
-		);
-		initiative = null;
-	}
 	// A sub-task may still carry its parent's `project` link — that's redundancy,
 	// not a second parent, and it's what lets a project view find sub-tasks
 	// without walking the whole tree. `parent` remains the primary parent.
@@ -97,11 +81,8 @@ export function parseTask(
 		status: status ?? options.defaultStatus,
 		priority: asString(fm.priority),
 		rank,
-		cycleRank,
 		project,
-		initiative,
 		parent,
-		cycle: parseLink(fm.cycle),
 		assignee: asString(fm.assignee),
 		estimate: asNumber(fm.estimate),
 		labels: asStringArray(fm.labels),
@@ -162,11 +143,8 @@ export function serializeTask(task: Task): Record<string, unknown> {
 		status: task.status,
 		priority: task.priority,
 		rank: task.rank,
-		cycleRank: task.cycleRank,
 		project: formatLink(task.project),
-		initiative: formatLink(task.initiative),
 		parent: formatLink(task.parent),
-		cycle: formatLink(task.cycle),
 		assignee: task.assignee,
 		estimate: task.estimate,
 		labels: task.labels,
@@ -202,11 +180,8 @@ export const TASK_FIELD_ORDER: readonly string[] = [
 	"status",
 	"priority",
 	"rank",
-	"cycleRank",
 	"project",
-	"initiative",
 	"parent",
-	"cycle",
 	"assignee",
 	"estimate",
 	"labels",

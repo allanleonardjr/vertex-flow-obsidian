@@ -4,14 +4,13 @@ import {
 	danglingRelationEdits,
 	describePlanChildren,
 	planDeletion,
-	planInitiativeDeletion,
 	planProjectDeletion,
 	planTaskDeletion,
 	scopeOf,
 	type HierarchyScope,
 } from "../../src/core/hierarchy";
 import { sampleSnapshot } from "../../src/core/sample/generate";
-import { emptyRelations, type Initiative, type Project, type Task } from "../../src/core/types";
+import { emptyRelations, type Project, type Task } from "../../src/core/types";
 
 function task(overrides: Partial<Task> & { path: string }): Task {
 	return {
@@ -22,11 +21,8 @@ function task(overrides: Partial<Task> & { path: string }): Task {
 		status: "queue",
 		priority: null,
 		rank: "0|i00000:",
-		cycleRank: null,
 		project: null,
-		initiative: null,
 		parent: null,
-		cycle: null,
 		assignee: null,
 		estimate: null,
 		labels: [],
@@ -42,23 +38,9 @@ function task(overrides: Partial<Task> & { path: string }): Task {
 	};
 }
 
-function project(path: string, initiative: string | null = null): Project {
+function project(path: string): Project {
 	return {
 		type: "project",
-		title: path,
-		status: "queue",
-		initiative,
-		archived: false,
-		archivedAt: null,
-		createdAt: "2026-01-01T00:00:00Z",
-		updatedAt: "2026-01-01T00:00:00Z",
-		path,
-	};
-}
-
-function initiative(path: string): Initiative {
-	return {
-		type: "initiative",
 		title: path,
 		status: "queue",
 		archived: false,
@@ -100,21 +82,23 @@ describe("planning", () => {
 		expect(plan.childTasks.map((t) => t.path)).toEqual(["T/2"]);
 	});
 
-	it("counts an initiative's projects and its directly-attached tasks", () => {
+	it("counts a project's tasks", () => {
 		const scope: HierarchyScope = {
-			tasks: [task({ path: "T/1", initiative: "I/1" })],
-			projects: [project("P/1", "I/1"), project("P/2", "I/1"), project("P/3")],
+			tasks: [
+				task({ path: "T/1", project: "P/1" }),
+				task({ path: "T/2", project: "P/1" }),
+				task({ path: "T/3", project: "P/2" }),
+			],
+			projects: [project("P/1"), project("P/2")],
 		};
-		const plan = planInitiativeDeletion(scope, initiative("I/1"));
-		expect(plan.childProjects.map((p) => p.path)).toEqual(["P/1", "P/2"]);
-		expect(plan.childTasks.map((t) => t.path)).toEqual(["T/1"]);
+		const plan = planProjectDeletion(scope, project("P/1"));
+		expect(plan.childTasks.map((t) => t.path)).toEqual(["T/1", "T/2"]);
 	});
 
 	it("dispatches on entity type", () => {
 		const scope: HierarchyScope = { tasks: [], projects: [] };
 		expect(planDeletion(scope, task({ path: "T/1" })).kind).toBe("task");
 		expect(planDeletion(scope, project("P/1")).kind).toBe("project");
-		expect(planDeletion(scope, initiative("I/1")).kind).toBe("initiative");
 	});
 });
 
@@ -165,28 +149,12 @@ describe("unparent", () => {
 		expect(outcome.edits).toEqual([{ path: "T/1", field: "project", value: null }]);
 	});
 
-	it("clears `initiative` on both child projects and direct tasks", () => {
-		const scope: HierarchyScope = {
-			tasks: [task({ path: "T/1", initiative: "I/1" })],
-			projects: [project("P/1", "I/1")],
-		};
-		const outcome = applyDeletion(
-			scope,
-			planInitiativeDeletion(scope, initiative("I/1")),
-			"unparent",
-		);
-		expect(outcome.edits).toEqual([
-			{ path: "T/1", field: "initiative", value: null },
-			{ path: "P/1", field: "initiative", value: null },
-		]);
-	});
-
-	it("does not promote children to the grandparent", () => {
-		// Deleting the project must not silently move its tasks up to the
-		// initiative — that would be inventing a hierarchy decision.
+	it("does not promote children anywhere", () => {
+		// Deleting the project must not silently re-point its tasks — that would
+		// be inventing a hierarchy decision.
 		const scope: HierarchyScope = {
 			tasks: [task({ path: "T/1", project: "P/1" })],
-			projects: [project("P/1", "I/1")],
+			projects: [project("P/1")],
 		};
 		const outcome = applyDeletion(
 			scope,
@@ -258,19 +226,23 @@ describe("cascade — one level at a time (§7.8)", () => {
 		expect(deleted.sort()).toEqual(["T/1", "T/2", "T/3", "T/4"]);
 	});
 
-	it("turns an initiative's non-empty project into its own question", () => {
+	it("turns a project's task-with-sub-tasks into its own question", () => {
 		const scope: HierarchyScope = {
-			tasks: [task({ path: "T/1", project: "P/1" })],
-			projects: [project("P/1", "I/1"), project("P/2", "I/1")],
+			tasks: [
+				task({ path: "T/1", project: "P/1" }),
+				task({ path: "T/2", parent: "T/1" }),
+				task({ path: "T/3", project: "P/1" }),
+			],
+			projects: [project("P/1")],
 		};
 		const outcome = applyDeletion(
 			scope,
-			planInitiativeDeletion(scope, initiative("I/1")),
+			planProjectDeletion(scope, scope.projects[0]),
 			"cascade",
 		);
-		// The empty project goes now; the one holding a task asks first.
-		expect(outcome.deletePaths.sort()).toEqual(["I/1", "P/2"]);
-		expect(outcome.followUps.map((p) => p.path)).toEqual(["P/1"]);
+		// The childless task goes now; the one holding a sub-task asks first.
+		expect(outcome.deletePaths.sort()).toEqual(["P/1", "T/3"]);
+		expect(outcome.followUps.map((p) => p.path)).toEqual(["T/1"]);
 	});
 
 	it("makes no unparenting edits when cascading", () => {
@@ -335,13 +307,16 @@ describe("describePlanChildren", () => {
 			"1 sub-task",
 		);
 
-		const withProjects: HierarchyScope = {
-			tasks: [task({ path: "T/1", initiative: "I/1" }), task({ path: "T/2", initiative: "I/1" })],
-			projects: [project("P/1", "I/1")],
+		const withTasks: HierarchyScope = {
+			tasks: [
+				task({ path: "T/1", project: "P/1" }),
+				task({ path: "T/2", project: "P/1" }),
+			],
+			projects: [project("P/1")],
 		};
-		expect(
-			describePlanChildren(planInitiativeDeletion(withProjects, initiative("I/1"))),
-		).toBe("1 project and 2 tasks");
+		expect(describePlanChildren(planProjectDeletion(withTasks, project("P/1")))).toBe(
+			"2 tasks",
+		);
 	});
 
 	it("says nothing for a childless plan", () => {

@@ -624,7 +624,7 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 					initialIcon="folder"
 					confirmLabel="Create"
 					onConfirm={(name, icon) =>
-						void plugin.mutations.createProject(snapshot, name, null, icon)
+						void plugin.mutations.createProject(snapshot, name, icon)
 					}
 					onClose={() => setCreating(false)}
 				/>
@@ -675,7 +675,6 @@ function LabelsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 		const usage = findTaxonomyUsage("label", id, {
 			tasks: snapshot.tasks,
 			projects: snapshot.projects,
-			initiatives: snapshot.initiatives,
 		});
 		const plan = planTaxonomyDeletion(labels, id, usage.count);
 		if (!plan.blocked) {

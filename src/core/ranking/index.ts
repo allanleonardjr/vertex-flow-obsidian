@@ -2,9 +2,8 @@
  * Task-facing ranking helpers (§6).
  *
  * `rank` is global — one maintained order shared by the Backlog list and the
- * Board. `cycleRank` is the single legitimate per-context override, used only
- * when viewing tasks inside a Cycle, and falls back to `rank` when unset.
- * There are deliberately no per-view rank maps (Golden Rule).
+ * Board. Every view is just a different rendering of that one order; there are
+ * deliberately no per-view rank maps (Golden Rule).
  */
 
 import type { Task } from "../types";
@@ -12,36 +11,17 @@ import { compareRanks, rankForPosition, sortByRank } from "./lexorank";
 
 export * from "./lexorank";
 
-/** Which of the two rank fields a given view is ordering by. */
-export type RankField = "rank" | "cycleRank";
-
-/**
- * Read the effective rank for a field, honouring the `cycleRank → rank`
- * fallback. This fallback is the reason `cycleRank` can stay unset on the vast
- * majority of tasks: a cycle board is only *reordered* for the handful of tasks
- * someone actually drags.
- */
-export function effectiveRank(task: Task, field: RankField = "rank"): string {
-	if (field === "cycleRank") return task.cycleRank ?? task.rank;
-	return task.rank;
+export function compareTasksByRank(a: Task, b: Task): number {
+	return compareRanks(a.rank, b.rank);
 }
 
-export function compareTasksByRank(
-	a: Task,
-	b: Task,
-	field: RankField = "rank",
-): number {
-	return compareRanks(effectiveRank(a, field), effectiveRank(b, field));
+export function sortTasksByRank(tasks: Task[]): Task[] {
+	return sortByRank(tasks, (task) => task.rank);
 }
 
-export function sortTasksByRank(tasks: Task[], field: RankField = "rank"): Task[] {
-	return sortByRank(tasks, (task) => effectiveRank(task, field));
-}
-
-/** The result of a drag/reorder: exactly which field on which task to write. */
+/** The result of a drag/reorder: which task to write, and its new rank. */
 export interface RankAssignment {
 	taskPath: string;
-	field: RankField;
 	rank: string;
 }
 
@@ -57,26 +37,22 @@ export function planReorder(
 	moved: Task,
 	siblings: Task[],
 	toIndex: number,
-	field: RankField = "rank",
 ): RankAssignment {
 	const others = sortTasksByRank(
 		siblings.filter((task) => task.path !== moved.path),
-		field,
 	);
 	const rank = rankForPosition(
-		others.map((task) => effectiveRank(task, field)),
+		others.map((task) => task.rank),
 		toIndex,
 	);
-	return { taskPath: moved.path, field, rank };
+	return { taskPath: moved.path, rank };
 }
 
 /**
  * Rank for a brand-new task placed at the top of `siblings` (Linear's default:
  * new work appears where you'll see it, not buried at the bottom).
  */
-export function rankForNewTask(siblings: Task[], field: RankField = "rank"): string {
-	const ordered = sortTasksByRank(siblings, field).map((task) =>
-		effectiveRank(task, field),
-	);
+export function rankForNewTask(siblings: Task[]): string {
+	const ordered = sortTasksByRank(siblings).map((task) => task.rank);
 	return rankForPosition(ordered, 0);
 }

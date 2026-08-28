@@ -15,8 +15,6 @@ import { workspaceTaxonomies } from "../core/taxonomy";
 import type { SavedView, WorkspaceSnapshot } from "../core/types";
 import { EmptyState } from "./EmptyState";
 import { SelectionProvider, useSelection } from "./selection";
-import { CyclesBrowseView } from "./browse/CyclesBrowseView";
-import { InitiativesBrowseView } from "./browse/InitiativesBrowseView";
 import { ProjectsBrowseView } from "./browse/ProjectsBrowseView";
 import { Sidebar } from "./Sidebar";
 import { WorkspaceSettingsView } from "./settings/WorkspaceSettingsView";
@@ -138,12 +136,8 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
 
 				{tabs.activeTab.kind === "task" ? (
 					<TaskPane path={tabs.activeTab.path} />
-				) : tabs.activeTab.kind === "initiatives" ? (
-					<InitiativesBrowseView snapshot={snapshot} taxonomies={active.taxonomies} />
 				) : tabs.activeTab.kind === "projects" ? (
 					<ProjectsBrowseView snapshot={snapshot} taxonomies={active.taxonomies} />
-				) : tabs.activeTab.kind === "cycles" ? (
-					<CyclesBrowseView snapshot={snapshot} taxonomies={active.taxonomies} />
 				) : tabs.activeTab.kind === "settings" ? (
 					<WorkspaceSettingsView snapshot={snapshot} />
 				) : (

@@ -12,14 +12,11 @@ import { usePlugin } from "./context";
 import { useTabs, type BrowseKind, type Tab } from "./tabs-context";
 
 const BROWSE_ICON: Record<BrowseKind, string> = {
-	initiatives: "◆",
 	projects: "▣",
-	cycles: "↻",
 	settings: "⚙",
 };
 
-function browseLabel(kind: BrowseKind, snapshot: WorkspaceSnapshot): string {
-	if (kind === "cycles") return `${snapshot.workspace.cycles.termLabel}s`;
+function browseLabel(kind: BrowseKind): string {
 	return kind[0].toUpperCase() + kind.slice(1);
 }
 
@@ -115,7 +112,7 @@ function TabRow({
 		label = task.title;
 	} else {
 		icon = <span className="vf-view-icon">{BROWSE_ICON[tab.kind]}</span>;
-		label = browseLabel(tab.kind, snapshot);
+		label = browseLabel(tab.kind);
 	}
 
 	return (

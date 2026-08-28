@@ -2,9 +2,8 @@
  * Everything the query layer needs to turn names into stored ids and back.
  *
  * Deliberately *not* `ViewContext`: that carries one flat optional path→title
- * map that can't tell a project from a cycle, points the wrong way for name→id
- * resolution, and has no task list (so `parent:` couldn't resolve). This shape
- * is built for lookup in both directions.
+ * map that points the wrong way for name→id resolution and has no task list (so
+ * `parent:` couldn't resolve). This shape is built for lookup in both directions.
  */
 
 import type {

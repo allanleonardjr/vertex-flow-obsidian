@@ -10,7 +10,6 @@ import { linksMatch } from "../links";
 import { categoryOf, type Taxonomy } from "../taxonomy/engine";
 import {
   emptyProgress,
-  type Initiative,
   type LinkTarget,
   type Progress,
   type Project,
@@ -22,14 +21,12 @@ import {
 export interface HierarchyScope {
   tasks: Task[];
   projects: Project[];
-  initiatives?: Initiative[];
 }
 
 export function scopeOf(snapshot: WorkspaceSnapshot): HierarchyScope {
   return {
     tasks: snapshot.tasks,
     projects: snapshot.projects,
-    initiatives: snapshot.initiatives,
   };
 }
 
@@ -48,51 +45,6 @@ export function projectTasks(
   project: LinkTarget,
 ): Task[] {
   return scope.tasks.filter((task) => linksMatch(task.project, project));
-}
-
-/** Projects belonging to this initiative. */
-export function initiativeProjects(
-  scope: HierarchyScope,
-  initiative: LinkTarget,
-): Project[] {
-  return scope.projects.filter((project) =>
-    linksMatch(project.initiative, initiative),
-  );
-}
-
-/** Tasks attached *directly* to this initiative, bypassing any project. */
-export function initiativeDirectTasks(
-  scope: HierarchyScope,
-  initiative: LinkTarget,
-): Task[] {
-  return scope.tasks.filter((task) => linksMatch(task.initiative, initiative));
-}
-
-/**
- * Every task that rolls up to an initiative: those attached directly, plus
- * everything under each of its projects.
- */
-export function initiativeTasks(
-  scope: HierarchyScope,
-  initiative: LinkTarget,
-): Task[] {
-  const seen = new Set<string>();
-  const out: Task[] = [];
-  const push = (task: Task) => {
-    if (seen.has(task.path)) return;
-    seen.add(task.path);
-    out.push(task);
-  };
-
-  for (const task of initiativeDirectTasks(scope, initiative)) push(task);
-  for (const project of initiativeProjects(scope, initiative)) {
-    for (const task of projectTasks(scope, project.path)) push(task);
-  }
-  return out;
-}
-
-export function cycleTasks(scope: HierarchyScope, cycle: LinkTarget): Task[] {
-  return scope.tasks.filter((task) => linksMatch(task.cycle, cycle));
 }
 
 // ---------------------------------------------------------------------------
@@ -181,19 +133,17 @@ export function isSubtask(task: Task): boolean {
 
 /**
  * The single primary parent of a task, as a tagged reference (Golden Rule:
- * exactly one). `parent` wins over `project`, which wins over `initiative` —
- * a sub-task's real home is its parent task.
+ * exactly one). `parent` wins over `project` — a sub-task's real home is its
+ * parent task.
  */
 export type PrimaryParent =
   | { kind: "task"; path: LinkTarget }
   | { kind: "project"; path: LinkTarget }
-  | { kind: "initiative"; path: LinkTarget }
   | { kind: "none" };
 
 export function primaryParent(task: Task): PrimaryParent {
   if (task.parent) return { kind: "task", path: task.parent };
   if (task.project) return { kind: "project", path: task.project };
-  if (task.initiative) return { kind: "initiative", path: task.initiative };
   return { kind: "none" };
 }
 
@@ -269,22 +219,6 @@ export function projectProgress(
   statuses: Taxonomy,
 ): Progress {
   return computeProgress(projectTasks(scope, project), statuses);
-}
-
-export function initiativeProgress(
-  scope: HierarchyScope,
-  initiative: LinkTarget,
-  statuses: Taxonomy,
-): Progress {
-  return computeProgress(initiativeTasks(scope, initiative), statuses);
-}
-
-export function cycleProgress(
-  scope: HierarchyScope,
-  cycle: LinkTarget,
-  statuses: Taxonomy,
-): Progress {
-  return computeProgress(cycleTasks(scope, cycle), statuses);
 }
 
 /**

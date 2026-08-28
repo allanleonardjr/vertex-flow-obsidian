@@ -62,8 +62,6 @@ describe("round-trip (Invariant A)", () => {
 		["project", withFilters({ project: [project] })],
 		["project with spaces", withFilters({ project: [spacedProject] })],
 		["parent", withFilters({ parent: [taskPath] })],
-		["initiative (retained)", withFilters({ initiative: ["Initiatives/X"] })],
-		["cycle (retained)", withFilters({ cycle: ["Cycles/2026-Cycle-18"] })],
 		["topLevelOnly", withFilters({ topLevelOnly: true })],
 		["includeArchived", withFilters({ includeArchived: true })],
 		["text", withFilters({ text: "login" })],
@@ -161,7 +159,7 @@ describe("round-trip (generative)", () => {
 	];
 	const arrayKeys = [
 		"status", "priority", "taskType", "labels", "assignee",
-		"mentions", "project", "parent", "initiative", "cycle",
+		"mentions", "project", "parent",
 	] as const;
 
 	it("survives 400 random definitions", () => {

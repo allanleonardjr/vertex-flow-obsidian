@@ -21,9 +21,9 @@ export interface ViewContext {
 	selfId: string | null;
 	people: Person[];
 	/**
-	 * Path → title for projects, initiatives and cycles, so grouping by one of
-	 * them can show a name instead of a path. Absent when a caller builds a
-	 * context from a bare config rather than a full snapshot.
+	 * Path → title for projects, so grouping by project can show a name instead
+	 * of a path. Absent when a caller builds a context from a bare config rather
+	 * than a full snapshot.
 	 */
 	titles?: Map<LinkTarget, string>;
 }
@@ -45,10 +45,6 @@ export function viewContext(workspace: WorkspaceConfig): ViewContext {
 export function snapshotContext(snapshot: WorkspaceSnapshot): ViewContext {
 	const titles = new Map<LinkTarget, string>();
 	for (const project of snapshot.projects) titles.set(project.path, project.title);
-	for (const initiative of snapshot.initiatives) {
-		titles.set(initiative.path, initiative.title);
-	}
-	for (const cycle of snapshot.cycles) titles.set(cycle.path, cycle.title);
 
 	return { ...viewContext(snapshot.workspace), titles };
 }

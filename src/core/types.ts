@@ -10,12 +10,7 @@
 // Entity kinds
 // ---------------------------------------------------------------------------
 
-export type EntityType =
-	| "task"
-	| "project"
-	| "initiative"
-	| "cycle"
-	| "workspace";
+export type EntityType = "task" | "project" | "workspace";
 
 /**
  * A vault-relative path to a note, e.g. `Product Team/Tasks/PRD-0104`.
@@ -114,18 +109,15 @@ export interface Task {
 	priority: string | null;
 	/** LexoRank — global default order (§6). Always present. */
 	rank: string;
-	/** Optional LexoRank override used only in Cycle board views. */
-	cycleRank: string | null;
 
 	/**
-	 * Exactly one primary parent (Golden Rule). `project` and `initiative` are
-	 * mutually exclusive; `parent` makes this a sub-task of another Task.
+	 * Exactly one primary parent (Golden Rule). `project` attaches the task to a
+	 * Project; `parent` makes this a sub-task of another Task. A task with
+	 * neither is unparented.
 	 */
 	project: LinkTarget | null;
-	initiative: LinkTarget | null;
 	parent: LinkTarget | null;
 
-	cycle: LinkTarget | null;
 	/** Single assignee only (§7.4). A `Person.id`. */
 	assignee: string | null;
 	/** Plain optional number, no enforced meaning (§5.4). */
@@ -169,7 +161,7 @@ export interface TaskDocument {
 }
 
 // ---------------------------------------------------------------------------
-// Project / Initiative / Cycle (§4.2–4.4)
+// Project (§4.2)
 // ---------------------------------------------------------------------------
 
 export interface Project {
@@ -179,31 +171,8 @@ export interface Project {
 	icon?: string;
 	/** Reuses the Task status taxonomy (§5.1) — no separate system. */
 	status: string;
-	initiative: LinkTarget | null;
 	archived: boolean;
 	archivedAt: IsoDate | null;
-	createdAt: IsoDate;
-	updatedAt: IsoDate;
-	path: LinkTarget;
-}
-
-export interface Initiative {
-	type: "initiative";
-	title: string;
-	status: string;
-	archived: boolean;
-	archivedAt: IsoDate | null;
-	createdAt: IsoDate;
-	updatedAt: IsoDate;
-	path: LinkTarget;
-}
-
-export interface Cycle {
-	type: "cycle";
-	title: string;
-	startDate: IsoDate | null;
-	endDate: IsoDate | null;
-	status: string;
 	createdAt: IsoDate;
 	updatedAt: IsoDate;
 	path: LinkTarget;
@@ -212,16 +181,6 @@ export interface Cycle {
 // ---------------------------------------------------------------------------
 // Workspace config (§4.5)
 // ---------------------------------------------------------------------------
-
-export type RolloverPolicy = "auto-rollover" | "return-to-backlog" | "manual";
-
-export interface CyclesConfig {
-	/** Off by default — cycles are opt-in, never prescriptive (§7.5). */
-	enabled: boolean;
-	/** Renameable per workspace, e.g. to "Sprint". */
-	termLabel: string;
-	rolloverPolicy: RolloverPolicy;
-}
 
 export interface ArchivingConfig {
 	/** Manual archiving is the real v1 feature; this defaults to off (§7.7). */
@@ -236,7 +195,6 @@ export interface WorkspaceConfig {
 	icon?: string;
 	/** Must be unique vault-wide, not just per-workspace (§3). */
 	idPrefix: string;
-	cycles: CyclesConfig;
 	archiving: ArchivingConfig;
 	/** Configurable independently of status category (§5.1). */
 	defaultNewTaskStatus: string;
@@ -267,13 +225,10 @@ export type GroupByField =
 	| "taskType"
 	| "assignee"
 	| "project"
-	| "initiative"
-	| "cycle"
 	| "label";
 
 export type SortField =
 	| "rank"
-	| "cycleRank"
 	| "priority"
 	| "status"
 	| "title"
@@ -298,8 +253,6 @@ export interface ViewFilters {
 	labels?: string[];
 	assignee?: string[];
 	project?: string[];
-	initiative?: string[];
-	cycle?: string[];
 	parent?: string[];
 	/** `[SELF]` powers the "Mentions Me" saved view (§7.6). */
 	mentions?: string[];
@@ -385,8 +338,6 @@ export interface WorkspaceSnapshot {
 	workspace: WorkspaceConfig;
 	tasks: Task[];
 	projects: Project[];
-	initiatives: Initiative[];
-	cycles: Cycle[];
 	views: SavedView[];
 }
 

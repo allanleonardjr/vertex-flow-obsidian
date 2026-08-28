@@ -1,13 +1,13 @@
 /**
  * Saved View sorting.
  *
- * `rank` and `cycleRank` sort through the LexoRank engine; everything else is a
- * conventional field sort. Unset values always sort last regardless of
- * direction — a task with no due date is not "the most urgent thing", and
- * flipping to descending shouldn't suddenly make it so.
+ * `rank` sorts through the LexoRank engine; everything else is a conventional
+ * field sort. Unset values always sort last regardless of direction — a task
+ * with no due date is not "the most urgent thing", and flipping to descending
+ * shouldn't suddenly make it so.
  */
 
-import { compareTasksByRank, type RankField } from "../ranking";
+import { compareTasksByRank } from "../ranking";
 import { getValue } from "../taxonomy/engine";
 import type { SortDirection, SortField, Task } from "../types";
 import type { ViewContext } from "./context";
@@ -45,11 +45,7 @@ function compareField(
 ): { value: number; nullSkewed: boolean } {
 	switch (field) {
 		case "rank":
-		case "cycleRank":
-			return {
-				value: compareTasksByRank(a, b, field as RankField),
-				nullSkewed: false,
-			};
+			return { value: compareTasksByRank(a, b), nullSkewed: false };
 
 		case "priority":
 		case "status": {

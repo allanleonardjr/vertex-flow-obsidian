@@ -33,8 +33,6 @@ const NO_VALUE_LABELS: Record<GroupByField, string> = {
 	taskType: "No Type",
 	assignee: "Unassigned",
 	project: "No Project",
-	initiative: "No Initiative",
-	cycle: "No Cycle",
 	label: "No Labels",
 };
 
@@ -53,10 +51,6 @@ function keysFor(task: Task, groupBy: GroupByField): string[] {
 			return [task.assignee ?? NONE];
 		case "project":
 			return [task.project ?? NONE];
-		case "initiative":
-			return [task.initiative ?? NONE];
-		case "cycle":
-			return [task.cycle ?? NONE];
 		case "label":
 			return task.labels.length > 0 ? task.labels.slice() : [NONE];
 	}
@@ -80,11 +74,8 @@ function labelFor(
 		case "assignee":
 			return context.people.find((p) => p.id === key)?.name ?? key;
 		case "project":
-		case "initiative":
-		case "cycle":
 			// Titles come from the snapshot; fall back to the filename, which for
-			// projects/initiatives/cycles *is* human-readable (only Tasks are
-			// named by ID).
+			// projects *is* human-readable (only Tasks are named by ID).
 			return context.titles?.get(key) ?? basename(key);
 		default:
 			return key;
@@ -146,8 +137,8 @@ function orderedKeys(
 		return keys;
 	}
 
-	// Link groupings (project/initiative/cycle): only what's actually in play,
-	// alphabetically, with the "no value" bucket last.
+	// Link grouping (project): only what's actually in play, alphabetically,
+	// with the "no value" bucket last.
 	const keys = [...present].filter((key) => key !== NONE);
 	keys.sort((a, b) =>
 		labelFor(a, groupBy, context).localeCompare(labelFor(b, groupBy, context)),

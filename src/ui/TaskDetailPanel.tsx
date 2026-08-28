@@ -16,7 +16,6 @@ import { NEW_TASK_TITLE } from "./actions";
 import {
   DateField,
   NumberField,
-  OptionSelect,
   PersonSelect,
   PrioritySelect,
   PropertyRow,
@@ -34,7 +33,6 @@ import {
   type TaskSelectExtraOption,
 } from "./components/TaskSelectMenu";
 import { usePlugin } from "./context";
-import { FEATURES } from "./features";
 
 export interface TaskDetailPanelProps {
   task: Task;
@@ -213,20 +211,6 @@ export function TaskDetailPanel({
             taxonomies={taxonomies}
             onChange={update}
           />
-
-          {FEATURES.cycles && snapshot.workspace.cycles.enabled && (
-            <PropertyRow label={snapshot.workspace.cycles.termLabel}>
-              <OptionSelect
-                noneLabel={`No ${snapshot.workspace.cycles.termLabel.toLowerCase()}`}
-                value={task.cycle}
-                options={snapshot.cycles.map((cycle) => ({
-                  value: cycle.path,
-                  label: cycle.title,
-                }))}
-                onChange={(cycle) => update({ cycle })}
-              />
-            </PropertyRow>
-          )}
 
           <PropertyRow label="Estimate">
             <NumberField
@@ -453,7 +437,7 @@ function ParentPicker({
   taxonomies: WorkspaceTaxonomies;
   onChange: (patch: Partial<Task>) => void;
 }) {
-  const value = task.parent ?? task.project ?? task.initiative ?? null;
+  const value = task.parent ?? task.project ?? null;
 
   // Its own descendants can't become its parent.
   const blocked = new Set(
@@ -463,10 +447,8 @@ function ParentPicker({
     (candidate) => candidate.path !== task.path && !blocked.has(candidate.path),
   );
 
-  // Projects, plus any Initiative the task is *already* on (v1 hides new
-  // Initiative attachments — see features.ts).
-  const extraOptions: TaskSelectExtraOption[] = [
-    ...snapshot.projects.map((project) => ({
+  const extraOptions: TaskSelectExtraOption[] = snapshot.projects.map(
+    (project) => ({
       value: project.path,
       search: project.title,
       label: (
@@ -475,20 +457,8 @@ function ParentPicker({
           {project.title}
         </span>
       ),
-    })),
-    ...snapshot.initiatives
-      .filter((i) => FEATURES.initiatives || i.path === task.initiative)
-      .map((initiative) => ({
-        value: initiative.path,
-        search: initiative.title,
-        label: (
-          <span className="vf-task-option-plain">
-            <span className="vf-task-option-kind">Initiative</span>
-            {initiative.title}
-          </span>
-        ),
-      })),
-  ];
+    }),
+  );
 
   const parentTask = task.parent
     ? snapshot.tasks.find((t) => t.path === task.parent)
@@ -496,21 +466,16 @@ function ParentPicker({
   const parentProject = task.project
     ? snapshot.projects.find((p) => p.path === task.project)
     : null;
-  const parentInitiative = task.initiative
-    ? snapshot.initiatives.find((i) => i.path === task.initiative)
-    : null;
 
   const apply = (next: string | null) => {
     if (!next) {
-      onChange({ parent: null, project: null, initiative: null });
+      onChange({ parent: null, project: null });
       return;
     }
     const isTask = snapshot.tasks.some((t) => t.path === next);
-    const isProject = snapshot.projects.some((p) => p.path === next);
     onChange({
       parent: isTask ? next : null,
-      project: isProject ? next : null,
-      initiative: !isTask && !isProject ? next : null,
+      project: isTask ? null : next,
     });
   };
 
@@ -542,12 +507,10 @@ function ParentPicker({
                 <span className="vf-id">{parentTask.id}</span>
                 <span className="vf-icon-select-name">{parentTask.title}</span>
               </>
-            ) : parentProject || parentInitiative ? (
+            ) : parentProject ? (
               <span className="vf-icon-select-name">
-                <span className="vf-task-option-kind">
-                  {parentProject ? "Project" : "Initiative"}
-                </span>
-                {(parentProject ?? parentInitiative)?.title}
+                <span className="vf-task-option-kind">Project</span>
+                {parentProject.title}
               </span>
             ) : (
               <span className="vf-icon-select-name vf-prop-empty">No parent</span>

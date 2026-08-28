@@ -19,7 +19,6 @@ import {
 	type ViewFilters,
 	type WorkspaceSnapshot,
 } from "../../core/types";
-import { FEATURES } from "../features";
 
 /** Re-exported so bar components import field metadata from one place. */
 export { TASK_FIELDS };
@@ -33,10 +32,6 @@ export const GROUP_OPTIONS: { value: GroupByField; label: string }[] = [
 	{ value: "assignee", label: "Assignee" },
 	{ value: "label", label: "Label" },
 	{ value: "project", label: "Project" },
-	...(FEATURES.initiatives
-		? [{ value: "initiative" as const, label: "Initiative" }]
-		: []),
-	...(FEATURES.cycles ? [{ value: "cycle" as const, label: "Cycle" }] : []),
 ];
 
 export const SORT_OPTIONS: { value: SortField; label: string }[] = [
@@ -49,9 +44,6 @@ export const SORT_OPTIONS: { value: SortField; label: string }[] = [
 	{ value: "estimate", label: "Estimate" },
 	{ value: "createdAt", label: "Created" },
 	{ value: "updatedAt", label: "Updated" },
-	...(FEATURES.cycles
-		? [{ value: "cycleRank" as const, label: "Cycle rank" }]
-		: []),
 ];
 
 /** Board-only: what happens to a column with no cards (§8.2). */
@@ -108,8 +100,8 @@ export const FILTER_FIELDS: { key: FilterKey; label: string }[] = [
 /**
  * Filter keys the query bar can set but the chip bar has no editor for — shown
  * as a read-only tag with a ✕ so a query-only filter is never invisible and
- * unremovable. `parent` is the only one left now that Initiatives and Cycles
- * are gone; it would otherwise need a picker over the whole task list.
+ * unremovable. `parent` is the only such key; it would otherwise need a picker
+ * over the whole task list.
  */
 export type ReadonlyFilterKey = "parent";
 

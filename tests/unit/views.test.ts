@@ -46,11 +46,8 @@ function task(overrides: Partial<Task> & { path: string }): Task {
 		status: "queue",
 		priority: null,
 		rank: "0|i00000:",
-		cycleRank: null,
 		project: null,
-		initiative: null,
 		parent: null,
-		cycle: null,
 		assignee: null,
 		estimate: null,
 		labels: [],
@@ -140,12 +137,12 @@ describe("filtering", () => {
 	it("filters by link, tolerating short-form wikilinks", () => {
 		const byPath = applyFilters(
 			snapshot.tasks,
-			{ cycle: ["Sample/Cycles/2026-Cycle-18"] },
+			{ project: ["Sample/Projects/Core App Experience"] },
 			context,
 		);
 		const byShortForm = applyFilters(
 			snapshot.tasks,
-			{ cycle: ["2026-Cycle-18"] },
+			{ project: ["Core App Experience"] },
 			context,
 		);
 		expect(byPath.length).toBe(5);
@@ -185,24 +182,6 @@ describe("sorting", () => {
 	it("sorts by rank ascending by default", () => {
 		const sorted = sortTasks(snapshot.tasks, "rank", "asc", context);
 		expect(sorted[0].id).toBe("SMP-0101");
-	});
-
-	it("uses cycleRank when asked, falling back to rank when unset", () => {
-		const inCycle = applyFilters(
-			snapshot.tasks,
-			{ cycle: ["Sample/Cycles/2026-Cycle-18"] },
-			context,
-		);
-		const byRank = sortTasks(inCycle, "rank", "asc", context);
-		const byCycleRank = sortTasks(inCycle, "cycleRank", "asc", context);
-
-		// SMP-0104 carries a cycleRank override that lifts it to the front.
-		expect(byRank[0].id).toBe("SMP-0101");
-		expect(byCycleRank[0].id).toBe("SMP-0104");
-		// Everything else has no override and keeps its global order.
-		expect(byCycleRank.slice(1).map((t) => t.id)).toEqual(
-			byRank.filter((t) => t.id !== "SMP-0104").map((t) => t.id),
-		);
 	});
 
 	it("sorts by taxonomy order, not alphabetically, for priority", () => {

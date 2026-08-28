@@ -2,22 +2,16 @@
  * Deletion & cascade policy (§7.8).
  *
  * The rule that shapes this entire module: **one level of nesting at a time.**
- * A dialog never reasons about more than one level. Deleting an Initiative and
- * choosing "cascade" does not silently wipe out its projects' tasks — each
- * project that has children comes back as its own follow-up plan, and asks its
+ * A dialog never reasons about more than one level. Deleting a Project and
+ * choosing "cascade" does not silently wipe out its tasks' sub-tasks — each
+ * task that has children comes back as its own follow-up plan, and asks its
  * own question.
  */
 
-import {
-	childTasks,
-	initiativeDirectTasks,
-	initiativeProjects,
-	projectTasks,
-	type HierarchyScope,
-} from "./resolve";
-import type { Initiative, LinkTarget, Project, Task } from "../types";
+import { childTasks, projectTasks, type HierarchyScope } from "./resolve";
+import type { LinkTarget, Project, Task } from "../types";
 
-export type DeletableKind = "task" | "project" | "initiative";
+export type DeletableKind = "task" | "project";
 
 /** What the user may choose in the confirmation dialog. */
 export type DeletionChoice = "cancel" | "unparent" | "cascade";
@@ -25,7 +19,7 @@ export type DeletionChoice = "cancel" | "unparent" | "cascade";
 /** One frontmatter field to clear on one note, produced by "unparent". */
 export interface FieldEdit {
 	path: LinkTarget;
-	field: "parent" | "project" | "initiative" | "cycle";
+	field: "parent" | "project";
 	value: null;
 }
 
@@ -35,7 +29,6 @@ export interface DeletionPlan {
 	title: string;
 	/** Direct children only — never grandchildren. */
 	childTasks: Task[];
-	childProjects: Project[];
 	/** False when there is nothing underneath: delete without a dialog. */
 	hasChildren: boolean;
 	/** The choices worth offering. Always includes `cancel`. */
@@ -61,27 +54,19 @@ export interface DeletionOutcome {
 // ---------------------------------------------------------------------------
 
 export function planTaskDeletion(scope: HierarchyScope, task: Task): DeletionPlan {
-	const children = childTasks(scope, task.path);
-	return makePlan("task", task.path, task.title, children, []);
+	return makePlan("task", task.path, task.title, childTasks(scope, task.path));
 }
 
 export function planProjectDeletion(
 	scope: HierarchyScope,
 	project: Project,
 ): DeletionPlan {
-	const tasks = projectTasks(scope, project.path);
-	return makePlan("project", project.path, project.title, tasks, []);
-}
-
-export function planInitiativeDeletion(
-	scope: HierarchyScope,
-	initiative: Initiative,
-): DeletionPlan {
-	// An initiative's direct children are its projects *and* any tasks attached
-	// straight to it (§2 allows a task to skip the project level entirely).
-	const projects = initiativeProjects(scope, initiative.path);
-	const tasks = initiativeDirectTasks(scope, initiative.path);
-	return makePlan("initiative", initiative.path, initiative.title, tasks, projects);
+	return makePlan(
+		"project",
+		project.path,
+		project.title,
+		projectTasks(scope, project.path),
+	);
 }
 
 function makePlan(
@@ -89,15 +74,13 @@ function makePlan(
 	path: LinkTarget,
 	title: string,
 	tasks: Task[],
-	projects: Project[],
 ): DeletionPlan {
-	const hasChildren = tasks.length > 0 || projects.length > 0;
+	const hasChildren = tasks.length > 0;
 	return {
 		kind,
 		path,
 		title,
 		childTasks: tasks,
-		childProjects: projects,
 		hasChildren,
 		options: hasChildren
 			? ["cancel", "unparent", "cascade"]
@@ -108,15 +91,13 @@ function makePlan(
 /** Dispatch on entity kind, so the UI has one entry point for any deletion. */
 export function planDeletion(
 	scope: HierarchyScope,
-	entity: Task | Project | Initiative,
+	entity: Task | Project,
 ): DeletionPlan {
 	switch (entity.type) {
 		case "task":
 			return planTaskDeletion(scope, entity);
 		case "project":
 			return planProjectDeletion(scope, entity);
-		case "initiative":
-			return planInitiativeDeletion(scope, entity);
 	}
 }
 
@@ -128,10 +109,10 @@ export function planDeletion(
  * Turn a confirmed choice into concrete work.
  *
  * - `cancel`   → nothing happens.
- * - `unparent` → children lose only their reference to the deleted entity. They
- *                are *not* re-pointed at the grandparent: silently promoting a
- *                task into its project's initiative would be inventing a
- *                hierarchy decision the user didn't make.
+ * - `unparent` → children lose only their reference to the deleted entity. A
+ *                task under a deleted project is *not* re-pointed anywhere —
+ *                inventing a new parent is a hierarchy decision the user didn't
+ *                make.
  * - `cascade`  → the entity and its childless children go now; any child that
  *                itself has children returns as a follow-up plan.
  */
@@ -161,37 +142,14 @@ export function applyDeletion(
 		else deletePaths.push(child.path);
 	}
 
-	for (const project of plan.childProjects) {
-		const childPlan = planProjectDeletion(scope, project);
-		if (childPlan.hasChildren) followUps.push(childPlan);
-		else deletePaths.push(project.path);
-	}
-
 	return { deletePaths, edits: [], followUps };
 }
 
 /** Which field each kind of child clears when unparented. */
 function unparentEdits(plan: DeletionPlan): FieldEdit[] {
-	const field: FieldEdit["field"] =
-		plan.kind === "task"
-			? "parent"
-			: plan.kind === "project"
-				? "project"
-				: "initiative";
+	const field: FieldEdit["field"] = plan.kind === "task" ? "parent" : "project";
 
-	const edits: FieldEdit[] = plan.childTasks.map((task) => ({
-		path: task.path,
-		field,
-		value: null,
-	}));
-
-	// Child projects of an initiative always clear `initiative`, whatever the
-	// task-side field was.
-	for (const project of plan.childProjects) {
-		edits.push({ path: project.path, field: "initiative", value: null });
-	}
-
-	return edits;
+	return plan.childTasks.map((task) => ({ path: task.path, field, value: null }));
 }
 
 // ---------------------------------------------------------------------------
@@ -199,7 +157,7 @@ function unparentEdits(plan: DeletionPlan): FieldEdit[] {
 // ---------------------------------------------------------------------------
 
 /**
- * Relations and cycle references that point at notes being deleted (§7.3).
+ * Relations that point at notes being deleted (§7.3).
  *
  * These are *not* part of the cascade dialog — they're not hierarchy, so
  * deleting a task never prompts about the tasks that merely reference it. The
@@ -237,20 +195,9 @@ export function danglingRelationEdits(
 	return out;
 }
 
-/** Summary line for the dialog: `"3 sub-tasks"`, `"2 projects and 4 tasks"`. */
+/** Summary line for the dialog: `"3 sub-tasks"`, `"4 tasks"`. */
 export function describePlanChildren(plan: DeletionPlan): string {
-	const parts: string[] = [];
+	if (plan.childTasks.length === 0) return "nothing";
 	const noun = plan.kind === "task" ? "sub-task" : "task";
-	if (plan.childProjects.length > 0) {
-		parts.push(
-			`${plan.childProjects.length} project${plan.childProjects.length === 1 ? "" : "s"}`,
-		);
-	}
-	if (plan.childTasks.length > 0) {
-		parts.push(
-			`${plan.childTasks.length} ${noun}${plan.childTasks.length === 1 ? "" : "s"}`,
-		);
-	}
-	if (parts.length === 0) return "nothing";
-	return parts.join(" and ");
+	return `${plan.childTasks.length} ${noun}${plan.childTasks.length === 1 ? "" : "s"}`;
 }

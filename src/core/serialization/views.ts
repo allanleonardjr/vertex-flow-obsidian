@@ -2,8 +2,8 @@
  * `_views.md` — Saved View definitions (§4.6).
  *
  * Filter values are written the way a human would write them (`assignee: self`,
- * `taskType: [bug]`, `cycle: "Cycles/2026-Cycle-18"`), so parsing normalizes
- * every scalar into an array and every wikilink into a bare target.
+ * `taskType: [bug]`, `project: "Projects/Kanban UI Engine"`), so parsing
+ * normalizes every scalar into an array and every wikilink into a bare target.
  */
 
 import { parseLink } from "../links";
@@ -36,13 +36,10 @@ const GROUP_FIELDS: GroupByField[] = [
 	"taskType",
 	"assignee",
 	"project",
-	"initiative",
-	"cycle",
 	"label",
 ];
 const SORT_FIELDS: SortField[] = [
 	"rank",
-	"cycleRank",
 	"priority",
 	"status",
 	"title",
@@ -113,8 +110,6 @@ export function parseFilters(raw: unknown): ViewFilters {
 		assignee: listFilter(record.assignee),
 		mentions: listFilter(record.mentions),
 		project: linkFilter(record.project),
-		initiative: linkFilter(record.initiative),
-		cycle: linkFilter(record.cycle),
 		parent: linkFilter(record.parent),
 		text: asString(record.text) ?? undefined,
 		includeArchived: record.includeArchived != null

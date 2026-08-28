@@ -141,8 +141,8 @@ export class NoteIO {
 
 	/**
 	 * Rename/move a note, letting Obsidian rewrite every wikilink that points at
-	 * it. Only used for Projects/Initiatives/Cycles — Task files are named by ID
-	 * and never renamed, which is the entire point of that decision (§3).
+	 * it. Only used for Projects — Task files are named by ID and never renamed,
+	 * which is the entire point of that decision (§3).
 	 */
 	async rename(file: TFile, newPath: string): Promise<void> {
 		await this.app.fileManager.renameFile(file, withExtension(normalizePath(newPath)));

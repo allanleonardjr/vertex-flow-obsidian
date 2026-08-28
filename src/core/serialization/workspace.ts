@@ -19,7 +19,6 @@ import {
 	type LabelValue,
 	type Person,
 	type PriorityValue,
-	type RolloverPolicy,
 	type StatusCategory,
 	type StatusValue,
 	type TaskTypeValue,
@@ -35,12 +34,6 @@ import {
 	compact,
 	type ParseResult,
 } from "./coerce";
-
-const ROLLOVER_POLICIES: RolloverPolicy[] = [
-	"auto-rollover",
-	"return-to-backlog",
-	"manual",
-];
 
 const FALLBACK_COLOR = "#94a3b8";
 
@@ -158,16 +151,6 @@ export function parseWorkspace(
 	const root = dirname(options.path);
 	const name = asString(fm.name) ?? (root ? root.split("/").pop() ?? root : "Workspace");
 
-	const cycles = asRecord(fm.cycles);
-	const rolloverRaw = asString(cycles.rolloverPolicy) as RolloverPolicy | null;
-	const rolloverPolicy =
-		rolloverRaw && ROLLOVER_POLICIES.includes(rolloverRaw)
-			? rolloverRaw
-			: "auto-rollover";
-	if (rolloverRaw && rolloverPolicy !== rolloverRaw) {
-		log.add(`Unknown rolloverPolicy "${rolloverRaw}"; using "auto-rollover".`);
-	}
-
 	const archiving = asRecord(fm.archiving);
 
 	const statuses = parseTaxonomyList(fm.statuses, log, "statuses", {
@@ -209,11 +192,6 @@ export function parseWorkspace(
 		name,
 		icon: asString(fm.icon) ?? undefined,
 		idPrefix: (asString(fm.idPrefix) ?? "WRK").toUpperCase(),
-		cycles: {
-			enabled: asBoolean(cycles.enabled, false),
-			termLabel: asString(cycles.termLabel) ?? "Cycle",
-			rolloverPolicy,
-		},
 		archiving: {
 			autoArchiveEnabled: asBoolean(archiving.autoArchiveEnabled, false),
 			autoArchiveDays: asNumber(archiving.autoArchiveDays) ?? 30,
@@ -239,11 +217,6 @@ export function serializeWorkspace(
 		name: workspace.name,
 		icon: workspace.icon,
 		idPrefix: workspace.idPrefix,
-		cycles: {
-			enabled: workspace.cycles.enabled,
-			termLabel: workspace.cycles.termLabel,
-			rolloverPolicy: workspace.cycles.rolloverPolicy,
-		},
 		archiving: {
 			autoArchiveEnabled: workspace.archiving.autoArchiveEnabled,
 			autoArchiveDays: workspace.archiving.autoArchiveDays,
@@ -296,11 +269,6 @@ export function createWorkspaceConfig(
 		name,
 		icon,
 		idPrefix: idPrefix.toUpperCase(),
-		cycles: {
-			enabled: false,
-			termLabel: "Cycle",
-			rolloverPolicy: "auto-rollover",
-		},
 		archiving: { autoArchiveEnabled: false, autoArchiveDays: 30 },
 		defaultNewTaskStatus: DEFAULT_NEW_TASK_STATUS,
 		estimateUnitLabel: null,

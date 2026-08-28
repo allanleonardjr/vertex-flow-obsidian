@@ -10,11 +10,7 @@
 import { App, Notice, TFile } from "obsidian";
 import { nextTaskId, suggestPrefix } from "../core/ids";
 import { formatLink, joinPath } from "../core/links";
-import {
-	planReorder,
-	rankForNewTask,
-	type RankField,
-} from "../core/ranking";
+import { planReorder, rankForNewTask } from "../core/ranking";
 import { generateSampleWorkspace } from "../core/sample/generate";
 import {
 	nextCommentId,
@@ -25,11 +21,7 @@ import {
 	extractDescription,
 	withDescription,
 } from "../core/serialization/description";
-import {
-	serializeCycle,
-	serializeInitiative,
-	serializeProject,
-} from "../core/serialization/entities";
+import { serializeProject } from "../core/serialization/entities";
 import { serializeTask } from "../core/serialization/task";
 import { serializeViews } from "../core/serialization/views";
 import {
@@ -77,9 +69,7 @@ export interface NewTaskInput {
 	taskType?: string | null;
 	assignee?: string | null;
 	project?: string | null;
-	initiative?: string | null;
 	parent?: string | null;
-	cycle?: string | null;
 	labels?: string[];
 	estimate?: number | null;
 	startDate?: string | null;
@@ -122,11 +112,8 @@ export class Mutations {
 			status: input.status ?? workspace.defaultNewTaskStatus,
 			priority: input.priority ?? null,
 			rank: rankForNewTask(siblings),
-			cycleRank: null,
 			project: input.project ?? null,
-			initiative: input.initiative ?? null,
 			parent: input.parent ?? null,
-			cycle: input.cycle ?? null,
 			assignee: input.assignee ?? null,
 			estimate: input.estimate ?? null,
 			labels: input.labels ?? [],
@@ -190,12 +177,11 @@ export class Mutations {
 	/** Re-parenting is a one-field edit, never a file move (Golden Rule). */
 	async reparent(
 		task: Task,
-		parent: { kind: "task" | "project" | "initiative" | "none"; path?: string },
+		parent: { kind: "task" | "project" | "none"; path?: string },
 	): Promise<void> {
 		await this.updateTask(task, {
 			parent: parent.kind === "task" ? (parent.path ?? null) : null,
 			project: parent.kind === "project" ? (parent.path ?? null) : null,
-			initiative: parent.kind === "initiative" ? (parent.path ?? null) : null,
 		});
 	}
 
@@ -207,16 +193,10 @@ export class Mutations {
 		task: Task,
 		siblings: Task[],
 		toIndex: number,
-		field: RankField = "rank",
 		fieldEdit?: Partial<Task>,
 	): Promise<void> {
-		const assignment = planReorder(task, siblings, toIndex, field);
-		await this.updateTask(task, {
-			...(assignment.field === "cycleRank"
-				? { cycleRank: assignment.rank }
-				: { rank: assignment.rank }),
-			...fieldEdit,
-		});
+		const assignment = planReorder(task, siblings, toIndex);
+		await this.updateTask(task, { rank: assignment.rank, ...fieldEdit });
 	}
 
 	/** Bulk edit across a multi-selection (§9.3). */
@@ -395,9 +375,9 @@ export class Mutations {
 				}
 			}
 
-			// Projects and Initiatives share the status taxonomy (§5.1).
+			// Projects share the status taxonomy (§5.1).
 			if (kind === "status") {
-				for (const entity of [...snapshot.projects, ...snapshot.initiatives]) {
+				for (const entity of snapshot.projects) {
 					if (entity.status !== plan.valueId) continue;
 					const file = this.io.getFile(entity.path);
 					if (!file) continue;
@@ -513,12 +493,11 @@ export class Mutations {
 		);
 	}
 
-	// -- Projects / Initiatives / Cycles --------------------------------------
+	// -- Projects -----------------------------------------------------------
 
 	async createProject(
 		snapshot: WorkspaceSnapshot,
 		title: string,
-		initiative: string | null = null,
 		icon?: string,
 	): Promise<TFile> {
 		const now = new Date().toISOString();
@@ -532,7 +511,6 @@ export class Mutations {
 				title,
 				icon,
 				status: snapshot.workspace.defaultNewTaskStatus,
-				initiative,
 				archived: false,
 				archivedAt: null,
 				createdAt: now,
@@ -559,60 +537,6 @@ export class Mutations {
 		};
 		await this.io.replaceFrontmatter(file, serializeProject(merged));
 		await this.index.rebuild();
-	}
-
-	async createInitiative(
-		snapshot: WorkspaceSnapshot,
-		title: string,
-	): Promise<TFile> {
-		const now = new Date().toISOString();
-		const path = this.io.availablePath(
-			joinPath(snapshot.workspace.root, FOLDERS.initiatives, sanitize(title)),
-		);
-		const file = await this.io.create(
-			path,
-			serializeInitiative({
-				type: "initiative",
-				title,
-				status: snapshot.workspace.defaultNewTaskStatus,
-				archived: false,
-				archivedAt: null,
-				createdAt: now,
-				updatedAt: now,
-				path,
-			}),
-			"## Overview\n",
-		);
-		await this.index.rebuild();
-		return file;
-	}
-
-	async createCycle(
-		snapshot: WorkspaceSnapshot,
-		title: string,
-		startDate: string,
-		endDate: string,
-	): Promise<TFile> {
-		const now = new Date().toISOString();
-		const path = this.io.availablePath(
-			joinPath(snapshot.workspace.root, FOLDERS.cycles, sanitize(title)),
-		);
-		const file = await this.io.create(
-			path,
-			serializeCycle({
-				type: "cycle",
-				title,
-				startDate,
-				endDate,
-				status: "active",
-				createdAt: now,
-				updatedAt: now,
-				path,
-			}),
-			"## Goal\n\n## Retro\n",
-		);
-		await this.index.rebuild();
-		return file;
 	}
 
 	// -- Workspaces (§13) -----------------------------------------------------

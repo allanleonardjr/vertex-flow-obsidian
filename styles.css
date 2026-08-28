@@ -1998,7 +1998,7 @@ body.vf-dragging {
 }
 
 /* =========================================================================
-   Browse screens — Initiatives / Projects / Cycles
+   Browse screens — Projects
    ========================================================================= */
 
 .vf-browse {
@@ -2069,15 +2069,6 @@ body.vf-dragging {
 .vf-browse-progress .vf-progress {
   flex: 1;
   max-width: 240px;
-}
-
-.vf-cycle-status {
-  text-transform: capitalize;
-}
-
-.vf-cycle-status.is-active {
-  border-color: var(--interactive-accent);
-  color: var(--interactive-accent);
 }
 
 /* =========================================================================

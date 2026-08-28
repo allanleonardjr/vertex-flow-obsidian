@@ -6,11 +6,6 @@
  * That makes them exhaustive: dropping a field from `ViewFilters` or a member
  * from `GroupByField` surfaces as a type error pointing at the exact entry to
  * delete, instead of leaving a silently-dead token behind.
- *
- * `advertise: false` marks a token that still parses and prints — so a view
- * already carrying it round-trips losslessly — but is kept out of autocomplete
- * and docs. Initiatives and Cycles are on their way out of the product; this is
- * how they stay representable until the types themselves go.
  */
 
 import type {
@@ -22,13 +17,7 @@ import type {
 } from "../types";
 import type { ArrayFilterKey } from "../views/filter";
 
-/**
- * What kind of thing a filter field's values name.
- *
- * `"opaque"` means "normalise the link and otherwise store it verbatim" — no
- * name lookup, because there's no entity list to look in. It's what the
- * retained Initiative/Cycle fields use, and it still round-trips exactly.
- */
+/** What kind of thing a filter field's values name. */
 export type ResolveAs =
 	| "status"
 	| "priority"
@@ -36,8 +25,7 @@ export type ResolveAs =
 	| "label"
 	| "person"
 	| "project"
-	| "task"
-	| "opaque";
+	| "task";
 
 export interface FilterFieldSpec {
 	/** The canonical token — what the printer emits. */
@@ -51,7 +39,6 @@ export interface FilterFieldSpec {
 	 * gives `mentions` no NONE branch. Parsed, then warned about.
 	 */
 	unsetIsVacuous: boolean;
-	advertise: boolean;
 }
 
 export const FILTER_FIELDS: Record<ArrayFilterKey, FilterFieldSpec> = {
@@ -60,71 +47,48 @@ export const FILTER_FIELDS: Record<ArrayFilterKey, FilterFieldSpec> = {
 		aliases: ["state"],
 		resolveAs: "status",
 		unsetIsVacuous: true,
-		advertise: true,
 	},
 	priority: {
 		token: "priority",
 		aliases: ["p"],
 		resolveAs: "priority",
 		unsetIsVacuous: false,
-		advertise: true,
 	},
 	taskType: {
 		token: "type",
 		aliases: ["tasktype", "kind"],
 		resolveAs: "taskType",
 		unsetIsVacuous: false,
-		advertise: true,
 	},
 	labels: {
 		token: "label",
 		aliases: ["labels", "tag", "tags"],
 		resolveAs: "label",
 		unsetIsVacuous: false,
-		advertise: true,
 	},
 	assignee: {
 		token: "assignee",
 		aliases: ["assigned", "owner"],
 		resolveAs: "person",
 		unsetIsVacuous: false,
-		advertise: true,
 	},
 	mentions: {
 		token: "mentions",
 		aliases: ["mention"],
 		resolveAs: "person",
 		unsetIsVacuous: true,
-		advertise: true,
 	},
 	project: {
 		token: "project",
 		aliases: [],
 		resolveAs: "project",
 		unsetIsVacuous: false,
-		advertise: true,
 	},
 	parent: {
 		token: "parent",
 		aliases: ["subtaskof"],
 		resolveAs: "task",
 		unsetIsVacuous: false,
-		advertise: true,
-	},
-	// Retained for round-trip fidelity only — see the module comment.
-	initiative: {
-		token: "initiative",
-		aliases: [],
-		resolveAs: "opaque",
-		unsetIsVacuous: false,
-		advertise: false,
-	},
-	cycle: {
-		token: "cycle",
-		aliases: [],
-		resolveAs: "opaque",
-		unsetIsVacuous: false,
-		advertise: false,
 	},
 };
 
@@ -134,54 +98,50 @@ export const TEXT_FIELD = { token: "title", aliases: ["text", "search"] };
 export interface EnumValueSpec {
 	token: string;
 	aliases: readonly string[];
-	advertise: boolean;
 }
 
 export const GROUP_VALUES: Record<GroupByField, EnumValueSpec> = {
-	none: { token: "none", aliases: [], advertise: true },
-	status: { token: "status", aliases: [], advertise: true },
-	priority: { token: "priority", aliases: [], advertise: true },
-	taskType: { token: "type", aliases: ["tasktype", "kind"], advertise: true },
-	assignee: { token: "assignee", aliases: ["owner"], advertise: true },
-	label: { token: "label", aliases: ["labels", "tag", "tags"], advertise: true },
-	project: { token: "project", aliases: [], advertise: true },
-	initiative: { token: "initiative", aliases: [], advertise: false },
-	cycle: { token: "cycle", aliases: [], advertise: false },
+	none: { token: "none", aliases: [] },
+	status: { token: "status", aliases: [] },
+	priority: { token: "priority", aliases: [] },
+	taskType: { token: "type", aliases: ["tasktype", "kind"] },
+	assignee: { token: "assignee", aliases: ["owner"] },
+	label: { token: "label", aliases: ["labels", "tag", "tags"] },
+	project: { token: "project", aliases: [] },
 };
 
 export const SORT_VALUES: Record<SortField, EnumValueSpec> = {
-	rank: { token: "rank", aliases: ["manual"], advertise: true },
-	priority: { token: "priority", aliases: [], advertise: true },
-	status: { token: "status", aliases: [], advertise: true },
-	title: { token: "title", aliases: ["name"], advertise: true },
-	dueDate: { token: "due", aliases: ["duedate"], advertise: true },
-	startDate: { token: "start", aliases: ["startdate"], advertise: true },
-	estimate: { token: "estimate", aliases: [], advertise: true },
-	createdAt: { token: "created", aliases: ["createdat"], advertise: true },
-	updatedAt: { token: "updated", aliases: ["updatedat"], advertise: true },
-	cycleRank: { token: "cyclerank", aliases: [], advertise: false },
+	rank: { token: "rank", aliases: ["manual"] },
+	priority: { token: "priority", aliases: [] },
+	status: { token: "status", aliases: [] },
+	title: { token: "title", aliases: ["name"] },
+	dueDate: { token: "due", aliases: ["duedate"] },
+	startDate: { token: "start", aliases: ["startdate"] },
+	estimate: { token: "estimate", aliases: [] },
+	createdAt: { token: "created", aliases: ["createdat"] },
+	updatedAt: { token: "updated", aliases: ["updatedat"] },
 };
 
 export const LAYOUT_VALUES: Record<ViewType, EnumValueSpec> = {
-	list: { token: "list", aliases: [], advertise: true },
-	board: { token: "board", aliases: ["kanban"], advertise: true },
+	list: { token: "list", aliases: [] },
+	board: { token: "board", aliases: ["kanban"] },
 };
 
 export const EMPTY_VALUES: Record<EmptyColumnBehavior, EnumValueSpec> = {
-	"show-normal": { token: "show-normal", aliases: ["normal", "show"], advertise: true },
-	"auto-collapse": { token: "auto-collapse", aliases: ["collapse"], advertise: true },
-	"auto-hide": { token: "auto-hide", aliases: ["hide"], advertise: true },
+	"show-normal": { token: "show-normal", aliases: ["normal", "show"] },
+	"auto-collapse": { token: "auto-collapse", aliases: ["collapse"] },
+	"auto-hide": { token: "auto-hide", aliases: ["hide"] },
 };
 
 /** Task fields the `hide:` clause can name (§8.4). Keyed for exhaustiveness. */
 export const FIELD_VALUES: Record<TaskField, EnumValueSpec> = {
-	type: { token: "type", aliases: ["tasktype", "kind"], advertise: true },
-	priority: { token: "priority", aliases: ["p"], advertise: true },
-	assignee: { token: "assignee", aliases: ["owner", "assigned"], advertise: true },
-	labels: { token: "labels", aliases: ["label", "tag", "tags"], advertise: true },
-	dueDate: { token: "due", aliases: ["duedate"], advertise: true },
-	progress: { token: "progress", aliases: [], advertise: true },
-	relations: { token: "relations", aliases: ["rel", "relation"], advertise: true },
+	type: { token: "type", aliases: ["tasktype", "kind"] },
+	priority: { token: "priority", aliases: ["p"] },
+	assignee: { token: "assignee", aliases: ["owner", "assigned"] },
+	labels: { token: "labels", aliases: ["label", "tag", "tags"] },
+	dueDate: { token: "due", aliases: ["duedate"] },
+	progress: { token: "progress", aliases: [] },
+	relations: { token: "relations", aliases: ["rel", "relation"] },
 };
 
 /* ----------------------------------------------------------- keywords ----- */

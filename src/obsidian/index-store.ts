@@ -14,11 +14,7 @@
 
 import { App, TFile, debounce } from "obsidian";
 import { mentionsInNote } from "../core/serialization/comments";
-import {
-	parseCycle,
-	parseInitiative,
-	parseProject,
-} from "../core/serialization/entities";
+import { parseProject } from "../core/serialization/entities";
 import { parseTask } from "../core/serialization/task";
 import { parseViews } from "../core/serialization/views";
 import { parseWorkspace } from "../core/serialization/workspace";
@@ -29,13 +25,7 @@ import {
 	defaultViews,
 } from "../core/views/defaults";
 import { isWithin } from "../core/links";
-import type {
-	Cycle,
-	Initiative,
-	Project,
-	Task,
-	WorkspaceSnapshot,
-} from "../core/types";
+import type { Project, Task, WorkspaceSnapshot } from "../core/types";
 import { NoteIO, withoutExtension } from "./note-io";
 
 export const WORKSPACE_NOTE = "_workspace";
@@ -43,9 +33,7 @@ export const VIEWS_NOTE = "_views";
 
 /** Folder names used when creating notes. Reading tolerates any layout. */
 export const FOLDERS = {
-	initiatives: "Initiatives",
 	projects: "Projects",
-	cycles: "Cycles",
 	tasks: "Tasks",
 } as const;
 
@@ -189,8 +177,6 @@ export class VaultIndex {
 				workspace: parsed.value,
 				tasks: [],
 				projects: [],
-				initiatives: [],
-				cycles: [],
 				views: [],
 			});
 		}
@@ -232,14 +218,6 @@ export class VaultIndex {
 				}
 				case "project":
 					snapshot.projects.push(parseProject(frontmatter, options).value as Project);
-					break;
-				case "initiative":
-					snapshot.initiatives.push(
-						parseInitiative(frontmatter, options).value as Initiative,
-					);
-					break;
-				case "cycle":
-					snapshot.cycles.push(parseCycle(frontmatter, options).value as Cycle);
 					break;
 			}
 		}
@@ -329,13 +307,11 @@ function deepestMatch(
 	return best;
 }
 
-type EntityKind = "task" | "project" | "initiative" | "cycle";
+type EntityKind = "task" | "project";
 
 const FOLDER_KINDS: Record<string, EntityKind> = {
 	[FOLDERS.tasks]: "task",
 	[FOLDERS.projects]: "project",
-	[FOLDERS.initiatives]: "initiative",
-	[FOLDERS.cycles]: "cycle",
 };
 
 /**
@@ -361,6 +337,4 @@ function entityKindOf(
 const FOLDER_KINDS_BY_TYPE: Record<string, EntityKind> = {
 	task: "task",
 	project: "project",
-	initiative: "initiative",
-	cycle: "cycle",
 };

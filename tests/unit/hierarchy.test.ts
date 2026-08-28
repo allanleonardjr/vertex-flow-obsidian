@@ -3,13 +3,8 @@ import {
 	ancestorTasks,
 	childTasks,
 	computeProgress,
-	cycleTasks,
 	descendantTasks,
 	formatProgress,
-	initiativeDirectTasks,
-	initiativeProgress,
-	initiativeProjects,
-	initiativeTasks,
 	primaryParent,
 	projectProgress,
 	projectTasks,
@@ -37,11 +32,8 @@ function task(overrides: Partial<Task> & { path: string }): Task {
 		status: "queue",
 		priority: null,
 		rank: "0|i00000:",
-		cycleRank: null,
 		project: null,
-		initiative: null,
 		parent: null,
-		cycle: null,
 		assignee: null,
 		estimate: null,
 		labels: [],
@@ -66,31 +58,7 @@ describe("direct children", () => {
 	});
 
 	it("finds a project's tasks", () => {
-		expect(projectTasks(scope, P("Projects/App Store Launch"))).toHaveLength(2);
-	});
-
-	it("finds an initiative's projects", () => {
-		expect(
-			initiativeProjects(scope, P("Initiatives/Launch Mobile App")),
-		).toHaveLength(2);
-	});
-
-	it("separates tasks attached directly to an initiative from project tasks", () => {
-		const initiative = P("Initiatives/Launch Mobile App");
-		expect(initiativeDirectTasks(scope, initiative).map((t) => t.id)).toEqual([
-			"SMP-0108",
-		]);
-		// All of it: the direct one plus everything under both projects.
-		expect(initiativeTasks(scope, initiative).length).toBeGreaterThan(1);
-	});
-
-	it("de-duplicates when rolling an initiative up", () => {
-		const tasks = initiativeTasks(scope, P("Initiatives/Launch Mobile App"));
-		expect(new Set(tasks.map((t) => t.path)).size).toBe(tasks.length);
-	});
-
-	it("finds a cycle's tasks", () => {
-		expect(cycleTasks(scope, P("Cycles/2026-Cycle-18")).length).toBe(5);
+		expect(projectTasks(scope, P("Projects/App Store Launch"))).toHaveLength(3);
 	});
 
 	it("matches short-form wikilinks against full paths", () => {
@@ -152,16 +120,13 @@ describe("descendants and ancestors", () => {
 });
 
 describe("primary parent (exactly one)", () => {
-	it("prefers parent, then project, then initiative", () => {
+	it("prefers parent, then project", () => {
 		expect(
-			primaryParent(task({ path: "x", parent: "p", project: "pr", initiative: "i" })),
+			primaryParent(task({ path: "x", parent: "p", project: "pr" })),
 		).toEqual({ kind: "task", path: "p" });
-		expect(primaryParent(task({ path: "x", project: "pr", initiative: "i" }))).toEqual(
-			{ kind: "project", path: "pr" },
-		);
-		expect(primaryParent(task({ path: "x", initiative: "i" }))).toEqual({
-			kind: "initiative",
-			path: "i",
+		expect(primaryParent(task({ path: "x", project: "pr" }))).toEqual({
+			kind: "project",
+			path: "pr",
 		});
 		expect(primaryParent(task({ path: "x" }))).toEqual({ kind: "none" });
 	});
@@ -249,7 +214,7 @@ describe("sub-task rollup (§7.2)", () => {
 	});
 });
 
-describe("project and initiative progress (§7.1)", () => {
+describe("project progress (§7.1)", () => {
 	it("computes project progress from every task in the project", () => {
 		// Sub-tasks carry their parent's `project` link too, so they count here.
 		// A project's progress is all the work in it, not just its top-level rows
@@ -268,16 +233,6 @@ describe("project and initiative progress (§7.1)", () => {
 		// its tasks are moving — status and progress never auto-sync.
 		const project = snapshot.projects.find((p) => p.title.startsWith("App Store"));
 		expect(project?.status).toBe("queue");
-		expect(projectProgress(scope, project!.path, statuses).total).toBe(2);
-	});
-
-	it("rolls an initiative up across its projects and direct tasks", () => {
-		const progress = initiativeProgress(
-			scope,
-			P("Initiatives/Launch Mobile App"),
-			statuses,
-		);
-		// 5 in Core App Experience + 2 in App Store Launch + 1 attached direct.
-		expect(progress.total).toBe(8);
+		expect(projectProgress(scope, project!.path, statuses).total).toBe(3);
 	});
 });

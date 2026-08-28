@@ -53,10 +53,10 @@ export function useCreateTask(): (
 }
 
 /**
- * Create-then-open for Initiatives, Projects, and Cycles.
+ * Create-then-open for Projects.
  *
- * These have no custom in-plugin editor — only Tasks get one (§4.2–4.4 are
- * plain notes meant to be written in by hand, prose and all). So "open" here
+ * A Project has no custom in-plugin editor — only Tasks get one (§4.2 is a
+ * plain note meant to be written in by hand, prose and all). So "open" here
  * means the real Obsidian note editor, not a Vertex Flow panel. The
  * create-first-then-edit shape still applies: there's a real note the moment
  * you click "New", never a form that only becomes one on submit.
@@ -86,27 +86,9 @@ function useCreateEntity(
 	);
 }
 
-export function useCreateInitiative(): (snapshot: WorkspaceSnapshot) => Promise<void> {
-	return useCreateEntity(
-		(plugin, snapshot) => plugin.mutations.createInitiative(snapshot, "New initiative"),
-		"initiative",
-	);
-}
-
 export function useCreateProject(): (snapshot: WorkspaceSnapshot) => Promise<void> {
 	return useCreateEntity(
 		(plugin, snapshot) => plugin.mutations.createProject(snapshot, "New project"),
 		"project",
 	);
-}
-
-export function useCreateCycle(): (snapshot: WorkspaceSnapshot) => Promise<void> {
-	return useCreateEntity((plugin, snapshot) => {
-		// A quick 2-week default (§7.5's own example preset) — free-form once
-		// the note is open, since cycles have no fixed duration.
-		const start = new Date();
-		const end = new Date(start.getTime() + 13 * 24 * 60 * 60 * 1000);
-		const iso = (date: Date) => date.toISOString().slice(0, 10);
-		return plugin.mutations.createCycle(snapshot, "New cycle", iso(start), iso(end));
-	}, "cycle");
 }
