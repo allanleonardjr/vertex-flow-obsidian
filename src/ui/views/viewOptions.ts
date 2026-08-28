@@ -11,6 +11,7 @@ import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import {
 	NONE,
 	SELF,
+	type EmptyColumnBehavior,
 	type GroupByField,
 	type SortField,
 	type ViewFilters,
@@ -45,6 +46,16 @@ export const SORT_OPTIONS: { value: SortField; label: string }[] = [
 	...(FEATURES.cycles
 		? [{ value: "cycleRank" as const, label: "Cycle rank" }]
 		: []),
+];
+
+/** Board-only: what happens to a column with no cards (§8.2). */
+export const EMPTY_COLUMN_OPTIONS: {
+	value: EmptyColumnBehavior;
+	label: string;
+}[] = [
+	{ value: "show-normal", label: "Show" },
+	{ value: "auto-collapse", label: "Collapse" },
+	{ value: "auto-hide", label: "Hide" },
 ];
 
 export const optionLabel = <T extends string>(

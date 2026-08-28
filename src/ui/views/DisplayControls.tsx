@@ -6,9 +6,20 @@
  */
 
 import { useState } from "react";
-import type { GroupByField, SavedView, SortField, ViewType } from "../../core/types";
+import type {
+	EmptyColumnBehavior,
+	GroupByField,
+	SavedView,
+	SortField,
+	ViewType,
+} from "../../core/types";
 import { Popover } from "../components/Popover";
-import { GROUP_OPTIONS, SORT_OPTIONS, optionLabel } from "./viewOptions";
+import {
+	EMPTY_COLUMN_OPTIONS,
+	GROUP_OPTIONS,
+	SORT_OPTIONS,
+	optionLabel,
+} from "./viewOptions";
 
 export function LayoutToggle({
 	view,
@@ -108,6 +119,30 @@ export function GroupChip({
 			value={view.groupBy}
 			options={GROUP_OPTIONS}
 			onSelect={(groupBy: GroupByField) => onChange({ ...view, groupBy })}
+		/>
+	);
+}
+
+/**
+ * Board-only: empty-column behavior (§8.2). Previously reachable only through
+ * the text query (`empty:auto-collapse`); this surfaces it on the bar like the
+ * other display controls.
+ */
+export function EmptyColumnsChip({
+	view,
+	onChange,
+}: {
+	view: SavedView;
+	onChange: (next: SavedView) => void;
+}) {
+	return (
+		<BarSelect
+			label="Empty cols"
+			value={view.emptyColumnBehavior}
+			options={EMPTY_COLUMN_OPTIONS}
+			onSelect={(emptyColumnBehavior: EmptyColumnBehavior) =>
+				onChange({ ...view, emptyColumnBehavior })
+			}
 		/>
 	);
 }

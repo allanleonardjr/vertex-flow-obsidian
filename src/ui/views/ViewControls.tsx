@@ -15,7 +15,12 @@ import { useCreateTask } from "../actions";
 import { usePlugin, useSettingsWriter } from "../context";
 import { NamedIconDialog } from "../modals/NamedIconDialog";
 import { useSelection } from "../selection";
-import { GroupChip, LayoutToggle, SortChip } from "./DisplayControls";
+import {
+	EmptyColumnsChip,
+	GroupChip,
+	LayoutToggle,
+	SortChip,
+} from "./DisplayControls";
 import { FilterControls } from "./FilterControls";
 import { QueryBar } from "./QueryBar";
 import type { ViewDraft } from "./useViewDraft";
@@ -113,6 +118,9 @@ export function ViewControls({
 				<span className="vf-bar-divider" />
 				<GroupChip view={view} onChange={editView} />
 				<SortChip view={view} onChange={editView} />
+				{view.viewType === "board" && view.groupBy !== "none" && (
+					<EmptyColumnsChip view={view} onChange={editView} />
+				)}
 				<span className="vf-bar-divider" />
 				<FilterControls
 					snapshot={snapshot}
