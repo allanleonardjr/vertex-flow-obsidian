@@ -108,6 +108,14 @@
   flex: 1;
 }
 
+/* Divider above the pinned Help / Settings rows at the bottom of the sidebar. */
+.vf-sidebar-sep {
+  flex: 0 0 auto;
+  height: 1px;
+  margin: 6px 10px;
+  background: var(--vf-border);
+}
+
 /* -- Collapsible section: header toggles, "+" creates ---------------------- */
 
 .vf-section {
@@ -239,20 +247,12 @@
   font-weight: 500;
 }
 
-/* The current *workspace* is the primary selection, so it reverses the accent:
-   filled background, regular-weight text on top. */
-.vf-nav-row.is-current {
-  background: var(--interactive-accent) !important;
-  font-weight: 400;
-}
-
+/* The current *workspace* reads the same as any other active row: accent
+   text, no persistent fill (matching the Help pane's selected topic). */
 .vf-nav-row.is-current,
 .vf-nav-row.is-current .vf-nav-icon {
-  color: var(--text-on-accent);
-}
-
-.vf-nav-row.is-current:hover {
-  background: var(--interactive-accent-hover, var(--interactive-accent)) !important;
+  color: var(--text-accent);
+  font-weight: 500;
 }
 
 .vf-nav-icon {
@@ -2834,4 +2834,148 @@ body.vf-dragging {
   margin: 6px 2px 0;
   color: var(--vf-muted);
   font-size: var(--font-ui-smaller);
+}
+
+/* ===================================================== Help ===================================================== */
+
+.vf-help {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+
+.vf-help-toc {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  overflow-y: auto;
+  padding: 10px 6px;
+  border-right: 1px solid var(--vf-border);
+}
+
+.vf-help-toc-title {
+  padding: 4px 10px 10px;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.vf-help-topic-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.vf-help-topic-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 16px;
+  height: 26px;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--vf-muted);
+  cursor: pointer;
+  transition: transform 100ms ease;
+}
+
+.vf-help-topic-toggle.is-open {
+  transform: rotate(90deg);
+}
+
+.vf-help-topic-toggle.is-spacer {
+  visibility: hidden;
+  cursor: default;
+}
+
+.vf-help-topic-label {
+  display: flex;
+  align-items: center;
+  /* Obsidian's base `button` centers its content — force left, like every
+     other row in the sidebars. */
+  justify-content: flex-start !important;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  padding: 0 8px;
+  overflow: hidden;
+  border: none !important;
+  border-radius: var(--vf-radius);
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  text-align: left !important;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.vf-help-topic-label:hover {
+  background: var(--background-modifier-hover) !important;
+}
+
+/* Active reads as accent text only — no persistent fill, matching how an
+   active view row reads in the main sidebar. */
+.vf-help-topic-label.is-active {
+  color: var(--text-accent);
+  font-weight: 500;
+}
+
+.vf-help-resize {
+  flex: 0 0 auto;
+  width: 5px;
+  cursor: col-resize;
+  background: transparent;
+}
+
+.vf-help-resize:hover {
+  background: var(--interactive-accent);
+  opacity: 0.4;
+}
+
+.vf-help-content {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 24px 32px;
+}
+
+.vf-help-content .markdown-rendered > :first-child {
+  margin-top: 0;
+}
+
+.vf-help-index {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 16px;
+}
+
+.vf-help-index-item {
+  display: block;
+  padding: 10px 14px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--text-normal);
+  text-align: left;
+  cursor: pointer;
+}
+
+.vf-help-index-item:hover {
+  background: var(--background-modifier-hover) !important;
+  border-color: var(--interactive-accent);
+}
+
+.vf-help-empty {
+  color: var(--vf-muted);
 }

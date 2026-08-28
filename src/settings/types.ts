@@ -31,6 +31,8 @@ export interface VertexFlowSettings {
 	/** Size of the Parent / relation task-picker popover, drag-resizable. */
 	taskPickerWidth: number;
 	taskPickerHeight: number;
+	/** Width, in pixels, of the topic tree in the Help pane (drag-resizable). */
+	helpSidebarWidth: number;
 	/**
 	 * Whether opening a task note anywhere in Obsidian (search, a wikilink,
 	 * the quick switcher) redirects into Vertex Flow's editor instead of the
@@ -53,5 +55,6 @@ export const DEFAULT_SETTINGS: VertexFlowSettings = {
 	editorSourceOpen: false,
 	taskPickerWidth: 380,
 	taskPickerHeight: 360,
+	helpSidebarWidth: 240,
 	redirectTaskNotes: true,
 };

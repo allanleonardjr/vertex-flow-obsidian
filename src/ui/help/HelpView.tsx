@@ -1,0 +1,220 @@
+/**
+ * Help: a Docusaurus-style master/detail pane. The left rail is a topic tree
+ * (unlimited nesting — a topic can carry its own content, its own children,
+ * both, or neither); the right pane renders whichever topic is selected.
+ *
+ * Reachable from the sidebar's Help row, rendered inline like the other
+ * browse screens — no modal. Content lives in `core/help.ts`, not the vault.
+ */
+
+import { useMemo, useRef, useState } from "react";
+import { ChevronRight } from "lucide-react";
+import { HELP_TOPICS, findHelpTopic, type HelpTopic } from "../../core/help";
+import { Icon } from "../components/Icon";
+import { MarkdownContent } from "../components/Markdown";
+import { usePlugin, useSettingsWriter } from "../context";
+
+const MIN_WIDTH = 180;
+const MAX_WIDTH = 420;
+
+/** Not a vault note — relative links/embeds in help content resolve from the
+ * vault root against this placeholder path. */
+const HELP_SOURCE_PATH = "Vertex Flow Help.md";
+
+function clamp(n: number, lo: number, hi: number): number {
+	return Math.min(hi, Math.max(lo, n));
+}
+
+/** First topic (depth-first) that actually has content, for the initial pane. */
+function firstContentTopic(topics: HelpTopic[]): HelpTopic | null {
+	for (const topic of topics) {
+		if (topic.content) return topic;
+		const nested = firstContentTopic(topic.children ?? []);
+		if (nested) return nested;
+	}
+	return null;
+}
+
+/** Every ancestor id of `id`, so a deep topic can expand its whole chain
+ * instead of sitting invisible inside collapsed parents. */
+function ancestorIds(topics: HelpTopic[], id: string, trail: string[] = []): string[] | null {
+	for (const topic of topics) {
+		if (topic.id === id) return trail;
+		if (topic.children) {
+			const found = ancestorIds(topic.children, id, [...trail, topic.id]);
+			if (found) return found;
+		}
+	}
+	return null;
+}
+
+export function HelpView() {
+	const plugin = usePlugin();
+	const writeSettings = useSettingsWriter();
+
+	const initial = useMemo(() => firstContentTopic(HELP_TOPICS), []);
+	const [selectedId, setSelectedId] = useState<string | null>(initial?.id ?? null);
+	const [expanded, setExpanded] = useState<Set<string>>(
+		() => new Set(initial ? ancestorIds(HELP_TOPICS, initial.id) ?? [] : []),
+	);
+
+	const width = clamp(plugin.settings.helpSidebarWidth, MIN_WIDTH, MAX_WIDTH);
+	const drag = useRef<{ startX: number; startWidth: number } | null>(null);
+
+	const select = (topic: HelpTopic) => {
+		setSelectedId(topic.id);
+		if (topic.children?.length) {
+			setExpanded((current) => new Set(current).add(topic.id));
+		}
+	};
+
+	const toggle = (id: string) => {
+		setExpanded((current) => {
+			const next = new Set(current);
+			if (next.has(id)) next.delete(id);
+			else next.add(id);
+			return next;
+		});
+	};
+
+	const selected = selectedId ? findHelpTopic(HELP_TOPICS, selectedId) : null;
+
+	return (
+		<div className="vf-help">
+			<nav className="vf-help-toc" style={{ width, flexBasis: width }} aria-label="Help topics">
+				<div className="vf-help-toc-title">Help</div>
+				{HELP_TOPICS.map((topic) => (
+					<HelpTopicRow
+						key={topic.id}
+						topic={topic}
+						depth={0}
+						selectedId={selectedId}
+						expanded={expanded}
+						onSelect={select}
+						onToggle={toggle}
+					/>
+				))}
+			</nav>
+
+			<div
+				className="vf-help-resize"
+				role="separator"
+				aria-orientation="vertical"
+				aria-valuenow={width}
+				onPointerDown={(event) => {
+					if (event.button !== 0) return;
+					drag.current = { startX: event.clientX, startWidth: width };
+					event.currentTarget.setPointerCapture(event.pointerId);
+				}}
+				onPointerMove={(event) => {
+					if (!drag.current) return;
+					const next = clamp(
+						drag.current.startWidth + (event.clientX - drag.current.startX),
+						MIN_WIDTH,
+						MAX_WIDTH,
+					);
+					writeSettings({ helpSidebarWidth: next });
+				}}
+				onPointerUp={(event) => {
+					if (!drag.current) return;
+					drag.current = null;
+					event.currentTarget.releasePointerCapture(event.pointerId);
+				}}
+				onDoubleClick={() => writeSettings({ helpSidebarWidth: 240 })}
+				title="Drag to resize — double-click to reset"
+			/>
+
+			<div className="vf-help-content">
+				{selected ? (
+					<>
+						<h2>{selected.title}</h2>
+						{selected.content && (
+							<MarkdownContent text={selected.content} sourcePath={HELP_SOURCE_PATH} />
+						)}
+						{selected.children && selected.children.length > 0 && (
+							<div className="vf-help-index">
+								{selected.children.map((child) => (
+									<button
+										key={child.id}
+										type="button"
+										className="vf-help-index-item"
+										onClick={() => select(child)}
+									>
+										<strong>{child.title}</strong>
+									</button>
+								))}
+							</div>
+						)}
+					</>
+				) : (
+					<p className="vf-help-empty">Select a topic to get started.</p>
+				)}
+			</div>
+		</div>
+	);
+}
+
+function HelpTopicRow({
+	topic,
+	depth,
+	selectedId,
+	expanded,
+	onSelect,
+	onToggle,
+}: {
+	topic: HelpTopic;
+	depth: number;
+	selectedId: string | null;
+	expanded: Set<string>;
+	onSelect: (topic: HelpTopic) => void;
+	onToggle: (id: string) => void;
+}) {
+	const hasChildren = (topic.children?.length ?? 0) > 0;
+	const isOpen = expanded.has(topic.id);
+	const isActive = topic.id === selectedId;
+
+	return (
+		<>
+			<div className="vf-help-topic-row" style={{ paddingLeft: depth * 14 }}>
+				<button
+					type="button"
+					className={`vf-help-topic-toggle${isOpen ? " is-open" : ""}${hasChildren ? "" : " is-spacer"}`}
+					aria-label={hasChildren ? (isOpen ? "Collapse" : "Expand") : undefined}
+					aria-hidden={!hasChildren}
+					tabIndex={hasChildren ? 0 : -1}
+					onClick={(event) => {
+						event.stopPropagation();
+						if (hasChildren) onToggle(topic.id);
+					}}
+				>
+					{hasChildren && <ChevronRight size={13} />}
+				</button>
+				<button
+					type="button"
+					className={`vf-help-topic-label${isActive ? " is-active" : ""}`}
+					aria-current={isActive ? "page" : undefined}
+					onClick={() => onSelect(topic)}
+				>
+					{topic.icon && <Icon id={topic.icon} size={13} />}
+					<span>{topic.title}</span>
+				</button>
+			</div>
+
+			{hasChildren && isOpen && (
+				<>
+					{topic.children!.map((child) => (
+						<HelpTopicRow
+							key={child.id}
+							topic={child}
+							depth={depth + 1}
+							selectedId={selectedId}
+							expanded={expanded}
+							onSelect={onSelect}
+							onToggle={onToggle}
+						/>
+					))}
+				</>
+			)}
+		</>
+	);
+}

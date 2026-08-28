@@ -4,6 +4,7 @@ node_modules/
 main.js
 dist/
 *.js.map
+src/core/help-generated.ts
 
 # Obsidian plugin runtime state
 data.json

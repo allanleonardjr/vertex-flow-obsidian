@@ -14,12 +14,14 @@ import { useTabs, type BrowseKind, type Tab } from "./tabs-context";
 const BROWSE_ICON: Record<BrowseKind, string> = {
 	projects: "▣",
 	settings: "⚙",
+	help: "?",
 	"new-workspace": "＋",
 };
 
 const BROWSE_LABEL: Record<BrowseKind, string> = {
 	projects: "Projects",
 	settings: "Settings",
+	help: "Help",
 	"new-workspace": "New workspace",
 };
 

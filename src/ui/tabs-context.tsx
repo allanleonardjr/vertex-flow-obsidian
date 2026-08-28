@@ -23,7 +23,7 @@ import {
 import { usePlugin, useSettingsWriter } from "./context";
 
 /** The non-task screens, each a single reusable tab (never duplicated). */
-export type BrowseKind = "projects" | "settings" | "new-workspace";
+export type BrowseKind = "projects" | "settings" | "help" | "new-workspace";
 
 export type Tab =
 	/** The built-in "Tasks" view — pinned, always present, always first, never closed. */

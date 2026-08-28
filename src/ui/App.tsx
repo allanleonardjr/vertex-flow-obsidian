@@ -20,6 +20,7 @@ import { ProjectsBrowseView } from "./browse/ProjectsBrowseView";
 import { Sidebar } from "./Sidebar";
 import { WorkspaceSettingsView } from "./settings/WorkspaceSettingsView";
 import { TabsProvider, useTabs } from "./tabs-context";
+import { HelpView } from "./help/HelpView";
 import { TabStrip } from "./TabStrip";
 import { TaskPane } from "./TaskPane";
 import { TaskViewport } from "./views/TaskViewport";
@@ -141,6 +142,8 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
 					<ProjectsBrowseView snapshot={snapshot} taxonomies={active.taxonomies} />
 				) : tabs.activeTab.kind === "settings" ? (
 					<WorkspaceSettingsView snapshot={snapshot} />
+				) : tabs.activeTab.kind === "help" ? (
+					<HelpView />
 				) : tabs.activeTab.kind === "new-workspace" ? (
 					<TemplateGallery onClose={() => tabs.close("new-workspace")} />
 				) : (

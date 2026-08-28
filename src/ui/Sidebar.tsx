@@ -83,6 +83,15 @@ export function Sidebar({
 
 					<div className="vf-sidebar-spacer" />
 
+					<div className="vf-sidebar-sep" aria-hidden />
+
+					<NavRow
+						icon="circle-help"
+						label="Help"
+						active={activeId === "help"}
+						onClick={() => openScreen("help")}
+					/>
+
 					<NavRow
 						icon="settings-glyph"
 						label="Settings"

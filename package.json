@@ -6,8 +6,9 @@
   "private": true,
   "scripts": {
     "dev": "node esbuild.config.mjs",
-    "build": "tsc --noEmit && node esbuild.config.mjs production",
-    "typecheck": "tsc --noEmit",
+    "build": "node scripts/build-help.mjs && tsc --noEmit && node esbuild.config.mjs production",
+    "typecheck": "node scripts/build-help.mjs && tsc --noEmit",
+    "build:help": "node scripts/build-help.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },
