@@ -818,18 +818,69 @@ body.vf-dragging {
   font-size: var(--font-ui-smaller);
 }
 
-/* Priority Icons */
-.vf-priority-urgent {
+/* Priority icons — same Linear-style signal glyphs on cards, rows and the
+   task-editor selector, so the picker reads like the board. */
+.vf-priority-icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.vf-priority-icon.is-urgent {
   color: #ef4444;
 }
-.vf-priority-high {
+.vf-priority-icon.is-high {
   color: #f97316;
 }
-.vf-priority-medium {
+.vf-priority-icon.is-medium {
   color: #eab308;
 }
-.vf-priority-low {
+.vf-priority-icon.is-low {
   color: #64748b;
+}
+.vf-priority-icon.is-none {
+  color: var(--vf-muted);
+}
+
+/* Fallback for a renamed/custom priority with no built-in signal glyph. */
+.vf-priority-dot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--vf-muted);
+}
+
+/* Task-editor priority selector: a trigger that mirrors a menu row. */
+.vf-icon-select {
+  position: relative;
+}
+.vf-icon-select-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid var(--background-modifier-border) !important;
+  border-radius: 4px;
+  background: var(--background-primary) !important;
+  box-shadow: none !important;
+  color: var(--text-normal);
+  font-size: var(--font-ui-smaller);
+  text-align: left;
+  cursor: pointer;
+}
+.vf-icon-select-trigger:hover {
+  background: var(--background-modifier-hover) !important;
+}
+.vf-icon-select-trigger .vf-icon-select-caret {
+  margin-left: auto;
+  color: var(--vf-muted);
+  font-size: 10px;
+}
+.vf-icon-select-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 /* Linear-style Label Pills */

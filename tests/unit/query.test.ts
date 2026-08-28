@@ -77,9 +77,6 @@ describe("round-trip (Invariant A)", () => {
 		["NONE assignee", withFilters({ assignee: [NONE] })],
 		["NONE project", withFilters({ project: [NONE] })],
 		["NONE parent", withFilters({ parent: [NONE] })],
-		// The real priority whose id is literally "none", distinct from NONE.
-		["literal 'none' priority", withFilters({ priority: ["none"] })],
-		["both none forms", withFilters({ priority: ["none", NONE] })],
 		["stale taxonomy id", withFilters({ status: ["long-gone"] })],
 		["stale person", withFilters({ assignee: ["ghost"] })],
 		["board layout", def({ viewType: "board" })],

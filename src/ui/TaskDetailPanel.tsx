@@ -18,6 +18,7 @@ import {
   NumberField,
   OptionSelect,
   PersonSelect,
+  PrioritySelect,
   PropertyRow,
   TaxonomySelect,
   useDebouncedSave,
@@ -171,10 +172,9 @@ export function TaskDetailPanel({
           </PropertyRow>
 
           <PropertyRow label="Priority">
-            <TaxonomySelect
+            <PrioritySelect
               taxonomy={taxonomies.priority}
               value={task.priority}
-              allowNone
               onChange={(priority) => update({ priority })}
             />
           </PropertyRow>

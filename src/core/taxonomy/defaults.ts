@@ -38,13 +38,18 @@ export const DEFAULT_STATUSES: StatusValue[] = [
 	},
 ];
 
-/** Fully flexible and ordered — order carries meaning, count does not (§5.2). */
+/**
+ * Fully flexible and ordered — order carries meaning, count does not (§5.2).
+ *
+ * There is no "No Priority" rung: an un-prioritised task simply has `priority:
+ * null`, rendered as "None". A dedicated value would be a second way to say the
+ * same thing (and would show as its own board column next to the null bucket).
+ */
 export const DEFAULT_PRIORITIES: PriorityValue[] = [
 	{ id: "urgent", name: "Urgent", color: "#ef4444", order: 1 },
 	{ id: "high", name: "High", color: "#f97316", order: 2 },
 	{ id: "medium", name: "Medium", color: "#eab308", order: 3 },
 	{ id: "low", name: "Low", color: "#3b82f6", order: 4 },
-	{ id: "none", name: "No Priority", color: "#94a3b8", order: 5 },
 ];
 
 export const DEFAULT_TASK_TYPES: TaskTypeValue[] = [

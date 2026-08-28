@@ -8,8 +8,11 @@
  */
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { SignalZero } from "lucide-react";
 import { listValues, type Taxonomy } from "../../core/taxonomy";
 import type { Person } from "../../core/types";
+import { Popover } from "./Popover";
+import { PriorityIcon } from "./TaskBits";
 
 export function PropertyRow({
 	label,
@@ -57,6 +60,116 @@ export function TaxonomySelect({
 				<option value={value}>{value} (removed)</option>
 			)}
 		</select>
+	);
+}
+
+/** The Lucide signal glyphs `PriorityIcon` knows how to draw. */
+const BUILT_IN_PRIORITY_IDS = new Set(["urgent", "high", "medium", "low"]);
+
+function PriorityGlyph({
+	value,
+}: {
+	value: { id: string; color?: string | null } | null;
+}) {
+	if (!value) {
+		return (
+			<span className="vf-priority-icon is-none" aria-hidden>
+				<SignalZero size={14} />
+			</span>
+		);
+	}
+	if (BUILT_IN_PRIORITY_IDS.has(value.id.toLowerCase())) {
+		return <PriorityIcon priority={value.id} />;
+	}
+	return (
+		<span
+			className="vf-priority-dot"
+			style={value.color ? { background: value.color } : undefined}
+			aria-hidden
+		/>
+	);
+}
+
+/**
+ * Priority picker for the task editor.
+ *
+ * A native `<select>` can't draw the signal icons, so this is a small popover
+ * whose trigger and rows both read as "{icon} {name}" — the same glyphs the
+ * board and list use. "None" (unset) sits at the top.
+ */
+export function PrioritySelect({
+	taxonomy,
+	value,
+	onChange,
+}: {
+	taxonomy: Taxonomy;
+	value: string | null;
+	onChange: (value: string | null) => void;
+}) {
+	const [open, setOpen] = useState(false);
+	const values = listValues(taxonomy);
+	const selected = value
+		? (values.find((entry) => entry.id === value) ?? {
+				id: value,
+				name: `${value} (removed)`,
+				color: null,
+			})
+		: null;
+
+	const choose = (next: string | null) => {
+		onChange(next);
+		setOpen(false);
+	};
+
+	return (
+		<span className="vf-icon-select">
+			<button
+				type="button"
+				className="vf-icon-select-trigger"
+				aria-haspopup="listbox"
+				aria-expanded={open}
+				onClick={(event) => {
+					event.stopPropagation();
+					setOpen((current) => !current);
+				}}
+			>
+				<PriorityGlyph value={selected} />
+				<span className="vf-icon-select-name">{selected?.name ?? "None"}</span>
+				<span className="vf-icon-select-caret" aria-hidden>
+					⌄
+				</span>
+			</button>
+
+			{open && (
+				<Popover align="left" onClose={() => setOpen(false)}>
+					<div className="vf-option-list" role="listbox">
+						<button
+							type="button"
+							role="option"
+							aria-selected={value == null}
+							className={`vf-menu-item${value == null ? " is-active" : ""}`}
+							onClick={() => choose(null)}
+						>
+							<PriorityGlyph value={null} />
+							None
+						</button>
+						{values.map((entry) => (
+							<button
+								key={entry.id}
+								type="button"
+								role="option"
+								aria-selected={entry.id === value}
+								className={`vf-menu-item${entry.id === value ? " is-active" : ""}`}
+								onClick={() => choose(entry.id)}
+							>
+								<PriorityGlyph value={entry} />
+								{entry.name}
+							</button>
+						))}
+					</div>
+				</Popover>
+			)}
+		</span>
 	);
 }
 
