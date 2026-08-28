@@ -12,7 +12,7 @@ import {
 	subtaskProgress,
 	type HierarchyScope,
 } from "../../src/core/hierarchy";
-import { sampleSnapshot } from "../../src/core/sample/generate";
+import { sampleSnapshot } from "../../src/core/templates/instantiate";
 import { createTaxonomy, DEFAULT_STATUSES } from "../../src/core/taxonomy";
 import { emptyRelations, type Task } from "../../src/core/types";
 
@@ -232,7 +232,7 @@ describe("project progress (§7.1)", () => {
 		// The sample's launch project is deliberately still in the backlog while
 		// its tasks are moving — status and progress never auto-sync.
 		const project = snapshot.projects.find((p) => p.title.startsWith("App Store"));
-		expect(project?.status).toBe("queue");
+		expect(project?.status).toBe("backlog");
 		expect(projectProgress(scope, project!.path, statuses).total).toBe(3);
 	});
 });

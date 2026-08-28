@@ -14,10 +14,17 @@ import { useTabs, type BrowseKind, type Tab } from "./tabs-context";
 const BROWSE_ICON: Record<BrowseKind, string> = {
 	projects: "▣",
 	settings: "⚙",
+	"new-workspace": "＋",
+};
+
+const BROWSE_LABEL: Record<BrowseKind, string> = {
+	projects: "Projects",
+	settings: "Settings",
+	"new-workspace": "New workspace",
 };
 
 function browseLabel(kind: BrowseKind): string {
-	return kind[0].toUpperCase() + kind.slice(1);
+	return BROWSE_LABEL[kind];
 }
 
 export function TabStrip({

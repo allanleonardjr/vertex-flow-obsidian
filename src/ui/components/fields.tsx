@@ -8,7 +8,6 @@
  */
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { SignalZero } from "lucide-react";
 import { listValues, type Taxonomy } from "../../core/taxonomy";
 import type { Person, TaxonomyValue } from "../../core/types";
 import { Popover } from "./Popover";
@@ -131,25 +130,19 @@ function IconLabel({ glyph, name }: { glyph: ReactNode; name: string }) {
 	);
 }
 
-/** The Lucide signal glyphs `PriorityIcon` knows how to draw. */
-const BUILT_IN_PRIORITY_IDS = new Set(["urgent", "high", "medium", "low"]);
-
-function priorityGlyph(entry: TaxonomyValue | null): ReactNode {
-	if (!entry) {
-		return (
-			<span className="vf-priority-icon is-none" aria-hidden>
-				<SignalZero size={14} />
-			</span>
-		);
-	}
-	if (BUILT_IN_PRIORITY_IDS.has(entry.id.toLowerCase())) {
-		return <PriorityIcon priority={entry.id} />;
-	}
+/**
+ * The same rank-based signal glyph the board and list use — so the picker reads
+ * exactly like the rows it edits, for default and custom priorities alike.
+ */
+function priorityGlyph(taxonomy: Taxonomy, entry: TaxonomyValue | null): ReactNode {
+	const ordered = listValues(taxonomy);
+	const index = entry ? ordered.findIndex((value) => value.id === entry.id) : -1;
 	return (
-		<span
-			className="vf-priority-dot"
-			style={entry.color ? { background: entry.color } : undefined}
-			aria-hidden
+		<PriorityIcon
+			index={index}
+			count={ordered.length}
+			color={entry?.color}
+			name={entry?.name}
 		/>
 	);
 }
@@ -165,7 +158,10 @@ export function PrioritySelect(props: {
 			{...props}
 			allowNone
 			renderOption={(entry) => (
-				<IconLabel glyph={priorityGlyph(entry)} name={entry?.name ?? "None"} />
+				<IconLabel
+					glyph={priorityGlyph(props.taxonomy, entry)}
+					name={entry?.name ?? "None"}
+				/>
 			)}
 		/>
 	);

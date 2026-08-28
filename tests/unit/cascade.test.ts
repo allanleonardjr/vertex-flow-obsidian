@@ -9,7 +9,7 @@ import {
 	scopeOf,
 	type HierarchyScope,
 } from "../../src/core/hierarchy";
-import { sampleSnapshot } from "../../src/core/sample/generate";
+import { sampleSnapshot } from "../../src/core/templates/instantiate";
 import { emptyRelations, type Project, type Task } from "../../src/core/types";
 
 function task(overrides: Partial<Task> & { path: string }): Task {

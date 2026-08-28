@@ -838,36 +838,16 @@ body.vf-dragging {
   font-size: var(--font-ui-smaller);
 }
 
-/* Priority icons — same Linear-style signal glyphs on cards, rows and the
-   task-editor selector, so the picker reads like the board. */
+/* Priority icons — Linear-style signal glyphs on cards, rows and the
+   task-editor selector, so the picker reads like the board. Strength comes
+   from the value's rank; colour is applied inline from the taxonomy value. */
 .vf-priority-icon {
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
 }
-.vf-priority-icon.is-urgent {
-  color: #ef4444;
-}
-.vf-priority-icon.is-high {
-  color: #f97316;
-}
-.vf-priority-icon.is-medium {
-  color: #eab308;
-}
-.vf-priority-icon.is-low {
-  color: #64748b;
-}
 .vf-priority-icon.is-none {
   color: var(--vf-muted);
-}
-
-/* Fallback for a renamed/custom priority with no built-in signal glyph. */
-.vf-priority-dot {
-  width: 8px;
-  height: 8px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: var(--vf-muted);
 }
 
 /* Task-editor taxonomy selectors (Status / Priority / Type): a trigger that
@@ -1052,36 +1032,6 @@ body.vf-dragging {
 
 /* ------------------------------------------------------------ Empty state -- */
 
-.vf-empty {
-  display: flex;
-  height: 100%;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-}
-
-.vf-empty-card {
-  width: 100%;
-  max-width: 440px;
-}
-
-.vf-empty-card h1 {
-  margin: 0 0 8px;
-  font-size: var(--font-ui-large);
-}
-
-.vf-empty-lead {
-  margin: 0 0 20px;
-  color: var(--vf-muted);
-  line-height: 1.5;
-}
-
-.vf-empty-actions {
-  display: flex;
-  gap: 8px;
-  margin: 16px 0;
-}
-
 .vf-empty-note {
   color: var(--vf-muted);
   font-size: var(--font-ui-smaller);
@@ -1096,6 +1046,219 @@ body.vf-dragging {
   justify-content: center;
   gap: 4px;
   color: var(--vf-muted);
+}
+
+/* --- Template gallery (workspace creation, §13) --------------------------- */
+
+.vf-empty-scroll {
+  height: 100%;
+  overflow-y: auto;
+}
+
+/* Rendered full-bleed in the content area or its own tab — never a modal. */
+.vf-template-pane {
+  height: 100%;
+  overflow-y: auto;
+  padding: 28px 28px 48px;
+}
+
+.vf-template-gallery,
+.vf-template-config {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.vf-template-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.vf-template-head h1 {
+  margin: 0;
+  font-size: var(--font-ui-large);
+}
+
+.vf-template-sub {
+  margin: 4px 0 0;
+  max-width: 60ch;
+  color: var(--vf-muted);
+  line-height: 1.5;
+}
+
+.vf-template-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+/*
+ * The whole card is the click target. One spacing token (`--pad`) drives every
+ * vertical gap on the card, so the divider sits exactly midway: the space above
+ * it (description → line) equals the space below it (line → first field).
+ */
+.vf-template-card {
+  --pad: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--pad);
+  padding: 20px;
+  border: 1px solid var(--vf-border);
+  border-radius: 10px;
+  background: var(--background-primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.vf-template-card:hover,
+.vf-template-card:focus-visible {
+  border-color: var(--interactive-accent);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  outline: none;
+}
+
+.vf-template-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-normal);
+}
+
+.vf-template-card-title {
+  font-size: var(--font-ui-medium);
+  font-weight: 600;
+}
+
+.vf-template-card-desc {
+  margin: 0;
+  color: var(--vf-muted);
+  line-height: 1.45;
+}
+
+.vf-template-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pad);
+  margin: 0;
+  padding-top: var(--pad);
+  border-top: 1px solid var(--vf-border);
+}
+
+/* label on its own line, values wrapping beneath — no boxes, just dots. */
+.vf-template-setting {
+  display: block;
+}
+
+.vf-template-setting-label {
+  display: block;
+  margin-bottom: 7px;
+  font-size: var(--font-ui-smaller);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--vf-muted);
+}
+
+.vf-template-setting-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 14px;
+  margin: 0;
+  font-size: var(--font-ui-smaller);
+  line-height: 1.3;
+}
+
+.vf-template-val {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.vf-template-val.is-muted {
+  color: var(--vf-muted);
+}
+
+.vf-template-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.vf-template-card-cta {
+  margin-top: auto;
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
+  color: var(--interactive-accent);
+}
+
+/* --- Config step -------------------------------------------------------- */
+
+.vf-template-config {
+  max-width: 480px;
+}
+
+.vf-template-back {
+  padding: 2px 0;
+  margin-bottom: 14px;
+  border: none;
+  background: none;
+  box-shadow: none;
+  color: var(--vf-muted);
+  cursor: pointer;
+}
+
+.vf-template-back:hover {
+  color: var(--text-normal);
+}
+
+.vf-template-config-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vf-template-config-head h1 {
+  margin: 0;
+  font-size: var(--font-ui-large);
+}
+
+.vf-template-config .vf-template-sub {
+  margin: 6px 0 18px;
+}
+
+.vf-template-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 4px 0 18px;
+  cursor: pointer;
+}
+
+.vf-template-toggle input {
+  margin-top: 2px;
+}
+
+.vf-template-toggle span {
+  display: flex;
+  flex-direction: column;
+  font-weight: 600;
+}
+
+.vf-template-toggle small {
+  font-weight: 400;
+  color: var(--vf-muted);
+}
+
+.vf-template-config-actions {
+  display: flex;
+}
+
+.vf-template-config-actions .mod-cta {
+  justify-content: center;
 }
 
 .vf-field {

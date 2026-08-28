@@ -14,6 +14,7 @@ import {
 import { workspaceTaxonomies } from "../core/taxonomy";
 import type { SavedView, WorkspaceSnapshot } from "../core/types";
 import { EmptyState } from "./EmptyState";
+import { TemplateGallery } from "./TemplateGallery";
 import { SelectionProvider, useSelection } from "./selection";
 import { ProjectsBrowseView } from "./browse/ProjectsBrowseView";
 import { Sidebar } from "./Sidebar";
@@ -140,6 +141,8 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
 					<ProjectsBrowseView snapshot={snapshot} taxonomies={active.taxonomies} />
 				) : tabs.activeTab.kind === "settings" ? (
 					<WorkspaceSettingsView snapshot={snapshot} />
+				) : tabs.activeTab.kind === "new-workspace" ? (
+					<TemplateGallery onClose={() => tabs.close("new-workspace")} />
 				) : (
 					<TaskViewport
 						snapshot={snapshot}

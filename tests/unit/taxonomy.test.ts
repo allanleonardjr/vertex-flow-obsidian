@@ -20,7 +20,7 @@ import {
 	workspaceTaxonomies,
 	withTaxonomy,
 } from "../../src/core/taxonomy";
-import { sampleSnapshot } from "../../src/core/sample/generate";
+import { sampleSnapshot } from "../../src/core/templates/instantiate";
 import type { LabelValue, PriorityValue, StatusValue } from "../../src/core/types";
 
 const statuses = () => createTaxonomy<StatusValue>("status", DEFAULT_STATUSES);
@@ -305,7 +305,7 @@ describe("workspace wiring", () => {
 			"taskType",
 			"label",
 		]);
-		expect(taxonomies.label.values).toHaveLength(3);
+		expect(taxonomies.label.values).toHaveLength(5);
 	});
 
 	it("writes a modified taxonomy back to the right config field", () => {

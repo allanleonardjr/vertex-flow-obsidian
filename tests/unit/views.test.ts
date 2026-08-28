@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sampleSnapshot } from "../../src/core/sample/generate";
+import { sampleSnapshot } from "../../src/core/templates/instantiate";
 import {
 	applyFilters,
 	canonicalizeDefinition,
@@ -237,10 +237,13 @@ describe("sorting", () => {
 describe("grouping", () => {
 	it("emits a column for every status, even empty ones", () => {
 		const groups = groupTasks([], "status", context);
+		// The software-sprint fixture's status set — two `started` statuses
+		// (In Progress, In Review) on purpose.
 		expect(groups.map((g) => g.key)).toEqual([
-			"queue",
+			"backlog",
 			"todo",
 			"in-progress",
+			"in-review",
 			"done",
 			"canceled",
 		]);
@@ -248,9 +251,9 @@ describe("grouping", () => {
 	});
 
 	it("carries the taxonomy's colour and name onto the column", () => {
-		const [queue] = groupTasks([], "status", context);
-		expect(queue.label).toBe("Queue");
-		expect(queue.color).toBe("#94a3b8");
+		const [backlog] = groupTasks([], "status", context);
+		expect(backlog.label).toBe("Backlog");
+		expect(backlog.color).toBe("#94a3b8");
 	});
 
 	it("puts a multi-labelled task in every one of its label columns", () => {

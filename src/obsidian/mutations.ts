@@ -8,10 +8,13 @@
  */
 
 import { App, Notice, TFile } from "obsidian";
-import { nextTaskId, suggestPrefix } from "../core/ids";
+import { disambiguatePrefix, nextTaskId, suggestPrefix } from "../core/ids";
 import { formatLink, joinPath } from "../core/links";
 import { planReorder, rankForNewTask } from "../core/ranking";
-import { generateSampleWorkspace } from "../core/sample/generate";
+import {
+	instantiateTemplate,
+	type WorkspaceTemplate,
+} from "../core/templates";
 import {
 	nextCommentId,
 	parseComments,
@@ -24,10 +27,7 @@ import {
 import { serializeProject } from "../core/serialization/entities";
 import { serializeTask } from "../core/serialization/task";
 import { serializeViews } from "../core/serialization/views";
-import {
-	createWorkspaceConfig,
-	serializeWorkspace,
-} from "../core/serialization/workspace";
+import { serializeWorkspace } from "../core/serialization/workspace";
 import {
 	addValue,
 	applyTaxonomyDeletion,
@@ -41,7 +41,6 @@ import {
 } from "../core/taxonomy";
 import { withTaxonomy } from "../core/taxonomy";
 import { TAXONOMY_PALETTE } from "../core/taxonomy/defaults";
-import { defaultViews } from "../core/views/defaults";
 import {
 	emptyRelations,
 	type Comment,
@@ -541,39 +540,36 @@ export class Mutations {
 
 	// -- Workspaces (§13) -----------------------------------------------------
 
-	async createWorkspace(
-		name: string,
-		root: string,
-		idPrefix?: string,
-		icon?: string,
-	): Promise<WorkspaceConfig> {
-		const prefix = (
-			idPrefix?.trim() || suggestPrefix(name, this.index.takenPrefixes())
-		).toUpperCase();
-		const workspace = createWorkspaceConfig(name, prefix, root, icon);
+	/**
+	 * The one workspace-creation path (§13). Every new workspace comes from a
+	 * template; "Getting Started" is just the plainest one. `includeExampleContent`
+	 * decides whether the template's Projects/Tasks are written too.
+	 */
+	async createWorkspaceFromTemplate(input: {
+		template: WorkspaceTemplate;
+		name: string;
+		root: string;
+		idPrefix?: string;
+		icon?: string;
+		includeExampleContent: boolean;
+	}): Promise<WorkspaceConfig> {
+		const desired =
+			input.idPrefix?.trim() ||
+			suggestPrefix(input.name, this.index.takenPrefixes());
+		const prefix = disambiguatePrefix(desired, this.index.takenPrefixes());
 
-		await this.io.ensureFolder(root);
-		for (const folder of Object.values(FOLDERS)) {
-			await this.io.ensureFolder(joinPath(root, folder));
-		}
-
-		await this.io.create(joinPath(root, WORKSPACE_NOTE), serializeWorkspace(workspace));
-		await this.io.create(joinPath(root, VIEWS_NOTE), serializeViews(defaultViews()));
-
-		await this.index.rebuild();
-		return workspace;
-	}
-
-	/** The "Try a Sample Workspace" onboarding path (§13). */
-	async createSampleWorkspace(root: string): Promise<void> {
-		const generated = generateSampleWorkspace({
-			root,
-			idPrefix: suggestPrefix("Sample Workspace", this.index.takenPrefixes()),
+		const generated = instantiateTemplate({
+			template: input.template,
+			root: input.root,
+			name: input.name,
+			idPrefix: prefix,
+			icon: input.icon,
+			includeExampleContent: input.includeExampleContent,
 		});
 
-		await this.io.ensureFolder(root);
+		await this.io.ensureFolder(input.root);
 		for (const folder of Object.values(FOLDERS)) {
-			await this.io.ensureFolder(joinPath(root, folder));
+			await this.io.ensureFolder(joinPath(input.root, folder));
 		}
 
 		for (const note of generated.notes) {
@@ -581,7 +577,8 @@ export class Mutations {
 		}
 
 		await this.index.rebuild();
-		new Notice(`Created sample workspace at "${root}"`);
+		new Notice(`Created workspace "${generated.workspace.name}"`);
+		return generated.workspace;
 	}
 
 	// -- Helpers --------------------------------------------------------------

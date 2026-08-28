@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sampleSnapshot } from "../../src/core/sample/generate";
+import { sampleSnapshot } from "../../src/core/templates/instantiate";
 import { parseQuery, printQuery, queryContext } from "../../src/core/query";
 import {
 	applyFilters,

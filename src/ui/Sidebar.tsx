@@ -25,7 +25,6 @@ import { LabelDialog } from "./modals/LabelDialog";
 import { ReplaceValueDialog } from "./settings/ReplaceValueDialog";
 import { usePlugin, useSettingsWriter, useWorkspaces } from "./context";
 import { NamedIconDialog } from "./modals/NamedIconDialog";
-import { WorkspaceDialog, type WorkspaceDialogMode } from "./modals/WorkspaceDialog";
 import { useTabs } from "./tabs-context";
 
 const MIN_WIDTH = 170;
@@ -321,17 +320,9 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 	const plugin = usePlugin();
 	const workspaces = useWorkspaces();
 	const writeSettings = useSettingsWriter();
-	const [addOpen, setAddOpen] = useState(false);
+	const tabs = useTabs();
 	const [menuRoot, setMenuRoot] = useState<string | null>(null);
-	const [dialog, setDialog] = useState<WorkspaceDialogMode | null>(null);
 	const [editRoot, setEditRoot] = useState<string | null>(null);
-
-	useEffect(() => {
-		if (!addOpen) return;
-		const close = () => setAddOpen(false);
-		window.addEventListener("click", close);
-		return () => window.removeEventListener("click", close);
-	}, [addOpen]);
 
 	const editing = workspaces.find((w) => w.workspace.root === editRoot);
 
@@ -341,37 +332,10 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 			title="Workspaces"
 			count={workspaces.length}
 			action={
-				<div className="vf-section-add-anchor">
-					<AddButton
-						title="New workspace"
-						onClick={() => setAddOpen((open) => !open)}
-					/>
-					{addOpen && (
-						<div
-							className="vf-menu"
-							onClick={(event) => event.stopPropagation()}
-						>
-							<button
-								className="vf-menu-item"
-								onClick={() => {
-									setDialog("create");
-									setAddOpen(false);
-								}}
-							>
-								New workspace
-							</button>
-							<button
-								className="vf-menu-item"
-								onClick={() => {
-									setDialog("sample");
-									setAddOpen(false);
-								}}
-							>
-								New sample workspace
-							</button>
-						</div>
-					)}
-				</div>
+				<AddButton
+					title="New workspace"
+					onClick={() => tabs.openScreen("new-workspace")}
+				/>
 			}
 		>
 			{workspaces.map((entry) => (
@@ -408,10 +372,6 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 					}
 				/>
 			))}
-
-			{dialog && (
-				<WorkspaceDialog mode={dialog} onClose={() => setDialog(null)} />
-			)}
 
 			{editing && (
 				<NamedIconDialog
