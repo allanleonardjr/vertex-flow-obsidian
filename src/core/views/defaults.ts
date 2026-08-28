@@ -1,14 +1,14 @@
 /**
- * Built-in Saved Views (§8.3, §7.6).
+ * Built-in Saved Views (§8.3).
  *
- * "Assigned to Me" and "Mentions Me" are not special-cased features — they are
- * ordinary Saved Views using the `self` filter value. That is precisely the
- * argument for deferring a dedicated notification panel: the inbox use case
- * falls out of the view engine for free.
+ * V1 ships exactly one built-in view — "Tasks". Everything else is user-created
+ * from the sidebar: layout (list/board), grouping, sorting, and filters are all
+ * live-editable per view and persisted to `_views.md`. The `self` filter value
+ * is still available in the filter editor, so "Assigned to Me" / "Mentions Me"
+ * are a two-click view the user builds themselves rather than something baked in.
  */
 
 import type { SavedView } from "../types";
-import { SELF } from "../types";
 
 export const DEFAULT_SORT_DIRECTION = "asc" as const;
 
@@ -25,38 +25,19 @@ function view(partial: Partial<SavedView> & Pick<SavedView, "id" | "name">): Sav
 	};
 }
 
+/** The one built-in view id — protected from deletion in the sidebar. */
+export const BUILT_IN_VIEW_ID = "tasks";
+
 export function defaultViews(): SavedView[] {
 	return [
 		view({
-			id: "all-tasks",
-			name: "All Tasks",
+			id: BUILT_IN_VIEW_ID,
+			name: "Tasks",
 			viewType: "list",
 			groupBy: "status",
 			// Sub-tasks show nested under their parent in the List view rather
 			// than as loose top-level rows.
 			filters: { topLevelOnly: true },
-		}),
-		view({
-			id: "board",
-			name: "Board",
-			viewType: "board",
-			groupBy: "status",
-		}),
-		view({
-			id: "assigned-to-me",
-			name: "Assigned to Me",
-			viewType: "list",
-			filters: { assignee: [SELF] },
-			groupBy: "status",
-		}),
-		view({
-			id: "mentions-me",
-			name: "Mentions Me",
-			viewType: "list",
-			filters: { mentions: [SELF] },
-			groupBy: "none",
-			sortBy: "updatedAt",
-			sortDirection: "desc",
 		}),
 	];
 }

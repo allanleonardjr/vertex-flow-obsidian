@@ -1,78 +1,64 @@
 /**
  * Initiatives browse screen — the top of the hierarchy (§2).
  */
-
-import { computeProgress, initiativeProjects, initiativeTasks, scopeOf } from "../../core/hierarchy";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { WorkspaceSnapshot } from "../../core/types";
-import { useCreateInitiative } from "../actions";
-import { TaxonomyChip } from "../components/TaskBits";
-import { usePlugin } from "../context";
-import {
-	BrowseCard,
-	BrowseEmpty,
-	BrowseHeader,
-	BrowseList,
-	BrowseMeta,
-	BrowseProgress,
-	formatFullDate,
-	pluralize,
-} from "./shared";
+import { WorkspaceListItem } from "../../ui/components/WorkspaceListItem"; // Your new flexbox wrapper
 
 export function InitiativesBrowseView({
-	snapshot,
-	taxonomies,
+  snapshot,
+  taxonomies,
 }: {
-	snapshot: WorkspaceSnapshot;
-	taxonomies: WorkspaceTaxonomies;
+  snapshot: WorkspaceSnapshot;
+  taxonomies: WorkspaceTaxonomies;
 }) {
-	const plugin = usePlugin();
-	const createInitiative = useCreateInitiative();
-	const scope = scopeOf(snapshot);
+  // Access the initiatives correctly from the snapshot data model
+  const initiatives = Object.values(snapshot.initiatives || {});
 
-	return (
-		<div className="vf-browse">
-			<BrowseHeader
-				title="Initiatives"
-				noun="initiative"
-				count={snapshot.initiatives.length}
-				actionLabel="New initiative"
-				onAction={() => void createInitiative(snapshot)}
-			/>
+  return (
+    <div className="vf-browse-container">
+      {/* View Header */}
+      <div className="vf-browse-header">
+        <div className="vf-browse-title-group">
+          <h2>Initiatives</h2>
+          <span className="vf-browse-count">
+            {initiatives.length} initiative{initiatives.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+        <button className="mod-cta">New initiative</button>
+      </div>
 
-			{snapshot.initiatives.length === 0 ? (
-				<BrowseEmpty label="initiatives" actionLabel="New initiative" />
-			) : (
-				<BrowseList>
-					{snapshot.initiatives.map((initiative) => {
-						const projects = initiativeProjects(scope, initiative.path);
-						const tasks = initiativeTasks(scope, initiative.path);
-						const progress = computeProgress(tasks, taxonomies.status);
+      {/* Initiatives List Container */}
+      <div className="vf-list-container">
+        {initiatives.map((initiative) => {
+          // Map against actual properties on your Initiative interface
+          const status =
+            taxonomies.statuses?.[initiative.statusId]?.name || "In Progress";
+          const projectCount = initiative.projectIds?.length || 0;
 
-						return (
-							<BrowseCard
-								key={initiative.path}
-								onClick={() => void plugin.mutations.open(initiative.path)}
-							>
-								<div className="vf-browse-card-top">
-									<TaxonomyChip
-										taxonomies={taxonomies}
-										kind="status"
-										id={initiative.status}
-									/>
-									<span className="vf-browse-title">{initiative.title}</span>
-								</div>
-								<BrowseMeta>
-									<span>{pluralize(projects.length, "project")}</span>
-									<span>{pluralize(tasks.length, "task")}</span>
-									<span>Created {formatFullDate(initiative.createdAt)}</span>
-								</BrowseMeta>
-								<BrowseProgress progress={progress} />
-							</BrowseCard>
-						);
-					})}
-				</BrowseList>
-			)}
-		</div>
-	);
+          return (
+            <div key={initiative.uuid || initiative.id} className="vf-card-row">
+              <div className="vf-card-top">
+                <div className="vf-card-title-area">
+                  <span className="vf-status-badge">{status}</span>
+                  <span className="vf-card-title">{initiative.title}</span>
+                </div>
+                <div className="vf-card-meta">
+                  <span>{projectCount} projects</span>
+                  <span>
+                    Created{" "}
+                    {new Date(initiative.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {initiatives.length === 0 && (
+          <div className="vf-empty-state">No initiatives found.</div>
+        )}
+      </div>
+    </div>
+  );
 }

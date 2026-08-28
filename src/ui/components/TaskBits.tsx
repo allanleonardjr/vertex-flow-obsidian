@@ -1,137 +1,181 @@
-/**
- * The small shared pieces both List and Board render, so a task looks and reads
- * the same wherever it appears.
- */
+import { AlertCircle, SignalHigh, SignalLow, SignalMedium } from "lucide-react";
+import type { WorkspaceTaxonomies } from "../../core/taxonomy";
+import type { Task } from "../../core/types";
 
-import { displayColor, displayName, type WorkspaceTaxonomies } from "../../core/taxonomy";
-import type { Person, Progress, Task } from "../../core/types";
+/** Renders Linear-style Signal / Priority Icons */
+export function PriorityIcon({ priority }: { priority?: string | null }) {
+  if (!priority) return null;
+  const normalized = priority.toLowerCase();
 
-export function TaxonomyChip({
-	taxonomies,
-	kind,
-	id,
-}: {
-	taxonomies: WorkspaceTaxonomies;
-	kind: "status" | "priority" | "taskType" | "label";
-	id: string | null;
-}) {
-	if (!id) return null;
-	const color = displayColor(taxonomies[kind], id);
-	return (
-		<span className="vf-chip" style={color ? { borderColor: color, color } : undefined}>
-			{displayName(taxonomies[kind], id)}
-		</span>
-	);
+  switch (normalized) {
+    case "urgent":
+      return (
+        <span className="vf-priority-icon is-urgent" title="Urgent">
+          <AlertCircle size={14} />
+        </span>
+      );
+    case "high":
+      return (
+        <span className="vf-priority-icon is-high" title="High">
+          <SignalHigh size={14} />
+        </span>
+      );
+    case "medium":
+      return (
+        <span className="vf-priority-icon is-medium" title="Medium">
+          <SignalMedium size={14} />
+        </span>
+      );
+    case "low":
+      return (
+        <span className="vf-priority-icon is-low" title="Low">
+          <SignalLow size={14} />
+        </span>
+      );
+    default:
+      return null;
+  }
 }
 
-export function StatusDot({
-	taxonomies,
-	status,
+/** Handles polymorphic taxonomy rendering (Priority icons vs Task Type / Labels) */
+export function TaxonomyChip({
+  taxonomies,
+  kind,
+  id,
 }: {
-	taxonomies: WorkspaceTaxonomies;
-	status: string;
+  taxonomies: WorkspaceTaxonomies;
+  kind: keyof WorkspaceTaxonomies;
+  id?: string | null;
 }) {
-	const color = displayColor(taxonomies.status, status);
-	return (
-		<span
-			className="vf-status-dot"
-			style={color ? { backgroundColor: color } : undefined}
-			title={displayName(taxonomies.status, status)}
-		/>
-	);
+  if (!id) return null;
+
+  const taxonomy = taxonomies[kind];
+  // Assuming the array of items is stored on the `.values` property.
+  // If it's different in types.ts (e.g., .options), change it here!
+  const item = (taxonomy as any)?.values?.find((i: any) => i.id === id);
+
+  if (!item) return null;
+
+  // Render Priority as a Lucide Signal Icon
+  if (kind === "priority") {
+    return <PriorityIcon priority={item.id} />;
+  }
+
+  // Render Labels & Task Types as Linear-style tinted pills
+  const color = item.color || "var(--text-muted)";
+  return (
+    <span
+      className="vf-label-chip"
+      style={{
+        backgroundColor: `${color}1e`, // ~12% opacity tint
+        color: color,
+      }}
+    >
+      <span className="vf-label-dot" style={{ backgroundColor: color }} />
+      {item.name}
+    </span>
+  );
 }
 
 export function Labels({
-	taxonomies,
-	labels,
+  taxonomies,
+  labels,
 }: {
-	taxonomies: WorkspaceTaxonomies;
-	labels: string[];
+  taxonomies: WorkspaceTaxonomies;
+  labels?: string[];
 }) {
-	if (labels.length === 0) return null;
-	return (
-		<span className="vf-labels">
-			{labels.map((id) => (
-				<TaxonomyChip key={id} taxonomies={taxonomies} kind="label" id={id} />
-			))}
-		</span>
-	);
+  if (!labels || labels.length === 0) return null;
+
+  return (
+    <div className="vf-labels">
+      {labels.map((id) => (
+        <TaxonomyChip key={id} taxonomies={taxonomies} kind="label" id={id} />
+      ))}
+    </div>
+  );
+}
+
+export function StatusDot({
+  taxonomies,
+  status,
+}: {
+  taxonomies: WorkspaceTaxonomies;
+  status?: string | null;
+}) {
+  if (!status) return <span className="vf-status-dot" />;
+  const item = (taxonomies.status as any)?.values?.find(
+    (i: any) => i.id === status,
+  );
+  const color = item?.color || "var(--vf-muted)";
+  return <span className="vf-status-dot" style={{ backgroundColor: color }} />;
+}
+
+export function ProgressBar({
+  progress,
+}: {
+  progress: { completed: number; total: number };
+}) {
+  if (progress.total === 0) return null;
+  const pct = Math.round((progress.completed / progress.total) * 100);
+
+  return (
+    <div className="vf-progress-wrap">
+      <span className="vf-progress">
+        <span className="vf-progress-fill" style={{ width: `${pct}%` }} />
+      </span>
+      <span className="vf-progress-count">
+        {progress.completed}/{progress.total} done
+      </span>
+    </div>
+  );
+}
+
+export function DueDate({ task }: { task: Task }) {
+  if (!task.dueDate) return null;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const isToday = task.dueDate === today;
+  const isOverdue = task.dueDate < today;
+
+  return (
+    <span
+      className={`vf-due${isToday ? " is-today" : ""}${
+        isOverdue ? " is-overdue" : ""
+      }`}
+    >
+      {task.dueDate}
+    </span>
+  );
 }
 
 export function Assignee({
-	people,
-	assignee,
+  people,
+  assignee,
 }: {
-	people: Person[];
-	assignee: string | null;
+  people: Array<{ id: string; name: string }>;
+  assignee?: string | null;
 }) {
-	if (!assignee) return null;
-	const person = people.find((p) => p.id === assignee);
-	const name = person?.name ?? assignee;
-	return (
-		<span className="vf-avatar" title={name}>
-			{initials(name)}
-		</span>
-	);
+  if (!assignee) return null;
+  const person = people.find((p) => p.id === assignee);
+  const initials = (person?.name ?? assignee)
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
+  return (
+    <span className="vf-avatar" title={person?.name ?? assignee}>
+      {initials}
+    </span>
+  );
 }
 
-function initials(name: string): string {
-	const parts = name.trim().split(/\s+/).slice(0, 2);
-	return parts.map((part) => part[0]?.toUpperCase() ?? "").join("") || "?";
-}
-
-/**
- * Progress bar plus its "X/Y done" count — sub-tasks (§7.2), or a Project's,
- * Initiative's, or Cycle's task rollup (§7.1). Always shown together: the bar
- * alone doesn't say whether "almost full" means 9/10 or 90/100, and the
- * fraction alone is slower to scan across a whole column of cards.
- */
-export function ProgressBar({ progress }: { progress: Progress }) {
-	if (progress.total === 0) return null;
-	const countable = progress.total - progress.canceled;
-	return (
-		<span className="vf-progress-wrap" title={`${progress.completed} of ${countable} done`}>
-			<span className="vf-progress">
-				<span className="vf-progress-fill" style={{ width: `${progress.percent}%` }} />
-			</span>
-			<span className="vf-progress-count">
-				{progress.completed}/{countable} done
-			</span>
-		</span>
-	);
-}
-
-/** Due date, flagged when it's today or already gone. */
-export function DueDate({ task }: { task: Task }) {
-	if (!task.dueDate) return null;
-
-	const today = new Date().toISOString().slice(0, 10);
-	const due = task.dueDate.slice(0, 10);
-	const state = due < today ? "is-overdue" : due === today ? "is-today" : "";
-
-	return (
-		<span className={`vf-due ${state}`} title={`Due ${due}`}>
-			{formatDate(due)}
-		</span>
-	);
-}
-
-function formatDate(iso: string): string {
-	const [, month, day] = iso.split("-");
-	const monthName = [
-		"Jan", "Feb", "Mar", "Apr", "May", "Jun",
-		"Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-	][Number.parseInt(month, 10) - 1];
-	return `${monthName} ${Number.parseInt(day, 10)}`;
-}
-
-/** Blocked/blocking indicator (§7.3). */
 export function RelationBadge({ task }: { task: Task }) {
-	const blocked = task.relations.blockedBy.length;
-	if (blocked === 0) return null;
-	return (
-		<span className="vf-blocked" title={`Blocked by ${blocked} task(s)`}>
-			blocked
-		</span>
-	);
+  const count = Object.values(task.relations ?? {})
+    .flat()
+    .filter(Boolean).length;
+  if (count === 0) return null;
+
+  return <span className="vf-chip">{count} rel</span>;
 }

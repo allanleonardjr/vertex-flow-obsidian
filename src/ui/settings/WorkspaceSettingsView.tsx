@@ -7,6 +7,7 @@
 
 import { workspaceTaxonomies } from "../../core/taxonomy";
 import type { WorkspaceSnapshot } from "../../core/types";
+import { FEATURES } from "../features";
 import { ArchivingSection, CyclesSection } from "./CyclesArchivingSection";
 import { GeneralSection } from "./GeneralSection";
 import { PeopleSection } from "./PeopleSection";
@@ -59,7 +60,7 @@ export function WorkspaceSettingsView({ snapshot }: { snapshot: WorkspaceSnapsho
 				/>
 
 				<PeopleSection snapshot={snapshot} />
-				<CyclesSection snapshot={snapshot} />
+				{FEATURES.cycles && <CyclesSection snapshot={snapshot} />}
 				<ArchivingSection snapshot={snapshot} />
 			</div>
 		</div>

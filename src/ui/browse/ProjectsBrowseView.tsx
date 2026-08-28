@@ -7,6 +7,7 @@ import { projectProgress, projectTasks, scopeOf } from "../../core/hierarchy";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { WorkspaceSnapshot } from "../../core/types";
 import { useCreateProject } from "../actions";
+import { FEATURES } from "../features";
 import { TaxonomyChip } from "../components/TaskBits";
 import { usePlugin } from "../context";
 import {
@@ -50,9 +51,10 @@ export function ProjectsBrowseView({
 						// §7.1: progress is computed independently of the project's
 						// own status, and never fed back into it.
 						const progress = projectProgress(scope, project.path, taxonomies.status);
-						const initiative = project.initiative
-							? snapshot.initiatives.find((i) => i.path === project.initiative)
-							: null;
+						const initiative =
+							FEATURES.initiatives && project.initiative
+								? snapshot.initiatives.find((i) => i.path === project.initiative)
+								: null;
 
 						return (
 							<BrowseCard
@@ -68,7 +70,9 @@ export function ProjectsBrowseView({
 									<span className="vf-browse-title">{project.title}</span>
 								</div>
 								<BrowseMeta>
-									<span>{initiative ? initiative.title : "No initiative"}</span>
+									{FEATURES.initiatives && (
+										<span>{initiative ? initiative.title : "No initiative"}</span>
+									)}
 									<span>{pluralize(tasks.length, "task")}</span>
 									<span>Created {formatFullDate(project.createdAt)}</span>
 								</BrowseMeta>

@@ -94,9 +94,9 @@ export function WorkspaceDialog({
 
 				{mode === "sample" && (
 					<p className="vf-dialog-lead">
-						Creates real notes you can read, edit, and delete — an initiative,
-						two projects, a cycle, and nine tasks showing sub-tasks,
-						relations, labels, and comments.
+						Creates real notes you can read, edit, and delete — two
+						projects and nine tasks showing sub-tasks, relations,
+						labels, and comments.
 					</p>
 				)}
 

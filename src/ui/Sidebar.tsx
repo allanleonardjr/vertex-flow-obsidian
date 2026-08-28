@@ -1,11 +1,14 @@
 /**
- * Sidebar (§9.5): workspace switcher, Saved Views, and navigation to the
- * Initiatives/Projects/Cycles browse tabs and workspace Settings.
+ * Sidebar (§9.5): workspace switcher, Saved Views (create / rename / duplicate /
+ * delete), and navigation to the Projects browse tab and workspace Settings.
  */
 
 import { useEffect, useState } from "react";
+import { BUILT_IN_VIEW_ID, newView } from "../core/views";
 import type { SavedView, WorkspaceSnapshot } from "../core/types";
 import { usePlugin, useSettingsWriter, useWorkspaces } from "./context";
+import { FEATURES } from "./features";
+import { ViewDialog } from "./modals/ViewDialog";
 import { WorkspaceDialog, type WorkspaceDialogMode } from "./modals/WorkspaceDialog";
 import { useTabs } from "./tabs-context";
 
@@ -25,24 +28,22 @@ export function Sidebar({
 		<aside className="vf-sidebar">
 			<WorkspaceSwitcher snapshot={snapshot} />
 
-			<Section title="Views">
-				{snapshot.views.map((view) => (
-					<ViewRow
-						key={view.id}
-						view={view}
-						active={onWorkspaceTab && view.id === activeViewId}
-						onClick={() => onSelectView(view.id)}
-					/>
-				))}
-			</Section>
+			<ViewsSection
+				snapshot={snapshot}
+				activeViewId={activeViewId}
+				onWorkspaceTab={onWorkspaceTab}
+				onSelectView={onSelectView}
+			/>
 
 			<Section title="Workspace">
-				<ScreenRow
-					label="Initiatives"
-					icon="◆"
-					active={activeId === "initiatives"}
-					onClick={() => openScreen("initiatives")}
-				/>
+				{FEATURES.initiatives && (
+					<ScreenRow
+						label="Initiatives"
+						icon="◆"
+						active={activeId === "initiatives"}
+						onClick={() => openScreen("initiatives")}
+					/>
+				)}
 				<ScreenRow
 					label="Projects"
 					icon="▣"
@@ -50,8 +51,9 @@ export function Sidebar({
 					onClick={() => openScreen("projects")}
 				/>
 				{/* Cycles are opt-in (§7.5) — the nav entry only exists once a
-				    workspace has actually turned them on. */}
-				{snapshot.workspace.cycles.enabled && (
+				    workspace has turned them on, and not before v1 surfaces the
+				    feature at all (see features.ts). */}
+				{FEATURES.cycles && snapshot.workspace.cycles.enabled && (
 					<ScreenRow
 						label={`${snapshot.workspace.cycles.termLabel}s`}
 						icon="↻"
@@ -169,24 +171,185 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 	);
 }
 
+type ViewDialogState =
+	| { mode: "create"; view: SavedView }
+	| { mode: "rename"; view: SavedView }
+	| null;
+
+function ViewsSection({
+	snapshot,
+	activeViewId,
+	onWorkspaceTab,
+	onSelectView,
+}: {
+	snapshot: WorkspaceSnapshot;
+	activeViewId: string;
+	onWorkspaceTab: boolean;
+	onSelectView: (id: string) => void;
+}) {
+	const plugin = usePlugin();
+	const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+	const [dialog, setDialog] = useState<ViewDialogState>(null);
+
+	const newId = () => `view-${Date.now().toString(36)}`;
+
+	const create = () => {
+		const view = newView(newId(), "New view", "list");
+		void plugin.mutations.addView(snapshot, view).then(() => {
+			onSelectView(view.id);
+			setDialog({ mode: "create", view });
+		});
+	};
+
+	const duplicate = (view: SavedView) => {
+		const copy: SavedView = { ...view, id: newId(), name: `${view.name} copy` };
+		void plugin.mutations.addView(snapshot, copy).then(() => onSelectView(copy.id));
+	};
+
+	const remove = (view: SavedView) => {
+		if (view.id === BUILT_IN_VIEW_ID) return;
+		const fallback =
+			snapshot.views.find((v) => v.id !== view.id)?.id ?? BUILT_IN_VIEW_ID;
+		void plugin.mutations.deleteView(snapshot, view.id).then(() => {
+			if (view.id === activeViewId) onSelectView(fallback);
+		});
+	};
+
+	return (
+		<div className="vf-sidebar-section">
+			<div className="vf-sidebar-heading">
+				<span>Views</span>
+				<button
+					className="vf-sidebar-heading-action"
+					title="New view"
+					onClick={create}
+				>
+					+
+				</button>
+			</div>
+
+			{snapshot.views.map((view) => (
+				<ViewRow
+					key={view.id}
+					view={view}
+					active={onWorkspaceTab && view.id === activeViewId}
+					menuOpen={menuOpenId === view.id}
+					onClick={() => onSelectView(view.id)}
+					onOpenMenu={() =>
+						setMenuOpenId((current) => (current === view.id ? null : view.id))
+					}
+					onCloseMenu={() => setMenuOpenId(null)}
+					onRename={() => setDialog({ mode: "rename", view })}
+					onDuplicate={() => duplicate(view)}
+					onDelete={() => remove(view)}
+				/>
+			))}
+
+			{dialog && (
+				<ViewDialog
+					title={dialog.mode === "create" ? "Name your view" : "Rename view"}
+					initialName={dialog.view.name}
+					confirmLabel={dialog.mode === "create" ? "Create" : "Rename"}
+					onConfirm={(name) =>
+						void plugin.mutations.updateView(snapshot, {
+							...dialog.view,
+							name,
+						})
+					}
+					onClose={() => setDialog(null)}
+				/>
+			)}
+		</div>
+	);
+}
+
 function ViewRow({
 	view,
 	active,
+	menuOpen,
 	onClick,
+	onOpenMenu,
+	onCloseMenu,
+	onRename,
+	onDuplicate,
+	onDelete,
 }: {
 	view: SavedView;
 	active: boolean;
+	menuOpen: boolean;
 	onClick: () => void;
+	onOpenMenu: () => void;
+	onCloseMenu: () => void;
+	onRename: () => void;
+	onDuplicate: () => void;
+	onDelete: () => void;
 }) {
+	// Any click outside closes the menu.
+	useEffect(() => {
+		if (!menuOpen) return;
+		window.addEventListener("click", onCloseMenu);
+		return () => window.removeEventListener("click", onCloseMenu);
+	}, [menuOpen, onCloseMenu]);
+
 	return (
-		<button
-			className={`vf-nav-row${active ? " is-active" : ""}`}
-			onClick={onClick}
-			aria-current={active ? "page" : undefined}
-		>
-			<span className="vf-view-icon">{view.viewType === "board" ? "▦" : "☰"}</span>
-			<span className="vf-nav-label">{view.name}</span>
-		</button>
+		<div className="vf-view-row">
+			<button
+				className={`vf-nav-row${active ? " is-active" : ""}`}
+				onClick={onClick}
+				aria-current={active ? "page" : undefined}
+			>
+				<span className="vf-view-icon">
+					{view.viewType === "board" ? "▦" : "☰"}
+				</span>
+				<span className="vf-nav-label">{view.name}</span>
+			</button>
+
+			<button
+				className="vf-view-row-menu"
+				title="View options"
+				aria-label="View options"
+				onClick={(event) => {
+					event.stopPropagation();
+					onOpenMenu();
+				}}
+			>
+				⋯
+			</button>
+
+			{menuOpen && (
+				<div className="vf-menu" onClick={(event) => event.stopPropagation()}>
+					<button
+						className="vf-menu-item"
+						onClick={() => {
+							onCloseMenu();
+							onRename();
+						}}
+					>
+						Rename
+					</button>
+					<button
+						className="vf-menu-item"
+						onClick={() => {
+							onCloseMenu();
+							onDuplicate();
+						}}
+					>
+						Duplicate
+					</button>
+					{view.id !== BUILT_IN_VIEW_ID && (
+						<button
+							className="vf-menu-item"
+							onClick={() => {
+								onCloseMenu();
+								onDelete();
+							}}
+						>
+							Delete
+						</button>
+					)}
+				</div>
+			)}
+		</div>
 	);
 }
 

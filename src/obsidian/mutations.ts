@@ -415,6 +415,32 @@ export class Mutations {
 		await this.index.rebuild();
 	}
 
+	/** Read the live view list for a workspace, so concurrent edits don't clobber. */
+	private liveViews(snapshot: WorkspaceSnapshot): SavedView[] {
+		return (this.index.get(snapshot.workspace.root) ?? snapshot).views;
+	}
+
+	/** Append a new Saved View. */
+	async addView(snapshot: WorkspaceSnapshot, view: SavedView): Promise<void> {
+		await this.saveViews(snapshot, [...this.liveViews(snapshot), view]);
+	}
+
+	/** Replace one Saved View by id (used for rename, duplicate-then-edit, etc). */
+	async updateView(snapshot: WorkspaceSnapshot, view: SavedView): Promise<void> {
+		await this.saveViews(
+			snapshot,
+			this.liveViews(snapshot).map((v) => (v.id === view.id ? view : v)),
+		);
+	}
+
+	/** Remove a Saved View. The built-in "Tasks" view is protected by the UI. */
+	async deleteView(snapshot: WorkspaceSnapshot, id: string): Promise<void> {
+		await this.saveViews(
+			snapshot,
+			this.liveViews(snapshot).filter((v) => v.id !== id),
+		);
+	}
+
 	// -- Projects / Initiatives / Cycles --------------------------------------
 
 	async createProject(

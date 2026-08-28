@@ -1,29 +1,14 @@
 /**
  * The task detail panel — a Linear-style editor for one task.
- *
- * Hosted inside one tab of the single, unified tab strip (`TabStrip.tsx`
- * renders the strip itself; `TaskPane.tsx` resolves this task and its owning
- * workspace before handing off to this component) — this only renders what's
- * inside one tab, and knows nothing about its siblings, including the pinned
- * Board/List tab that's never more than a click away.
- *
- * There is no Save button, deliberately. The note on disk is the source of
- * truth (§3); an editor holding unsaved state would be a second, competing copy
- * of the task that a file change from Sync or the editor pane could silently
- * contradict. Selects write through immediately, text fields debounce and flush
- * on unmount.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Trash2 } from "lucide-react";
 import {
-  descendantTasks,
   childTasks,
   computeProgress,
+  descendantTasks,
   scopeOf,
-  relationProgress,
 } from "../core/hierarchy";
-import { basename } from "../core/links";
 import { withExtension } from "../obsidian/note-io";
 import type { WorkspaceTaxonomies } from "../core/taxonomy";
 import type { Comment, Task, WorkspaceSnapshot } from "../core/types";
@@ -40,20 +25,18 @@ import {
   type Option,
 } from "./components/fields";
 import { MarkdownContent, MarkdownField } from "./components/Markdown";
-import { TaskList } from "./components/TaskList";
-import { MissingTaskRow } from "./components/TaskRow";
 import { ProgressBar, StatusDot } from "./components/TaskBits";
+import { EmbeddedTaskList } from "./components/EmbeddedTaskList";
+import { RelationsEditor } from "./components/RelationsEditor";
 import { usePlugin } from "./context";
+import { FEATURES } from "./features";
 
 export interface TaskDetailPanelProps {
   task: Task;
   snapshot: WorkspaceSnapshot;
   taxonomies: WorkspaceTaxonomies;
-  /** Follow a sub-task, relation, or parent — opens (or reveals) its own tab. */
   onOpenTask: (path: string) => void;
-  /** Close just this tab. The pinned Board/List tab is always still there. */
   onClose: () => void;
-  /** Bulk-close every open task tab (shift-click on the close button). */
   onCloseAllTasks: () => void;
 }
 
@@ -77,7 +60,6 @@ export function TaskDetailPanel({
   const update = (patch: Partial<Task>) =>
     void plugin.mutations.updateTask(task, patch);
 
-  // Body content isn't in the index, so it loads on open.
   useEffect(() => {
     let cancelled = false;
     void plugin.mutations.readDocument(task).then((doc) => {
@@ -98,6 +80,7 @@ export function TaskDetailPanel({
         {task.archived && <span className="vf-chip">Archived</span>}
         <span className="vf-editor-spacer" />
         <button
+          type="button"
           className="vf-icon-button"
           title="Open the raw note in Obsidian"
           onClick={() => {
@@ -108,6 +91,7 @@ export function TaskDetailPanel({
           ↗
         </button>
         <button
+          type="button"
           className="vf-icon-button"
           title="Close tab (Esc) — shift-click to close every task tab"
           onClick={(event) => (event.shiftKey ? onCloseAllTasks() : onClose())}
@@ -126,26 +110,25 @@ export function TaskDetailPanel({
             <DescriptionField task={task} initial={description} />
           )}
 
-          {children.length > 0 && (
-            <section className="vf-editor-section">
-              <h4>
-                Sub-tasks <ProgressBar progress={progress} />
-              </h4>
-              <EmbeddedTaskList
-                tasks={children}
-                snapshot={snapshot}
-                taxonomies={taxonomies}
-                onOpenTask={onOpenTask}
-                onRemove={(path) => {
-                  const child = children.find((c) => c.path === path);
-                  if (child) {
-                    void plugin.mutations.updateTask(child, { parent: null });
-                  }
-                }}
-                removeTitle={(title) => `Unlink sub-task ${title}`}
-              />
-            </section>
-          )}
+          <section className="vf-editor-section">
+            <h4>
+              Sub-tasks{" "}
+              {children.length > 0 && <ProgressBar progress={progress} />}
+            </h4>
+            <EmbeddedTaskList
+              tasks={children}
+              snapshot={snapshot}
+              taxonomies={taxonomies}
+              onOpenTask={onOpenTask}
+              onRemove={(path) => {
+                const child = children.find((c) => c.path === path);
+                if (child) {
+                  void plugin.mutations.updateTask(child, { parent: null });
+                }
+              }}
+              removeTitle={(title) => `Unlink sub-task ${title}`}
+            />
+          </section>
 
           <section className="vf-editor-section">
             <h4>Relations</h4>
@@ -223,7 +206,7 @@ export function TaskDetailPanel({
 
           <ParentPicker task={task} snapshot={snapshot} onChange={update} />
 
-          {snapshot.workspace.cycles.enabled && (
+          {FEATURES.cycles && snapshot.workspace.cycles.enabled && (
             <PropertyRow label={snapshot.workspace.cycles.termLabel}>
               <OptionSelect
                 noneLabel={`No ${snapshot.workspace.cycles.termLabel.toLowerCase()}`}
@@ -382,76 +365,6 @@ function RailResizeHandle({
   );
 }
 
-interface EmbeddedTaskListProps {
-  tasks: Task[];
-  missingPaths?: string[];
-  snapshot: WorkspaceSnapshot;
-  taxonomies: WorkspaceTaxonomies;
-  onOpenTask: (path: string) => void;
-  onRemove: (path: string) => void;
-  removeTitle?: (title: string) => string;
-  /** Optional callback to render the bottom "+ Add..." trigger */
-  renderAddTrigger?: () => React.ReactNode;
-}
-
-/**
- * Shared wrapper for embedded list views (Sub-tasks and Relations).
- * Encapsulates TaskList configuration, missing row rendering, and the Linear-style action button.
- */
-export function EmbeddedTaskList({
-  tasks,
-  missingPaths = [],
-  snapshot,
-  taxonomies,
-  onOpenTask,
-  onRemove,
-  removeTitle = (title) => `Remove ${title}`,
-  renderAddTrigger,
-}: EmbeddedTaskListProps) {
-  const isEmpty = tasks.length === 0 && missingPaths.length === 0;
-
-  if (isEmpty && !renderAddTrigger) return null;
-
-  return (
-    <div className="vf-list-embedded-container">
-      {!isEmpty && (
-        <TaskList
-          className="vf-list-embedded"
-          groups={[{ key: "embedded-items", tasks }]}
-          snapshot={snapshot}
-          taxonomies={taxonomies}
-          onOpenTask={onOpenTask}
-          rowAction={(item) => (
-            <button
-              className="vf-icon-button vf-row-remove"
-              title={removeTitle(item.title)}
-              onClick={(e) => {
-                e.stopPropagation();
-                onRemove(item.path);
-              }}
-            >
-              <Trash2 size={13} />
-            </button>
-          )}
-        >
-          {missingPaths.map((path) => (
-            <MissingTaskRow
-              key={path}
-              label={basename(path)}
-              onRemove={() => onRemove(path)}
-              removeTitle={removeTitle(basename(path))}
-            />
-          ))}
-        </TaskList>
-      )}
-
-      {renderAddTrigger && (
-        <div className="vf-embedded-list-footer">{renderAddTrigger()}</div>
-      )}
-    </div>
-  );
-}
-
 function ParentPicker({
   task,
   snapshot,
@@ -474,10 +387,15 @@ function ParentPicker({
       value: `project:${project.path}`,
       label: `Project · ${project.title}`,
     })),
-    ...snapshot.initiatives.map((initiative) => ({
-      value: `initiative:${initiative.path}`,
-      label: `Initiative · ${initiative.title}`,
-    })),
+    // Initiatives are hidden in v1 (see features.ts). Any initiative the task
+    // is *already* attached to is still listed so it renders with a real label
+    // and can be cleared — new attachments just aren't offered.
+    ...snapshot.initiatives
+      .filter((initiative) => FEATURES.initiatives || initiative.path === task.initiative)
+      .map((initiative) => ({
+        value: `initiative:${initiative.path}`,
+        label: `Initiative · ${initiative.title}`,
+      })),
     ...snapshot.tasks
       .filter(
         (candidate) =>
@@ -516,104 +434,6 @@ function ParentPicker({
   );
 }
 
-const RELATION_KINDS = [
-  { key: "blockedBy", label: "Blocked by" },
-  { key: "blocks", label: "Blocks" },
-  { key: "related", label: "Related" },
-] as const;
-
-function RelationsEditor({
-  task,
-  snapshot,
-  taxonomies,
-  onChange,
-  onOpenTask,
-}: {
-  task: Task;
-  snapshot: WorkspaceSnapshot;
-  taxonomies: WorkspaceTaxonomies;
-  onChange: (patch: Partial<Task>) => void;
-  onOpenTask: (path: string) => void;
-}) {
-  const scope = scopeOf(snapshot);
-
-  const others = snapshot.tasks.filter(
-    (candidate) => candidate.path !== task.path,
-  );
-
-  const partition = (paths: string[]) => {
-    const found: Task[] = [];
-    const missing: string[] = [];
-    for (const path of paths) {
-      const related = snapshot.tasks.find(
-        (candidate) => candidate.path === path,
-      );
-      if (related) found.push(related);
-      else missing.push(path);
-    }
-    return { found, missing };
-  };
-
-  return (
-    <div className="vf-relation-groups">
-      {RELATION_KINDS.map(({ key, label }) => {
-        const current = task.relations?.[key] || [];
-        const progress = relationProgress(scope, task, key, taxonomies.status);
-        const { found, missing } = partition(current);
-
-        return (
-          <div key={key} className="vf-relation-group">
-            {/* Header now only holds title and progress bar */}
-            <div className="vf-relation-group-header">
-              <span className="vf-relation-group-label">
-                {label}{" "}
-                {current.length > 0 && <ProgressBar progress={progress} />}
-              </span>
-            </div>
-
-            <EmbeddedTaskList
-              tasks={found}
-              missingPaths={missing}
-              snapshot={snapshot}
-              taxonomies={taxonomies}
-              onOpenTask={onOpenTask}
-              onRemove={(pathToRemove) =>
-                onChange({
-                  relations: {
-                    ...task.relations,
-                    [key]: current.filter((entry) => entry !== pathToRemove),
-                  },
-                })
-              }
-              renderAddTrigger={() => (
-                <OptionSelect
-                  noneLabel={`+ Add ${label.toLowerCase()} relation…`}
-                  value={null}
-                  options={others
-                    .filter((candidate) => !current.includes(candidate.path))
-                    .map((candidate) => ({
-                      value: candidate.path,
-                      label: `${candidate.id} ${candidate.title}`,
-                    }))}
-                  onChange={(path) => {
-                    if (!path) return;
-                    onChange({
-                      relations: {
-                        ...task.relations,
-                        [key]: [...current, path],
-                      },
-                    });
-                  }}
-                />
-              )}
-            />
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 function CommentList({
   task,
   comments,
@@ -642,6 +462,7 @@ function CommentList({
             <strong>{comment.author}</strong>
             <span className="vf-comment-date">{comment.date.slice(0, 10)}</span>
             <button
+              type="button"
               className="vf-icon-button"
               title="Delete comment"
               onClick={() =>
@@ -681,6 +502,7 @@ function CommentList({
         sourcePath={withExtension(task.path)}
       />
       <button
+        type="button"
         className="mod-cta"
         disabled={!draft.trim()}
         onClick={() =>

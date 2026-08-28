@@ -3,6 +3,7 @@ import { sampleSnapshot } from "../../src/core/sample/generate";
 import {
 	applyFilters,
 	defaultViews,
+	newView,
 	evaluateView,
 	groupTasks,
 	hiddenGroups,
@@ -19,7 +20,7 @@ import { NONE, SELF, emptyRelations, type SavedView, type Task } from "../../src
 const snapshot = sampleSnapshot();
 const context = snapshotContext(snapshot);
 const view = (partial: Partial<SavedView> = {}): SavedView => ({
-	...defaultViews()[1],
+	...newView("test", "Test", "board"),
 	...partial,
 });
 
@@ -347,16 +348,11 @@ describe("evaluateView", () => {
 		expect(hiddenGroups(result).map((g) => g.key)).toEqual(["canceled"]);
 	});
 
-	it("ships the documented default views", () => {
+	it("ships a single built-in view", () => {
 		const views = defaultViews();
-		expect(views.map((v) => v.id)).toEqual([
-			"all-tasks",
-			"board",
-			"assigned-to-me",
-			"mentions-me",
-		]);
-		expect(views[2].filters.assignee).toEqual([SELF]);
-		expect(views[3].filters.mentions).toEqual([SELF]);
+		expect(views.map((v) => v.id)).toEqual(["tasks"]);
+		expect(views[0].viewType).toBe("list");
+		expect(views[0].filters.topLevelOnly).toBe(true);
 	});
 });
 

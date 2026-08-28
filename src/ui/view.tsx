@@ -28,8 +28,18 @@ export class VertexFlowView extends ItemView {
 		return VERTEX_VIEW_TYPE;
 	}
 
+	/**
+	 * Deliberately a constant, not the workspace name.
+	 *
+	 * Obsidian's tab title and window title-bar text cache this and only
+	 * recompute on an active-leaf change — there's no supported way for a
+	 * fileless view to force a refresh when the underlying name changes, so a
+	 * dynamic value here goes stale after a rename or workspace switch. The live
+	 * workspace identity ("{Name} ({Code})") is rendered in the plugin's own
+	 * header instead (`ViewControls`), where React keeps it current.
+	 */
 	override getDisplayText(): string {
-		return this.plugin.activeWorkspace()?.workspace.name ?? "Vertex Flow";
+		return "Vertex Flow";
 	}
 
 	override getIcon(): string {

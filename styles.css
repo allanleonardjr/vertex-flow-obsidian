@@ -57,12 +57,67 @@
 }
 
 .vf-sidebar-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 0 6px 4px;
   color: var(--vf-muted);
   font-size: var(--font-ui-smaller);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+.vf-sidebar-heading-action {
+  padding: 0 4px;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  color: var(--vf-muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.vf-sidebar-heading-action:hover {
+  color: var(--text-normal);
+}
+
+/* -- Sidebar view rows: a nav row plus a hover-revealed options menu -------- */
+
+.vf-view-row {
+  position: relative;
+}
+
+.vf-view-row .vf-nav-row {
+  padding-right: 22px;
+}
+
+.vf-view-row-menu {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  padding: 0 4px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--vf-muted);
+  font-size: 13px;
+  line-height: 1;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.vf-view-row:hover .vf-view-row-menu,
+.vf-view-row .vf-view-row-menu:focus-visible {
+  opacity: 1;
+}
+
+.vf-view-row-menu:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
 }
 
 .vf-nav-row {
@@ -166,34 +221,14 @@
 }
 
 /*
- * The same list module embedded inside the task editor (sub-tasks, each kind
- * of relation). It sizes to its contents rather than claiming the remaining
- * height, and drops the full view's scroll and trailing padding — it's a
- * short list inside a scrolling page, not the page itself.
+ * Embedded list container + bottom footer action
  */
-.vf-list-embedded {
-  flex: none;
-  padding-bottom: 0;
-  border: 1px solid var(--vf-border);
-  border-radius: var(--vf-radius);
-  /* Clips row hover/selection backgrounds to the rounded corners. Applied
-	   to the container, not the inner section — unresolvable relation rows
-	   render as siblings of the section and would otherwise escape it. */
-  overflow: hidden;
-}
-
-.vf-list-embedded .vf-row:last-child {
-  border-bottom: none;
-}
-
-/* Container holding the list and the footer trigger */
 .vf-list-embedded-container {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-/* Bottom footer button styling */
 .vf-embedded-list-footer {
   display: flex;
   align-items: center;
@@ -218,20 +253,23 @@
   background: var(--background-modifier-hover);
 }
 
-/* Rows carrying a trailing control split into a click target plus that
-   control, so the row itself stops being the thing you click. */
+.vf-list-embedded {
+  flex: none;
+  padding-bottom: 0;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  overflow: hidden;
+}
+
+.vf-list-embedded .vf-row:last-child {
+  border-bottom: none;
+}
+
 .vf-row-with-action {
   padding: 0;
   gap: 0;
 }
 
-/*
- * A real <button>, so Obsidian's own button styling (background, border,
- * box-shadow — usually scoped under a compound selector like
- * `.theme-dark button`, which beats a single class on specificity) has to be
- * defeated explicitly. The intent is exact: this button should be visually
- * identical to a plain row, indistinguishable at rest, until hovered.
- */
 .vf-row-open {
   display: flex;
   flex: 1;
@@ -277,13 +315,12 @@
   pointer-events: auto;
 }
 
-/* Direct hover state: soft background tint, muted text */
+/* Linear subtle error highlight on direct icon hover */
 .vf-row-remove:hover {
   opacity: 1 !important;
-  background: var(--background-modifier-error-hover, rgba(239, 68, 68, 0.12));
-  color: var(
-    --text-muted
-  ); /* Keeps the icon subtle while the background confirms target */
+  background: var(--background-modifier-error-hover, rgba(239, 68, 68, 0.15));
+  border-color: var(--text-error, rgba(239, 68, 68, 0.3));
+  color: var(--text-error, #ef4444);
 }
 
 .vf-list-group {
@@ -309,7 +346,6 @@
   border-bottom: 1px solid var(--vf-border);
   cursor: default;
   user-select: none;
-  /* Let vertical scrolling through a row work; a lifted drag suppresses it. */
   touch-action: pan-y;
 }
 
@@ -373,7 +409,8 @@
   flex: 0 0 var(--vf-column-width);
   flex-direction: column;
   border-radius: var(--vf-radius);
-  background: var(--background-secondary);
+  background: var(--background-secondary-alt, var(--background-secondary));
+  border: 1px solid var(--vf-border);
 }
 
 .vf-column.is-drop-target {
@@ -381,7 +418,6 @@
   outline-offset: -2px;
 }
 
-/* A collapsed column stays a drop target — it just becomes a thin rail. */
 .vf-column.is-collapsed {
   width: 40px;
   flex: 0 0 40px;
@@ -407,8 +443,11 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 10px 10px 8px;
+  padding: 12px 12px 10px;
+  font-size: 12px;
   font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-normal);
 }
 
 .vf-column-title {
@@ -445,18 +484,23 @@
 
 .vf-card {
   margin-bottom: var(--vf-gap);
-  padding: 10px;
+  padding: 12px 14px;
   border: 1px solid var(--vf-border);
   border-radius: var(--vf-radius);
   background: var(--background-primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
   cursor: default;
   user-select: none;
-  /* Let vertical scrolling through a card work; a lifted drag suppresses it. */
   touch-action: pan-y;
 }
 
 .vf-card:hover {
   border-color: var(--background-modifier-border-hover);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
 .vf-card.is-focused {
@@ -467,15 +511,13 @@
   box-shadow: 0 0 0 2px var(--interactive-accent);
 }
 
-/*
- * The card left behind in the column while its preview is in flight. Kept
- * visible rather than removed so the list doesn't reflow under the cursor and
- * so you can still see where the task came from.
- */
 .vf-card.is-dragging {
   opacity: 0.3;
 }
 
+.vf-card-progress {
+  margin-bottom: 10px;
+}
 /* --- Drag preview ------------------------------------------------------- */
 
 .vf-drag-layer {
@@ -484,7 +526,6 @@
   left: 0;
   z-index: var(--layer-notice, 60);
   font-size: var(--font-ui-small);
-  /* Never intercept the hit-test that locates the drop column. */
   pointer-events: none;
   will-change: transform;
 }
@@ -493,8 +534,6 @@
   margin: 0;
   background: var(--background-primary);
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
-  /* A slight tilt reads as "lifted" far more immediately than a shadow
-	   alone, and matches how Linear and Trello render a card in flight. */
   transform: rotate(1.5deg);
   opacity: 0.95;
 }
@@ -504,29 +543,37 @@ body.vf-dragging .vf-card {
   cursor: grabbing;
 }
 
-.vf-card-top,
-.vf-card-bottom {
+.vf-card-top {
   display: flex;
   align-items: center;
   gap: 6px;
-}
-
-.vf-card-top {
-  margin-bottom: 6px;
-}
-
-.vf-card-bottom {
-  margin-top: 8px;
+  margin-bottom: 4px;
 }
 
 .vf-card-title {
-  line-height: 1.35;
+  font-size: var(--font-ui-medium, 13px);
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text-normal);
+  margin: 6px 0 10px;
 }
 
-/*
- * The insertion line. Given a glow as well as a fill because it has to stay
- * readable against a card that may be passing close by it mid-drag.
- */
+.vf-card-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 6px;
+}
+
+.vf-card-meta-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .vf-drop-indicator {
   height: 3px;
   margin: 3px 0;
@@ -537,7 +584,6 @@ body.vf-dragging .vf-card {
     0 0 8px var(--interactive-accent);
 }
 
-/* Suppress page scrolling for the duration of a lifted touch drag. */
 body.vf-dragging {
   overflow: hidden;
   touch-action: none;
@@ -580,7 +626,6 @@ body.vf-dragging {
   font-weight: 600;
 }
 
-/* Bar + "X/Y done" count, always shown together (§7.1, §7.2). */
 .vf-progress-wrap {
   display: inline-flex;
   flex-shrink: 0;
@@ -631,6 +676,39 @@ body.vf-dragging {
   background: var(--background-modifier-error);
   color: var(--text-error);
   font-size: var(--font-ui-smaller);
+}
+
+/* Priority Icons */
+.vf-priority-urgent {
+  color: #ef4444;
+}
+.vf-priority-high {
+  color: #f97316;
+}
+.vf-priority-medium {
+  color: #eab308;
+}
+.vf-priority-low {
+  color: #64748b;
+}
+
+/* Linear-style Label Pills */
+.vf-label-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.vf-label-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 /* ------------------------------------------------------------ Empty state -- */
@@ -786,14 +864,19 @@ body.vf-dragging {
   width: 100%;
   padding: 6px 8px;
   border-radius: 4px;
-  background: transparent;
-  box-shadow: none;
+  /* `!important`: these are <button>s and Obsidian's theme button chrome
+     (border + raised box-shadow) otherwise wins, giving every row a box. */
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--text-normal);
+  font-size: var(--font-ui-smaller);
   text-align: left;
   cursor: pointer;
 }
 
 .vf-menu-item:hover {
-  background: var(--background-modifier-hover);
+  background: var(--background-modifier-hover) !important;
 }
 
 .vf-menu-item.is-active {
@@ -827,7 +910,6 @@ body.vf-dragging {
   font-style: italic;
 }
 
-/* A row lifted out of the list, following the pointer. */
 .vf-row-preview {
   display: flex;
   align-items: center;
@@ -843,8 +925,7 @@ body.vf-dragging {
 }
 
 /* =========================================================================
-   Dialogs — genuinely modal, used only for rare confirmations (workspace
-   creation, a blocked taxonomy deletion) that interrupt rather than navigate.
+   Dialogs
    ========================================================================= */
 
 .vf-editor-backdrop {
@@ -892,7 +973,7 @@ body.vf-dragging {
   gap: 8px;
 }
 
-/* --- Tabs (internal sub-tabs: several open tasks, one Vertex Flow tab) --- */
+/* --- Tabs --------------------------------------------------------------- */
 
 .vf-tabs {
   display: flex;
@@ -905,8 +986,6 @@ body.vf-dragging {
   border-bottom: 1px solid var(--vf-border);
 }
 
-/* The Board/List tab — never closable, so it never carries a close button;
-   a slightly heavier weight marks it as the "home" tab among any others. */
 .vf-tab.is-pinned .vf-tab-title {
   font-weight: 600;
 }
@@ -1001,8 +1080,6 @@ body.vf-dragging {
 }
 
 .vf-editor-rail {
-  /* Width comes from an inline style — draggable via the resize handle,
-	   persisted in plugin settings. This is just the un-resized fallback. */
   width: 264px;
   flex-shrink: 0;
   padding: 14px;
@@ -1051,22 +1128,12 @@ body.vf-dragging {
   color: var(--vf-muted);
 }
 
-/*
- * Markdown fields — a plain textarea plus a live-updating rendered preview
- * underneath, so writing `[[a link]]` shows what it becomes without leaving
- * the field. See `useLinkAutocomplete` for the `[[` suggestion popup.
- */
-
 .vf-markdown-field {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-/*
- * The embedded native editor. One inline surface — Live Preview renders in
- * place as you type, so there's no separate preview pane to style here.
- */
 .vf-markdown-native {
   position: relative;
   min-height: 100px;
@@ -1080,8 +1147,6 @@ body.vf-dragging {
   border-color: var(--interactive-accent);
 }
 
-/* Obsidian's editor ships its own page-level padding and min-height, sized
-   for a full note view; neither belongs in a field this size. */
 .vf-markdown-native .cm-editor {
   background: transparent;
 }
@@ -1099,9 +1164,6 @@ body.vf-dragging {
   padding-right: 0;
 }
 
-/* CodeMirror renders its own content, so there's no `:empty` to hang a
-   placeholder off — it's a real element, positioned over the first line and
-   click-through so it never blocks focusing the editor underneath. */
 .vf-markdown-placeholder {
   position: absolute;
   top: 6px;
@@ -1143,7 +1205,7 @@ body.vf-dragging {
   margin-bottom: 0;
 }
 
-/* --- `[[wikilink]]` autocomplete ----------------------------------------- */
+/* --- Autocomplete ------------------------------------------------------- */
 
 .vf-autocomplete {
   position: fixed;
@@ -1189,7 +1251,6 @@ body.vf-dragging {
   text-align: left;
 }
 
-/* Comments render read-only — no click-to-edit toggle, so no text cursor. */
 .vf-comment-body {
   line-height: 1.5;
 }
@@ -1261,13 +1322,13 @@ body.vf-dragging {
 }
 
 .vf-chip-button {
-  background: transparent;
-  box-shadow: none;
+  background: transparent !important;
+  box-shadow: none !important;
   cursor: pointer;
 }
 
 .vf-chip-button.is-on {
-  background: var(--background-modifier-hover);
+  background: var(--background-modifier-hover) !important;
   color: var(--text-normal);
 }
 
@@ -1301,7 +1362,6 @@ body.vf-dragging {
   max-width: 280px;
 }
 
-/* A dangling relation — no task to link to, so nothing to click. */
 .vf-row-missing {
   display: flex;
   flex: 1;
@@ -1315,12 +1375,6 @@ body.vf-dragging {
 
 /* --- Comments ----------------------------------------------------------- */
 
-/*
- * Children stretch to full width by default — the draft field has to match
- * the description box above it. Only the submit button opts out; an
- * `align-items: flex-start` on the container instead would shrink-wrap the
- * draft field too.
- */
 .vf-comments {
   display: flex;
   flex-direction: column;
@@ -1400,8 +1454,6 @@ body.vf-dragging {
   overflow-y: auto;
 }
 
-/* Same top-left position and padding as the populated list — an empty
-   workspace shouldn't look like a different kind of page. */
 .vf-browse-empty {
   padding: 14px;
   color: var(--vf-muted);
@@ -1507,8 +1559,6 @@ body.vf-dragging {
   max-width: 640px;
 }
 
-/* --- Taxonomy editor rows ------------------------------------------------ */
-
 .vf-taxonomy-table {
   display: flex;
   flex-direction: column;
@@ -1560,8 +1610,6 @@ body.vf-dragging {
   border-top: 1px dashed var(--vf-border);
 }
 
-/* --- People table --------------------------------------------------------- */
-
 .vf-people-table {
   display: flex;
   flex-direction: column;
@@ -1592,4 +1640,241 @@ body.vf-dragging {
 
 .vf-people-add input {
   flex: 1;
+}
+
+/* ===================================================== View controls == */
+
+.vf-view-header {
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--vf-border);
+}
+
+.vf-view-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+}
+
+.vf-view-title h2 {
+  margin: 0;
+  font-size: var(--font-ui-medium);
+}
+
+.vf-view-title-code {
+  color: var(--vf-muted);
+  font-weight: 400;
+}
+
+.vf-view-title-spacer {
+  flex: 1;
+}
+
+/* -- The persistent bar: flat text, no button chrome ---------------------- */
+
+.vf-view-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 5px 10px;
+  border-top: 1px solid var(--vf-border);
+}
+
+.vf-bar-divider {
+  width: 1px;
+  height: 14px;
+  margin: 0 5px;
+  background: var(--vf-border);
+}
+
+.vf-bar-spacer {
+  flex: 1;
+  min-width: 12px;
+}
+
+/* Visibility switches sit apart from each other and from the filters. */
+.vf-view-bar .vf-toggle {
+  gap: 5px;
+  margin-left: 16px;
+  white-space: nowrap;
+}
+
+.vf-control-anchor {
+  position: relative;
+  display: inline-flex;
+}
+
+/* One flat clickable unit — a bit of text that reveals a faint hover fill.
+   `!important` on the reset: these are <button>s, and Obsidian's own button
+   chrome (border + raised box-shadow) otherwise wins the specificity fight,
+   same as `.vf-row-open` above. */
+.vf-bar-item,
+.vf-layout-opt,
+.vf-add-filter,
+.vf-filter-tag-face,
+.vf-filter-tag-x,
+.vf-bar-dir {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 7px;
+  border: none !important;
+  border-radius: 4px;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--text-normal);
+  font-size: var(--font-ui-smaller);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.vf-bar-item:hover,
+.vf-bar-item.is-on,
+.vf-layout-opt:hover,
+.vf-add-filter:hover,
+.vf-add-filter.is-on {
+  background: var(--background-modifier-hover) !important;
+}
+
+.vf-bar-icon {
+  font-size: 11px;
+  opacity: 0.75;
+}
+
+.vf-bar-label,
+.vf-add-filter {
+  color: var(--vf-muted);
+}
+
+/* The chosen value on each control carries the Obsidian accent colour, the
+   same as the selected row inside its dropdown. */
+.vf-bar-value {
+  color: var(--text-accent);
+  font-weight: 500;
+}
+
+.vf-bar-caret {
+  margin-left: 1px;
+  color: var(--vf-muted);
+  font-size: 9px;
+}
+
+/* Layout: the inactive side is muted, the active side reads as current. */
+.vf-layout-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.vf-layout-opt {
+  color: var(--vf-muted);
+}
+
+.vf-layout-opt.is-on {
+  color: var(--text-accent);
+  font-weight: 500;
+  background: var(--background-modifier-hover);
+}
+
+/* Sort value + its direction arrow sit flush together. */
+.vf-bar-group {
+  display: inline-flex;
+  align-items: center;
+}
+
+.vf-bar-dir {
+  padding: 3px 5px;
+  color: var(--text-accent);
+}
+
+/* Filters: flat tags, no outline. The ✕ appears on hover. */
+.vf-filter-controls {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.vf-filter-tag {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 4px;
+  /* A faint wash of the Obsidian accent colour rather than a flat grey. */
+  background: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.12);
+  font-size: var(--font-ui-smaller);
+  white-space: nowrap;
+}
+
+.vf-filter-tag-face {
+  padding: 3px 6px;
+  border: none;
+  border-radius: 4px 0 0 4px;
+  background: transparent;
+  color: var(--vf-muted);
+  font-size: inherit;
+  cursor: pointer;
+}
+
+.vf-filter-tag-face strong {
+  color: var(--text-accent);
+  font-weight: 600;
+}
+
+.vf-filter-tag-x {
+  width: 0;
+  padding: 3px 0;
+  border: none;
+  border-radius: 0 4px 4px 0;
+  background: transparent;
+  color: var(--vf-muted);
+  font-size: 9px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: width 80ms ease;
+}
+
+.vf-filter-tag:hover .vf-filter-tag-x,
+.vf-filter-tag:focus-within .vf-filter-tag-x {
+  width: 18px;
+  padding: 3px 5px;
+}
+
+.vf-filter-tag-x:hover {
+  color: var(--text-normal);
+}
+
+/* Popovers: short option lists and clause value pickers */
+
+.vf-popover {
+  position: absolute;
+  top: calc(100% + 5px);
+  z-index: 40;
+  min-width: 180px;
+  max-width: min(320px, 90vw);
+  padding: 6px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-primary);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+}
+
+.vf-popover-left {
+  left: 0;
+}
+
+.vf-popover-right {
+  right: 0;
+}
+
+.vf-option-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.vf-chip-set {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
