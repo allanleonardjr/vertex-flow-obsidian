@@ -2514,8 +2514,8 @@ body.vf-dragging {
   overflow-y: auto;
 }
 
-/* Drag corner over the menu's bottom-right — hatched, visible at rest and
-   picking up the accent on hover, so it clearly reads as resizable. */
+/* Drag corner over the menu's bottom-right — a hatched grip, always visible,
+   picking up the accent on hover so it also reads as interactive. */
 .vf-task-menu-grip {
   position: absolute;
   right: 0;
@@ -2529,14 +2529,12 @@ body.vf-dragging {
   background: repeating-linear-gradient(
     -45deg,
     transparent 0 3px,
-    var(--vf-muted) 3px 4.5px
+    var(--text-muted) 3px 4.5px
   );
-  opacity: 0.7;
-  transition: opacity 100ms ease;
+  transition: background 100ms ease;
 }
 
 .vf-task-menu-grip:hover {
-  opacity: 1;
   background: repeating-linear-gradient(
     -45deg,
     transparent 0 3px,
