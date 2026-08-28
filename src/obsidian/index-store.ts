@@ -22,7 +22,12 @@ import {
 import { parseTask } from "../core/serialization/task";
 import { parseViews } from "../core/serialization/views";
 import { parseWorkspace } from "../core/serialization/workspace";
-import { defaultViews } from "../core/views/defaults";
+import {
+	BUILT_IN_VIEW_ID,
+	BUILT_IN_VIEW_NAME,
+	LEGACY_BUILT_IN_VIEW_NAME,
+	defaultViews,
+} from "../core/views/defaults";
 import { isWithin } from "../core/links";
 import type {
 	Cycle,
@@ -240,9 +245,19 @@ export class VaultIndex {
 		}
 
 		// A workspace with no `_views.md` still gets the built-in views, so the
-		// sidebar is never empty on a fresh install.
+		// sidebar is never empty on a fresh install. An older workspace whose
+		// built-in view still carries the previous default name is renamed in
+		// memory — a user who deliberately renamed it keeps their own name, and
+		// the new one persists on their next edit to the view.
 		for (const snapshot of configs.values()) {
-			if (snapshot.views.length === 0) snapshot.views = defaultViews();
+			if (snapshot.views.length === 0) {
+				snapshot.views = defaultViews();
+				continue;
+			}
+			const builtIn = snapshot.views.find((v) => v.id === BUILT_IN_VIEW_ID);
+			if (builtIn?.name === LEGACY_BUILT_IN_VIEW_NAME) {
+				builtIn.name = BUILT_IN_VIEW_NAME;
+			}
 		}
 
 		this.snapshots = configs;

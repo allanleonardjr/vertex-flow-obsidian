@@ -1,7 +1,7 @@
 /**
  * Built-in Saved Views (§8.3).
  *
- * V1 ships exactly one built-in view — "Tasks". Everything else is user-created
+ * V1 ships exactly one built-in view — "All Tasks". Everything else is user-created
  * from the sidebar: layout (list/board), grouping, sorting, and filters are all
  * live-editable per view and persisted to `_views.md`. The `self` filter value
  * is still available in the filter editor, so "Assigned to Me" / "Mentions Me"
@@ -28,11 +28,21 @@ function view(partial: Partial<SavedView> & Pick<SavedView, "id" | "name">): Sav
 /** The one built-in view id — protected from deletion in the sidebar. */
 export const BUILT_IN_VIEW_ID = "tasks";
 
+/** The built-in view's name. Everything hangs off Tasks, so it reads as the "all" view. */
+export const BUILT_IN_VIEW_NAME = "All Tasks";
+
+/**
+ * The name the built-in view shipped with before it became "All Tasks".
+ * Workspaces created back then have it written into their `_views.md`, so an
+ * untouched one is renamed on read (see `index-store`).
+ */
+export const LEGACY_BUILT_IN_VIEW_NAME = "Tasks";
+
 export function defaultViews(): SavedView[] {
 	return [
 		view({
 			id: BUILT_IN_VIEW_ID,
-			name: "Tasks",
+			name: BUILT_IN_VIEW_NAME,
 			icon: "list",
 			viewType: "list",
 			groupBy: "status",

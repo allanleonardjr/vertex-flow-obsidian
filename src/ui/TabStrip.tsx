@@ -90,7 +90,7 @@ function TabRow({
 				/>
 			</span>
 		);
-		label = view.name;
+		label = `${view.name} - View`;
 	} else if (tab.kind === "label") {
 		const labelValue = getValue(
 			workspaceTaxonomies(snapshot.workspace).label,
@@ -103,7 +103,7 @@ function TabRow({
 				style={{ backgroundColor: labelValue.color }}
 			/>
 		);
-		label = labelValue.name;
+		label = `${labelValue.name} - Label`;
 	} else if (tab.kind === "task") {
 		// Resolved fresh via the index, not the currently-active `snapshot` —
 		// a task tab can outlive a workspace switch, so it has to find its own

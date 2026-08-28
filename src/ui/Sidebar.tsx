@@ -20,6 +20,7 @@ import {
 } from "../core/taxonomy";
 import type { Project, SavedView, WorkspaceSnapshot } from "../core/types";
 import { Icon } from "./components/Icon";
+import { LabelChip } from "./components/TaskBits";
 import { LabelDialog } from "./modals/LabelDialog";
 import { ReplaceValueDialog } from "./settings/ReplaceValueDialog";
 import { usePlugin, useSettingsWriter, useWorkspaces } from "./context";
@@ -223,7 +224,7 @@ function NavRow({
 	label,
 	icon,
 	iconFallback,
-	swatch,
+	chipColor,
 	active,
 	variant,
 	onClick,
@@ -233,8 +234,8 @@ function NavRow({
 	/** Curated icon id, or the sentinel "settings-glyph". */
 	icon?: string;
 	iconFallback?: string;
-	/** A colour dot instead of an icon — labels use this. */
-	swatch?: string;
+	/** Render the label text as a tinted pill in this colour — labels use this. */
+	chipColor?: string;
 	active?: boolean;
 	variant?: "view" | "workspace";
 	onClick: () => void;
@@ -255,19 +256,20 @@ function NavRow({
 				onClick={onClick}
 				aria-current={active ? "page" : undefined}
 			>
-				<span className="vf-nav-icon" aria-hidden>
-					{swatch ? (
-						<span
-							className="vf-label-dot"
-							style={{ backgroundColor: swatch }}
-						/>
-					) : icon === "settings-glyph" ? (
-						"⚙"
-					) : (
-						<Icon id={icon} fallback={iconFallback} size={14} />
-					)}
-				</span>
-				<span className="vf-nav-label">{label}</span>
+				{chipColor !== undefined ? (
+					<LabelChip name={label} color={chipColor} className="vf-nav-chip" />
+				) : (
+					<>
+						<span className="vf-nav-icon" aria-hidden>
+							{icon === "settings-glyph" ? (
+								"⚙"
+							) : (
+								<Icon id={icon} fallback={iconFallback} size={14} />
+							)}
+						</span>
+						<span className="vf-nav-label">{label}</span>
+					</>
+				)}
 			</button>
 			{trailing}
 		</div>
@@ -697,7 +699,7 @@ function LabelsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 					<NavRow
 						key={label.id}
 						label={label.name}
-						swatch={label.color}
+						chipColor={label.color}
 						active={activeLabelId === label.id}
 						variant="view"
 						onClick={() => openLabel(label.id)}

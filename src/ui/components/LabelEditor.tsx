@@ -1,10 +1,11 @@
 /**
  * The task editor's label control (§5.4).
  *
- * Labels are fluid: you don't pre-define them in Settings. The current labels
- * stack vertically, each removable with `×`; the text box below creates a new
- * label (or attaches an existing one, case-insensitively) on Enter, and offers
- * matching existing labels as you type.
+ * Labels are fluid: you don't pre-define them in Settings. The text box creates
+ * a new label (or attaches an existing one, case-insensitively) on Enter and
+ * offers matches as you type; attached labels stack below as pills. Clicking a
+ * pill opens the Edit label dialog to rename/recolour it in place; the `×`
+ * detaches it from this task.
  */
 
 import { useMemo, useState } from "react";
@@ -12,6 +13,8 @@ import { listValues } from "../../core/taxonomy";
 import type { Taxonomy } from "../../core/taxonomy";
 import type { WorkspaceSnapshot } from "../../core/types";
 import { usePlugin } from "../context";
+import { LabelDialog } from "../modals/LabelDialog";
+import { LabelChip } from "./TaskBits";
 
 export function LabelEditor({
 	snapshot,
@@ -27,6 +30,7 @@ export function LabelEditor({
 	const plugin = usePlugin();
 	const [query, setQuery] = useState("");
 	const [busy, setBusy] = useState(false);
+	const [editingId, setEditingId] = useState<string | null>(null);
 
 	const byId = useMemo(
 		() => new Map(taxonomy.values.map((v) => [v.id, v])),
@@ -43,6 +47,8 @@ export function LabelEditor({
 			)
 			.slice(0, 6);
 	}, [taxonomy, value, query]);
+
+	const editingLabel = editingId ? byId.get(editingId) : undefined;
 
 	const exactMatch = suggestions.some(
 		(v) => v.name.trim().toLowerCase() === query.trim().toLowerCase(),
@@ -68,33 +74,6 @@ export function LabelEditor({
 
 	return (
 		<div className="vf-label-editor">
-			{value.length > 0 && (
-				<div className="vf-label-editor-list">
-					{value.map((id) => {
-						const label = byId.get(id);
-						return (
-							<span key={id} className="vf-label-editor-row">
-								<span
-									className="vf-label-dot"
-									style={{ backgroundColor: label?.color ?? "var(--vf-muted)" }}
-								/>
-								<span className="vf-label-editor-name">
-									{label?.name ?? id}
-								</span>
-								<button
-									type="button"
-									className="vf-icon-button"
-									title={`Remove ${label?.name ?? id}`}
-									onClick={() => onChange(value.filter((v) => v !== id))}
-								>
-									✕
-								</button>
-							</span>
-						);
-					})}
-				</div>
-			)}
-
 			<div className="vf-label-editor-input">
 				<input
 					type="text"
@@ -124,11 +103,7 @@ export function LabelEditor({
 								className="vf-menu-item"
 								onClick={() => attach(v.id)}
 							>
-								<span
-									className="vf-label-dot"
-									style={{ backgroundColor: v.color }}
-								/>
-								{v.name}
+								<LabelChip name={v.name} color={v.color} />
 							</button>
 						))}
 						{!exactMatch && (
@@ -143,6 +118,55 @@ export function LabelEditor({
 					</div>
 				)}
 			</div>
+
+			{value.length > 0 && (
+				<div className="vf-label-editor-list">
+					{value.map((id) => {
+						const label = byId.get(id);
+						const name = label?.name ?? id;
+						return (
+							<span key={id} className="vf-label-editor-row">
+								<button
+									type="button"
+									className="vf-label-editor-chip"
+									title={`Edit ${name}`}
+									onClick={() => setEditingId(id)}
+								>
+									<LabelChip
+										name={name}
+										color={label?.color}
+										className="vf-nav-chip"
+									/>
+								</button>
+								<button
+									type="button"
+									className="vf-icon-button"
+									title={`Remove ${name}`}
+									onClick={() => onChange(value.filter((v) => v !== id))}
+								>
+									✕
+								</button>
+							</span>
+						);
+					})}
+				</div>
+			)}
+
+			{editingLabel && (
+				<LabelDialog
+					title="Edit label"
+					initialName={editingLabel.name}
+					initialColor={editingLabel.color}
+					confirmLabel="Save"
+					onConfirm={(name, color) =>
+						plugin.mutations.updateLabel(snapshot, editingLabel.id, {
+							name,
+							color,
+						})
+					}
+					onClose={() => setEditingId(null)}
+				/>
+			)}
 		</div>
 	);
 }

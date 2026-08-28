@@ -62,8 +62,13 @@ export const DEFAULT_LABELS: LabelValue[] = [];
  */
 export const DEFAULT_NEW_TASK_STATUS = "queue";
 
-/** Palette offered when creating a taxonomy value in settings. */
+/**
+ * Palette offered when creating a taxonomy value. Laid out as rows of eight
+ * (the swatch grid is 8-wide): warm mids, cool mids, a bright/light row, then a
+ * deep row.
+ */
 export const TAXONOMY_PALETTE: readonly string[] = [
+	// warm mids
 	"#ef4444",
 	"#f97316",
 	"#f59e0b",
@@ -72,6 +77,7 @@ export const TAXONOMY_PALETTE: readonly string[] = [
 	"#22c55e",
 	"#34d399",
 	"#14b8a6",
+	// cool mids
 	"#06b6d4",
 	"#60a5fa",
 	"#3b82f6",
@@ -80,4 +86,22 @@ export const TAXONOMY_PALETTE: readonly string[] = [
 	"#a855f7",
 	"#ec4899",
 	"#94a3b8",
+	// bright / light
+	"#fca5a5",
+	"#fdba74",
+	"#fcd34d",
+	"#bef264",
+	"#6ee7b7",
+	"#67e8f9",
+	"#93c5fd",
+	"#d8b4fe",
+	// deep
+	"#b91c1c",
+	"#c2410c",
+	"#a16207",
+	"#4d7c0f",
+	"#15803d",
+	"#0f766e",
+	"#1d4ed8",
+	"#7e22ce",
 ] as const;

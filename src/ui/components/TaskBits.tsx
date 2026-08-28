@@ -37,6 +37,33 @@ export function PriorityIcon({ priority }: { priority?: string | null }) {
   }
 }
 
+/**
+ * A single Linear-style tinted pill: the value's own colour as text over a
+ * faint wash of the same colour. The tint + text already carry the colour, so
+ * there's no separate dot. This is the canonical way a label or task type
+ * renders anywhere in the app (task rows, the sidebar, the editor) — keep it in
+ * one place so they never drift.
+ */
+export function LabelChip({
+  name,
+  color,
+  className,
+}: {
+  name: string;
+  color?: string | null;
+  className?: string;
+}) {
+  const tone = color || "var(--text-muted)";
+  return (
+    <span
+      className={className ? `vf-label-chip ${className}` : "vf-label-chip"}
+      style={{ backgroundColor: `${tone}1e`, color: tone }}
+    >
+      <span className="vf-label-chip-name">{name}</span>
+    </span>
+  );
+}
+
 /** Handles polymorphic taxonomy rendering (Priority icons vs Task Type / Labels) */
 export function TaxonomyChip({
   taxonomies,
@@ -62,19 +89,7 @@ export function TaxonomyChip({
   }
 
   // Render Labels & Task Types as Linear-style tinted pills
-  const color = item.color || "var(--text-muted)";
-  return (
-    <span
-      className="vf-label-chip"
-      style={{
-        backgroundColor: `${color}1e`, // ~12% opacity tint
-        color: color,
-      }}
-    >
-      <span className="vf-label-dot" style={{ backgroundColor: color }} />
-      {item.name}
-    </span>
-  );
+  return <LabelChip name={item.name} color={item.color} />;
 }
 
 export function Labels({
