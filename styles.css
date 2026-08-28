@@ -1337,6 +1337,15 @@ body.vf-dragging {
   color: var(--text-accent);
 }
 
+/* Mark the current value, the way a native <select> shows a tick. */
+.vf-menu-item.is-active::after {
+  content: "✓";
+  margin-left: auto;
+  padding-left: 8px;
+  color: var(--text-accent);
+  font-size: 11px;
+}
+
 .vf-menu-hint {
   margin-left: auto;
   color: var(--vf-muted);
@@ -1557,6 +1566,57 @@ body.vf-dragging {
   background: var(--background-secondary);
 }
 
+/* Collapsible sections below the property list (e.g. raw Source). */
+.vf-editor-rail-section {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--vf-border);
+}
+
+.vf-rail-section-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  width: 100%;
+  padding: 2px 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--vf-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.vf-rail-section-toggle:hover {
+  color: var(--text-normal);
+}
+
+.vf-source-view {
+  margin: 10px 0 0;
+  padding: 10px;
+  max-height: 420px;
+  overflow: auto;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.55;
+  white-space: pre;
+  tab-size: 2;
+  user-select: text;
+}
+
+.vf-source-view code {
+  font: inherit;
+  color: inherit;
+}
+
 .vf-editor-resize-handle {
   flex-shrink: 0;
   width: 5px;
@@ -1755,7 +1815,13 @@ body.vf-dragging {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  padding: 5px 0;
+  padding: 6px 0;
+}
+
+/* A bare checkbox (Archived) has no field chrome, so give it the same vertical
+   footprint as an input — otherwise it crowds the row above it. */
+.vf-prop-control > .vf-toggle {
+  min-height: 26px;
 }
 
 .vf-prop-label {
@@ -2403,6 +2469,104 @@ body.vf-dragging {
 .vf-option-list {
   display: flex;
   flex-direction: column;
+}
+
+/* -- Task picker (Parent, relations): rows are the List-view row itself --- */
+
+.vf-task-select {
+  position: relative;
+  display: block;
+}
+
+/* Portaled to <body>, positioned from the trigger — the editor rail clips. */
+.vf-task-menu {
+  position: fixed;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 380px;
+  max-width: calc(100vw - 16px);
+  padding: 6px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-primary);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.34);
+}
+
+.vf-task-menu-search {
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.vf-task-menu-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.vf-task-menu-empty {
+  margin: 6px 8px;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+/* A task row inside the menu — same internals as .vf-row, laid out by the
+   button rather than a list section. */
+.vf-task-option {
+  gap: 10px;
+}
+
+.vf-task-option .vf-row-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.vf-task-option .vf-row-meta {
+  flex-shrink: 0;
+}
+
+/* Non-task rows in the same menu (Projects under Parent). */
+.vf-task-option-plain {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.vf-task-option-kind {
+  flex-shrink: 0;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--background-modifier-hover);
+  color: var(--vf-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* The "+ Add … relation" trigger — a quiet dashed affordance. */
+.vf-add-relation {
+  padding: 4px 8px !important;
+  border: 1px dashed var(--vf-border) !important;
+  border-radius: var(--vf-radius);
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+}
+
+.vf-add-relation:hover,
+.vf-add-relation.is-on {
+  border-style: solid !important;
+  border-color: var(--background-modifier-border-hover) !important;
+  background: var(--background-modifier-hover) !important;
+  color: var(--text-normal);
 }
 
 .vf-chip-set {

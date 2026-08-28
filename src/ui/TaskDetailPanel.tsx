@@ -23,13 +23,16 @@ import {
   StatusSelect,
   TypeSelect,
   useDebouncedSave,
-  type Option,
 } from "./components/fields";
 import { MarkdownContent, MarkdownField } from "./components/Markdown";
 import { ProgressBar, StatusDot } from "./components/TaskBits";
 import { EmbeddedTaskList } from "./components/EmbeddedTaskList";
 import { LabelEditor } from "./components/LabelEditor";
 import { RelationsEditor } from "./components/RelationsEditor";
+import {
+  TaskSelectMenu,
+  type TaskSelectExtraOption,
+} from "./components/TaskSelectMenu";
 import { usePlugin } from "./context";
 import { FEATURES } from "./features";
 
@@ -204,7 +207,12 @@ export function TaskDetailPanel({
             />
           </PropertyRow>
 
-          <ParentPicker task={task} snapshot={snapshot} onChange={update} />
+          <ParentPicker
+            task={task}
+            snapshot={snapshot}
+            taxonomies={taxonomies}
+            onChange={update}
+          />
 
           {FEATURES.cycles && snapshot.workspace.cycles.enabled && (
             <PropertyRow label={snapshot.workspace.cycles.termLabel}>
@@ -259,9 +267,65 @@ export function TaskDetailPanel({
               <span>Hide from views</span>
             </label>
           </PropertyRow>
+
+          <RawSourceSection task={task} />
         </aside>
       </div>
     </>
+  );
+}
+
+/**
+ * A read-only look at the task note exactly as it sits on disk — frontmatter
+ * and body. Collapsed by default; the open state is remembered. Re-reads
+ * whenever the task changes while open, so it tracks edits made above.
+ */
+function RawSourceSection({ task }: { task: Task }) {
+  const plugin = usePlugin();
+  const [open, setOpen] = useState(plugin.settings.editorSourceOpen);
+  const [raw, setRaw] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    let live = true;
+    setRaw(null);
+    void plugin.mutations.readRaw(task).then((text) => {
+      if (live) setRaw(text);
+    });
+    return () => {
+      live = false;
+    };
+  }, [open, plugin, task.path, task.updatedAt]);
+
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    plugin.settings.editorSourceOpen = next;
+    void plugin.saveSettings();
+  };
+
+  return (
+    <div className="vf-editor-rail-section">
+      <button
+        type="button"
+        className="vf-rail-section-toggle"
+        aria-expanded={open}
+        onClick={toggle}
+      >
+        <span
+          className={`vf-section-chevron${open ? " is-open" : ""}`}
+          aria-hidden
+        >
+          ›
+        </span>
+        Source
+      </button>
+      {open && (
+        <pre className="vf-source-view">
+          <code>{raw ?? "Loading…"}</code>
+        </pre>
+      )}
+    </div>
   );
 }
 
@@ -368,67 +432,118 @@ function RailResizeHandle({
 function ParentPicker({
   task,
   snapshot,
+  taxonomies,
   onChange,
 }: {
   task: Task;
   snapshot: WorkspaceSnapshot;
+  taxonomies: WorkspaceTaxonomies;
   onChange: (patch: Partial<Task>) => void;
 }) {
-  const value = task.parent
-    ? `task:${task.parent}`
-    : task.project
-      ? `project:${task.project}`
-      : task.initiative
-        ? `initiative:${task.initiative}`
-        : null;
+  const value = task.parent ?? task.project ?? task.initiative ?? null;
 
-  const options: Option[] = [
+  // Its own descendants can't become its parent.
+  const blocked = new Set(
+    descendantTasks(scopeOf(snapshot), task.path).map((t) => t.path),
+  );
+  const candidates = snapshot.tasks.filter(
+    (candidate) => candidate.path !== task.path && !blocked.has(candidate.path),
+  );
+
+  // Projects, plus any Initiative the task is *already* on (v1 hides new
+  // Initiative attachments — see features.ts).
+  const extraOptions: TaskSelectExtraOption[] = [
     ...snapshot.projects.map((project) => ({
-      value: `project:${project.path}`,
-      label: `Project · ${project.title}`,
+      value: project.path,
+      search: project.title,
+      label: (
+        <span className="vf-task-option-plain">
+          <span className="vf-task-option-kind">Project</span>
+          {project.title}
+        </span>
+      ),
     })),
-    // Initiatives are hidden in v1 (see features.ts). Any initiative the task
-    // is *already* attached to is still listed so it renders with a real label
-    // and can be cleared — new attachments just aren't offered.
     ...snapshot.initiatives
-      .filter((initiative) => FEATURES.initiatives || initiative.path === task.initiative)
+      .filter((i) => FEATURES.initiatives || i.path === task.initiative)
       .map((initiative) => ({
-        value: `initiative:${initiative.path}`,
-        label: `Initiative · ${initiative.title}`,
-      })),
-    ...snapshot.tasks
-      .filter(
-        (candidate) =>
-          candidate.path !== task.path &&
-          !descendantTasks(scopeOf(snapshot), task.path).some(
-            (descendant) => descendant.path === candidate.path,
-          ),
-      )
-      .map((candidate) => ({
-        value: `task:${candidate.path}`,
-        label: `Sub-task of · ${candidate.id} ${candidate.title}`,
+        value: initiative.path,
+        search: initiative.title,
+        label: (
+          <span className="vf-task-option-plain">
+            <span className="vf-task-option-kind">Initiative</span>
+            {initiative.title}
+          </span>
+        ),
       })),
   ];
 
+  const parentTask = task.parent
+    ? snapshot.tasks.find((t) => t.path === task.parent)
+    : null;
+  const parentProject = task.project
+    ? snapshot.projects.find((p) => p.path === task.project)
+    : null;
+  const parentInitiative = task.initiative
+    ? snapshot.initiatives.find((i) => i.path === task.initiative)
+    : null;
+
+  const apply = (next: string | null) => {
+    if (!next) {
+      onChange({ parent: null, project: null, initiative: null });
+      return;
+    }
+    const isTask = snapshot.tasks.some((t) => t.path === next);
+    const isProject = snapshot.projects.some((p) => p.path === next);
+    onChange({
+      parent: isTask ? next : null,
+      project: isProject ? next : null,
+      initiative: !isTask && !isProject ? next : null,
+    });
+  };
+
   return (
     <PropertyRow label="Parent">
-      <OptionSelect
-        noneLabel="No parent"
+      <TaskSelectMenu
+        candidates={candidates}
+        snapshot={snapshot}
+        taxonomies={taxonomies}
         value={value}
-        options={options}
-        onChange={(next) => {
-          if (!next) {
-            onChange({ parent: null, project: null, initiative: null });
-            return;
-          }
-          const [kind, ...rest] = next.split(":");
-          const path = rest.join(":");
-          onChange({
-            parent: kind === "task" ? path : null,
-            project: kind === "project" ? path : null,
-            initiative: kind === "initiative" ? path : null,
-          });
-        }}
+        onSelect={apply}
+        noneLabel="No parent"
+        searchPlaceholder="Search projects & tasks…"
+        extraOptions={extraOptions}
+        trigger={({ open, toggle }) => (
+          <button
+            type="button"
+            className="vf-icon-select-trigger"
+            aria-haspopup="listbox"
+            aria-expanded={open}
+            onClick={(event) => {
+              event.stopPropagation();
+              toggle();
+            }}
+          >
+            {parentTask ? (
+              <>
+                <StatusDot taxonomies={taxonomies} status={parentTask.status} />
+                <span className="vf-id">{parentTask.id}</span>
+                <span className="vf-icon-select-name">{parentTask.title}</span>
+              </>
+            ) : parentProject || parentInitiative ? (
+              <span className="vf-icon-select-name">
+                <span className="vf-task-option-kind">
+                  {parentProject ? "Project" : "Initiative"}
+                </span>
+                {(parentProject ?? parentInitiative)?.title}
+              </span>
+            ) : (
+              <span className="vf-icon-select-name vf-prop-empty">No parent</span>
+            )}
+            <span className="vf-icon-select-caret" aria-hidden>
+              ⌄
+            </span>
+          </button>
+        )}
       />
     </PropertyRow>
   );

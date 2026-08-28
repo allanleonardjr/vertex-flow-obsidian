@@ -26,6 +26,8 @@ export interface VertexFlowSettings {
 	 * rather than per-view: someone who works this way wants it everywhere.
 	 */
 	queryBarOpen: boolean;
+	/** Whether the raw-source section at the bottom of the task editor is open. */
+	editorSourceOpen: boolean;
 	/**
 	 * Whether opening a task note anywhere in Obsidian (search, a wikilink,
 	 * the quick switcher) redirects into Vertex Flow's editor instead of the
@@ -45,5 +47,6 @@ export const DEFAULT_SETTINGS: VertexFlowSettings = {
 	sidebarWidth: 220,
 	sidebarMinimized: false,
 	queryBarOpen: false,
+	editorSourceOpen: false,
 	redirectTaskNotes: true,
 };

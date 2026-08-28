@@ -229,6 +229,12 @@ export class Mutations {
 
 	// -- Note body ------------------------------------------------------------
 
+	/** The task note's full text — frontmatter and body, exactly as on disk. */
+	async readRaw(task: Task): Promise<string> {
+		const file = this.io.getFile(task.path);
+		return file ? this.io.read(file) : "";
+	}
+
 	/**
 	 * The parts of a task that live in the body rather than in frontmatter.
 	 * Read on demand — the index deliberately doesn't hold these, so opening a

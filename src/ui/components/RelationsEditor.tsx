@@ -1,9 +1,47 @@
 import { relationProgress, scopeOf } from "../../core/hierarchy";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { Task, WorkspaceSnapshot } from "../../core/types";
-import { OptionSelect } from "./fields";
 import { ProgressBar } from "./TaskBits";
 import { EmbeddedTaskList } from "./EmbeddedTaskList";
+import { TaskSelectMenu } from "./TaskSelectMenu";
+
+function AddRelationTrigger({
+  label,
+  candidates,
+  snapshot,
+  taxonomies,
+  onAdd,
+}: {
+  label: string;
+  candidates: Task[];
+  snapshot: WorkspaceSnapshot;
+  taxonomies: WorkspaceTaxonomies;
+  onAdd: (path: string) => void;
+}) {
+  return (
+    <TaskSelectMenu
+      candidates={candidates}
+      snapshot={snapshot}
+      taxonomies={taxonomies}
+      value={null}
+      onSelect={(path) => path && onAdd(path)}
+      noneLabel="Cancel"
+      searchPlaceholder="Search tasks…"
+      trigger={({ open, toggle }) => (
+        <button
+          type="button"
+          className={`vf-add-relation${open ? " is-on" : ""}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            toggle();
+          }}
+        >
+          + {label}
+        </button>
+      )}
+    />
+  );
+}
 
 const RELATION_KINDS = [
   { key: "blockedBy", label: "Blocked by" },
@@ -76,24 +114,21 @@ export function RelationsEditor({
                 })
               }
               renderAddTrigger={() => (
-                <OptionSelect
-                  noneLabel={`+ Add ${label.toLowerCase()} relation…`}
-                  value={null}
-                  options={others
-                    .filter((candidate) => !current.includes(candidate.path))
-                    .map((candidate) => ({
-                      value: candidate.path,
-                      label: `${candidate.id} ${candidate.title}`,
-                    }))}
-                  onChange={(path) => {
-                    if (!path) return;
+                <AddRelationTrigger
+                  label={`Add ${label.toLowerCase()} relation…`}
+                  candidates={others.filter(
+                    (candidate) => !current.includes(candidate.path),
+                  )}
+                  snapshot={snapshot}
+                  taxonomies={taxonomies}
+                  onAdd={(path) =>
                     onChange({
                       relations: {
                         ...task.relations,
                         [key]: [...current, path],
                       },
-                    });
-                  }}
+                    })
+                  }
                 />
               )}
             />
@@ -126,14 +161,12 @@ export function RelationsEditor({
               }
               renderAddTrigger={() =>
                 !duplicatePath ? (
-                  <OptionSelect
-                    noneLabel="+ Add duplicate of…"
-                    value={null}
-                    options={others.map((candidate) => ({
-                      value: candidate.path,
-                      label: `${candidate.id} ${candidate.title}`,
-                    }))}
-                    onChange={(duplicateOf) =>
+                  <AddRelationTrigger
+                    label="Add duplicate of…"
+                    candidates={others}
+                    snapshot={snapshot}
+                    taxonomies={taxonomies}
+                    onAdd={(duplicateOf) =>
                       onChange({
                         relations: { ...task.relations, duplicateOf },
                       })
