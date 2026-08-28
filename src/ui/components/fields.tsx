@@ -10,9 +10,9 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { SignalZero } from "lucide-react";
 import { listValues, type Taxonomy } from "../../core/taxonomy";
-import type { Person } from "../../core/types";
+import type { Person, TaxonomyValue } from "../../core/types";
 import { Popover } from "./Popover";
-import { PriorityIcon } from "./TaskBits";
+import { LabelChip, PriorityIcon } from "./TaskBits";
 
 export function PropertyRow({
 	label,
@@ -29,97 +29,59 @@ export function PropertyRow({
 	);
 }
 
-export function TaxonomySelect({
+/**
+ * A taxonomy picker whose trigger and rows show the value exactly as it renders
+ * everywhere else in the app — a colour dot for Status, a signal icon for
+ * Priority, a tinted pill for Type. A native `<select>` can't draw any of that.
+ *
+ * `renderOption(null)` is the "no value" row; pass `allowNone: false` (Status)
+ * to drop it. `dividerAfterNone` sets it apart from an ordered scale.
+ */
+function TaxonomyMenuSelect({
 	taxonomy,
 	value,
 	onChange,
 	allowNone,
-	noneLabel = "None",
+	renderOption,
+	dividerAfterNone = false,
 }: {
 	taxonomy: Taxonomy;
 	value: string | null;
 	onChange: (value: string | null) => void;
 	allowNone: boolean;
-	noneLabel?: string;
-}) {
-	return (
-		<select
-			className="vf-select"
-			value={value ?? ""}
-			onChange={(event) => onChange(event.target.value || null)}
-		>
-			{allowNone && <option value="">{noneLabel}</option>}
-			{listValues(taxonomy).map((entry) => (
-				<option key={entry.id} value={entry.id}>
-					{entry.name}
-				</option>
-			))}
-			{/* A value the taxonomy no longer defines still has to be selectable,
-			    or opening the editor would silently rewrite it. */}
-			{value && !taxonomy.values.some((entry) => entry.id === value) && (
-				<option value={value}>{value} (removed)</option>
-			)}
-		</select>
-	);
-}
-
-/** The Lucide signal glyphs `PriorityIcon` knows how to draw. */
-const BUILT_IN_PRIORITY_IDS = new Set(["urgent", "high", "medium", "low"]);
-
-function PriorityGlyph({
-	value,
-}: {
-	value: { id: string; color?: string | null } | null;
-}) {
-	if (!value) {
-		return (
-			<span className="vf-priority-icon is-none" aria-hidden>
-				<SignalZero size={14} />
-			</span>
-		);
-	}
-	if (BUILT_IN_PRIORITY_IDS.has(value.id.toLowerCase())) {
-		return <PriorityIcon priority={value.id} />;
-	}
-	return (
-		<span
-			className="vf-priority-dot"
-			style={value.color ? { background: value.color } : undefined}
-			aria-hidden
-		/>
-	);
-}
-
-/**
- * Priority picker for the task editor.
- *
- * A native `<select>` can't draw the signal icons, so this is a small popover
- * whose trigger and rows both read as "{icon} {name}" — the same glyphs the
- * board and list use. "None" (unset) sits at the top.
- */
-export function PrioritySelect({
-	taxonomy,
-	value,
-	onChange,
-}: {
-	taxonomy: Taxonomy;
-	value: string | null;
-	onChange: (value: string | null) => void;
+	renderOption: (entry: TaxonomyValue | null) => ReactNode;
+	dividerAfterNone?: boolean;
 }) {
 	const [open, setOpen] = useState(false);
 	const values = listValues(taxonomy);
+
+	// A value the taxonomy no longer defines still has to show and stay
+	// selectable, or opening the editor would silently drop it.
+	const removed: TaxonomyValue | null =
+		value && !values.some((entry) => entry.id === value)
+			? { id: value, name: `${value} (removed)`, color: "" }
+			: null;
 	const selected = value
-		? (values.find((entry) => entry.id === value) ?? {
-				id: value,
-				name: `${value} (removed)`,
-				color: null,
-			})
+		? (values.find((entry) => entry.id === value) ?? removed)
 		: null;
 
 	const choose = (next: string | null) => {
 		onChange(next);
 		setOpen(false);
 	};
+
+	const row = (entry: TaxonomyValue | null, key: string) => (
+		<button
+			key={key}
+			type="button"
+			role="option"
+			aria-selected={(entry?.id ?? null) === value}
+			className={`vf-menu-item${(entry?.id ?? null) === value ? " is-active" : ""}`}
+			onClick={() => choose(entry?.id ?? null)}
+		>
+			{renderOption(entry)}
+		</button>
+	);
 
 	return (
 		<span className="vf-icon-select">
@@ -133,8 +95,7 @@ export function PrioritySelect({
 					setOpen((current) => !current);
 				}}
 			>
-				<PriorityGlyph value={selected} />
-				<span className="vf-icon-select-name">{selected?.name ?? "None"}</span>
+				{renderOption(selected)}
 				<span className="vf-icon-select-caret" aria-hidden>
 					⌄
 				</span>
@@ -143,33 +104,119 @@ export function PrioritySelect({
 			{open && (
 				<Popover align="left" onClose={() => setOpen(false)}>
 					<div className="vf-option-list" role="listbox">
-						<button
-							type="button"
-							role="option"
-							aria-selected={value == null}
-							className={`vf-menu-item${value == null ? " is-active" : ""}`}
-							onClick={() => choose(null)}
-						>
-							<PriorityGlyph value={null} />
-							None
-						</button>
-						{values.map((entry) => (
-							<button
-								key={entry.id}
-								type="button"
-								role="option"
-								aria-selected={entry.id === value}
-								className={`vf-menu-item${entry.id === value ? " is-active" : ""}`}
-								onClick={() => choose(entry.id)}
-							>
-								<PriorityGlyph value={entry} />
-								{entry.name}
-							</button>
-						))}
+						{allowNone && row(null, "__none__")}
+						{allowNone && dividerAfterNone && (
+							<div className="vf-menu-divider" aria-hidden />
+						)}
+						{values.map((entry) => row(entry, entry.id))}
+						{removed && row(removed, removed.id)}
 					</div>
 				</Popover>
 			)}
 		</span>
+	);
+}
+
+function IconLabel({ glyph, name }: { glyph: ReactNode; name: string }) {
+	return (
+		<>
+			{glyph}
+			<span className="vf-icon-select-name">{name}</span>
+		</>
+	);
+}
+
+/** The Lucide signal glyphs `PriorityIcon` knows how to draw. */
+const BUILT_IN_PRIORITY_IDS = new Set(["urgent", "high", "medium", "low"]);
+
+function priorityGlyph(entry: TaxonomyValue | null): ReactNode {
+	if (!entry) {
+		return (
+			<span className="vf-priority-icon is-none" aria-hidden>
+				<SignalZero size={14} />
+			</span>
+		);
+	}
+	if (BUILT_IN_PRIORITY_IDS.has(entry.id.toLowerCase())) {
+		return <PriorityIcon priority={entry.id} />;
+	}
+	return (
+		<span
+			className="vf-priority-dot"
+			style={entry.color ? { background: entry.color } : undefined}
+			aria-hidden
+		/>
+	);
+}
+
+/** Priority: "{signal icon} {name}", "None" set apart at the top. */
+export function PrioritySelect(props: {
+	taxonomy: Taxonomy;
+	value: string | null;
+	onChange: (value: string | null) => void;
+}) {
+	return (
+		<TaxonomyMenuSelect
+			{...props}
+			allowNone
+			dividerAfterNone
+			renderOption={(entry) => (
+				<IconLabel glyph={priorityGlyph(entry)} name={entry?.name ?? "None"} />
+			)}
+		/>
+	);
+}
+
+/** Status: "{colour dot} {name}". Always set — no "None" row. */
+export function StatusSelect({
+	value,
+	onChange,
+	...rest
+}: {
+	taxonomy: Taxonomy;
+	value: string | null;
+	onChange: (value: string | null) => void;
+}) {
+	return (
+		<TaxonomyMenuSelect
+			{...rest}
+			value={value}
+			onChange={(next) => next && onChange(next)}
+			allowNone={false}
+			renderOption={(entry) => (
+				<IconLabel
+					glyph={
+						<span
+							className="vf-status-dot"
+							style={entry?.color ? { background: entry.color } : undefined}
+							aria-hidden
+						/>
+					}
+					name={entry?.name ?? "—"}
+				/>
+			)}
+		/>
+	);
+}
+
+/** Type: the tinted pill itself, exactly as it renders on cards. */
+export function TypeSelect(props: {
+	taxonomy: Taxonomy;
+	value: string | null;
+	onChange: (value: string | null) => void;
+}) {
+	return (
+		<TaxonomyMenuSelect
+			{...props}
+			allowNone
+			renderOption={(entry) =>
+				entry ? (
+					<LabelChip name={entry.name} color={entry.color} />
+				) : (
+					<span className="vf-icon-select-name vf-prop-empty">None</span>
+				)
+			}
+		/>
 	);
 }
 

@@ -20,7 +20,8 @@ import {
   PersonSelect,
   PrioritySelect,
   PropertyRow,
-  TaxonomySelect,
+  StatusSelect,
+  TypeSelect,
   useDebouncedSave,
   type Option,
 } from "./components/fields";
@@ -163,11 +164,10 @@ export function TaskDetailPanel({
 
         <aside className="vf-editor-rail" style={{ width: railWidth }}>
           <PropertyRow label="Status">
-            <TaxonomySelect
+            <StatusSelect
               taxonomy={taxonomies.status}
               value={task.status}
-              allowNone={false}
-              onChange={(value) => value && update({ status: value })}
+              onChange={(status) => status && update({ status })}
             />
           </PropertyRow>
 
@@ -180,10 +180,9 @@ export function TaskDetailPanel({
           </PropertyRow>
 
           <PropertyRow label="Type">
-            <TaxonomySelect
+            <TypeSelect
               taxonomy={taxonomies.taskType}
               value={task.taskType}
-              allowNone
               onChange={(taskType) => update({ taskType })}
             />
           </PropertyRow>

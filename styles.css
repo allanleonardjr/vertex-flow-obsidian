@@ -850,7 +850,8 @@ body.vf-dragging {
   background: var(--vf-muted);
 }
 
-/* Task-editor priority selector: a trigger that mirrors a menu row. */
+/* Task-editor taxonomy selectors (Status / Priority / Type): a trigger that
+   mirrors a menu row and matches the native form fields around it. */
 .vf-icon-select {
   position: relative;
 }
@@ -859,10 +860,12 @@ body.vf-dragging {
   align-items: center;
   gap: 6px;
   width: 100%;
-  padding: 4px 6px;
+  min-height: 26px;
+  padding: 3px 6px;
   border: 1px solid var(--background-modifier-border) !important;
   border-radius: 4px;
-  background: var(--background-primary) !important;
+  /* Same surface as the <select>/<input> fields in the rest of the rail. */
+  background: var(--background-modifier-form-field) !important;
   box-shadow: none !important;
   color: var(--text-normal);
   font-size: var(--font-ui-smaller);
@@ -870,9 +873,9 @@ body.vf-dragging {
   cursor: pointer;
 }
 .vf-icon-select-trigger:hover {
-  background: var(--background-modifier-hover) !important;
+  background: var(--background-modifier-form-field-highlighted, var(--background-modifier-hover)) !important;
 }
-.vf-icon-select-trigger .vf-icon-select-caret {
+.vf-icon-select-caret {
   margin-left: auto;
   color: var(--vf-muted);
   font-size: 10px;
@@ -881,6 +884,12 @@ body.vf-dragging {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+.vf-menu-divider {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--vf-border);
 }
 
 /* Linear-style Label Pills */
