@@ -434,7 +434,7 @@ function AddSubtaskTrigger({
           currentParent={
             snapshot.tasks.find((t) => t.path === conflict.parent) ?? null
           }
-          newParentTitle={task.title}
+          newParent={task}
           onConfirm={() => {
             void plugin.mutations.setParent(conflict, task.path);
             setConflict(null);
@@ -454,16 +454,18 @@ function AddSubtaskTrigger({
 function ReparentSubtaskDialog({
   child,
   currentParent,
-  newParentTitle,
+  newParent,
   onConfirm,
   onClose,
 }: {
   child: Task;
   currentParent: Task | null;
-  newParentTitle: string;
+  newParent: Task;
   onConfirm: () => void;
   onClose: () => void;
 }) {
+  const label = (task: Task) => `${task.id} ${task.title}`;
+
   return createPortal(
     <div className="vf-editor-backdrop" onClick={onClose}>
       <div
@@ -472,11 +474,11 @@ function ReparentSubtaskDialog({
         aria-modal="true"
         onClick={(event) => event.stopPropagation()}
       >
-        <h3>Move "{child.title}" here?</h3>
+        <h3>Move "{label(child)}" here?</h3>
         <p className="vf-dialog-lead">
           It's already a sub-task of{" "}
-          {currentParent ? `"${currentParent.title}"` : "another task"}. A task
-          has only one parent, so moving it under "{newParentTitle}" removes it
+          {currentParent ? `"${label(currentParent)}"` : "another task"}. A task
+          has only one parent, so moving it under "{label(newParent)}" removes it
           from there.
         </p>
         <div className="vf-dialog-actions">
