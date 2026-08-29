@@ -28,7 +28,7 @@ export function WorkspaceSettingsView({ snapshot }: { snapshot: WorkspaceSnapsho
 
 				<TaxonomySection
 					title="Statuses"
-					description="Fixed categories (backlog, unstarted, started, completed, canceled) drive progress and filtering — names, colours, and order are all yours (§5.1)."
+					description="Fixed categories (backlog, unstarted, started, completed, canceled) drive progress and filtering — names, colours, and order are all yours."
 					kind="status"
 					taxonomy={taxonomies.status}
 					snapshot={snapshot}
@@ -36,7 +36,7 @@ export function WorkspaceSettingsView({ snapshot }: { snapshot: WorkspaceSnapsho
 
 				<TaxonomySection
 					title="Priorities"
-					description="Fully flexible and ordered — add or remove as many levels as you want (§5.2)."
+					description="Fully flexible and ordered — add or remove as many levels as you want."
 					kind="priority"
 					taxonomy={taxonomies.priority}
 					snapshot={snapshot}
@@ -44,7 +44,7 @@ export function WorkspaceSettingsView({ snapshot }: { snapshot: WorkspaceSnapsho
 
 				<TaxonomySection
 					title="Task Types"
-					description="No fixed order or category — just a name and a colour (§5.3)."
+					description="No fixed order or category — just a name and a colour."
 					kind="taskType"
 					taxonomy={taxonomies.taskType}
 					snapshot={snapshot}

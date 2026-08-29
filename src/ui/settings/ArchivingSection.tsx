@@ -21,7 +21,7 @@ export function ArchivingSection({ snapshot }: { snapshot: WorkspaceSnapshot }) 
 		<section className="vf-settings-section">
 			<h3>Archiving</h3>
 			<p className="vf-settings-description">
-				Archiving is manual by default (§7.7). Auto-archive is optional and
+				Archiving is manual by default. Auto-archive is optional and
 				off unless turned on here.
 			</p>
 
