@@ -1732,6 +1732,12 @@ body.vf-dragging {
   text-overflow: clip;
 }
 
+/* Id prefix shown only when two open task tabs share a title. */
+.vf-tab-id {
+  color: var(--vf-muted);
+  font-size: 0.85em;
+}
+
 .vf-tab-icon.vf-label-dot {
   width: 8px;
   height: 8px;

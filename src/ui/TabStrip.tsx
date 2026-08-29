@@ -4,6 +4,7 @@
  * closable can ever leave you without a way back to it.
  */
 
+import { useMemo } from "react";
 import { getValue, workspaceTaxonomies } from "../core/taxonomy";
 import type { SavedView, WorkspaceSnapshot } from "../core/types";
 import { Icon } from "./components/Icon";
@@ -39,6 +40,24 @@ export function TabStrip({
 	const plugin = usePlugin();
 	const { tabs, activeId, activate, close } = useTabs();
 
+	// Task tabs show a bare title by default. Titles aren't unique across a
+	// vault though — two tasks in different projects can share a name — so
+	// once two *currently open* task tabs collide, both get their id
+	// prefixed until one closes. Resolved fresh off the live index on every
+	// render, same as `TabRow` resolves each task tab's own title.
+	const duplicateTaskTitles = useMemo(() => {
+		const seen = new Set<string>();
+		const duplicates = new Set<string>();
+		for (const tab of tabs) {
+			if (tab.kind !== "task") continue;
+			const task = plugin.index.taskAt(tab.path);
+			if (!task) continue;
+			if (seen.has(task.title)) duplicates.add(task.title);
+			seen.add(task.title);
+		}
+		return duplicates;
+	}, [tabs, plugin]);
+
 	return (
 		<div className="vf-tabs" role="tablist">
 			{tabs.map((tab) => (
@@ -48,6 +67,7 @@ export function TabStrip({
 					active={tab.id === activeId}
 					snapshot={snapshot}
 					builtInView={builtInView}
+					duplicateTaskTitles={duplicateTaskTitles}
 					onActivate={() => activate(tab.id)}
 					onClose={tab.id === "workspace" ? null : () => close(tab.id)}
 					plugin={plugin}
@@ -62,6 +82,7 @@ function TabRow({
 	active,
 	snapshot,
 	builtInView,
+	duplicateTaskTitles,
 	onActivate,
 	onClose,
 	plugin,
@@ -70,12 +91,13 @@ function TabRow({
 	active: boolean;
 	snapshot: WorkspaceSnapshot;
 	builtInView: SavedView;
+	duplicateTaskTitles: Set<string>;
 	onActivate: () => void;
 	onClose: (() => void) | null;
 	plugin: ReturnType<typeof usePlugin>;
 }) {
 	let icon: React.ReactNode;
-	let label: string;
+	let label: React.ReactNode;
 
 	if (tab.kind === "workspace") {
 		icon = (
@@ -118,7 +140,13 @@ function TabRow({
 		const task = plugin.index.taskAt(tab.path);
 		if (!task || !owner) return null;
 		icon = <StatusDot taxonomies={workspaceTaxonomies(owner.workspace)} status={task.status} />;
-		label = task.title;
+		label = duplicateTaskTitles.has(task.title) ? (
+			<>
+				<span className="vf-tab-id">{task.id}</span> {task.title}
+			</>
+		) : (
+			task.title
+		);
 	} else if (tab.kind === "project") {
 		// Resolved fresh via the index, not the passed `snapshot` — right after a
 		// workspace switch this tab renders once more before App's prune effect
