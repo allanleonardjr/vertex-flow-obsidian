@@ -14,6 +14,7 @@ import { BUILT_IN_VIEW_ID, layoutIcon, newView } from "../core/views";
 import { newDashboard } from "../core/dashboards";
 import { newConfigId } from "../core/ids";
 import { isProjectTitleTaken } from "../core/serialization";
+import { withoutExtension } from "../obsidian/note-io";
 import {
   describeUsage,
   findTaxonomyUsage,
@@ -60,7 +61,6 @@ export function Sidebar({
   const plugin = usePlugin();
   const writeSettings = useSettingsWriter();
   const { activeId, openScreen } = useTabs();
-  const onWorkspaceTab = activeId === "workspace";
 
   const minimized = plugin.settings.sidebarMinimized;
   const width = minimized
@@ -94,7 +94,6 @@ export function Sidebar({
           <ViewsSection
             snapshot={snapshot}
             activeViewId={activeViewId}
-            onWorkspaceTab={onWorkspaceTab}
             onSelectView={onSelectView}
           />
 
@@ -467,12 +466,10 @@ type ViewDialogState =
 function ViewsSection({
   snapshot,
   activeViewId,
-  onWorkspaceTab,
   onSelectView,
 }: {
   snapshot: WorkspaceSnapshot;
   activeViewId: string;
-  onWorkspaceTab: boolean;
   onSelectView: (id: string) => void;
 }) {
   const plugin = usePlugin();
@@ -520,7 +517,7 @@ function ViewsSection({
           icon={view.icon}
           iconFallback={layoutIcon(view.viewType)}
           variant="view"
-          active={onWorkspaceTab && view.id === activeViewId}
+          active={view.id === activeViewId}
           onClick={() => onSelectView(view.id)}
           trailing={
             <RowMenu
@@ -770,6 +767,9 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
     a.title.localeCompare(b.title),
   );
 
+  const activeProjectPath =
+    tabs.activeTab.kind === "project" ? tabs.activeTab.path : null;
+
   return (
     <Section
       id="projects"
@@ -788,6 +788,8 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
             label={project.title}
             icon={project.icon}
             iconFallback="folder"
+            variant="view"
+            active={activeProjectPath === project.path}
             onClick={() => tabs.openProject(project.path)}
             trailing={
               <RowMenu
@@ -824,7 +826,9 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
               : null
           }
           onConfirm={(name, icon) =>
-            void plugin.mutations.createProject(snapshot, name, icon)
+            void plugin.mutations
+              .createProject(snapshot, name, icon)
+              .then((file) => tabs.openProject(withoutExtension(file.path)))
           }
           onClose={() => setCreating(false)}
         />
