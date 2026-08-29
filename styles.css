@@ -1810,6 +1810,27 @@ body.vf-dragging {
   background: var(--background-secondary);
 }
 
+/* Header row holding the collapse toggle, above the property list. */
+.vf-editor-rail-head {
+  display: flex;
+  justify-content: flex-end;
+  margin: -6px -6px 4px 0;
+}
+
+/* Collapsed to a sliver — just the expand button, like the main sidebar. */
+.vf-editor-rail.is-collapsed {
+  width: 38px;
+  padding: 8px 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  overflow: visible;
+}
+
+.vf-editor-rail-toggle {
+  color: var(--vf-muted);
+}
+
 /* Collapsible sections below the property list (e.g. raw Source). */
 .vf-editor-rail-section {
   margin-top: 14px;
@@ -2214,6 +2235,18 @@ body.vf-dragging {
   border-top: 1px solid var(--vf-border);
 }
 
+/* Stacked layout — a vertical resize of the rail is meaningless, and a
+   collapsed rail is a full-width bar rather than a sliver. */
+.is-mobile .vf-editor-resize-handle {
+  display: none;
+}
+
+.is-mobile .vf-editor-rail.is-collapsed {
+  width: 100%;
+  padding: 6px 10px;
+  justify-content: flex-end;
+}
+
 /* =========================================================================
    Browse screens — Projects
    ========================================================================= */
@@ -2289,7 +2322,11 @@ body.vf-dragging {
 }
 
 /* =========================================================================
-   Project editor (sits above the project's task viewport)
+   Project editor
+
+   Same two-column body as the Task editor: a full-height property rail on the
+   right, and on the left a vertical stack of the project info (title +
+   description) above the project's task viewport.
    ========================================================================= */
 
 .vf-project-head-icon {
@@ -2297,24 +2334,32 @@ body.vf-dragging {
   color: var(--vf-muted);
 }
 
-/* The editor mirrors the Task editor's two-column body, but sizes to its
-   content and is capped so the task viewport below always keeps room. Both
-   panes scroll internally past the cap. */
-.vf-project-editor {
-  flex: 0 1 auto;
-  max-height: 45vh;
-  border-bottom: 1px solid var(--vf-border);
-}
-
-/* The project's task list, filling whatever height the editor leaves. */
-.vf-project-editor-tasks {
+/* The left column: project info stacked over the task list. */
+.vf-editor-main-col {
   display: flex;
   flex-direction: column;
   flex: 1;
+  min-width: 0;
   min-height: 0;
 }
 
-.is-mobile .vf-project-editor {
+/* Project info — sized to content, capped, with its own scroll so the task
+   list below always keeps room. */
+.vf-project-editor-info {
+  flex: 0 1 auto;
+  max-height: 45%;
+}
+
+/* The project's task list, filling whatever height the info block leaves. */
+.vf-project-editor-tasks {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  border-top: 1px solid var(--vf-border);
+}
+
+.is-mobile .vf-project-editor-info {
   max-height: none;
 }
 

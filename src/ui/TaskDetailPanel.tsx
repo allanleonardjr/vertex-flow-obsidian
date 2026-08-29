@@ -2,7 +2,7 @@
  * The task detail panel — a Linear-style editor for one task.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   childTasks,
   computeProgress,
@@ -23,6 +23,7 @@ import {
   TypeSelect,
   useDebouncedSave,
 } from "./components/fields";
+import { EditorRail } from "./components/EditorRail";
 import { MarkdownContent, MarkdownField } from "./components/Markdown";
 import { ProgressBar, StatusDot } from "./components/TaskBits";
 import { EmbeddedTaskList } from "./components/EmbeddedTaskList";
@@ -54,7 +55,6 @@ export function TaskDetailPanel({
   const plugin = usePlugin();
   const [comments, setComments] = useState<Comment[]>([]);
   const [description, setDescription] = useState<string | null>(null);
-  const [railWidth, setRailWidth] = useState(plugin.settings.editorRailWidth);
 
   const scope = scopeOf(snapshot);
   const children = childTasks(scope, task.path);
@@ -154,16 +154,7 @@ export function TaskDetailPanel({
           </section>
         </main>
 
-        <RailResizeHandle
-          width={railWidth}
-          onResize={setRailWidth}
-          onResizeEnd={(width) => {
-            plugin.settings.editorRailWidth = width;
-            void plugin.saveSettings();
-          }}
-        />
-
-        <aside className="vf-editor-rail" style={{ width: railWidth }}>
+        <EditorRail>
           <PropertyRow label="Status">
             <StatusSelect
               taxonomy={taxonomies.status}
@@ -253,7 +244,7 @@ export function TaskDetailPanel({
           </PropertyRow>
 
           <RawSourceSection task={task} />
-        </aside>
+        </EditorRail>
       </div>
     </>
   );
@@ -363,65 +354,6 @@ function DescriptionField({ task, initial }: { task: Task; initial: string }) {
       onChange={setText}
       sourcePath={withExtension(task.path)}
       placeholder="Add a description… start typing Markdown — [[wikilinks]], #tags, and ![[embeds]] all work, with live preview and link suggestions as you go"
-    />
-  );
-}
-
-const RAIL_MIN_WIDTH = 200;
-/** Keep at least this much for the description/sub-tasks column. */
-const EDITOR_MAIN_MIN_WIDTH = 280;
-
-function RailResizeHandle({
-  width,
-  onResize,
-  onResizeEnd,
-}: {
-  width: number;
-  onResize: (width: number) => void;
-  onResizeEnd: (width: number) => void;
-}) {
-  const drag = useRef<{
-    startX: number;
-    startWidth: number;
-    max: number;
-  } | null>(null);
-
-  return (
-    <div
-      className="vf-editor-resize-handle"
-      role="separator"
-      aria-orientation="vertical"
-      aria-valuenow={width}
-      onPointerDown={(event) => {
-        if (event.button !== 0) return;
-        // Cap only so the description column keeps a usable minimum; there is
-        // no fixed upper bound beyond that.
-        const bodyWidth =
-          event.currentTarget.parentElement?.clientWidth ?? window.innerWidth;
-        drag.current = {
-          startX: event.clientX,
-          startWidth: width,
-          max: Math.max(RAIL_MIN_WIDTH, bodyWidth - EDITOR_MAIN_MIN_WIDTH),
-        };
-        event.currentTarget.setPointerCapture(event.pointerId);
-      }}
-      onPointerMove={(event) => {
-        if (!drag.current) return;
-        const delta = event.clientX - drag.current.startX;
-        const next = Math.min(
-          drag.current.max,
-          Math.max(RAIL_MIN_WIDTH, drag.current.startWidth - delta),
-        );
-        onResize(next);
-      }}
-      onPointerUp={(event) => {
-        if (!drag.current) return;
-        drag.current = null;
-        event.currentTarget.releasePointerCapture(event.pointerId);
-        onResizeEnd(width);
-      }}
-      onDoubleClick={() => onResizeEnd(264)}
-      title="Drag to resize — double-click to reset"
     />
   );
 }

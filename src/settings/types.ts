@@ -22,8 +22,10 @@ export interface VertexFlowSettings {
 	showArchived: boolean;
 	/** Where new workspaces are offered by default. */
 	defaultWorkspaceFolder: string;
-	/** Width, in pixels, of the property rail in the task editor. */
+	/** Width, in pixels, of the property rail in the task/project editor. */
 	editorRailWidth: number;
+	/** Whether that property rail is collapsed to a sliver (shared task/project). */
+	editorRailCollapsed: boolean;
 	/** Collapsed state of each sidebar section, keyed by section id. */
 	sidebarCollapsed: Record<string, boolean>;
 	/** Sidebar width in pixels (drag-resizable). */
@@ -58,6 +60,7 @@ export const DEFAULT_SETTINGS: VertexFlowSettings = {
 	showArchived: false,
 	defaultWorkspaceFolder: "Vertex Flow",
 	editorRailWidth: 264,
+	editorRailCollapsed: false,
 	sidebarCollapsed: {},
 	sidebarWidth: 220,
 	sidebarMinimized: false,

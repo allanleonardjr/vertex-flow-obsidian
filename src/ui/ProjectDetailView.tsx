@@ -1,16 +1,17 @@
 /**
- * One project's tab: an in-plugin editor (mirroring the Task editor's
- * `PropertyRow` rail) above the project's tasks in the normal List/Board
- * viewport.
+ * One project's tab: an in-plugin editor with the same two-column body as the
+ * Task editor. A full-height, resizable, collapsible `PropertyRow` rail on the
+ * right (shared `EditorRail`); on the left, the project info (title +
+ * description) stacked above the project's task viewport.
  *
- * `projectView()` in `App.tsx` builds the filter for the viewport below; this
- * component adds the editor. A Project's editable fields — status, priority,
- * labels, dates, owner, archived, and the description (the note body) — are all
- * edited here rather than in the raw Obsidian note, the same shift Tasks made.
- * "Open note" and the raw-source section keep the escape hatch to the file.
+ * `projectView()` in `App.tsx` builds the filter for that viewport. A Project's
+ * editable fields — status, priority, labels, dates, owner, archived, and the
+ * description (the note body) — are all edited here rather than in the raw
+ * Obsidian note, the same shift Tasks made. "Open note" and the raw-source
+ * section keep the escape hatch to the file.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { projectProgress, projectTasks, scopeOf } from "../core/hierarchy";
 import type { ViewContext } from "../core/views";
 import type { WorkspaceTaxonomies } from "../core/taxonomy";
@@ -25,6 +26,7 @@ import {
 	StatusSelect,
 	useDebouncedSave,
 } from "./components/fields";
+import { EditorRail } from "./components/EditorRail";
 import { Icon, IconField } from "./components/Icon";
 import { LabelEditor } from "./components/LabelEditor";
 import { MarkdownField } from "./components/Markdown";
@@ -67,19 +69,16 @@ export function ProjectDetailView({
 	if (!project) return null;
 
 	return (
-		<>
-			<ProjectEditor
-				project={project}
-				snapshot={snapshot}
-				taxonomies={taxonomies}
-				onNewTask={() => void createTask(snapshot, { project: project.path })}
-				onOpenNote={() => {
-					plugin.suppressNextRedirect();
-					void plugin.mutations.open(project.path);
-				}}
-			/>
-
-			<div className="vf-project-editor-tasks">
+		<ProjectEditor
+			project={project}
+			snapshot={snapshot}
+			taxonomies={taxonomies}
+			onNewTask={() => void createTask(snapshot, { project: project.path })}
+			onOpenNote={() => {
+				plugin.suppressNextRedirect();
+				void plugin.mutations.open(project.path);
+			}}
+			tasks={
 				<TaskViewport
 					snapshot={snapshot}
 					view={projectView(project)}
@@ -90,8 +89,8 @@ export function ProjectDetailView({
 					onSelectView={onSelectView}
 					hideViewTitle
 				/>
-			</div>
-		</>
+			}
+		/>
 	);
 }
 
@@ -99,12 +98,15 @@ function ProjectEditor({
 	project,
 	snapshot,
 	taxonomies,
+	tasks,
 	onNewTask,
 	onOpenNote,
 }: {
 	project: Project;
 	snapshot: WorkspaceSnapshot;
 	taxonomies: WorkspaceTaxonomies;
+	/** The project's task viewport, rendered under the project info. */
+	tasks: ReactNode;
 	onNewTask: () => void;
 	onOpenNote: () => void;
 }) {
@@ -112,7 +114,7 @@ function ProjectEditor({
 	const [description, setDescription] = useState<string | null>(null);
 
 	const scope = scopeOf(snapshot);
-	const tasks = projectTasks(scope, project.path);
+	const taskCount = projectTasks(scope, project.path).length;
 	// §7.1: progress is computed independently of the project's own status, and
 	// never fed back into it.
 	const progress = projectProgress(scope, project.path, taxonomies.status);
@@ -153,20 +155,24 @@ function ProjectEditor({
 			</header>
 
 			<div className="vf-editor-body vf-project-editor">
-				<main className="vf-editor-main">
-					<ProjectTitleField project={project} />
+				<div className="vf-editor-main-col">
+					<main className="vf-editor-main vf-project-editor-info">
+						<ProjectTitleField project={project} />
 
-					{description === null ? (
-						<div className="vf-editor-loading">Loading…</div>
-					) : (
-						<ProjectDescriptionField
-							project={project}
-							initial={description}
-						/>
-					)}
-				</main>
+						{description === null ? (
+							<div className="vf-editor-loading">Loading…</div>
+						) : (
+							<ProjectDescriptionField
+								project={project}
+								initial={description}
+							/>
+						)}
+					</main>
 
-				<aside className="vf-editor-rail">
+					<div className="vf-project-editor-tasks">{tasks}</div>
+				</div>
+
+				<EditorRail>
 					<PropertyRow label="Icon">
 						<IconField
 							value={project.icon}
@@ -245,13 +251,13 @@ function ProjectEditor({
 							<ProgressBar progress={progress} />
 						) : (
 							<span className="vf-prop-empty">
-								{tasks.length === 0 ? "No tasks yet" : "—"}
+								{taskCount === 0 ? "No tasks yet" : "—"}
 							</span>
 						)}
 					</PropertyRow>
 
 					<ProjectRawSourceSection project={project} />
-				</aside>
+				</EditorRail>
 			</div>
 		</>
 	);
