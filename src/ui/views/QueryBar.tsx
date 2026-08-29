@@ -54,7 +54,7 @@ export function QueryBar({
 	const [composing, setComposing] = useState(false);
 
 	const lastAgreed = useRef(canonicalizeDefinition(viewDefinition(view)));
-	const inputRef = useRef<HTMLInputElement>(null);
+	const inputRef = useRef<HTMLTextAreaElement>(null);
 	const commitTimer = useRef<number | null>(null);
 	const touched = useRef(false);
 	const reverting = useRef(false);
@@ -128,6 +128,16 @@ export function QueryBar({
 
 	useEffect(() => () => cancelCommit(), []);
 
+	// Grow the box to fit its content so a long query wraps into view rather than
+	// scrolling out of sight on a narrow pane. Runs on every text change —
+	// keystrokes and external adopts alike. `max-height` in CSS caps it.
+	useEffect(() => {
+		const el = inputRef.current;
+		if (!el) return;
+		el.style.height = "auto";
+		el.style.height = `${el.scrollHeight}px`;
+	}, [text]);
+
 	const revert = () => {
 		cancelCommit();
 		reverting.current = true;
@@ -158,9 +168,9 @@ export function QueryBar({
 
 	return (
 		<div className="vf-query-row">
-			<input
+			<textarea
 				ref={inputRef}
-				type="text"
+				rows={1}
 				className="vf-input vf-query-input"
 				spellCheck={false}
 				autoCapitalize="off"

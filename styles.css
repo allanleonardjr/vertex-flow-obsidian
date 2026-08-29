@@ -2343,11 +2343,32 @@ body.vf-dragging {
   min-height: 0;
 }
 
-/* Project info — sized to content, capped, with its own scroll so the task
-   list below always keeps room. */
+/* Project info (title + description). When the description is expanded its
+   height is drag-controlled (inline style); collapsed, it sizes to the title.
+   Either way it scrolls internally and the task list takes the rest. */
 .vf-project-editor-info {
-  flex: 0 1 auto;
-  max-height: 45%;
+  flex: 0 0 auto;
+  overflow-y: auto;
+  border-bottom: 1px solid var(--vf-border);
+}
+
+.vf-project-desc-toggle {
+  margin-top: 10px;
+}
+
+/* Horizontal counterpart of `.vf-editor-resize-handle` — between info and tasks. */
+.vf-vertical-resize-handle {
+  flex-shrink: 0;
+  height: 5px;
+  margin: -3px 0;
+  cursor: row-resize;
+  touch-action: none;
+  z-index: 1;
+}
+
+.vf-vertical-resize-handle:hover,
+.vf-vertical-resize-handle:active {
+  border-top: 2px solid var(--interactive-accent);
 }
 
 /* The project's task list, filling whatever height the info block leaves. */
@@ -2356,11 +2377,6 @@ body.vf-dragging {
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
-  border-top: 1px solid var(--vf-border);
-}
-
-.is-mobile .vf-project-editor-info {
-  max-height: none;
 }
 
 /* =========================================================================
@@ -2731,7 +2747,17 @@ body.vf-dragging {
 
 .vf-query-input {
   width: 100%;
+  min-height: 2.1em;
+  max-height: 40vh;
+  resize: none;
+  overflow-y: auto;
+  /* Wrap the whole query into view on a narrow pane, breaking between words
+     (and only inside a word when a single token can't fit). */
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: normal;
   font-family: var(--font-monospace);
+  line-height: 1.5;
 }
 
 .vf-query-input[aria-invalid="true"] {

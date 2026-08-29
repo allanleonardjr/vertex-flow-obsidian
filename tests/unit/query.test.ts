@@ -385,6 +385,19 @@ describe("resolution", () => {
 		expect(parsed.issues).toEqual([]);
 	});
 
+	it("prints a project filter as its name, not the full vault path", () => {
+		const core = snapshot.projects.find(
+			(p) => p.title === "Core App Experience",
+		)!;
+		const source = printQuery(withFilters({ project: [core.path] }), ctx);
+		expect(source).toContain(`project:"Core App Experience"`);
+		expect(source).not.toContain(core.path);
+		// And it still round-trips.
+		expect(
+			parseQuery(source, ctx).definition.filters.project,
+		).toEqual([core.path]);
+	});
+
 	it("means the same thing as a hand-built filter set", () => {
 		const parsed = parseQuery("status:todo,in-progress type:bug", ctx);
 		expect(applyFilters(snapshot.tasks, parsed.definition.filters, viewCtx)).toEqual(

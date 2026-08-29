@@ -119,17 +119,26 @@ function candidatesFor(
 			pretty.push(basename(entity.path));
 			if (entity.title !== basename(entity.path)) pretty.push(entity.title);
 		}
-	} else {
-		const taxonomy = taxonomyFor(spec, context);
-		if (taxonomy) {
-			// Ids are slug-shaped, so they read better and never need quoting.
-			// The name is only a fallback for a value whose id doesn't resolve.
-			const found = getValue(taxonomy, value);
-			if (found) pretty.push(found.name);
-		} else if (spec.resolveAs === "person") {
-			const person = context.people.find((candidate) => candidate.id === value);
-			if (person) pretty.push(person.name);
-		}
+		// For an entity the stored value is a full vault path — the ugliest
+		// rendering there is — so try the basename/title *first*. `printValue`
+		// still verifies every candidate round-trips, so an ambiguous name is
+		// skipped and the path is used instead.
+		return [
+			...pretty.map((text) => ({ text, verbatim: false })),
+			{ text: value, verbatim: false },
+			{ text: value, verbatim: true },
+		];
+	}
+
+	const taxonomy = taxonomyFor(spec, context);
+	if (taxonomy) {
+		// Ids are slug-shaped, so they read better and never need quoting.
+		// The name is only a fallback for a value whose id doesn't resolve.
+		const found = getValue(taxonomy, value);
+		if (found) pretty.push(found.name);
+	} else if (spec.resolveAs === "person") {
+		const person = context.people.find((candidate) => candidate.id === value);
+		if (person) pretty.push(person.name);
 	}
 
 	return [

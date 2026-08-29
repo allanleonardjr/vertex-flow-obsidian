@@ -11,7 +11,13 @@
  * section keep the escape hatch to the file.
  */
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { projectProgress, projectTasks, scopeOf } from "../core/hierarchy";
 import type { ViewContext } from "../core/views";
 import type { WorkspaceTaxonomies } from "../core/taxonomy";
@@ -19,12 +25,12 @@ import type { Project, WorkspaceSnapshot } from "../core/types";
 import { withExtension } from "../obsidian/note-io";
 import { NEW_PROJECT_TITLE, useCreateTask } from "./actions";
 import {
-	DateField,
-	PersonSelect,
-	PrioritySelect,
-	PropertyRow,
-	StatusSelect,
-	useDebouncedSave,
+  DateField,
+  PersonSelect,
+  PrioritySelect,
+  PropertyRow,
+  StatusSelect,
+  useDebouncedSave,
 } from "./components/fields";
 import { EditorRail } from "./components/EditorRail";
 import { Icon, IconField } from "./components/Icon";
@@ -37,230 +43,344 @@ import { projectView } from "./App";
 import { TaskViewport } from "./views/TaskViewport";
 
 export function ProjectDetailView({
-	path,
-	snapshot,
-	taxonomies,
-	context,
-	containerRef,
-	active,
-	onSelectView,
+  path,
+  snapshot,
+  taxonomies,
+  context,
+  containerRef,
+  active,
+  onSelectView,
 }: {
-	path: string;
-	snapshot: WorkspaceSnapshot;
-	taxonomies: WorkspaceTaxonomies;
-	context: ViewContext;
-	containerRef: HTMLElement | null;
-	active: boolean;
-	onSelectView: (id: string) => void;
+  path: string;
+  snapshot: WorkspaceSnapshot;
+  taxonomies: WorkspaceTaxonomies;
+  context: ViewContext;
+  containerRef: HTMLElement | null;
+  active: boolean;
+  onSelectView: (id: string) => void;
 }) {
-	const plugin = usePlugin();
-	const { closeActive } = useTabs();
-	const createTask = useCreateTask();
+  const plugin = usePlugin();
+  const { closeActive } = useTabs();
+  const createTask = useCreateTask();
 
-	const project = snapshot.projects.find((p) => p.path === path) ?? null;
+  const project = snapshot.projects.find((p) => p.path === path) ?? null;
 
-	// Unresolvable (deleted since the last rebuild — App's prune effect normally
-	// catches this first). Closing has to happen in an effect, not inline: a
-	// state setter fired mid-render is unsafe in React. Same guard as `TaskPane`.
-	useEffect(() => {
-		if (!project) closeActive();
-	}, [project, closeActive]);
+  // Unresolvable (deleted since the last rebuild — App's prune effect normally
+  // catches this first). Closing has to happen in an effect, not inline: a
+  // state setter fired mid-render is unsafe in React. Same guard as `TaskPane`.
+  useEffect(() => {
+    if (!project) closeActive();
+  }, [project, closeActive]);
 
-	if (!project) return null;
+  if (!project) return null;
 
-	return (
-		<ProjectEditor
-			project={project}
-			snapshot={snapshot}
-			taxonomies={taxonomies}
-			onNewTask={() => void createTask(snapshot, { project: project.path })}
-			onOpenNote={() => {
-				plugin.suppressNextRedirect();
-				void plugin.mutations.open(project.path);
-			}}
-			tasks={
-				<TaskViewport
-					snapshot={snapshot}
-					view={projectView(project)}
-					taxonomies={taxonomies}
-					context={context}
-					containerRef={containerRef}
-					active={active}
-					onSelectView={onSelectView}
-					hideViewTitle
-				/>
-			}
-		/>
-	);
+  return (
+    <ProjectEditor
+      // Remount per project so the description state, the debounced-save buffer
+      // and the raw-source view can't leak from one project into the next
+      // (same reason `TaskPane` keys `TaskDetailPanel` by path).
+      key={project.path}
+      project={project}
+      snapshot={snapshot}
+      taxonomies={taxonomies}
+      onNewTask={() => void createTask(snapshot, { project: project.path })}
+      onOpenNote={() => {
+        plugin.suppressNextRedirect();
+        void plugin.mutations.open(project.path);
+      }}
+      tasks={
+        <TaskViewport
+          snapshot={snapshot}
+          view={projectView(project)}
+          taxonomies={taxonomies}
+          context={context}
+          containerRef={containerRef}
+          active={active}
+          onSelectView={onSelectView}
+          hideViewTitle
+        />
+      }
+    />
+  );
 }
 
 function ProjectEditor({
-	project,
-	snapshot,
-	taxonomies,
-	tasks,
-	onNewTask,
-	onOpenNote,
+  project,
+  snapshot,
+  taxonomies,
+  tasks,
+  onNewTask,
+  onOpenNote,
 }: {
-	project: Project;
-	snapshot: WorkspaceSnapshot;
-	taxonomies: WorkspaceTaxonomies;
-	/** The project's task viewport, rendered under the project info. */
-	tasks: ReactNode;
-	onNewTask: () => void;
-	onOpenNote: () => void;
+  project: Project;
+  snapshot: WorkspaceSnapshot;
+  taxonomies: WorkspaceTaxonomies;
+  /** The project's task viewport, rendered under the project info. */
+  tasks: ReactNode;
+  onNewTask: () => void;
+  onOpenNote: () => void;
 }) {
-	const plugin = usePlugin();
-	const [description, setDescription] = useState<string | null>(null);
+  const plugin = usePlugin();
+  const [description, setDescription] = useState<string | null>(null);
+  const [descCollapsed, setDescCollapsed] = useState(
+    plugin.settings.projectDescriptionCollapsed,
+  );
+  const [infoHeight, setInfoHeight] = useState(plugin.settings.projectInfoHeight);
 
-	const scope = scopeOf(snapshot);
-	const taskCount = projectTasks(scope, project.path).length;
-	// §7.1: progress is computed independently of the project's own status, and
-	// never fed back into it.
-	const progress = projectProgress(scope, project.path, taxonomies.status);
+  const toggleDescription = () => {
+    const next = !descCollapsed;
+    setDescCollapsed(next);
+    plugin.settings.projectDescriptionCollapsed = next;
+    void plugin.saveSettings();
+  };
 
-	const update = (patch: Partial<Project>) =>
-		void plugin.mutations.updateProject(project, patch);
+  const scope = scopeOf(snapshot);
+  const taskCount = projectTasks(scope, project.path).length;
+  // §7.1: progress is computed independently of the project's own status, and
+  // never fed back into it.
+  const progress = projectProgress(scope, project.path, taxonomies.status);
 
-	useEffect(() => {
-		let cancelled = false;
-		void plugin.mutations.readProjectDocument(project).then((doc) => {
-			if (!cancelled) setDescription(doc.description);
-		});
-		return () => {
-			cancelled = true;
-		};
-	}, [plugin, project.path]);
+  const update = (patch: Partial<Project>) =>
+    void plugin.mutations.updateProject(project, patch);
 
-	return (
-		<>
-			<header className="vf-editor-header">
-				<span className="vf-project-head-icon" aria-hidden>
-					<Icon id={project.icon} fallback="folder" size={16} />
-				</span>
-				<span className="vf-id">{snapshot.workspace.idPrefix}</span>
-				{project.archived && <span className="vf-chip">Archived</span>}
-				<span className="vf-editor-spacer" />
-				<button className="mod-cta" onClick={onNewTask}>
-					New task
-				</button>
-				<button
-					type="button"
-					className="vf-icon-button"
-					title="Open the raw note in Obsidian"
-					onClick={onOpenNote}
-				>
-					↗
-				</button>
-			</header>
+  useEffect(() => {
+    let cancelled = false;
+    void plugin.mutations.readProjectDocument(project).then((doc) => {
+      if (!cancelled) setDescription(doc.description);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [plugin, project.path]);
 
-			<div className="vf-editor-body vf-project-editor">
-				<div className="vf-editor-main-col">
-					<main className="vf-editor-main vf-project-editor-info">
-						<ProjectTitleField project={project} />
+  return (
+    <>
+      <header className="vf-editor-header">
+        <span className="vf-project-head-icon" aria-hidden>
+          <Icon id={project.icon} fallback="folder" size={16} />
+        </span>
+        <span className="vf-id">{snapshot.workspace.idPrefix}</span>
+        {project.archived && <span className="vf-chip">Archived</span>}
+        <span className="vf-editor-spacer" />
+        <button className="mod-cta" onClick={onNewTask}>
+          New project task
+        </button>
+        <button
+          type="button"
+          className="vf-icon-button"
+          title="Open the raw note in Obsidian"
+          onClick={onOpenNote}
+        >
+          ↗
+        </button>
+      </header>
 
-						{description === null ? (
-							<div className="vf-editor-loading">Loading…</div>
-						) : (
-							<ProjectDescriptionField
-								project={project}
-								initial={description}
-							/>
-						)}
-					</main>
+      <div className="vf-editor-body vf-project-editor">
+        <div className="vf-editor-main-col">
+          <main
+            className="vf-editor-main vf-project-editor-info"
+            style={
+              descCollapsed
+                ? undefined
+                : { height: infoHeight, flex: "0 0 auto" }
+            }
+          >
+            <ProjectTitleField project={project} />
 
-					<div className="vf-project-editor-tasks">{tasks}</div>
-				</div>
+            <button
+              type="button"
+              className="vf-rail-section-toggle vf-project-desc-toggle"
+              aria-expanded={!descCollapsed}
+              onClick={toggleDescription}
+            >
+              <span
+                className={`vf-section-chevron${descCollapsed ? "" : " is-open"}`}
+                aria-hidden
+              >
+                ›
+              </span>
+              Description
+            </button>
 
-				<EditorRail>
-					<PropertyRow label="Icon">
-						<IconField
-							value={project.icon}
-							fallback="folder"
-							onChange={(icon) => update({ icon })}
-						/>
-					</PropertyRow>
+            {!descCollapsed &&
+              (description === null ? (
+                <div className="vf-editor-loading">Loading…</div>
+              ) : (
+                <ProjectDescriptionField
+                  project={project}
+                  initial={description}
+                />
+              ))}
+          </main>
 
-					<PropertyRow label="Status">
-						<StatusSelect
-							taxonomy={taxonomies.status}
-							value={project.status}
-							onChange={(status) => status && update({ status })}
-						/>
-					</PropertyRow>
+          {!descCollapsed && (
+            <VerticalResizeHandle
+              value={infoHeight}
+              onResize={setInfoHeight}
+              onResizeEnd={(next) => {
+                plugin.settings.projectInfoHeight = next;
+                void plugin.saveSettings();
+              }}
+            />
+          )}
 
-					<PropertyRow label="Priority">
-						<PrioritySelect
-							taxonomy={taxonomies.priority}
-							value={project.priority}
-							onChange={(priority) => update({ priority })}
-						/>
-					</PropertyRow>
+          <div className="vf-project-editor-tasks">{tasks}</div>
+        </div>
 
-					<PropertyRow label="Labels">
-						<LabelEditor
-							snapshot={snapshot}
-							taxonomy={taxonomies.label}
-							value={project.labels}
-							onChange={(labels) => update({ labels })}
-						/>
-					</PropertyRow>
+        <EditorRail>
+          <PropertyRow label="Icon">
+            <IconField
+              value={project.icon}
+              fallback="folder"
+              onChange={(icon) => update({ icon })}
+            />
+          </PropertyRow>
 
-					<PropertyRow label="Start">
-						<DateField
-							value={project.startDate}
-							onChange={(startDate) => update({ startDate })}
-						/>
-					</PropertyRow>
+          <PropertyRow label="Status">
+            <StatusSelect
+              taxonomy={taxonomies.status}
+              value={project.status}
+              onChange={(status) => status && update({ status })}
+            />
+          </PropertyRow>
 
-					<PropertyRow label="Due">
-						<DateField
-							value={project.dueDate}
-							onChange={(dueDate) => update({ dueDate })}
-						/>
-					</PropertyRow>
+          <PropertyRow label="Priority">
+            <PrioritySelect
+              taxonomy={taxonomies.priority}
+              value={project.priority}
+              onChange={(priority) => update({ priority })}
+            />
+          </PropertyRow>
 
-					<PropertyRow label="Owner">
-						<PersonSelect
-							people={snapshot.workspace.people}
-							value={project.owner}
-							onChange={(owner) => update({ owner })}
-						/>
-					</PropertyRow>
+          <PropertyRow label="Labels">
+            <LabelEditor
+              snapshot={snapshot}
+              taxonomy={taxonomies.label}
+              value={project.labels}
+              onChange={(labels) => update({ labels })}
+            />
+          </PropertyRow>
 
-					<PropertyRow label="Archived">
-						<label className="vf-toggle">
-							<input
-								type="checkbox"
-								checked={project.archived}
-								onChange={(event) =>
-									update({
-										archived: event.target.checked,
-										archivedAt: event.target.checked
-											? new Date().toISOString()
-											: null,
-									})
-								}
-							/>
-							<span>Hide from views</span>
-						</label>
-					</PropertyRow>
+          <PropertyRow label="Start">
+            <DateField
+              value={project.startDate}
+              onChange={(startDate) => update({ startDate })}
+            />
+          </PropertyRow>
 
-					<PropertyRow label="Progress">
-						{progress.total > 0 ? (
-							<ProgressBar progress={progress} />
-						) : (
-							<span className="vf-prop-empty">
-								{taskCount === 0 ? "No tasks yet" : "—"}
-							</span>
-						)}
-					</PropertyRow>
+          <PropertyRow label="Due">
+            <DateField
+              value={project.dueDate}
+              onChange={(dueDate) => update({ dueDate })}
+            />
+          </PropertyRow>
 
-					<ProjectRawSourceSection project={project} />
-				</EditorRail>
-			</div>
-		</>
-	);
+          <PropertyRow label="Owner">
+            <PersonSelect
+              people={snapshot.workspace.people}
+              value={project.owner}
+              onChange={(owner) => update({ owner })}
+            />
+          </PropertyRow>
+
+          <PropertyRow label="Archived">
+            <label className="vf-toggle">
+              <input
+                type="checkbox"
+                checked={project.archived}
+                onChange={(event) =>
+                  update({
+                    archived: event.target.checked,
+                    archivedAt: event.target.checked
+                      ? new Date().toISOString()
+                      : null,
+                  })
+                }
+              />
+              <span>Hide from views</span>
+            </label>
+          </PropertyRow>
+
+          <PropertyRow label="Progress">
+            {progress.total > 0 ? (
+              <ProgressBar progress={progress} />
+            ) : (
+              <span className="vf-prop-empty">
+                {taskCount === 0 ? "No tasks yet" : "—"}
+              </span>
+            )}
+          </PropertyRow>
+
+          <ProjectRawSourceSection project={project} />
+        </EditorRail>
+      </div>
+    </>
+  );
+}
+
+const INFO_MIN_HEIGHT = 80;
+/** Keep at least this much for the task list below the handle. */
+const TASKS_MIN_HEIGHT = 120;
+const INFO_DEFAULT_HEIGHT = 220;
+
+/**
+ * The drag handle between the project info pane and its task list — the
+ * horizontal counterpart of `EditorRail`'s width handle.
+ */
+function VerticalResizeHandle({
+  value,
+  onResize,
+  onResizeEnd,
+}: {
+  value: number;
+  onResize: (height: number) => void;
+  onResizeEnd: (height: number) => void;
+}) {
+  const drag = useRef<{
+    startY: number;
+    startHeight: number;
+    max: number;
+  } | null>(null);
+
+  return (
+    <div
+      className="vf-vertical-resize-handle"
+      role="separator"
+      aria-orientation="horizontal"
+      aria-valuenow={value}
+      onPointerDown={(event) => {
+        if (event.button !== 0) return;
+        const col = event.currentTarget.parentElement;
+        const height = col?.clientHeight ?? window.innerHeight;
+        drag.current = {
+          startY: event.clientY,
+          startHeight: value,
+          max: Math.max(INFO_MIN_HEIGHT, height - TASKS_MIN_HEIGHT),
+        };
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }}
+      onPointerMove={(event) => {
+        if (!drag.current) return;
+        const delta = event.clientY - drag.current.startY;
+        const next = Math.min(
+          drag.current.max,
+          Math.max(INFO_MIN_HEIGHT, drag.current.startHeight + delta),
+        );
+        onResize(next);
+      }}
+      onPointerUp={(event) => {
+        if (!drag.current) return;
+        drag.current = null;
+        event.currentTarget.releasePointerCapture(event.pointerId);
+        onResizeEnd(value);
+      }}
+      onDoubleClick={() => {
+        onResize(INFO_DEFAULT_HEIGHT);
+        onResizeEnd(INFO_DEFAULT_HEIGHT);
+      }}
+      title="Drag to resize — double-click to reset"
+    />
+  );
 }
 
 /**
@@ -270,112 +390,112 @@ function ProjectEditor({
  * open, so it tracks edits made above.
  */
 function ProjectRawSourceSection({ project }: { project: Project }) {
-	const plugin = usePlugin();
-	const [open, setOpen] = useState(plugin.settings.editorSourceOpen);
-	const [raw, setRaw] = useState<string | null>(null);
+  const plugin = usePlugin();
+  const [open, setOpen] = useState(plugin.settings.editorSourceOpen);
+  const [raw, setRaw] = useState<string | null>(null);
 
-	useEffect(() => {
-		if (!open) return;
-		let live = true;
-		setRaw(null);
-		void plugin.mutations.readProjectRaw(project).then((text) => {
-			if (live) setRaw(text);
-		});
-		return () => {
-			live = false;
-		};
-	}, [open, plugin, project.path, project.updatedAt]);
+  useEffect(() => {
+    if (!open) return;
+    let live = true;
+    setRaw(null);
+    void plugin.mutations.readProjectRaw(project).then((text) => {
+      if (live) setRaw(text);
+    });
+    return () => {
+      live = false;
+    };
+  }, [open, plugin, project.path, project.updatedAt]);
 
-	const toggle = () => {
-		const next = !open;
-		setOpen(next);
-		plugin.settings.editorSourceOpen = next;
-		void plugin.saveSettings();
-	};
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    plugin.settings.editorSourceOpen = next;
+    void plugin.saveSettings();
+  };
 
-	return (
-		<div className="vf-editor-rail-section">
-			<button
-				type="button"
-				className="vf-rail-section-toggle"
-				aria-expanded={open}
-				onClick={toggle}
-			>
-				<span
-					className={`vf-section-chevron${open ? " is-open" : ""}`}
-					aria-hidden
-				>
-					›
-				</span>
-				Source
-			</button>
-			{open && (
-				<pre className="vf-source-view">
-					<code>{raw ?? "Loading…"}</code>
-				</pre>
-			)}
-		</div>
-	);
+  return (
+    <div className="vf-editor-rail-section">
+      <button
+        type="button"
+        className="vf-rail-section-toggle"
+        aria-expanded={open}
+        onClick={toggle}
+      >
+        <span
+          className={`vf-section-chevron${open ? " is-open" : ""}`}
+          aria-hidden
+        >
+          ›
+        </span>
+        Source
+      </button>
+      {open && (
+        <pre className="vf-source-view">
+          <code>{raw ?? "Loading…"}</code>
+        </pre>
+      )}
+    </div>
+  );
 }
 
 function ProjectTitleField({ project }: { project: Project }) {
-	const plugin = usePlugin();
-	const [title, setTitle] = useDebouncedSave(project.title, (value) => {
-		void plugin.mutations.updateProject(project, {
-			title: value.trim() || NEW_PROJECT_TITLE,
-		});
-	});
+  const plugin = usePlugin();
+  const [title, setTitle] = useDebouncedSave(project.title, (value) => {
+    void plugin.mutations.updateProject(project, {
+      title: value.trim() || NEW_PROJECT_TITLE,
+    });
+  });
 
-	const isPlaceholder = project.title === NEW_PROJECT_TITLE;
-	const focusRef = useCallback(
-		(element: HTMLTextAreaElement | null) => {
-			if (!element) return;
-			element.style.height = "auto";
-			element.style.height = `${element.scrollHeight}px`;
-			if (isPlaceholder) {
-				element.focus();
-				element.select();
-			}
-		},
-		[isPlaceholder],
-	);
+  const isPlaceholder = project.title === NEW_PROJECT_TITLE;
+  const focusRef = useCallback(
+    (element: HTMLTextAreaElement | null) => {
+      if (!element) return;
+      element.style.height = "auto";
+      element.style.height = `${element.scrollHeight}px`;
+      if (isPlaceholder) {
+        element.focus();
+        element.select();
+      }
+    },
+    [isPlaceholder],
+  );
 
-	return (
-		<textarea
-			ref={focusRef}
-			className="vf-editor-title"
-			value={title}
-			rows={1}
-			placeholder="Project title"
-			onChange={(event) => setTitle(event.target.value)}
-			onInput={(event) => {
-				const el = event.currentTarget;
-				el.style.height = "auto";
-				el.style.height = `${el.scrollHeight}px`;
-			}}
-		/>
-	);
+  return (
+    <textarea
+      ref={focusRef}
+      className="vf-editor-title"
+      value={title}
+      rows={1}
+      placeholder="Project title"
+      onChange={(event) => setTitle(event.target.value)}
+      onInput={(event) => {
+        const el = event.currentTarget;
+        el.style.height = "auto";
+        el.style.height = `${el.scrollHeight}px`;
+      }}
+    />
+  );
 }
 
 function ProjectDescriptionField({
-	project,
-	initial,
+  project,
+  initial,
 }: {
-	project: Project;
-	initial: string;
+  project: Project;
+  initial: string;
 }) {
-	const plugin = usePlugin();
-	const [text, setText] = useDebouncedSave(initial, (value) => {
-		void plugin.mutations.setProjectDescription(project, value);
-	});
+  const plugin = usePlugin();
+  const [text, setText] = useDebouncedSave(initial, (value) => {
+    void plugin.mutations.setProjectDescription(project, value);
+  });
 
-	return (
-		<MarkdownField
-			className="vf-editor-description"
-			value={text}
-			onChange={setText}
-			sourcePath={withExtension(project.path)}
-			placeholder="Add a description… start typing Markdown — [[wikilinks]], #tags, and ![[embeds]] all work, with live preview and link suggestions as you go"
-		/>
-	);
+  return (
+    <MarkdownField
+      className="vf-editor-description"
+      value={text}
+      onChange={setText}
+      sourcePath={withExtension(project.path)}
+      placeholder="Add a description… start typing Markdown — [[wikilinks]], #tags, and ![[embeds]] all work, with live preview and link suggestions as you go"
+    />
+  );
 }

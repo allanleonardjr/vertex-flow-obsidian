@@ -30,8 +30,14 @@ import { NamedIconDialog } from "./modals/NamedIconDialog";
 import { useTabs } from "./tabs-context";
 
 const MIN_WIDTH = 170;
-const MAX_WIDTH = 420;
 const SLIVER_WIDTH = 44;
+/** No fixed upper bound — only keep this much room for the content area. */
+const MIN_CONTENT_WIDTH = 240;
+
+/** The widest the sidebar may get right now, given the window. */
+function maxSidebarWidth(): number {
+	return Math.max(MIN_WIDTH, window.innerWidth - MIN_CONTENT_WIDTH);
+}
 
 export function Sidebar({
 	snapshot,
@@ -50,7 +56,7 @@ export function Sidebar({
 	const minimized = plugin.settings.sidebarMinimized;
 	const width = minimized
 		? SLIVER_WIDTH
-		: clamp(plugin.settings.sidebarWidth, MIN_WIDTH, MAX_WIDTH);
+		: clamp(plugin.settings.sidebarWidth, MIN_WIDTH, maxSidebarWidth());
 
 	return (
 		<aside
@@ -140,7 +146,7 @@ function ResizeHandle({
 				const next = clamp(
 					drag.current.startWidth + (event.clientX - drag.current.startX),
 					MIN_WIDTH,
-					MAX_WIDTH,
+					maxSidebarWidth(),
 				);
 				onResize(next);
 			}}
