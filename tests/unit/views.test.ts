@@ -70,8 +70,9 @@ describe("filtering", () => {
 		expect(all.some((t) => t.archived)).toBe(false);
 
 		const withArchived = applyFilters(snapshot.tasks, { includeArchived: true }, context);
-		expect(withArchived.some((t) => t.archived)).toBe(true);
-		expect(withArchived.length).toBe(all.length + 1);
+		const archivedCount = snapshot.tasks.filter((t) => t.archived).length;
+		expect(archivedCount).toBe(3);
+		expect(withArchived.length).toBe(all.length + archivedCount);
 	});
 
 	it("ORs within one filter and ANDs across filters", () => {
@@ -80,7 +81,8 @@ describe("filtering", () => {
 			{ status: ["todo", "in-progress"], taskType: ["bug"] },
 			context,
 		);
-		expect(result.map((t) => t.id)).toEqual(["SMP-0104"]);
+		// The two bugs that are todo or in progress (SMP-0118 is in review).
+		expect(result.map((t) => t.id)).toEqual(["SMP-0104", "SMP-0119"]);
 	});
 
 	it("matches nothing when a filter's values are all absent", () => {
@@ -132,7 +134,13 @@ describe("filtering", () => {
 
 	it("matches multi-select labels by any overlap", () => {
 		const result = applyFilters(snapshot.tasks, { labels: ["docs"] }, context);
-		expect(result.map((t) => t.id).sort()).toEqual(["SMP-0106", "SMP-0107"]);
+		expect(result.map((t) => t.id).sort()).toEqual([
+			"SMP-0106",
+			"SMP-0107",
+			"SMP-0113",
+			"SMP-0122",
+			"SMP-0123",
+		]);
 	});
 
 	it("filters by link, tolerating short-form wikilinks", () => {

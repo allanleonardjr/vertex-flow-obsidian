@@ -61,7 +61,7 @@ describe("direct children", () => {
 	});
 
 	it("finds a project's tasks", () => {
-		expect(projectTasks(scope, P("Projects/App Store Launch"))).toHaveLength(3);
+		expect(projectTasks(scope, P("Projects/App Store Launch"))).toHaveLength(5);
 	});
 
 	it("topLevelProjectTasks drops sub-tasks that carry the project link", () => {
@@ -312,7 +312,7 @@ describe("project progress (§7.1)", () => {
 		// its tasks are moving — status and progress never auto-sync.
 		const project = snapshot.projects.find((p) => p.title.startsWith("App Store"));
 		expect(project?.status).toBe("backlog");
-		expect(projectProgress(scope, project!.path, statuses).total).toBe(3);
+		expect(projectProgress(scope, project!.path, statuses).total).toBe(5);
 	});
 
 	it("excludes archived top-level tasks from project progress", () => {

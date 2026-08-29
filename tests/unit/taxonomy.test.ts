@@ -250,12 +250,12 @@ describe("usage counting", () => {
 
 	it("counts task usage across every taxonomy", () => {
 		const bugs = findTaxonomyUsage("taskType", "bug", { tasks: snapshot.tasks });
-		expect(bugs.count).toBe(1);
+		expect(bugs.count).toBe(3);
 
 		const perf = findTaxonomyUsage("label", "performance", {
 			tasks: snapshot.tasks,
 		});
-		expect(perf.count).toBe(1);
+		expect(perf.count).toBe(4);
 	});
 
 	it("counts projects for status, since they share it (§5.1)", () => {

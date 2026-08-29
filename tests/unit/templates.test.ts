@@ -46,6 +46,20 @@ describe("instantiateTemplate — self person seeding", () => {
 		);
 	});
 
+	it("emits a populated dashboard note and a full task set", () => {
+		const generated = instantiateTemplate({
+			...base,
+			template: softwareSprintTemplate,
+			includeExampleContent: true,
+		});
+		expect(generated.snapshot.tasks).toHaveLength(25);
+		expect(generated.snapshot.dashboards).toHaveLength(1);
+		expect(generated.snapshot.dashboards[0].widgets).toHaveLength(3);
+		expect(
+			generated.notes.some((n) => n.path.endsWith("/_dashboards")),
+		).toBe(true);
+	});
+
 	it("reuses a matching entry by name instead of duplicating it", () => {
 		const { workspace } = instantiateTemplate({
 			...base,

@@ -8,7 +8,13 @@
  * This template is also the fixture the core unit tests build on
  * (`sampleSnapshot()` in `instantiate.ts`), so its example content — project
  * titles, task ids, relations, comments — is load-bearing. Change it
- * deliberately.
+ * deliberately, and update the coupled assertions in `hierarchy.test.ts`,
+ * `views.test.ts` and `taxonomy.test.ts` alongside.
+ *
+ * The example content is a full feature showcase: three projects, two
+ * parent/sub-task hierarchies at different completion ratios, blocked/blocking
+ * pairs, un-parented and archived work, every label used more than once, and a
+ * seeded dashboard.
  */
 
 import { joinPath } from "../links";
@@ -20,7 +26,14 @@ import type {
 	StatusValue,
 	TaskTypeValue,
 } from "../types";
-import { makeProject, makeTask, makeView, rankSeq } from "./helpers";
+import {
+	makeDashboard,
+	makeProject,
+	makeTask,
+	makeView,
+	makeWidget,
+	rankSeq,
+} from "./helpers";
 import {
 	plainSetting,
 	settingsFromValues,
@@ -77,12 +90,17 @@ function buildExampleContent(ctx: TemplateBuildContext): TemplateContent {
 		updatedAt: ctx.iso(-5),
 		path: joinPath(ctx.root, "Projects", "App Store Launch"),
 	});
+	const platform = makeProject(ctx, "Developer Platform", {
+		status: "todo",
+		createdAt: ctx.iso(-22),
+		updatedAt: ctx.iso(-2),
+	});
 
-	const rank = rankSeq(9);
+	const rank = rankSeq(25);
 	const T = (n: number) => ctx.taskPath(n);
 
 	const tasks = [
-		// A parent task with sub-tasks → demonstrates the progress bar (§7.2).
+		// --- Hierarchy #1 (Core): a parent ~33% done, one sub-task still in review.
 		makeTask(ctx, 101, rank, {
 			title: "Rebuild the onboarding flow",
 			taskType: "feature",
@@ -94,6 +112,7 @@ function buildExampleContent(ctx: TemplateBuildContext): TemplateContent {
 			labels: ["design"],
 			startDate: ctx.day(-5),
 			dueDate: ctx.day(4),
+			createdAt: ctx.iso(-36),
 		}),
 		makeTask(ctx, 102, rank, {
 			title: "Design the welcome screen",
@@ -104,6 +123,7 @@ function buildExampleContent(ctx: TemplateBuildContext): TemplateContent {
 			parent: T(101),
 			assignee: "alice",
 			labels: ["design"],
+			createdAt: ctx.iso(-34),
 		}),
 		makeTask(ctx, 103, rank, {
 			title: "Wire up account creation",
@@ -116,9 +136,10 @@ function buildExampleContent(ctx: TemplateBuildContext): TemplateContent {
 			parent: T(101),
 			assignee: "bob",
 			labels: ["frontend"],
+			createdAt: ctx.iso(-30),
 		}),
 
-		// The blocked/blocking pair → demonstrates relations (§7.3).
+		// --- The blocked/blocking pair → demonstrates relations (§7.3).
 		makeTask(ctx, 104, rank, {
 			title: "Fix LexoRank calculation when moving tasks into empty columns",
 			taskType: "bug",
@@ -129,6 +150,7 @@ function buildExampleContent(ctx: TemplateBuildContext): TemplateContent {
 			estimate: 3,
 			labels: ["performance", "backend"],
 			dueDate: ctx.day(2),
+			createdAt: ctx.iso(-24),
 			relations: { blocks: [], blockedBy: [T(105)], related: [], duplicateOf: null },
 		}),
 		makeTask(ctx, 105, rank, {
@@ -139,9 +161,11 @@ function buildExampleContent(ctx: TemplateBuildContext): TemplateContent {
 			project: core.path,
 			assignee: "bob",
 			labels: ["backend"],
+			createdAt: ctx.iso(-22),
 			relations: { blocks: [T(104)], blockedBy: [], related: [], duplicateOf: null },
 		}),
 
+		// --- App Store Launch.
 		makeTask(ctx, 106, rank, {
 			title: "Draft App Store listing copy",
 			taskType: "chore",
@@ -151,6 +175,7 @@ function buildExampleContent(ctx: TemplateBuildContext): TemplateContent {
 			assignee: "alice",
 			labels: ["docs"],
 			dueDate: ctx.day(10),
+			createdAt: ctx.iso(-20),
 		}),
 		makeTask(ctx, 107, rank, {
 			title: "Capture screenshots for the store listing",
@@ -159,6 +184,7 @@ function buildExampleContent(ctx: TemplateBuildContext): TemplateContent {
 			priority: "low",
 			project: launch.path,
 			labels: ["docs", "design"],
+			createdAt: ctx.iso(-19),
 		}),
 		makeTask(ctx, 108, rank, {
 			title: "Agree the launch date with the whole team",
@@ -167,9 +193,10 @@ function buildExampleContent(ctx: TemplateBuildContext): TemplateContent {
 			priority: "urgent",
 			project: launch.path,
 			assignee: "alice",
+			createdAt: ctx.iso(-18),
 		}),
 
-		// No parent at all, and archived → demonstrates both (§2, §7.7).
+		// --- No parent, no project, and archived → demonstrates all three.
 		makeTask(ctx, 109, rank, {
 			title: "Spike: evaluate offline sync options",
 			taskType: "chore",
@@ -177,6 +204,197 @@ function buildExampleContent(ctx: TemplateBuildContext): TemplateContent {
 			priority: "low",
 			archived: true,
 			archivedAt: ctx.iso(-3),
+			createdAt: ctx.iso(-40),
+		}),
+
+		// --- Hierarchy #2 (Developer Platform): a parent whose sub-tasks are all
+		//     done while it stays in progress — manual control, §7.2.
+		makeTask(ctx, 110, rank, {
+			title: "Build the public REST API v1",
+			taskType: "feature",
+			status: "in-progress",
+			priority: "high",
+			project: platform.path,
+			assignee: "bob",
+			estimate: 8,
+			labels: ["backend"],
+			startDate: ctx.day(-8),
+			dueDate: ctx.day(14),
+			createdAt: ctx.iso(-21),
+		}),
+		makeTask(ctx, 111, rank, {
+			title: "Design the API resource schema",
+			taskType: "feature",
+			status: "done",
+			priority: "medium",
+			project: platform.path,
+			parent: T(110),
+			assignee: "bob",
+			labels: ["backend"],
+			createdAt: ctx.iso(-20),
+		}),
+		makeTask(ctx, 112, rank, {
+			title: "Implement token auth middleware",
+			taskType: "feature",
+			status: "done",
+			priority: "high",
+			project: platform.path,
+			parent: T(110),
+			assignee: "bob",
+			estimate: 3,
+			labels: ["backend", "performance"],
+			createdAt: ctx.iso(-17),
+		}),
+		makeTask(ctx, 113, rank, {
+			title: "Write the API reference docs",
+			taskType: "chore",
+			status: "done",
+			priority: "medium",
+			project: platform.path,
+			parent: T(110),
+			assignee: "alice",
+			labels: ["docs"],
+			createdAt: ctx.iso(-13),
+		}),
+
+		makeTask(ctx, 114, rank, {
+			title: "Add cursor pagination to list endpoints",
+			taskType: "feature",
+			status: "todo",
+			priority: "medium",
+			project: platform.path,
+			assignee: "bob",
+			estimate: 2,
+			labels: ["backend"],
+			startDate: ctx.day(-2),
+			dueDate: ctx.day(18),
+			createdAt: ctx.iso(-12),
+		}),
+		makeTask(ctx, 115, rank, {
+			title: "Rate-limit the public API gateway",
+			taskType: "chore",
+			status: "todo",
+			priority: "high",
+			project: platform.path,
+			assignee: "bob",
+			labels: ["backend", "performance"],
+			dueDate: ctx.day(8),
+			createdAt: ctx.iso(-11),
+		}),
+		makeTask(ctx, 116, rank, {
+			title: "Build the API playground page",
+			taskType: "feature",
+			status: "todo",
+			priority: "low",
+			project: platform.path,
+			assignee: "alice",
+			labels: ["frontend", "design"],
+			startDate: ctx.day(-4),
+			dueDate: ctx.day(9),
+			createdAt: ctx.iso(-10),
+			relations: { blocks: [T(117)], blockedBy: [], related: [], duplicateOf: null },
+		}),
+		makeTask(ctx, 117, rank, {
+			title: "Ship the developer portal landing page",
+			taskType: "feature",
+			status: "in-review",
+			priority: "medium",
+			project: platform.path,
+			assignee: "alice",
+			labels: ["frontend", "design"],
+			startDate: ctx.day(-3),
+			dueDate: ctx.day(6),
+			createdAt: ctx.iso(-9),
+			relations: { blocks: [], blockedBy: [T(116)], related: [], duplicateOf: null },
+		}),
+		makeTask(ctx, 118, rank, {
+			title: "Fix flaky auth integration test",
+			taskType: "bug",
+			status: "in-review",
+			priority: "medium",
+			project: platform.path,
+			assignee: "bob",
+			labels: ["backend"],
+			dueDate: ctx.day(5),
+			createdAt: ctx.iso(-8),
+		}),
+		makeTask(ctx, 119, rank, {
+			title: "Investigate slow cold-start on the API server",
+			taskType: "bug",
+			status: "in-progress",
+			priority: "high",
+			project: platform.path,
+			assignee: "alice",
+			labels: ["performance", "backend"],
+			startDate: ctx.day(-1),
+			dueDate: ctx.day(3),
+			createdAt: ctx.iso(-7),
+		}),
+		makeTask(ctx, 120, rank, {
+			title: "Set up API uptime monitoring",
+			taskType: "chore",
+			status: "done",
+			priority: "medium",
+			project: platform.path,
+			assignee: "bob",
+			labels: ["backend"],
+			archived: true,
+			archivedAt: ctx.iso(-4),
+			createdAt: ctx.iso(-15),
+		}),
+		makeTask(ctx, 121, rank, {
+			title: "Prototype a GraphQL gateway",
+			taskType: "feature",
+			status: "canceled",
+			priority: "low",
+			project: platform.path,
+			labels: ["backend"],
+			archived: true,
+			archivedAt: ctx.iso(-6),
+			createdAt: ctx.iso(-16),
+		}),
+
+		// --- More App Store Launch work.
+		makeTask(ctx, 122, rank, {
+			title: "Prepare the press kit and media assets",
+			taskType: "chore",
+			status: "todo",
+			priority: "low",
+			project: launch.path,
+			assignee: "alice",
+			labels: ["design", "docs"],
+			dueDate: ctx.day(11),
+			createdAt: ctx.iso(-6),
+		}),
+		makeTask(ctx, 123, rank, {
+			title: "Set up App Store Connect and TestFlight",
+			taskType: "chore",
+			status: "in-progress",
+			priority: "high",
+			project: launch.path,
+			assignee: "alice",
+			labels: ["docs"],
+			startDate: ctx.day(-2),
+			dueDate: ctx.day(8),
+			createdAt: ctx.iso(-5),
+		}),
+
+		// --- Un-parented infra chores, not tied to any sprint project.
+		makeTask(ctx, 124, rank, {
+			title: "Clean up unused feature flags",
+			taskType: "tech-debt",
+			status: "todo",
+			priority: "low",
+			assignee: "bob",
+			createdAt: ctx.iso(-10),
+		}),
+		makeTask(ctx, 125, rank, {
+			title: "Upgrade the CI runner image",
+			taskType: "chore",
+			status: "done",
+			priority: "medium",
+			assignee: "alice",
+			createdAt: ctx.iso(-4),
 		}),
 	];
 
@@ -212,6 +430,30 @@ function buildExampleContent(ctx: TemplateBuildContext): TemplateContent {
 				},
 			],
 		],
+		[
+			T(110),
+			[
+				{
+					id: "cmt_01",
+					author: "alice",
+					date: ctx.iso(-3),
+					body: "Schema and auth are merged — nice work. @bob can you pick up pagination next, then this moves to review?",
+					reactions: { "👍": 1 },
+				},
+			],
+		],
+		[
+			T(119),
+			[
+				{
+					id: "cmt_01",
+					author: "alice",
+					date: ctx.iso(-1),
+					body: "Profiler points at the ORM warming its connection pool lazily. @bob does eager-init break anything on your side?",
+					reactions: {},
+				},
+			],
+		],
 	]);
 
 	const descriptions = new Map<string, string>([
@@ -223,14 +465,57 @@ function buildExampleContent(ctx: TemplateBuildContext): TemplateContent {
 			T(101),
 			"## Description\nThe current onboarding drops people straight into an empty vault with no explanation.\n",
 		],
+		[
+			T(110),
+			"## Description\nA read/write REST API covering tasks, projects and workspaces, with token auth and cursor pagination. v1 is the surface the developer portal documents.\n",
+		],
+		[
+			T(117),
+			"## Description\nMarketing-owned landing page for the developer portal. Embeds the interactive playground, so it can't ship until that page is built.\n",
+		],
 	]);
+
+	const dashboard = makeDashboard(
+		"sprint-overview",
+		"Sprint Overview",
+		[
+			makeWidget(
+				"w-status",
+				"bar",
+				"Tasks by Status",
+				{ chartType: "bar", groupBy: "status" },
+				{ x: 0, y: 0, w: 6, h: 4 },
+			),
+			makeWidget(
+				"w-assignee",
+				"pie",
+				"Tasks by Assignee",
+				{ chartType: "pie", groupBy: "assignee" },
+				{ x: 6, y: 0, w: 6, h: 4 },
+			),
+			makeWidget(
+				"w-created",
+				"timeline",
+				"Tasks Created Over Time",
+				{
+					chartType: "timeline",
+					xField: "createdAt",
+					bucket: "week",
+					groupBy: null,
+				},
+				{ x: 0, y: 4, w: 12, h: 4 },
+			),
+		],
+		"gauge",
+	);
 
 	return {
 		workspace: { people },
-		projects: [core, launch],
+		projects: [core, launch, platform],
 		tasks,
 		comments,
 		descriptions,
+		dashboards: [dashboard],
 	};
 }
 
