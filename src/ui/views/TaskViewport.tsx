@@ -45,6 +45,7 @@ export function TaskViewport({
   active,
   onSelectView,
   hideViewTitle,
+  guardUnsavedEdits = true,
 }: {
   snapshot: WorkspaceSnapshot;
   view: SavedView;
@@ -61,6 +62,13 @@ export function TaskViewport({
    * screen, which renders its own header above this viewport.
    */
   hideViewTitle?: boolean;
+  /**
+   * Whether unsaved bar edits block navigation away from the tab. On by
+   * default; the Project Detail screen turns it off — its embedded viewport
+   * is a synthesised, never-persisted view, so tweaking its sort/grouping is
+   * transient scratch (like column collapse), not something to guard.
+   */
+  guardUnsavedEdits?: boolean;
 }) {
   const plugin = usePlugin();
   const selection = useSelection();
@@ -79,7 +87,7 @@ export function TaskViewport({
   // in `_views.md`, so it can't be overwritten (Save As only).
   const canOverwriteView = snapshot.views.some((v) => v.id === view.id);
   const leaveGuard = useUnsavedGuard({
-    dirty: draft.dirty,
+    dirty: guardUnsavedEdits && draft.dirty,
     canSave: canOverwriteView,
     what: "view",
     name: view.name,
