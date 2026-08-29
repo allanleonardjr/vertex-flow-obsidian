@@ -17,6 +17,7 @@ import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { SavedView, WorkspaceSnapshot } from "../../core/types";
 import { useCreateTask } from "../actions";
 import { usePlugin } from "../context";
+import { useUnsavedGuard } from "../components/useUnsavedGuard";
 import {
 	useSelection,
 	useShortcuts,
@@ -68,6 +69,21 @@ export function TaskViewport({
 	// below renders `draft.effective`, never the on-disk view directly.
 	const draft = useViewDraft(snapshot, view);
 	const effective = draft.effective;
+
+	// The draft lives in local state and dies with this component on a tab
+	// switch — guard against silently losing it. A synthesised label view isn't
+	// in `_views.md`, so it can't be overwritten (Save As only).
+	const canOverwriteView = snapshot.views.some((v) => v.id === view.id);
+	const leaveGuard = useUnsavedGuard({
+		dirty: draft.dirty,
+		canSave: canOverwriteView,
+		what: "view",
+		guardKey: view.id,
+		save: async () => {
+			draft.save();
+		},
+		reset: draft.reset,
+	});
 
 	// "New task" from a filtered view pre-fills the fields the filter pins to a
 	// single value — create a task while looking at one project or label and it
@@ -194,6 +210,7 @@ export function TaskViewport({
 
 	return (
 		<>
+			{leaveGuard}
 			<ViewControls
 				snapshot={snapshot}
 				view={effective}

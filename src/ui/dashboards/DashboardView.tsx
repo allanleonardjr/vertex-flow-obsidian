@@ -35,6 +35,7 @@ import { useTabs } from "../tabs-context";
 import { FilterControls } from "../views/FilterControls";
 import { Icon } from "../components/Icon";
 import { ConfirmDeleteDialog } from "../components/ConfirmDeleteDialog";
+import { useUnsavedGuard } from "../components/useUnsavedGuard";
 import { NamedIconDialog } from "../modals/NamedIconDialog";
 import { AddWidgetTile } from "./AddWidgetTile";
 import { DashboardGrid } from "./DashboardGrid";
@@ -112,6 +113,16 @@ function DashboardBody({
 
 	const canOverwrite = snapshot.dashboards.some((d) => d.id === dashboard.id);
 
+	// Switching tabs unmounts this component and drops the draft — guard it.
+	const leaveGuard = useUnsavedGuard({
+		dirty: draft.dirty,
+		canSave: canOverwrite,
+		what: "dashboard",
+		guardKey: dashboard.id,
+		save: () => draft.save(),
+		reset: draft.reset,
+	});
+
 	// The one unified fetch: dashboard-wide filter, applied once.
 	const tasks = useMemo(
 		() =>
@@ -181,6 +192,7 @@ function DashboardBody({
 
 	return (
 		<>
+			{leaveGuard}
 			<header className="vf-view-header vf-dash-header">
 				<div className="vf-view-title">
 					<h2>

@@ -17,10 +17,12 @@ import {
 	useContext,
 	useEffect,
 	useMemo,
+	useRef,
 	useState,
 	type ReactNode,
 } from "react";
 import { usePlugin, useSettingsWriter } from "./context";
+import { shouldPromptUnsavedGuard, type GuardedAction } from "./tabs-guard";
 
 /** The non-task screens, each a single reusable tab (never duplicated). */
 export type BrowseKind = "projects" | "settings" | "help" | "new-workspace";
@@ -99,6 +101,17 @@ export interface TabsApi {
 	pruneDashboards: (existing: (dashboardId: string) => boolean) => void;
 	/** Drop project tabs whose project no longer exists (deleted, or a workspace switch). */
 	pruneProjects: (existing: (path: string) => boolean) => void;
+	/**
+	 * Register (or clear, with null) a check for unsaved changes on the
+	 * *currently active* tab. Called before any navigation away from — or
+	 * closure of — that tab. Resolving `true` lets the navigation proceed;
+	 * `false` cancels it.
+	 *
+	 * Only the active tab is ever mounted, so only it can hold a live draft;
+	 * the component that owns the draft registers the guard and clears it both
+	 * when the draft goes clean and on unmount.
+	 */
+	setUnsavedGuard: (guard: (() => Promise<boolean>) | null) => void;
 }
 
 const TabsCtx = createContext<TabsApi | null>(null);
@@ -109,8 +122,47 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 	const [tabs, setTabs] = useState<Tab[]>([WORKSPACE_TAB]);
 	const [activeId, setActiveId] = useState<string>("workspace");
 
+	// A ref mirror so the (now async) navigation callbacks can read the current
+	// active tab without taking it as a dependency — keeps their identity stable.
+	const activeIdRef = useRef(activeId);
+	activeIdRef.current = activeId;
+
+	// The active tab's unsaved-changes check, if it registered one.
+	const guardRef = useRef<(() => Promise<boolean>) | null>(null);
+	const setUnsavedGuard = useCallback(
+		(guard: (() => Promise<boolean>) | null) => {
+			guardRef.current = guard;
+		},
+		[],
+	);
+
+	/**
+	 * Whether navigation away from — or closure of — the active tab may proceed.
+	 * The skip rules live in `shouldPromptUnsavedGuard` (pure, unit-tested).
+	 */
+	const mayLeaveActive = useCallback(
+		async (action: GuardedAction, targetId: string): Promise<boolean> => {
+			const guard = guardRef.current;
+			if (
+				!shouldPromptUnsavedGuard({
+					hasGuard: guard != null,
+					action,
+					targetId,
+					activeId: activeIdRef.current,
+				})
+			) {
+				return true;
+			}
+			return guard!();
+		},
+		[],
+	);
+
 	const openTask = useCallback(
-		(path: string) => {
+		async (path: string) => {
+			const id = taskTabId(path);
+			if (!(await mayLeaveActive("navigate", id))) return;
+
 			// A task can belong to a workspace other than whichever one is
 			// currently active — e.g. following a `[[wikilink]]` from another
 			// workspace's task, or a cross-workspace relation. Without switching
@@ -121,7 +173,6 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 				writeSettings({ activeWorkspaceRoot: owner.workspace.root });
 			}
 
-			const id = taskTabId(path);
 			setTabs((current) =>
 				current.some((tab) => tab.id === id)
 					? current
@@ -129,81 +180,123 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			);
 			setActiveId(id);
 		},
-		[plugin, writeSettings],
+		[plugin, writeSettings, mayLeaveActive],
 	);
 
-	const openScreen = useCallback((kind: BrowseKind) => {
-		setTabs((current) =>
-			current.some((tab) => tab.id === kind) ? current : [...current, { id: kind, kind }],
-		);
-		setActiveId(kind);
-	}, []);
+	const openScreen = useCallback(
+		async (kind: BrowseKind) => {
+			if (!(await mayLeaveActive("navigate", kind))) return;
+			setTabs((current) =>
+				current.some((tab) => tab.id === kind)
+					? current
+					: [...current, { id: kind, kind }],
+			);
+			setActiveId(kind);
+		},
+		[mayLeaveActive],
+	);
 
-	const openView = useCallback((viewId: string) => {
-		const id = viewTabId(viewId);
-		setTabs((current) =>
-			current.some((tab) => tab.id === id)
-				? current
-				: [...current, { id, kind: "view", viewId }],
-		);
-		setActiveId(id);
-	}, []);
+	const openView = useCallback(
+		async (viewId: string) => {
+			const id = viewTabId(viewId);
+			if (!(await mayLeaveActive("navigate", id))) return;
+			setTabs((current) =>
+				current.some((tab) => tab.id === id)
+					? current
+					: [...current, { id, kind: "view", viewId }],
+			);
+			setActiveId(id);
+		},
+		[mayLeaveActive],
+	);
 
-	const openLabel = useCallback((labelId: string) => {
-		const id = labelTabId(labelId);
-		setTabs((current) =>
-			current.some((tab) => tab.id === id)
-				? current
-				: [...current, { id, kind: "label", labelId }],
-		);
-		setActiveId(id);
-	}, []);
+	const openLabel = useCallback(
+		async (labelId: string) => {
+			const id = labelTabId(labelId);
+			if (!(await mayLeaveActive("navigate", id))) return;
+			setTabs((current) =>
+				current.some((tab) => tab.id === id)
+					? current
+					: [...current, { id, kind: "label", labelId }],
+			);
+			setActiveId(id);
+		},
+		[mayLeaveActive],
+	);
 
-	const openProject = useCallback((path: string) => {
-		// No cross-workspace switch (unlike `openTask`): a project is only ever
-		// opened from its own workspace's sidebar or browse screen.
-		const id = projectTabId(path);
-		setTabs((current) =>
-			current.some((tab) => tab.id === id)
-				? current
-				: [...current, { id, kind: "project", path }],
-		);
-		setActiveId(id);
-	}, []);
+	const openProject = useCallback(
+		async (path: string) => {
+			// No cross-workspace switch (unlike `openTask`): a project is only ever
+			// opened from its own workspace's sidebar or browse screen.
+			const id = projectTabId(path);
+			if (!(await mayLeaveActive("navigate", id))) return;
+			setTabs((current) =>
+				current.some((tab) => tab.id === id)
+					? current
+					: [...current, { id, kind: "project", path }],
+			);
+			setActiveId(id);
+		},
+		[mayLeaveActive],
+	);
 
-	const openDashboard = useCallback((dashboardId: string) => {
-		const id = dashboardTabId(dashboardId);
-		setTabs((current) =>
-			current.some((tab) => tab.id === id)
-				? current
-				: [...current, { id, kind: "dashboard", dashboardId }],
-		);
-		setActiveId(id);
-	}, []);
+	const openDashboard = useCallback(
+		async (dashboardId: string) => {
+			const id = dashboardTabId(dashboardId);
+			if (!(await mayLeaveActive("navigate", id))) return;
+			setTabs((current) =>
+				current.some((tab) => tab.id === id)
+					? current
+					: [...current, { id, kind: "dashboard", dashboardId }],
+			);
+			setActiveId(id);
+		},
+		[mayLeaveActive],
+	);
 
-	const activateWorkspace = useCallback(() => setActiveId("workspace"), []);
-	const activate = useCallback((id: string) => setActiveId(id), []);
+	const activateWorkspace = useCallback(async () => {
+		if (!(await mayLeaveActive("navigate", "workspace"))) return;
+		setActiveId("workspace");
+	}, [mayLeaveActive]);
 
-	const close = useCallback((id: string) => {
-		if (id === "workspace") return;
+	const activate = useCallback(
+		async (id: string) => {
+			if (!(await mayLeaveActive("navigate", id))) return;
+			setActiveId(id);
+		},
+		[mayLeaveActive],
+	);
 
-		setTabs((current) => {
-			const index = current.findIndex((tab) => tab.id === id);
-			if (index === -1) return current;
-			const next = current.filter((tab) => tab.id !== id);
+	const close = useCallback(
+		async (id: string) => {
+			if (id === "workspace") return;
 
-			setActiveId((active) => {
-				if (active !== id) return active;
-				// Prefer the neighbour to the right, like a browser; the pinned
-				// workspace tab at index 0 is always there as the final fallback.
-				return next[Math.min(index, next.length - 1)].id;
+			// The guard only fires for a close of the *active* tab (see
+			// `shouldPromptUnsavedGuard`) — a background tab holds no live draft.
+			if (!(await mayLeaveActive("close", id))) return;
+
+			setTabs((current) => {
+				const index = current.findIndex((tab) => tab.id === id);
+				if (index === -1) return current;
+				const next = current.filter((tab) => tab.id !== id);
+
+				setActiveId((active) => {
+					if (active !== id) return active;
+					// Prefer the neighbour to the right, like a browser; the pinned
+					// workspace tab at index 0 is always there as the final fallback.
+					return next[Math.min(index, next.length - 1)].id;
+				});
+
+				return next;
 			});
+		},
+		[mayLeaveActive],
+	);
 
-			return next;
-		});
-	}, []);
-
-	const closeActive = useCallback(() => close(activeId), [close, activeId]);
+	const closeActive = useCallback(
+		() => close(activeIdRef.current),
+		[close],
+	);
 
 	const closeAllTasks = useCallback(() => {
 		setTabs((current) => current.filter((tab) => tab.kind !== "task"));
@@ -315,6 +408,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			pruneLabels,
 			pruneDashboards,
 			pruneProjects,
+			setUnsavedGuard,
 		}),
 		[
 			tabs,
@@ -336,6 +430,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			pruneLabels,
 			pruneDashboards,
 			pruneProjects,
+			setUnsavedGuard,
 		],
 	);
 
