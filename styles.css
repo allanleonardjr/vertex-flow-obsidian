@@ -2542,8 +2542,28 @@ body.vf-dragging {
 
 /* ---- Collapsible description (shared: Saved View + Project) ---- */
 
-.vf-description-toggle {
+/* Section label on the left, the Live Preview / Source toggle right-aligned. */
+.vf-description-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin-bottom: 4px;
+}
+
+.vf-description-toggle {
+  flex: 1;
+  min-width: 0;
+}
+
+.vf-description-source-toggle {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 2px 5px;
+}
+
+.vf-description-source-toggle.is-on {
+  color: var(--text-accent);
 }
 
 /* Borderless Markdown field, so the description reads like a plain note. */
@@ -2560,6 +2580,40 @@ body.vf-dragging {
 
 .vf-description-plain .vf-markdown-native:focus-within {
   border: none;
+}
+
+/* Raw Source is the same field in a different mode, so it can't announce
+   itself as a form control the way a bare textarea does. Obsidian's own
+   `textarea:focus-visible` draws its focus ring with `box-shadow` (and the
+   fill with `background`), neither of which the reset above covers — so
+   restate them for every state rather than the resting one only. */
+.vf-description-plain .vf-markdown-edit:hover,
+.vf-description-plain .vf-markdown-edit:focus,
+.vf-description-plain .vf-markdown-edit:focus-visible,
+.vf-description-plain .vf-markdown-edit:active {
+  border: none;
+  background: transparent;
+}
+
+.vf-description-plain .vf-markdown-edit,
+.vf-description-plain .vf-markdown-edit:hover,
+.vf-description-plain .vf-markdown-edit:focus,
+.vf-description-plain .vf-markdown-edit:focus-visible,
+.vf-description-plain .vf-markdown-edit:active {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Match CodeMirror's own metrics, so a line sits in the same place in either
+   mode — a textarea otherwise inherits Obsidian's smaller form-field font. */
+.vf-description-plain .vf-markdown-edit {
+  color: var(--text-normal);
+  font-family: var(--font-text);
+  font-size: var(--font-text-size);
+  line-height: var(--line-height-normal, 1.5);
+  /* The pane has its own resize handle, and the field auto-grows to its
+     content — a drag grabber here would just be undone by the next keystroke. */
+  resize: none;
 }
 
 .vf-description-plain .vf-markdown-placeholder {

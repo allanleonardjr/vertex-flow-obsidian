@@ -41,6 +41,8 @@ export interface VertexFlowSettings {
 	editorSourceOpen: boolean;
 	/** Whether the collapsible description section (View / Project / Task) is closed. */
 	descriptionCollapsed: boolean;
+	/** Whether the Description field shows raw Source text instead of Live Preview. */
+	descriptionSourceMode: boolean;
 	/** Collapsed state of the other task-editor sections, keyed by section id. */
 	editorSectionsCollapsed: Record<string, boolean>;
 	/** Height, in pixels, of the Project editor's info pane above its task list. */
@@ -85,6 +87,7 @@ export const DEFAULT_SETTINGS: VertexFlowSettings = {
 	queryBarOpen: false,
 	editorSourceOpen: false,
 	descriptionCollapsed: false,
+	descriptionSourceMode: false,
 	editorSectionsCollapsed: {},
 	projectInfoHeight: 220,
 	taskDescriptionHeight: 220,

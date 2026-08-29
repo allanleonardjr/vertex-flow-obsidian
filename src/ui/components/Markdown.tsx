@@ -66,6 +66,11 @@ export function MarkdownContent({
  * with a rendered preview beneath it and this plugin's own link autocomplete —
  * less seamless, but fully functional and never broken.
  *
+ * `forceRawSource` opts out of that entirely: the person asked for raw Source
+ * text rather than Live Preview (the same distinction Obsidian itself draws),
+ * so the fallback textarea is reused undecorated — no rendered preview, no
+ * native editor mounted at all.
+ *
  * Fully controlled either way: reports every keystroke via `onChange` and
  * holds no save logic of its own, so callers compose their own persistence
  * (`useDebouncedSave` for the description, plain local state for a comment
@@ -77,12 +82,15 @@ export function MarkdownField({
 	sourcePath,
 	placeholder,
 	className,
+	forceRawSource = false,
 }: {
 	value: string;
 	onChange: (value: string) => void;
 	sourcePath: string;
 	placeholder?: string;
 	className?: string;
+	/** Show the plain textarea instead of Live Preview (§ Description toggle). */
+	forceRawSource?: boolean;
 }) {
 	const plugin = usePlugin();
 	const [host, setHost] = useState<HTMLDivElement | null>(null);
@@ -90,18 +98,26 @@ export function MarkdownField({
 	const handleRef = useRef<EmbeddedEditorHandle | null>(null);
 
 	// Latest-value refs so the editor is built exactly once, not rebuilt on
-	// every keystroke as `value`/`onChange` identities change.
+	// every keystroke as `value`/`onChange` identities change. `seedValueRef`
+	// tracks the latest value rather than the first one: the native editor is
+	// created more than once over a field's life now (raw Source tears it down
+	// and switching back builds a fresh one), and seeding it from the original
+	// mount's text would silently discard everything typed while in Source.
 	const onChangeRef = useRef(onChange);
 	onChangeRef.current = onChange;
-	const initialValueRef = useRef(value);
+	const seedValueRef = useRef(value);
+	seedValueRef.current = value;
 	const sourcePathRef = useRef(sourcePath);
 	sourcePathRef.current = sourcePath;
 
 	useEffect(() => {
-		if (!host) return;
+		// The host div isn't rendered in raw-source mode, so `host` is already
+		// null here — the second check is a belt-and-braces guard in case a
+		// future render path keeps the element around.
+		if (!host || forceRawSource) return;
 
 		const handle = createEmbeddedEditor(plugin.app, host, {
-			value: initialValueRef.current,
+			value: seedValueRef.current,
 			onChange: (next) => onChangeRef.current(next),
 			sourcePath: sourcePathRef.current,
 		});
@@ -113,7 +129,7 @@ export function MarkdownField({
 			handle?.destroy();
 			handleRef.current = null;
 		};
-	}, [host, plugin]);
+	}, [host, plugin, forceRawSource]);
 
 	// Reflect changes that came from outside this field — another device via
 	// Sync, an edit to the raw note, a different task loaded into a reused
@@ -124,9 +140,13 @@ export function MarkdownField({
 		if (handle && handle.getValue() !== value) handle.setValue(value);
 	}, [value]);
 
+	// Raw Source drops the host element entirely rather than hiding it, which is
+	// what tears the native editor down: React hands `setHost` a null on unmount,
+	// and the effect's cleanup destroys the handle. Switching back remounts the
+	// host and builds a fresh editor, exactly like the original mount.
 	return (
 		<div className={`vf-markdown-field${className ? ` ${className}` : ""}`}>
-			{mode !== "fallback" && (
+			{!forceRawSource && mode !== "fallback" && (
 				<div className="vf-markdown-native" ref={setHost}>
 					{mode === "native" && !value.trim() && placeholder && (
 						<div className="vf-markdown-placeholder">{placeholder}</div>
@@ -134,12 +154,13 @@ export function MarkdownField({
 				</div>
 			)}
 
-			{mode === "fallback" && (
+			{(forceRawSource || mode === "fallback") && (
 				<FallbackEditor
 					value={value}
 					onChange={onChange}
 					sourcePath={sourcePath}
 					placeholder={placeholder}
+					showPreview={!forceRawSource}
 				/>
 			)}
 		</div>
@@ -160,18 +181,22 @@ function useDebouncedValue<T>(value: T, delay: number): T {
 
 /**
  * The no-native-editor path: a textarea, this plugin's own `[[` autocomplete,
- * and a rendered preview underneath.
+ * and a rendered preview underneath. `showPreview={false}` drops the preview,
+ * which is what makes this double as the deliberate raw-Source surface.
  */
 function FallbackEditor({
 	value,
 	onChange,
 	sourcePath,
 	placeholder,
+	showPreview = true,
 }: {
 	value: string;
 	onChange: (value: string) => void;
 	sourcePath: string;
 	placeholder?: string;
+	/** Off when this is standing in for raw Source mode rather than falling back. */
+	showPreview?: boolean;
 }) {
 	const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 	const autocomplete = useLinkAutocomplete(value, onChange);
@@ -208,7 +233,7 @@ function FallbackEditor({
 			/>
 			{autocomplete.node}
 
-			{previewText.trim() && (
+			{showPreview && previewText.trim() && (
 				<MarkdownContent
 					className="vf-markdown-preview"
 					text={previewText}

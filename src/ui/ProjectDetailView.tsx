@@ -120,12 +120,22 @@ function ProjectEditor({
   const [descCollapsed, setDescCollapsed] = useState(
     plugin.settings.descriptionCollapsed,
   );
+  const [descSourceMode, setDescSourceMode] = useState(
+    plugin.settings.descriptionSourceMode,
+  );
   const [infoHeight, setInfoHeight] = useState(plugin.settings.projectInfoHeight);
 
   const toggleDescription = () => {
     const next = !descCollapsed;
     setDescCollapsed(next);
     plugin.settings.descriptionCollapsed = next;
+    void plugin.saveSettings();
+  };
+
+  const toggleSourceMode = () => {
+    const next = !descSourceMode;
+    setDescSourceMode(next);
+    plugin.settings.descriptionSourceMode = next;
     void plugin.saveSettings();
   };
 
@@ -202,6 +212,8 @@ function ProjectEditor({
             <DescriptionSection
               collapsed={descCollapsed}
               onToggleCollapsed={toggleDescription}
+              sourceMode={descSourceMode}
+              onToggleSourceMode={toggleSourceMode}
               value={description}
               editorKey={project.path}
               sourcePath={withExtension(project.path)}
