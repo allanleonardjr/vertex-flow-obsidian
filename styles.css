@@ -776,6 +776,7 @@ body.vf-dragging .vf-card {
 body.vf-dragging {
   overflow: hidden;
   touch-action: none;
+  user-select: none;
 }
 
 /* ------------------------------------------------------------------ Bits -- */
@@ -1717,11 +1718,18 @@ body.vf-dragging {
 .vf-tab.is-active {
   background: var(--background-primary);
   color: var(--text-normal);
+  /* The tab you're on shows its whole title; the strip scrolls if it must. */
+  max-width: none;
 }
 
 .vf-tab-title {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.vf-tab.is-active .vf-tab-title {
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .vf-tab-icon.vf-label-dot {
@@ -2325,13 +2333,46 @@ body.vf-dragging {
    Project editor
 
    Same two-column body as the Task editor: a full-height property rail on the
-   right, and on the left a vertical stack of the project info (title +
-   description) above the project's task viewport.
+   right, and on the left the project description above the project's task
+   viewport. The project name sits inline in the header, like a Saved View's
+   `All Tasks (PREFIX)` title.
    ========================================================================= */
 
 .vf-project-head-icon {
   display: inline-flex;
   color: var(--vf-muted);
+}
+
+/* The editable project name in the header — reads as a title, edits in place.
+   `size` on the element sets its width, so `width` must not be forced to 100%. */
+.vf-project-title-input {
+  flex: 0 1 auto;
+  width: auto;
+  max-width: 100%;
+  min-width: 6ch;
+  padding: 2px 5px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  box-shadow: none !important;
+  color: var(--text-normal);
+  font-size: var(--font-ui-medium);
+  font-weight: 600;
+}
+
+.vf-project-title-input:hover {
+  border-color: var(--vf-border);
+}
+
+.vf-project-title-input:focus {
+  border-color: var(--interactive-accent);
+  background: var(--background-primary);
+}
+
+.vf-project-editor-header .vf-view-title-code,
+.vf-project-editor-header .vf-count {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 /* The left column: project info stacked over the task list. */
@@ -2352,8 +2393,11 @@ body.vf-dragging {
   border-bottom: 1px solid var(--vf-border);
 }
 
-.vf-project-desc-toggle {
-  margin-top: 10px;
+/* Collapsed, the pane is just the "Description" toggle — don't leave it swimming
+   in the full editor padding. */
+.vf-project-editor-info.is-collapsed {
+  padding-top: 8px;
+  padding-bottom: 8px;
 }
 
 /* Horizontal counterpart of `.vf-editor-resize-handle` — between info and tasks. */
@@ -2741,14 +2785,17 @@ body.vf-dragging {
 /* -- Text query row ----------------------------------------------------- */
 
 .vf-query-row {
-  padding: 6px 10px 8px;
+  padding: 8px 12px 10px;
   border-top: 1px solid var(--vf-border);
 }
 
 .vf-query-input {
+  display: block;
+  box-sizing: border-box;
   width: 100%;
-  min-height: 2.1em;
+  min-height: 2.4em;
   max-height: 40vh;
+  padding: 6px 9px;
   resize: none;
   overflow-y: auto;
   /* Wrap the whole query into view on a narrow pane, breaking between words

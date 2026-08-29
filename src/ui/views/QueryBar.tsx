@@ -128,15 +128,30 @@ export function QueryBar({
 
 	useEffect(() => () => cancelCommit(), []);
 
-	// Grow the box to fit its content so a long query wraps into view rather than
-	// scrolling out of sight on a narrow pane. Runs on every text change —
-	// keystrokes and external adopts alike. `max-height` in CSS caps it.
+	// Grow the box to fit its wrapped content so a long query stays fully visible
+	// rather than clipping. Re-fits on every text change *and* whenever the box
+	// gets narrower — shrinking the window or the pane is exactly when a
+	// one-line query needs to wrap onto two. `max-height` in CSS caps it.
 	useEffect(() => {
 		const el = inputRef.current;
 		if (!el) return;
 		el.style.height = "auto";
 		el.style.height = `${el.scrollHeight}px`;
 	}, [text]);
+
+	useEffect(() => {
+		const el = inputRef.current;
+		if (!el || typeof ResizeObserver === "undefined") return;
+		let lastWidth = el.clientWidth;
+		const observer = new ResizeObserver(() => {
+			if (el.clientWidth === lastWidth) return; // skip our own height writes
+			lastWidth = el.clientWidth;
+			el.style.height = "auto";
+			el.style.height = `${el.scrollHeight}px`;
+		});
+		observer.observe(el);
+		return () => observer.disconnect();
+	}, []);
 
 	const revert = () => {
 		cancelCommit();

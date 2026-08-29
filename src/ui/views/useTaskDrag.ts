@@ -128,10 +128,18 @@ export function useTaskDrag(
 
 	const onPointerDown = useCallback(
 		(event: React.PointerEvent, taskPath: string, groupKey: string) => {
-			// Ignore right-clicks and anything starting on an interactive control.
+			// Ignore right-clicks and anything starting on an interactive control
+			// — but NOT the row's own open-affordance. In the List view every
+			// row's content is wrapped in a `.vf-row-open` button so the trailing
+			// delete action can sit beside it; treating that as "a control" would
+			// abort every list drag before it started.
 			if (event.button !== 0) return;
 			const target = event.target as HTMLElement;
-			if (target.closest("button, input, select, a, textarea")) return;
+			if (
+				target.closest("button:not(.vf-row-open), input, select, a, textarea")
+			) {
+				return;
+			}
 
 			// Measure now, while the element is still in its resting position.
 			const rect = event.currentTarget.getBoundingClientRect();

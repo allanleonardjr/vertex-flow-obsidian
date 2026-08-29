@@ -18,6 +18,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { Notice } from "obsidian";
 import { projectProgress, projectTasks, scopeOf } from "../core/hierarchy";
 import type { ViewContext } from "../core/views";
 import type { WorkspaceTaxonomies } from "../core/taxonomy";
@@ -155,15 +156,21 @@ function ProjectEditor({
 
   return (
     <>
-      <header className="vf-editor-header">
-        <span className="vf-project-head-icon" aria-hidden>
+      <header className="vf-editor-header vf-project-editor-header">
+        <span className="vf-view-title-icon" aria-hidden>
           <Icon id={project.icon} fallback="folder" size={16} />
         </span>
-        <span className="vf-id">{snapshot.workspace.idPrefix}</span>
+        <ProjectTitleField project={project} />
+        <span className="vf-view-title-code">
+          ({snapshot.workspace.idPrefix})
+        </span>
+        <span className="vf-count">
+          {taskCount} {taskCount === 1 ? "task" : "tasks"}
+        </span>
         {project.archived && <span className="vf-chip">Archived</span>}
         <span className="vf-editor-spacer" />
         <button className="mod-cta" onClick={onNewTask}>
-          New project task
+          New task
         </button>
         <button
           type="button"
@@ -178,15 +185,15 @@ function ProjectEditor({
       <div className="vf-editor-body vf-project-editor">
         <div className="vf-editor-main-col">
           <main
-            className="vf-editor-main vf-project-editor-info"
+            className={`vf-editor-main vf-project-editor-info${
+              descCollapsed ? " is-collapsed" : ""
+            }`}
             style={
               descCollapsed
                 ? undefined
                 : { height: infoHeight, flex: "0 0 auto" }
             }
           >
-            <ProjectTitleField project={project} />
-
             <button
               type="button"
               className="vf-rail-section-toggle vf-project-desc-toggle"
@@ -438,21 +445,28 @@ function ProjectRawSourceSection({ project }: { project: Project }) {
   );
 }
 
+/**
+ * The project's name — rendered inline in the header next to the icon and ID
+ * prefix, matching the `All Tasks (PREFIX)` title of a Saved View. A rename to a
+ * title another project in the workspace already uses is rejected by
+ * `updateProject`; the field surfaces that and reverts rather than leaving a
+ * duplicate name showing.
+ */
 function ProjectTitleField({ project }: { project: Project }) {
   const plugin = usePlugin();
-  const [title, setTitle] = useDebouncedSave(project.title, (value) => {
-    void plugin.mutations.updateProject(project, {
-      title: value.trim() || NEW_PROJECT_TITLE,
-    });
+  const [title, setTitle, flush] = useDebouncedSave(project.title, (value) => {
+    void plugin.mutations
+      .updateProject(project, { title: value.trim() || NEW_PROJECT_TITLE })
+      .catch((cause) => {
+        new Notice(cause instanceof Error ? cause.message : String(cause));
+        setTitle(project.title);
+      });
   });
 
   const isPlaceholder = project.title === NEW_PROJECT_TITLE;
   const focusRef = useCallback(
-    (element: HTMLTextAreaElement | null) => {
-      if (!element) return;
-      element.style.height = "auto";
-      element.style.height = `${element.scrollHeight}px`;
-      if (isPlaceholder) {
+    (element: HTMLInputElement | null) => {
+      if (element && isPlaceholder) {
         element.focus();
         element.select();
       }
@@ -461,18 +475,18 @@ function ProjectTitleField({ project }: { project: Project }) {
   );
 
   return (
-    <textarea
+    <input
       ref={focusRef}
-      className="vf-editor-title"
+      type="text"
+      className="vf-project-title-input"
+      // Size to the title so the ID prefix and task count sit right beside it,
+      // the way a Saved View's title does. Clamped so neither a one-word
+      // project nor a very long name distorts the header.
+      size={Math.max(6, Math.min(title.length + 1, 48))}
       value={title}
-      rows={1}
       placeholder="Project title"
       onChange={(event) => setTitle(event.target.value)}
-      onInput={(event) => {
-        const el = event.currentTarget;
-        el.style.height = "auto";
-        el.style.height = `${el.scrollHeight}px`;
-      }}
+      onBlur={flush}
     />
   );
 }
