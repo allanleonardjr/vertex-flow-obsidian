@@ -22,40 +22,51 @@ export const DESCRIPTION_END_TAG = "<!-- PLUGIN_DESCRIPTION_END -->";
 export const DESCRIPTION_HEADING = "## Description";
 
 /**
- * Serializes a description string into a safely fenced markdown block.
- * If the description is empty or undefined, it returns an empty string.
+ * Serializes a description into its fenced block.
+ *
+ * The block is emitted even when there's nothing to put in it. An empty
+ * description used to collapse the whole section away, which left someone
+ * editing the raw note with no indication of where the description belongs —
+ * and made a cleared description indistinguishable from a note that never had
+ * one. The heading is structure rather than content (`parseDescription`
+ * strips it), so an empty block round-trips back to `""` and the editor still
+ * shows its placeholder.
  */
 export function serializeDescription(
   description: string | undefined | null,
 ): string {
-  console.log("description", description);
-  if (!description || description.trim().length === 0) {
-    return "";
-  }
-
   return [
     DESCRIPTION_START_TAG,
     DESCRIPTION_HEADING,
-    description.trim(),
+    // Empty when there's no description, leaving a blank line under the
+    // heading for someone hand-editing the note to type into.
+    description?.trim() ?? "",
     DESCRIPTION_END_TAG,
   ].join("\n");
 }
 
+const escape = (literal: string) =>
+  literal.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 /**
- * Parses a description from the raw file content using regex matching.
- * It strictly looks for content within the boundaries of the START and END tags,
- * ignoring any internal markdown syntax that might otherwise break section parsing.
+ * The description block, built from the constants above rather than repeating
+ * them — otherwise renaming a tag would silently stop the parser matching.
+ * `[\s\S]*?` matches multiline content without running past the end tag.
+ */
+const BLOCK_RE = new RegExp(
+  `${escape(DESCRIPTION_START_TAG)}\\s*${escape(
+    DESCRIPTION_HEADING,
+  )}\\s*([\\s\\S]*?)\\s*${escape(DESCRIPTION_END_TAG)}`,
+);
+
+/**
+ * Reads the description out of a note body.
+ *
+ * Only the fenced block counts: the tags, not the heading, are what bound the
+ * section, so a description may contain `##` headings of its own without the
+ * parser mistaking one for the end of the section. A block with an empty body
+ * reads as `""`, the same as a note that has no block at all.
  */
 export function parseDescription(fileContent: string): string {
-  // [\s\S]*? ensures we match multiline content safely without being greedy
-  const blockRegex =
-    /<!-- PLUGIN_DESCRIPTION_START -->\s*## Description\s*([\s\S]*?)\s*<!-- PLUGIN_DESCRIPTION_END -->/;
-  const match = fileContent.match(blockRegex);
-
-  if (match && match[1]) {
-    const parsedDescription = match[1].trim();
-    return parsedDescription.length > 0 ? parsedDescription : "";
-  }
-
-  return "";
+  return fileContent.match(BLOCK_RE)?.[1]?.trim() ?? "";
 }

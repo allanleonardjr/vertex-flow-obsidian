@@ -81,10 +81,31 @@ describe("serializeDescription", () => {
     expect(serialized).toContain(DESCRIPTION_END_TAG);
   });
 
-  it("returns an empty string when the description is cleared or empty", () => {
-    expect(serializeDescription("")).toBe("");
-    expect(serializeDescription("   ")).toBe("");
-    expect(serializeDescription(undefined)).toBe("");
-    expect(serializeDescription(null)).toBe("");
+  it("still emits the block when there is no description", () => {
+    // The heading is the landmark someone hand-editing the note needs; a
+    // section that vanishes when empty is exactly when they need it most.
+    for (const empty of ["", "   ", undefined, null]) {
+      const serialized = serializeDescription(empty);
+      expect(serialized).toContain(DESCRIPTION_START_TAG);
+      expect(serialized).toContain("## Description");
+      expect(serialized).toContain(DESCRIPTION_END_TAG);
+    }
+  });
+
+  it("round-trips an empty description back to an empty string", () => {
+    // What keeps the editor's placeholder showing rather than a stray heading.
+    expect(parseDescription(serializeDescription(""))).toBe("");
+    expect(parseDescription(serializeDescription(null))).toBe("");
+  });
+
+  it("leaves a blank line under the heading to type into", () => {
+    expect(serializeDescription("")).toBe(
+      `${DESCRIPTION_START_TAG}\n## Description\n\n${DESCRIPTION_END_TAG}`,
+    );
+  });
+
+  it("survives a round-trip through a description of its own headings", () => {
+    const text = "## Not the end\n\nBody.\n\n## Nor this";
+    expect(parseDescription(serializeDescription(text))).toBe(text);
   });
 });
