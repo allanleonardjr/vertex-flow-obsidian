@@ -7,11 +7,11 @@ import {
   SignalZero,
   Link,
   ListTree,
-  Folder,
   Archive,
   Gauge,
 } from "lucide-react";
 import { basename } from "../../core/links";
+import { Icon } from "./Icon";
 import { listValues, type WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { Task } from "../../core/types";
 
@@ -238,7 +238,7 @@ export function ProjectChip({
   projects,
 }: {
   task: Task;
-  projects: readonly { path: string; title: string }[];
+  projects: readonly { path: string; title: string; icon?: string }[];
 }) {
   if (!task.project) return null;
   const project = projects.find((p) => p.path === task.project);
@@ -248,7 +248,11 @@ export function ProjectChip({
 
   return (
     <span className="vf-chip vf-chip-project" title={`Project: ${label}`}>
-      <Folder size={11} /> {label}
+      {/* The project's own configured icon, same as the sidebar and tab strip
+          show it — a chip that disagreed with those would read as a different
+          project. Falls back to a folder, including for an unresolved link. */}
+      <Icon id={project?.icon} fallback="folder" size={11} />
+      {label}
     </span>
   );
 }
@@ -335,6 +339,27 @@ export function DueDate({ task }: { task: Task }) {
   );
 }
 
+/**
+ * The initials disc a person renders as everywhere — rows, cards, and the
+ * editor's Assignee/Owner picker. There are no uploaded avatars (the People
+ * register is names, not accounts, §5.5), so initials are the whole identity.
+ */
+export function PersonAvatar({ name }: { name: string }) {
+  const initials = name
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
+  return (
+    <span className="vf-avatar" title={name}>
+      {initials}
+    </span>
+  );
+}
+
 export function Assignee({
   people,
   assignee,
@@ -344,18 +369,8 @@ export function Assignee({
 }) {
   if (!assignee) return null;
   const person = people.find((p) => p.id === assignee);
-  const initials = (person?.name ?? assignee)
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
 
-  return (
-    <span className="vf-avatar" title={person?.name ?? assignee}>
-      {initials}
-    </span>
-  );
+  return <PersonAvatar name={person?.name ?? assignee} />;
 }
 
 export function RelationBadge({ task }: { task: Task }) {

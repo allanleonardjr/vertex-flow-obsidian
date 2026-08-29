@@ -1082,12 +1082,37 @@ body.vf-dragging {
   position: relative;
 }
 
+/* The input is a combobox, so it carries the same caret as the pickers above
+   it in the rail; the input pads out of its way. */
+.vf-label-editor-input .vf-input {
+  padding-right: 20px;
+}
+
+.vf-label-editor-caret {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 5px !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--vf-muted);
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+}
+
 .vf-label-editor-menu {
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
   right: 0;
   z-index: 30;
+  max-height: 240px;
+  overflow-y: auto;
   padding: 4px;
   border: 1px solid var(--vf-border);
   border-radius: var(--vf-radius);
@@ -1650,6 +1675,19 @@ body.vf-dragging {
 
 .vf-menu-item.is-active {
   color: var(--text-accent);
+}
+
+/* Keyboard/pointer highlight — "what Enter would pick", distinct from
+   .is-active's "what the field currently holds". The two can coexist. */
+.vf-menu-item.is-highlighted {
+  background: var(--background-modifier-hover) !important;
+}
+
+/* "No matches" / "Every label is already added" — a note, not a row. */
+.vf-menu-empty {
+  margin: 6px 8px;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
 }
 
 /* Destructive row (e.g. "Delete workspace") — ruled off above via
@@ -3150,6 +3188,36 @@ body.vf-dragging {
 .vf-option-list {
   display: flex;
   flex-direction: column;
+}
+
+/* Portaled to <body>, positioned from the trigger — the editor rail clips.
+   Height is capped inline to whatever room the trigger has; the list is the
+   part that scrolls, so the search box stays put. */
+.vf-select-menu {
+  position: fixed;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-primary);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+}
+
+.vf-select-search {
+  flex-shrink: 0;
+}
+
+.vf-option-list-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.vf-option-list-scroll:focus-visible {
+  outline: none;
 }
 
 /* -- Task picker (Parent, relations): rows are the List-view row itself --- */

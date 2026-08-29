@@ -288,6 +288,7 @@ function ProjectEditor({
               people={snapshot.workspace.people}
               value={project.owner}
               onChange={(owner) => update({ owner })}
+              noneLabel="No owner"
             />
           </PropertyRow>
 

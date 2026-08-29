@@ -28,6 +28,7 @@ import {
   useDebouncedSave,
 } from "./components/fields";
 import { CollapsibleSection } from "./components/CollapsibleSection";
+import { Icon } from "./components/Icon";
 import { ConfirmDeleteDialog } from "./components/ConfirmDeleteDialog";
 import { DescriptionSection } from "./components/DescriptionSection";
 import { EditorRail } from "./components/EditorRail";
@@ -637,8 +638,14 @@ function ProjectPicker({
   snapshot: WorkspaceSnapshot;
   onChange: (patch: Partial<Task>) => void;
 }) {
+  // Each row carries the project's own icon, the way the tab strip and sidebar
+  // draw it — so the picker looks like the thing it's picking.
   const options: Option[] = snapshot.projects
-    .map((project) => ({ value: project.path, label: project.title }))
+    .map((project) => ({
+      value: project.path,
+      label: project.title,
+      icon: <Icon id={project.icon} fallback="folder" size={13} />,
+    }))
     .sort((a, b) => a.label.localeCompare(b.label));
 
   return (
@@ -648,6 +655,7 @@ function ProjectPicker({
         value={task.project}
         onChange={(project) => onChange({ project })}
         noneLabel="No project"
+        searchPlaceholder="Search projects…"
       />
     </PropertyRow>
   );
