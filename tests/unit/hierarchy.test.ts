@@ -5,11 +5,13 @@ import {
 	computeProgress,
 	descendantTasks,
 	formatProgress,
+	newTaskProject,
 	primaryParent,
 	projectProgress,
 	projectTasks,
 	scopeOf,
 	subtaskProgress,
+	topLevelProjectTasks,
 	type HierarchyScope,
 } from "../../src/core/hierarchy";
 import { sampleSnapshot } from "../../src/core/templates/instantiate";
@@ -59,6 +61,24 @@ describe("direct children", () => {
 
 	it("finds a project's tasks", () => {
 		expect(projectTasks(scope, P("Projects/App Store Launch"))).toHaveLength(3);
+	});
+
+	it("topLevelProjectTasks drops sub-tasks that carry the project link", () => {
+		const core = P("Projects/Core App Experience");
+		// SMP-0102 and SMP-0103 are sub-tasks of SMP-0101 but still carry
+		// `project: Core App Experience` — the denormalized link.
+		expect(projectTasks(scope, core).map((t) => t.id).sort()).toEqual([
+			"SMP-0101",
+			"SMP-0102",
+			"SMP-0103",
+			"SMP-0104",
+			"SMP-0105",
+		]);
+		expect(topLevelProjectTasks(scope, core).map((t) => t.id).sort()).toEqual([
+			"SMP-0101",
+			"SMP-0104",
+			"SMP-0105",
+		]);
 	});
 
 	it("matches short-form wikilinks against full paths", () => {
@@ -129,6 +149,27 @@ describe("primary parent (exactly one)", () => {
 			path: "pr",
 		});
 		expect(primaryParent(task({ path: "x" }))).toEqual({ kind: "none" });
+	});
+});
+
+describe("newTaskProject (seed once, never sync)", () => {
+	const parent = task({ path: T("1"), project: P("Projects/Core") });
+
+	it("inherits the parent's project when none is given", () => {
+		expect(newTaskProject(undefined, parent)).toBe(P("Projects/Core"));
+	});
+
+	it("uses an explicit project over the inherited one", () => {
+		expect(newTaskProject(P("Projects/Other"), parent)).toBe(P("Projects/Other"));
+	});
+
+	it("honours an explicit null even when the parent has a project", () => {
+		expect(newTaskProject(null, parent)).toBeNull();
+	});
+
+	it("is null for a top-level task with no project", () => {
+		expect(newTaskProject(undefined, null)).toBeNull();
+		expect(newTaskProject(undefined, task({ path: T("9") }))).toBeNull();
 	});
 });
 
@@ -215,17 +256,37 @@ describe("sub-task rollup (§7.2)", () => {
 });
 
 describe("project progress (§7.1)", () => {
-	it("computes project progress from every task in the project", () => {
-		// Sub-tasks carry their parent's `project` link too, so they count here.
-		// A project's progress is all the work in it, not just its top-level rows
-		// — the parent-only rollup is what §7.2's progress bar is for.
+	it("computes project progress from top-level tasks only", () => {
+		// Sub-tasks carry their parent's `project` link, but each is already
+		// counted in its own parent's §7.2 rollup — counting them again at the
+		// project level would double them. So the project's progress is over its
+		// three top-level tasks (SMP-0101/0104/0105), not all five.
 		const progress = projectProgress(
 			scope,
 			P("Projects/Core App Experience"),
 			statuses,
 		);
-		expect(progress.total).toBe(5);
-		expect(progress.completed).toBe(1);
+		expect(progress.total).toBe(3);
+	});
+
+	it("isn't inflated by a top-level task's own sub-tasks", () => {
+		// One top-level task, 60%-ish done via its own sub-tasks. The project
+		// sees exactly one task, not one + its children.
+		const statusesLocal = statuses;
+		const local: HierarchyScope = {
+			projects: [],
+			tasks: [
+				task({ path: T("1"), project: P("Projects/X"), status: "in-progress" }),
+				task({ path: T("2"), parent: T("1"), project: P("Projects/X"), status: "done" }),
+				task({ path: T("3"), parent: T("1"), project: P("Projects/X"), status: "done" }),
+				task({ path: T("4"), parent: T("1"), project: P("Projects/X"), status: "done" }),
+				task({ path: T("5"), parent: T("1"), project: P("Projects/X"), status: "todo" }),
+				task({ path: T("6"), parent: T("1"), project: P("Projects/X"), status: "todo" }),
+			],
+		};
+		const progress = projectProgress(local, P("Projects/X"), statusesLocal);
+		expect(progress.total).toBe(1);
+		expect(progress.completed).toBe(0);
 	});
 
 	it("leaves the project's own status untouched by its progress", () => {

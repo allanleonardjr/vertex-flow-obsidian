@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	applyDeletion,
+	danglingProjectEdits,
 	danglingRelationEdits,
 	describePlanChildren,
 	planDeletion,
@@ -98,6 +99,22 @@ describe("planning", () => {
 		};
 		const plan = planProjectDeletion(scope, project("P/1"));
 		expect(plan.childTasks.map((t) => t.path)).toEqual(["T/1", "T/2"]);
+	});
+
+	it("a project's childTasks are its top-level tasks only", () => {
+		// T/2 carries `project: P/1` but is a sub-task of T/1 — it's a
+		// hierarchical child of T/1, not of the project, so the project's
+		// cascade/unparent choice must not list it for its own sake.
+		const scope: HierarchyScope = {
+			tasks: [
+				task({ path: "T/1", project: "P/1" }),
+				task({ path: "T/2", parent: "T/1", project: "P/1" }),
+				task({ path: "T/3", parent: "T/2", project: "P/1" }),
+			],
+			projects: [project("P/1")],
+		};
+		const plan = planProjectDeletion(scope, project("P/1"));
+		expect(plan.childTasks.map((t) => t.path)).toEqual(["T/1"]);
 	});
 
 	it("dispatches on entity type", () => {
@@ -299,6 +316,44 @@ describe("dangling relations", () => {
 			projects: [],
 		};
 		expect(danglingRelationEdits(scope, ["T/1", "T/2"])).toEqual([]);
+	});
+});
+
+describe("dangling project links", () => {
+	it("nulls `project` on a deep sub-task the cascade never touched", () => {
+		// P/1 deleted; T/1 (top-level) is handled by the cascade, but T/3 — a
+		// grandchild that carries `project: P/1` as metadata — is not.
+		const scope: HierarchyScope = {
+			tasks: [
+				task({ path: "T/1", project: "P/1" }),
+				task({ path: "T/2", parent: "T/1", project: "P/1" }),
+				task({ path: "T/3", parent: "T/2", project: "P/1" }),
+			],
+			projects: [project("P/1")],
+		};
+		expect(danglingProjectEdits(scope, ["P/1", "T/1"])).toEqual([
+			{ path: "T/2", field: "project", value: null },
+			{ path: "T/3", field: "project", value: null },
+		]);
+	});
+
+	it("leaves a sub-task pointing at a different project alone", () => {
+		const scope: HierarchyScope = {
+			tasks: [
+				task({ path: "T/1", project: "P/1" }),
+				task({ path: "T/2", parent: "T/1", project: "P/2" }),
+			],
+			projects: [project("P/1"), project("P/2")],
+		};
+		expect(danglingProjectEdits(scope, ["P/1", "T/1"])).toEqual([]);
+	});
+
+	it("skips tasks that are themselves being deleted", () => {
+		const scope: HierarchyScope = {
+			tasks: [task({ path: "T/1", project: "P/1" })],
+			projects: [project("P/1")],
+		};
+		expect(danglingProjectEdits(scope, ["P/1", "T/1"])).toEqual([]);
 	});
 });
 

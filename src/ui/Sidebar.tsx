@@ -11,6 +11,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { BUILT_IN_VIEW_ID, newView } from "../core/views";
+import { isProjectTitleTaken } from "../core/serialization";
 import {
 	findTaxonomyUsage,
 	planTaxonomyDeletion,
@@ -625,6 +626,11 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 					initialName="New project"
 					initialIcon="folder"
 					confirmLabel="Create"
+					validateName={(name) =>
+						isProjectTitleTaken(snapshot.projects, name)
+							? `A project named "${name.trim()}" already exists`
+							: null
+					}
 					onConfirm={(name, icon) =>
 						void plugin.mutations.createProject(snapshot, name, icon)
 					}
@@ -639,6 +645,11 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 					initialIcon={editing.icon}
 					iconFallback="folder"
 					confirmLabel="Save"
+					validateName={(name) =>
+						isProjectTitleTaken(snapshot.projects, name, editing.path)
+							? `A project named "${name.trim()}" already exists`
+							: null
+					}
 					onConfirm={(name, icon) =>
 						void plugin.mutations.updateProject(editing, {
 							title: name,

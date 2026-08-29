@@ -376,6 +376,15 @@ describe("resolution", () => {
 		expect(parsed.definition.filters.project).toEqual([project]);
 	});
 
+	it("resolves a unique project title with no ambiguity warning", () => {
+		// Project titles are unique per workspace, so `resolveEntity`'s soleMatch
+		// always lands on exactly one project — the "use the full path" ambiguity
+		// warning never fires. Guards against a regression in that invariant.
+		const parsed = parseQuery(`project:"Core App Experience"`, ctx);
+		expect(parsed.definition.filters.project).toEqual([project]);
+		expect(parsed.issues).toEqual([]);
+	});
+
 	it("means the same thing as a hand-built filter set", () => {
 		const parsed = parseQuery("status:todo,in-progress type:bug", ctx);
 		expect(applyFilters(snapshot.tasks, parsed.definition.filters, viewCtx)).toEqual(

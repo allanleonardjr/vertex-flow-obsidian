@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
 	COMMENTS_END,
 	COMMENTS_START,
+	detectProjectTitleCollisions,
 	extractMentionHandles,
 	mentionsInNote,
 	extractProjectDescription,
+	isProjectTitleTaken,
 	nextCommentId,
 	parseComments,
 	parseProject,
@@ -263,6 +265,54 @@ describe("project description (note body)", () => {
 
 	it("treats an empty description as an empty body", () => {
 		expect(withProjectDescription("   \n  ")).toBe("");
+	});
+});
+
+describe("project title uniqueness (per workspace)", () => {
+	const P = (path: string, title: string) =>
+		parseProject({ title }, { path, defaultStatus: "queue" }).value;
+
+	const projects = [
+		P("W/Projects/Core App", "Core App"),
+		P("W/Projects/Marketing", "Marketing"),
+	];
+
+	it("matches an existing title case-insensitively", () => {
+		expect(isProjectTitleTaken(projects, "Marketing")).toBe(true);
+		expect(isProjectTitleTaken(projects, "  marketing ")).toBe(true);
+		expect(isProjectTitleTaken(projects, "Roadmap")).toBe(false);
+	});
+
+	it("lets a project keep or re-case its own title via excludePath", () => {
+		expect(
+			isProjectTitleTaken(projects, "Marketing", "W/Projects/Marketing"),
+		).toBe(false);
+		expect(
+			isProjectTitleTaken(projects, "MARKETING", "W/Projects/Marketing"),
+		).toBe(false);
+		// ...but not onto a *different* project's name.
+		expect(
+			isProjectTitleTaken(projects, "Core App", "W/Projects/Marketing"),
+		).toBe(true);
+	});
+
+	it("ignores a blank title", () => {
+		expect(isProjectTitleTaken(projects, "   ")).toBe(false);
+	});
+
+	it("detectProjectTitleCollisions flags every project in a colliding pair", () => {
+		const clashing = [
+			P("W/Projects/A", "Docs"),
+			P("W/Projects/B", "docs"),
+			P("W/Projects/C", "Unique"),
+		];
+		expect(detectProjectTitleCollisions(clashing).map((c) => c.path).sort()).toEqual(
+			["W/Projects/A", "W/Projects/B"],
+		);
+	});
+
+	it("detectProjectTitleCollisions is empty when every title is distinct", () => {
+		expect(detectProjectTitleCollisions(projects)).toEqual([]);
 	});
 });
 

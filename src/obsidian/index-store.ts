@@ -14,7 +14,10 @@
 
 import { App, TFile, debounce } from "obsidian";
 import { mentionsInNote } from "../core/serialization/comments";
-import { parseProject } from "../core/serialization/entities";
+import {
+	detectProjectTitleCollisions,
+	parseProject,
+} from "../core/serialization/entities";
 import { parseTask } from "../core/serialization/task";
 import { parseViews } from "../core/serialization/views";
 import { parseWorkspace } from "../core/serialization/workspace";
@@ -247,6 +250,19 @@ export class VaultIndex {
 				case "project":
 					snapshot.projects.push(parseProject(frontmatter, options).value as Project);
 					break;
+			}
+		}
+
+		// Two projects in one workspace sharing a title (case-insensitive) make
+		// `project:` filters and links ambiguous (§4.2). Not fatal — both load —
+		// but flagged on each note the same way an ID-prefix collision is.
+		for (const snapshot of configs.values()) {
+			for (const collision of detectProjectTitleCollisions(snapshot.projects)) {
+				addIssue(
+					collision.path,
+					`Another project in this workspace is also named "${collision.title}" — ` +
+						`rename one so project: filters and links resolve correctly.`,
+				);
 			}
 		}
 

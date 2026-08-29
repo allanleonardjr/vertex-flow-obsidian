@@ -119,3 +119,69 @@ export function withProjectDescription(text: string): string {
 	const content = text.replace(/\r\n/g, "\n").trim();
 	return content ? `${content}\n` : "";
 }
+
+// ---------------------------------------------------------------------------
+// Title uniqueness (per workspace)
+// ---------------------------------------------------------------------------
+//
+// Project notes are title-based files, so two projects in one workspace sharing
+// a `title` produces ambiguous `project:` filters and links (the query bar
+// falls back to printing the raw vault path). Titles are unique per workspace —
+// the same "nothing shared across workspaces" scoping taxonomies and people
+// follow — and compared case-insensitively, matching the taxonomy engine.
+
+function titleKey(title: string): string {
+	return title.trim().toLowerCase();
+}
+
+/**
+ * Whether another project in this workspace already uses `title`
+ * (case-insensitive). `excludePath` lets a project keep (or re-case) its own
+ * name on rename without tripping the check — mirrors `updateValue` in the
+ * taxonomy engine.
+ */
+export function isProjectTitleTaken(
+	projects: readonly Project[],
+	title: string,
+	excludePath?: string,
+): boolean {
+	const key = titleKey(title);
+	if (!key) return false;
+	return projects.some(
+		(project) => project.path !== excludePath && titleKey(project.title) === key,
+	);
+}
+
+export interface ProjectTitleCollision {
+	path: string;
+	title: string;
+}
+
+/**
+ * Projects in one workspace whose titles collide case-insensitively — one entry
+ * per affected project, so each note gets its own issue. Same shape and spirit
+ * as `detectPrefixCollisions`: a real correctness problem, surfaced as a
+ * non-fatal note issue rather than blocking vault load, since an existing vault
+ * may already contain duplicates from before the rule existed.
+ */
+export function detectProjectTitleCollisions(
+	projects: readonly Project[],
+): ProjectTitleCollision[] {
+	const groups = new Map<string, Project[]>();
+	for (const project of projects) {
+		const key = titleKey(project.title);
+		if (!key) continue;
+		const group = groups.get(key) ?? [];
+		group.push(project);
+		groups.set(key, group);
+	}
+
+	const out: ProjectTitleCollision[] = [];
+	for (const group of groups.values()) {
+		if (group.length < 2) continue;
+		for (const project of group) {
+			out.push({ path: project.path, title: project.title });
+		}
+	}
+	return out;
+}

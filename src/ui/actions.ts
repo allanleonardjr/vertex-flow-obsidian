@@ -56,6 +56,24 @@ export function useCreateTask(): (
 export const NEW_PROJECT_TITLE = "New project";
 
 /**
+ * `"New project"`, or `"New project 2"`, `"New project 3"`… if earlier ones are
+ * still around. Project titles are unique per workspace and `createProject`
+ * hard-blocks a collision — but this one convenience entry point has no dialog
+ * to fix the name in, so it disambiguates *its own default title only*. A user
+ * typing a real name still gets blocked on a real clash.
+ */
+function nextDefaultProjectTitle(snapshot: WorkspaceSnapshot): string {
+	const taken = new Set(
+		snapshot.projects.map((p) => p.title.trim().toLowerCase()),
+	);
+	if (!taken.has(NEW_PROJECT_TITLE.toLowerCase())) return NEW_PROJECT_TITLE;
+	for (let n = 2; ; n++) {
+		const candidate = `${NEW_PROJECT_TITLE} ${n}`;
+		if (!taken.has(candidate.toLowerCase())) return candidate;
+	}
+}
+
+/**
  * Create a project and open it in its own internal tab — the Vertex Flow
  * Project editor, not the raw Obsidian note (the same shift Tasks made). Same
  * create-first-then-edit shape as `useCreateTask`: there's a real note the
@@ -70,7 +88,7 @@ export function useCreateProject(): (snapshot: WorkspaceSnapshot) => Promise<voi
 			try {
 				const file = await plugin.mutations.createProject(
 					snapshot,
-					NEW_PROJECT_TITLE,
+					nextDefaultProjectTitle(snapshot),
 				);
 				tabs.openProject(withoutExtension(file.path));
 			} catch (cause) {

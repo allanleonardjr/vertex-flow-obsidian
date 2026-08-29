@@ -26,6 +26,7 @@ import {
 } from "../core/serialization/description";
 import {
 	extractProjectDescription,
+	isProjectTitleTaken,
 	serializeProject,
 	withProjectDescription,
 } from "../core/serialization/entities";
@@ -57,8 +58,10 @@ import {
 } from "../core/types";
 import {
 	applyDeletion,
+	danglingProjectEdits,
 	danglingRelationEdits,
 	danglingRelationEditsForWorkspaceDeletion,
+	newTaskProject,
 	scopeOf,
 	type DeletionChoice,
 	type DeletionOutcome,
@@ -105,9 +108,18 @@ export class Mutations {
 
 		// New tasks land at the top of whatever they're joining, so the person
 		// who just created one can actually see it.
+		const parentTask = input.parent
+			? (snapshot.tasks.find((task) => task.path === input.parent) ?? null)
+			: null;
 		const siblings = input.parent
 			? snapshot.tasks.filter((task) => task.parent === input.parent)
 			: snapshot.tasks;
+
+		// `parent` and `project` are independent. A sub-task defaults to its
+		// parent's project *once*, at creation — from then on it's an ordinary
+		// field that never re-syncs (like Linear). An explicit `project` in the
+		// input (including `null`) always wins over that default.
+		const project = newTaskProject(input.project, parentTask);
 
 		const task: Task = {
 			type: "task",
@@ -117,7 +129,7 @@ export class Mutations {
 			status: input.status ?? workspace.defaultNewTaskStatus,
 			priority: input.priority ?? null,
 			rank: rankForNewTask(siblings),
-			project: input.project ?? null,
+			project,
 			parent: input.parent ?? null,
 			assignee: input.assignee ?? null,
 			estimate: input.estimate ?? null,
@@ -169,6 +181,24 @@ export class Mutations {
 	}
 
 	/**
+	 * The task's parent *task* — its one true nesting position (Golden Rule).
+	 * Independent of `project`: setting or clearing a parent never touches the
+	 * task's `project` link, and moving a parent to a different project never
+	 * cascades to its existing sub-tasks (like Linear).
+	 */
+	async setParent(task: Task, parent: string | null): Promise<void> {
+		await this.updateTask(task, { parent });
+	}
+
+	/**
+	 * The task's Project — an orthogonal association, not a parent. A task may
+	 * carry both a `parent` task and a `project` at once.
+	 */
+	async setProject(task: Task, project: string | null): Promise<void> {
+		await this.updateTask(task, { project });
+	}
+
+	/**
 	 * Archiving is a visibility flag, not a location (§7.7) — the note never
 	 * moves folders, which is what keeps wikilinks stable.
 	 */
@@ -176,17 +206,6 @@ export class Mutations {
 		await this.updateTask(task, {
 			archived,
 			archivedAt: archived ? new Date().toISOString() : null,
-		});
-	}
-
-	/** Re-parenting is a one-field edit, never a file move (Golden Rule). */
-	async reparent(
-		task: Task,
-		parent: { kind: "task" | "project" | "none"; path?: string },
-	): Promise<void> {
-		await this.updateTask(task, {
-			parent: parent.kind === "task" ? (parent.path ?? null) : null,
-			project: parent.kind === "project" ? (parent.path ?? null) : null,
 		});
 	}
 
@@ -320,6 +339,17 @@ export class Mutations {
 		// Relations aren't hierarchy, so they're tidied silently rather than
 		// prompted about (§7.3).
 		await this.applyRelationEdits(danglingRelationEdits(scope, outcome.deletePaths));
+
+		// Likewise the denormalized `project` link on any deep sub-task that the
+		// cascade didn't touch — same "silent cleanup after the dialog, not part
+		// of it" treatment, since a metadata link isn't hierarchy either.
+		for (const edit of danglingProjectEdits(scope, outcome.deletePaths)) {
+			const file = this.io.getFile(edit.path);
+			if (!file) continue;
+			await this.io.updateFrontmatter(file, (frontmatter) => {
+				delete frontmatter[edit.field];
+			});
+		}
 
 		for (const path of outcome.deletePaths) {
 			const file = this.io.getFile(path);
@@ -516,7 +546,17 @@ export class Mutations {
 		title: string,
 		icon?: string,
 	): Promise<TFile> {
+		// Titles are unique per workspace (§4.2) — a collision would make
+		// `project:` filters and links ambiguous. Block it here rather than let
+		// `availablePath` quietly mint "<title> 2": that suffixing was papering
+		// over exactly this bug.
+		if (isProjectTitleTaken(snapshot.projects, title)) {
+			throw new Error(`A project named "${title.trim()}" already exists`);
+		}
+
 		const now = new Date().toISOString();
+		// `availablePath` stays as a filesystem safety net for the rare case of
+		// two *different* titles that sanitize to the same filename.
 		const path = this.io.availablePath(
 			joinPath(snapshot.workspace.root, FOLDERS.projects, sanitizeFileName(title)),
 		);
@@ -588,6 +628,18 @@ export class Mutations {
 	 */
 	async updateProject(project: Project, patch: Partial<Project>): Promise<void> {
 		const file = this.requireFile(project.path);
+
+		// On rename, the new title must stay unique in the workspace — excluding
+		// this project's own path so re-casing its own name is fine. Mirrors the
+		// taxonomy engine's `updateValue` rejecting a rename onto another value.
+		if (patch.title !== undefined) {
+			const siblings =
+				this.index.workspaceFor(project.path)?.projects ?? [];
+			if (isProjectTitleTaken(siblings, patch.title, project.path)) {
+				throw new Error(`A project named "${patch.title.trim()}" already exists`);
+			}
+		}
+
 		const merged: Project = {
 			...project,
 			...patch,

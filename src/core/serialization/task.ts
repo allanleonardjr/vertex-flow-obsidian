@@ -64,9 +64,11 @@ export function parseTask(
 	const project = parseLink(fm.project);
 	const parent = parseLink(fm.parent);
 
-	// A sub-task may still carry its parent's `project` link — that's redundancy,
-	// not a second parent, and it's what lets a project view find sub-tasks
-	// without walking the whole tree. `parent` remains the primary parent.
+	// `parent` and `project` are independent fields. A sub-task carries its own
+	// `project` link — seeded from its parent at creation, then maintained on
+	// its own, never auto-synced (like Linear). That's redundancy, not a second
+	// parent: `parent` remains the one true nesting position, and it's what lets
+	// a project view find sub-tasks without walking the whole tree.
 
 	const createdAt = asDateTime(fm.createdAt);
 	const updatedAt = asDateTime(fm.updatedAt);

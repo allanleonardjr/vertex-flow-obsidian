@@ -39,12 +39,35 @@ export function childTasks(scope: HierarchyScope, parent: LinkTarget): Task[] {
   return scope.tasks.filter((task) => linksMatch(task.parent, parent));
 }
 
-/** Tasks whose primary parent is this project. */
+/**
+ * Every task carrying this project link, at any nesting depth.
+ *
+ * `parent` and `project` are independent fields (like Linear): a sub-task keeps
+ * its own `project` — seeded from its parent at creation, then never synced —
+ * so this flattened result includes nested sub-tasks. That's what a `project:X`
+ * view filter wants (show all the work under a project); for a *rollup* use
+ * `topLevelProjectTasks` instead, or the same work counts twice.
+ */
 export function projectTasks(
   scope: HierarchyScope,
   project: LinkTarget,
 ): Task[] {
   return scope.tasks.filter((task) => linksMatch(task.project, project));
+}
+
+/**
+ * The project's *direct* tasks: same as `projectTasks` but only those with no
+ * parent task. This is the set a project rollup (progress, the deletion
+ * cascade) reasons about — a nested sub-task is already rolled into its own
+ * parent's progress bar, so counting it again at the project level would
+ * double-count it, and it's a hierarchical child of its parent task, not of
+ * the project.
+ */
+export function topLevelProjectTasks(
+  scope: HierarchyScope,
+  project: LinkTarget,
+): Task[] {
+  return projectTasks(scope, project).filter((task) => task.parent == null);
 }
 
 // ---------------------------------------------------------------------------
@@ -129,6 +152,23 @@ export function ancestorTasks(scope: HierarchyScope, task: Task): Task[] {
 
 export function isSubtask(task: Task): boolean {
   return task.parent != null;
+}
+
+/**
+ * The `project` a newly created task should get.
+ *
+ * `parent` and `project` are independent (like Linear): a new sub-task defaults
+ * to its parent's project *once*, at creation, and from then on the field is
+ * maintained on its own — re-parenting or moving the parent never re-syncs it.
+ * An explicit value in the creation input — including an explicit `null` — always
+ * wins over that inherited default.
+ */
+export function newTaskProject(
+  explicit: LinkTarget | null | undefined,
+  parent: Task | null,
+): LinkTarget | null {
+  if (explicit !== undefined) return explicit;
+  return parent?.project ?? null;
 }
 
 /**
@@ -218,7 +258,9 @@ export function projectProgress(
   project: LinkTarget,
   statuses: Taxonomy,
 ): Progress {
-  return computeProgress(projectTasks(scope, project), statuses);
+  // Top-level only: a sub-task is already counted in its own parent's rollup
+  // (§7.2), so counting it here too would double it.
+  return computeProgress(topLevelProjectTasks(scope, project), statuses);
 }
 
 /**

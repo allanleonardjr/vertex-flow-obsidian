@@ -8,7 +8,11 @@
  * own question.
  */
 
-import { childTasks, projectTasks, type HierarchyScope } from "./resolve";
+import {
+	childTasks,
+	topLevelProjectTasks,
+	type HierarchyScope,
+} from "./resolve";
 import type { LinkTarget, Project, Task } from "../types";
 
 export type DeletableKind = "task" | "project";
@@ -61,11 +65,16 @@ export function planProjectDeletion(
 	scope: HierarchyScope,
 	project: Project,
 ): DeletionPlan {
+	// Direct hierarchical children only (§7.8's one-level-at-a-time rule). A
+	// nested sub-task that merely carries this project as denormalized metadata
+	// is a child of its parent *task*, not of the project — it isn't part of
+	// this cascade/unparent choice. `danglingProjectEdits` tidies its stale
+	// `project` link afterwards, silently.
 	return makePlan(
 		"project",
 		project.path,
 		project.title,
-		projectTasks(scope, project.path),
+		topLevelProjectTasks(scope, project.path),
 	);
 }
 
@@ -190,6 +199,33 @@ export function danglingRelationEdits(
 			relations.duplicateOf !== task.relations.duplicateOf;
 
 		if (changed) out.push({ path: task.path, relations });
+	}
+
+	return out;
+}
+
+/**
+ * Tasks whose `project` points at a note being deleted (§4.1's denormalized
+ * link). Same spirit as `danglingRelationEdits`: **not** part of the cascade
+ * dialog — a deep sub-task carrying a project as metadata isn't a hierarchical
+ * child of it — so deleting a project never prompts about these. The plugin
+ * just clears the stale link afterwards so no view renders it broken.
+ *
+ * Scans every task *not* already being deleted, so a top-level task that the
+ * cascade handles directly (its `project` is moot) is skipped.
+ */
+export function danglingProjectEdits(
+	scope: HierarchyScope,
+	deletedPaths: Iterable<LinkTarget>,
+): FieldEdit[] {
+	const deleted = new Set(deletedPaths);
+	const out: FieldEdit[] = [];
+
+	for (const task of scope.tasks) {
+		if (deleted.has(task.path)) continue;
+		if (task.project && deleted.has(task.project)) {
+			out.push({ path: task.path, field: "project", value: null });
+		}
 	}
 
 	return out;

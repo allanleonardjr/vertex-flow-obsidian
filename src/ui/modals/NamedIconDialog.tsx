@@ -17,6 +17,7 @@ export function NamedIconDialog({
 	initialIcon,
 	iconFallback,
 	confirmLabel,
+	validateName,
 	onConfirm,
 	onClose,
 }: {
@@ -25,12 +26,21 @@ export function NamedIconDialog({
 	initialIcon?: string;
 	iconFallback?: string;
 	confirmLabel: string;
+	/**
+	 * Extra validation on the typed name — returns a message to show under the
+	 * field (and block confirm), or `null` when it's fine. Used for the
+	 * per-workspace project-title uniqueness check, mirroring the ID-prefix
+	 * collision treatment in the workspace-creation dialog.
+	 */
+	validateName?: (name: string) => string | null;
 	onConfirm: (name: string, icon: string | undefined) => void;
 	onClose: () => void;
 }) {
 	const [name, setName] = useState(initialName);
 	const [icon, setIcon] = useState<string | undefined>(initialIcon);
-	const valid = name.trim().length > 0;
+
+	const nameError = validateName?.(name) ?? null;
+	const valid = name.trim().length > 0 && !nameError;
 
 	const submit = () => {
 		if (!valid) return;
@@ -62,11 +72,15 @@ export function NamedIconDialog({
 							type="text"
 							autoFocus
 							value={name}
+							aria-invalid={nameError != null}
 							onChange={(event) => setName(event.target.value)}
 							onKeyDown={(event) => {
 								if (event.key === "Enter") submit();
 							}}
 						/>
+						{nameError && (
+							<small className="vf-field-error">{nameError}</small>
+						)}
 					</label>
 				</div>
 

@@ -16,6 +16,8 @@ import { NEW_TASK_TITLE } from "./actions";
 import {
   DateField,
   NumberField,
+  OptionSelect,
+  type Option,
   PersonSelect,
   PrioritySelect,
   PropertyRow,
@@ -29,10 +31,7 @@ import { ProgressBar, StatusDot } from "./components/TaskBits";
 import { EmbeddedTaskList } from "./components/EmbeddedTaskList";
 import { LabelEditor } from "./components/LabelEditor";
 import { RelationsEditor } from "./components/RelationsEditor";
-import {
-  TaskSelectMenu,
-  type TaskSelectExtraOption,
-} from "./components/TaskSelectMenu";
+import { TaskSelectMenu } from "./components/TaskSelectMenu";
 import { usePlugin } from "./context";
 
 export interface TaskDetailPanelProps {
@@ -203,6 +202,8 @@ export function TaskDetailPanel({
             onChange={update}
           />
 
+          <ProjectPicker task={task} snapshot={snapshot} onChange={update} />
+
           <PropertyRow label="Estimate">
             <NumberField
               value={task.estimate}
@@ -358,6 +359,11 @@ function DescriptionField({ task, initial }: { task: Task; initial: string }) {
   );
 }
 
+/**
+ * The task's parent *task* — its one true nesting position (Golden Rule).
+ * Tasks only; the Project association is an independent field, edited by
+ * `ProjectPicker` below. Setting or clearing a parent never touches `project`.
+ */
 function ParentPicker({
   task,
   snapshot,
@@ -369,8 +375,6 @@ function ParentPicker({
   taxonomies: WorkspaceTaxonomies;
   onChange: (patch: Partial<Task>) => void;
 }) {
-  const value = task.parent ?? task.project ?? null;
-
   // Its own descendants can't become its parent.
   const blocked = new Set(
     descendantTasks(scopeOf(snapshot), task.path).map((t) => t.path),
@@ -379,37 +383,9 @@ function ParentPicker({
     (candidate) => candidate.path !== task.path && !blocked.has(candidate.path),
   );
 
-  const extraOptions: TaskSelectExtraOption[] = snapshot.projects.map(
-    (project) => ({
-      value: project.path,
-      search: project.title,
-      label: (
-        <span className="vf-task-option-plain">
-          <span className="vf-task-option-kind">Project</span>
-          {project.title}
-        </span>
-      ),
-    }),
-  );
-
   const parentTask = task.parent
     ? snapshot.tasks.find((t) => t.path === task.parent)
     : null;
-  const parentProject = task.project
-    ? snapshot.projects.find((p) => p.path === task.project)
-    : null;
-
-  const apply = (next: string | null) => {
-    if (!next) {
-      onChange({ parent: null, project: null });
-      return;
-    }
-    const isTask = snapshot.tasks.some((t) => t.path === next);
-    onChange({
-      parent: isTask ? next : null,
-      project: isTask ? null : next,
-    });
-  };
 
   return (
     <PropertyRow label="Parent">
@@ -417,11 +393,10 @@ function ParentPicker({
         candidates={candidates}
         snapshot={snapshot}
         taxonomies={taxonomies}
-        value={value}
-        onSelect={apply}
+        value={task.parent}
+        onSelect={(parent) => onChange({ parent })}
         noneLabel="No parent"
-        searchPlaceholder="Search projects & tasks…"
-        extraOptions={extraOptions}
+        searchPlaceholder="Search tasks…"
         trigger={({ open, toggle }) => (
           <button
             type="button"
@@ -439,11 +414,6 @@ function ParentPicker({
                 <span className="vf-id">{parentTask.id}</span>
                 <span className="vf-icon-select-name">{parentTask.title}</span>
               </>
-            ) : parentProject ? (
-              <span className="vf-icon-select-name">
-                <span className="vf-task-option-kind">Project</span>
-                {parentProject.title}
-              </span>
             ) : (
               <span className="vf-icon-select-name vf-prop-empty">No parent</span>
             )}
@@ -452,6 +422,36 @@ function ParentPicker({
             </span>
           </button>
         )}
+      />
+    </PropertyRow>
+  );
+}
+
+/**
+ * The task's Project — an association orthogonal to its parent task, not a
+ * second parent. A sub-task can carry both at once; this edits `project` alone
+ * and never touches `parent`.
+ */
+function ProjectPicker({
+  task,
+  snapshot,
+  onChange,
+}: {
+  task: Task;
+  snapshot: WorkspaceSnapshot;
+  onChange: (patch: Partial<Task>) => void;
+}) {
+  const options: Option[] = snapshot.projects
+    .map((project) => ({ value: project.path, label: project.title }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+
+  return (
+    <PropertyRow label="Project">
+      <OptionSelect
+        options={options}
+        value={task.project}
+        onChange={(project) => onChange({ project })}
+        noneLabel="No project"
       />
     </PropertyRow>
   );
