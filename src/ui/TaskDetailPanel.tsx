@@ -205,7 +205,7 @@ export function TaskDetailPanel({
                   }
                 }}
                 removeTitle={(title) =>
-                  `Unlink sub-task ${title} — it becomes a top-level task`
+                  `Unlink sub-task “${title}” — it becomes a top-level task`
                 }
                 renderAddTrigger={() => (
                   <AddSubtaskTrigger

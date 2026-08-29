@@ -38,7 +38,7 @@ export function EmbeddedTaskList({
   taxonomies,
   onOpenTask,
   onRemove,
-  removeTitle = (title) => `Unlink ${title} — the task is kept`,
+  removeTitle = (title) => `Unlink “${title}” — the task is kept`,
   renderAddTrigger,
 }: EmbeddedTaskListProps) {
   const isEmpty = tasks.length === 0 && missingPaths.length === 0;
