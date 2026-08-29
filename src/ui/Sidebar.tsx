@@ -12,6 +12,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { BUILT_IN_VIEW_ID, layoutIcon, newView } from "../core/views";
 import { newDashboard } from "../core/dashboards";
+import { newConfigId } from "../core/ids";
 import { isProjectTitleTaken } from "../core/serialization";
 import {
   describeUsage,
@@ -479,10 +480,8 @@ function ViewsSection({
   const [dialog, setDialog] = useState<ViewDialogState>(null);
   const [deleting, setDeleting] = useState<SavedView | null>(null);
 
-  const newId = () => `view-${Date.now().toString(36)}`;
-
   const create = () => {
-    const view = newView(newId(), "New view", "list");
+    const view = newView(newConfigId("view"), "New view", "list");
     void plugin.mutations.addView(snapshot, view).then(() => {
       onSelectView(view.id);
       setDialog({ mode: "create", view });
@@ -490,7 +489,11 @@ function ViewsSection({
   };
 
   const duplicate = (view: SavedView) => {
-    const copy: SavedView = { ...view, id: newId(), name: `${view.name} copy` };
+    const copy: SavedView = {
+      ...view,
+      id: newConfigId("view"),
+      name: `${view.name} copy`,
+    };
     void plugin.mutations
       .addView(snapshot, copy)
       .then(() => onSelectView(copy.id));
@@ -623,12 +626,10 @@ function DashboardsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   const activeDashboardId =
     activeTab.kind === "dashboard" ? activeTab.dashboardId : null;
 
-  const newId = () => `dashboard-${Date.now().toString(36)}`;
-
   // Mirror the "new view" flow: create with a default name, then open the
   // name + icon modal to finish it.
   const create = () => {
-    const dashboard = newDashboard(newId(), "New dashboard");
+    const dashboard = newDashboard(newConfigId("dashboard"), "New dashboard");
     void plugin.mutations.addDashboard(snapshot, dashboard).then(() => {
       openDashboard(dashboard.id);
       setDialog({ mode: "create", dashboard });
@@ -640,7 +641,7 @@ function DashboardsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
     if (!source) return;
     const copy: DashboardConfig = {
       ...source,
-      id: newId(),
+      id: newConfigId("dashboard"),
       name: `${source.name} copy`,
       widgets: source.widgets.map((w) => ({ ...w })),
     };

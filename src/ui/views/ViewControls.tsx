@@ -21,6 +21,7 @@ import type {
 	ViewFilters,
 	WorkspaceSnapshot,
 } from "../../core/types";
+import { newConfigId } from "../../core/ids";
 import { joinPath } from "../../core/links";
 import { withExtension } from "../../obsidian/note-io";
 import { VIEWS_NOTE } from "../../obsidian/index-store";
@@ -105,7 +106,7 @@ export function ViewControls({
 
 	const saveAs = (name: string, icon: string | undefined) => {
 		const created: SavedView = {
-			...newView(`view-${Date.now().toString(36)}`, name, view.viewType, icon),
+			...newView(newConfigId("view"), name, view.viewType, icon),
 			filters: view.filters,
 			groupBy: view.groupBy,
 			sortBy: view.sortBy,

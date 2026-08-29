@@ -158,6 +158,20 @@ export function nextTaskId(prefix: string, existingIds: Iterable<string>): strin
 }
 
 /**
+ * A short, collision-resistant id for objects that live inside a config
+ * store (Saved Views in `_views.md`, Dashboards/Widgets in dashboard config)
+ * rather than being their own vault file. Contrast with `nextTaskId`, which
+ * is for things that ARE files: vault-wide unique, sequential, filename-safe.
+ * `newConfigId` only needs to avoid colliding with its siblings in the same
+ * config list, so timestamp + a random suffix is enough — timestamp alone
+ * collides too easily when several are minted in one tick (duplicate, bulk
+ * create, the onboarding sample-workspace generator).
+ */
+export function newConfigId(prefix: string): string {
+	return `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+}
+
+/**
  * Slugify a title into a taxonomy value id (`"In Progress"` → `"in-progress"`),
  * disambiguating against ids already present in that taxonomy.
  */

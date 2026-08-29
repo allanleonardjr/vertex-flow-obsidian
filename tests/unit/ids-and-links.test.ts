@@ -3,6 +3,7 @@ import {
 	derivePrefix,
 	disambiguatePrefix,
 	formatTaskId,
+	newConfigId,
 	nextTaskId,
 	parseTaskId,
 	slugify,
@@ -92,6 +93,23 @@ describe("task ids", () => {
 
 	it("ignores ids belonging to another workspace's prefix", () => {
 		expect(nextTaskId("PRD", ["MKT-0099", "PRD-0001"])).toBe("PRD-0002");
+	});
+});
+
+describe("newConfigId", () => {
+	it("stays distinct across many calls in a tight loop", () => {
+		// Far more than any config list realistically holds, minted with no
+		// delay between calls so Date.now() is identical — the random suffix is
+		// what keeps them apart.
+		const ids = new Set<string>();
+		for (let i = 0; i < 200; i++) ids.add(newConfigId("view"));
+		expect(ids.size).toBe(200);
+	});
+
+	it("prefixes the id with the given prefix verbatim", () => {
+		expect(newConfigId("dashboard").startsWith("dashboard-")).toBe(true);
+		expect(newConfigId("widget").startsWith("widget-")).toBe(true);
+		expect(newConfigId("view")).toMatch(/^view-[a-z0-9]+$/);
 	});
 });
 

@@ -8,18 +8,18 @@ import type {
 	DashboardFieldMapping,
 	DashboardWidget,
 } from "../types";
+import { newConfigId } from "../ids";
 import type { ViewContext } from "../views/context";
 import { defaultFieldMapping } from "./compat";
 import { chartMeta, firstOpenSlot } from "./layout";
 import { autoTitle } from "./title";
 
-/** A short, url-safe-ish random id. */
 export function newDashboardId(): string {
-	return `dash-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+	return newConfigId("dashboard");
 }
 
 export function newWidgetId(): string {
-	return `w-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+	return newConfigId("widget");
 }
 
 export function newDashboard(
