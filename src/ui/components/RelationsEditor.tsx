@@ -113,6 +113,9 @@ export function RelationsEditor({
                   },
                 })
               }
+              removeTitle={(title) =>
+                `Remove the "${label.toLowerCase()}" link to ${title} — the task is kept`
+              }
               renderAddTrigger={() => (
                 <AddRelationTrigger
                   label={`Add ${label.toLowerCase()} relation…`}
@@ -158,6 +161,9 @@ export function RelationsEditor({
                 onChange({
                   relations: { ...task.relations, duplicateOf: null },
                 })
+              }
+              removeTitle={(title) =>
+                `Remove the "duplicate of" link to ${title} — the task is kept`
               }
               renderAddTrigger={() =>
                 !duplicatePath ? (

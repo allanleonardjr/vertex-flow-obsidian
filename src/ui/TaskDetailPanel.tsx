@@ -203,7 +203,9 @@ export function TaskDetailPanel({
                     void plugin.mutations.updateTask(child, { parent: null });
                   }
                 }}
-                removeTitle={(title) => `Unlink sub-task ${title}`}
+                removeTitle={(title) =>
+                  `Unlink sub-task ${title} — it becomes a top-level task`
+                }
                 renderAddTrigger={() => (
                   <AddSubtaskTrigger
                     task={task}

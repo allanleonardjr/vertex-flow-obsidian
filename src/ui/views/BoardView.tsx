@@ -25,8 +25,8 @@ import {
   Assignee,
   DueDate,
   Labels,
-  ProgressBar,
   RelationBadge,
+  SubtaskProgress,
   TaxonomyChip,
 } from "../components/TaskBits";
 import { useTabs, type TabsApi } from "../tabs-context";
@@ -328,7 +328,7 @@ function CardContent({
       {/* Sub-task Progress Bar (Wrapped for block spacing) */}
       {!off("progress") && progress.total > 0 && (
         <div className="vf-card-progress">
-          <ProgressBar progress={progress} />
+          <SubtaskProgress progress={progress} />
         </div>
       )}
 

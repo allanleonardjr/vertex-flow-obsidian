@@ -35,9 +35,12 @@ export function App() {
   return (
     <SelectionProvider>
       <TabsProvider>
-        {/* Remounting on workspace switch resets focus/selection/tabs, which
-				    is the behaviour you want — a tab set built against the old
-				    workspace is meaningless once you've switched away from it. */}
+        {/* Remounting on workspace switch resets focus and selection. Tabs
+            live *above* this boundary on purpose — `openTask` on a
+            cross-workspace link switches the active workspace and then opens
+            the tab, so wiping the strip on every switch would throw that tab
+            away. The prune effects below do the workspace-scoped cleanup
+            instead. */}
         <Workspace key={active.snapshot.workspace.root} active={active} />
       </TabsProvider>
     </SelectionProvider>
@@ -85,8 +88,23 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
     else tabs.openView(id);
   };
 
-  // Drop view/label tabs whose target is gone — after a delete, or a workspace
-  // switch (this component is keyed on the root, so it re-runs with new data).
+  // Drop tabs whose target isn't in this workspace — after a delete, or after
+  // a workspace switch (this component is keyed on the root, so it re-runs
+  // with the new workspace's data and everything left over from the old one
+  // fails the membership check).
+  //
+  // Task tabs need their own pass here: the provider's index subscription only
+  // knows whether a task still exists *somewhere in the vault*, which every
+  // task of the workspace you just left does. Ownership is resolved from the
+  // path rather than from `snapshot.tasks`, so a task file that's been created
+  // but not yet re-indexed (quick capture, "New task") keeps its tab instead
+  // of being closed the instant it opens.
+  useEffect(() => {
+    const root = snapshot.workspace.root;
+    tabs.pruneTasks(
+      (path) => plugin.index.workspaceFor(path)?.workspace.root === root,
+    );
+  }, [tabs, plugin, snapshot.workspace.root, snapshot.tasks]);
   useEffect(() => {
     tabs.pruneViews((id) => snapshot.views.some((v) => v.id === id));
   }, [tabs, snapshot.views]);

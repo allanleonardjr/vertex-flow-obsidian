@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
   Signal,
   SignalHigh,
@@ -5,6 +6,7 @@ import {
   SignalMedium,
   SignalZero,
   Link,
+  ListTree,
 } from "lucide-react";
 import { listValues, type WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { Task } from "../../core/types";
@@ -160,16 +162,35 @@ export function StatusDot({
   return <span className="vf-status-dot" style={{ backgroundColor: color }} />;
 }
 
+/**
+ * A completion meter. Renders nothing at all when there's nothing to count,
+ * which is what makes it double as the "this has children" signal.
+ *
+ * `icon`/`title` exist because the bar is ambiguous on its own: on a row or a
+ * board card it sits in a meta cluster with no surrounding label, so an
+ * unadorned meter doesn't say *what* it's measuring the way the neighbouring
+ * relation chip does. Where a heading already says ("Sub-tasks", "Blocked by",
+ * a project's own header) the caller leaves both off.
+ */
 export function ProgressBar({
   progress,
+  icon,
+  title,
 }: {
   progress: { completed: number; total: number };
+  icon?: ReactNode;
+  title?: string;
 }) {
   if (progress.total === 0) return null;
   const pct = Math.round((progress.completed / progress.total) * 100);
 
   return (
-    <div className="vf-progress-wrap">
+    <div className="vf-progress-wrap" title={title} aria-label={title}>
+      {icon && (
+        <span className="vf-progress-icon" aria-hidden>
+          {icon}
+        </span>
+      )}
       <span className="vf-progress">
         <span className="vf-progress-fill" style={{ width: `${pct}%` }} />
       </span>
@@ -177,6 +198,29 @@ export function ProgressBar({
         {progress.completed}/{progress.total} done
       </span>
     </div>
+  );
+}
+
+/**
+ * The sub-task meter as it appears on a List row or Board card — icon-led, so
+ * "has children" is legible at a glance next to `RelationBadge`. Gated by the
+ * `progress` field (§8.4), same as the bare bar it wraps.
+ */
+export function SubtaskProgress({
+  progress,
+}: {
+  progress: { completed: number; total: number };
+}) {
+  if (progress.total === 0) return null;
+
+  return (
+    <ProgressBar
+      progress={progress}
+      icon={<ListTree size={12} />}
+      title={`${progress.completed} of ${progress.total} sub-task${
+        progress.total === 1 ? "" : "s"
+      } done`}
+    />
   );
 }
 

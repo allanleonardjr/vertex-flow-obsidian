@@ -8,6 +8,7 @@
  * filename, which told you nothing about the thing you were linking to.
  */
 
+import { Unlink } from "lucide-react";
 import { scopeOf, subtaskProgress } from "../../core/hierarchy";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import {
@@ -20,8 +21,8 @@ import {
 	Assignee,
 	DueDate,
 	Labels,
-	ProgressBar,
 	RelationBadge,
+	SubtaskProgress,
 	StatusDot,
 	TaxonomyChip,
 } from "./TaskBits";
@@ -91,7 +92,7 @@ export function TaskRowContent({
 
 			<span className="vf-row-meta">
 				{!off("relations") && <RelationBadge task={task} />}
-				{!off("progress") && <ProgressBar progress={progress} />}
+				{!off("progress") && <SubtaskProgress progress={progress} />}
 				{!off("labels") && <Labels taxonomies={taxonomies} labels={task.labels} />}
 				{!off("priority") && (
 					<TaxonomyChip taxonomies={taxonomies} kind="priority" id={task.priority} />
@@ -110,6 +111,9 @@ export function TaskRowContent({
  * any workspace, or one deleted while the link survived. Shown rather than
  * hidden: a dangling relation the user can see and remove beats one that
  * silently disappears from the UI but stays in the file.
+ *
+ * Carries the same unlink control as a resolved row — it used to be a bare
+ * `✕`, which made one list show two different glyphs for one action.
  */
 export function MissingTaskRow({
 	label,
@@ -131,8 +135,14 @@ export function MissingTaskRow({
 				</span>
 			</span>
 			{onRemove && (
-				<button className="vf-icon-button vf-row-remove" title={removeTitle} onClick={onRemove}>
-					✕
+				<button
+					type="button"
+					className="vf-icon-button vf-row-unlink"
+					title={removeTitle}
+					aria-label={removeTitle}
+					onClick={onRemove}
+				>
+					<Unlink size={13} />
 				</button>
 			)}
 		</div>

@@ -461,8 +461,12 @@ body.vf-text-comfortable {
   cursor: pointer;
 }
 
-/* Linear-style integrated action button */
-.vf-row-remove {
+/* Linear-style integrated action button. Two variants share this shape:
+   `.vf-row-remove` really deletes (List view, confirms first), `.vf-row-unlink`
+   only breaks a link (sub-tasks, relations). They differ solely in the hover
+   colour below — red for destructive, neutral for the rest. */
+.vf-row-remove,
+.vf-row-unlink {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -483,9 +487,20 @@ body.vf-text-comfortable {
 
 /* Reveal cleanly on row hover */
 .vf-row:hover .vf-row-remove,
-.vf-row-with-action:hover .vf-row-remove {
+.vf-row-with-action:hover .vf-row-remove,
+.vf-row:hover .vf-row-unlink,
+.vf-row-with-action:hover .vf-row-unlink {
   opacity: 0.6;
   pointer-events: auto;
+}
+
+/* Unlinking is not deleting — it clears a `parent` field or drops a path from
+   `relations`, and the task survives. So: no error tint, no red. */
+.vf-row-unlink:hover {
+  opacity: 1 !important;
+  background: var(--background-modifier-hover);
+  border-color: var(--vf-border);
+  color: var(--text-normal);
 }
 
 /* Linear subtle error highlight on direct icon hover */
@@ -841,6 +856,14 @@ body.vf-dragging {
   display: block;
   height: 100%;
   background: var(--interactive-accent);
+}
+
+/* Names what the meter is counting — see `SubtaskProgress`. */
+.vf-progress-icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--vf-muted);
 }
 
 .vf-progress-count {
