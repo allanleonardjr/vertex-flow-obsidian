@@ -16,6 +16,7 @@ import {
 	type Project,
 	type SavedView,
 	type SortField,
+	type SubtaskDisplay,
 	type Task,
 	type ViewFilters,
 	type ViewType,
@@ -100,6 +101,7 @@ export function makeView(
 		groupBy?: GroupByField;
 		sortBy?: SortField;
 		sortDirection?: "asc" | "desc";
+		subtaskDisplay?: SubtaskDisplay;
 	} = {},
 ): SavedView {
 	const viewType = partial.viewType ?? "list";
@@ -115,6 +117,7 @@ export function makeView(
 		columns: { collapsed: [], hidden: [] },
 		emptyColumnBehavior: "show-normal",
 		hiddenFields: [],
+		subtaskDisplay: partial.subtaskDisplay ?? "flat",
 		calendarDateField: "dueDate",
 	};
 }

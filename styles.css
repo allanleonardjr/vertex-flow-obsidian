@@ -614,6 +614,48 @@ button.vf-list-group-toggle:hover {
   color: var(--vf-muted);
 }
 
+/* Nested List view (§7.2) — indentation + disclosure toggle. */
+.vf-row-nested {
+  padding-left: 8px;
+}
+
+/* Indentation already says "sub-task" — the inline marker would double it. */
+.vf-row-nested .vf-subtask-marker {
+  display: none;
+}
+
+.vf-nest-disclosure {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 16px;
+}
+
+.vf-nest-chevron {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none;
+  color: var(--vf-muted);
+  cursor: pointer;
+  padding: 0;
+}
+
+.vf-nest-chevron:hover {
+  color: var(--text-normal);
+}
+
+.vf-row.is-ghost {
+  color: var(--vf-muted);
+  background: var(--background-secondary);
+}
+
+.vf-row.is-ghost .vf-row-title {
+  font-style: italic;
+  opacity: 0.8;
+}
+
 /* ----------------------------------------------------------------- Board -- */
 
 .vf-board {
@@ -770,6 +812,34 @@ body.vf-dragging .vf-card {
   align-items: center;
   gap: 6px;
   margin-bottom: 4px;
+}
+
+.vf-card-parent {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  margin-bottom: 4px;
+  padding: 1px 4px;
+  border: none !important;
+  border-radius: 4px;
+  outline: none;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+}
+
+.vf-card-parent:hover {
+  background: var(--background-modifier-hover) !important;
+  color: var(--text-normal);
+}
+
+.vf-card-parent-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .vf-card-title {
@@ -1972,6 +2042,63 @@ body.vf-dragging {
 .vf-icon-button:hover {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
+}
+
+.vf-editor-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--vf-border);
+  font-size: var(--font-ui-smaller);
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: none;
+}
+
+.vf-editor-breadcrumb::-webkit-scrollbar {
+  display: none;
+}
+
+.vf-crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 220px;
+  padding: 2px 5px;
+  border: none !important;
+  border-radius: 4px;
+  outline: none;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+}
+
+button.vf-crumb:hover {
+  background: var(--background-modifier-hover) !important;
+  color: var(--text-normal);
+}
+
+.vf-crumb-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vf-crumb-current {
+  color: var(--text-normal);
+  font-family: var(--font-monospace);
+}
+
+.vf-crumb-ellipsis {
+  font-family: var(--font-monospace);
+}
+
+.vf-crumb-sep {
+  color: var(--vf-muted);
+  opacity: 0.6;
 }
 
 .vf-editor-body {

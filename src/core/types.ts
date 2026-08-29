@@ -272,6 +272,19 @@ export type SortField =
 
 export type SortDirection = "asc" | "desc";
 
+/**
+ * How a view treats sub-tasks (§7.2):
+ *   - `nested` — indented under their parent, with a disclosure toggle (List only;
+ *      other layouts fall back to `flat`).
+ *   - `flat`   — loose rows alongside top-level tasks, marked with `↳`.
+ *   - `hidden` — sub-tasks are dropped from the view entirely.
+ *
+ * Replaces the old `filters.topLevelOnly` boolean; a saved view carrying that
+ * flag migrates to `hidden` on read.
+ */
+export const SUBTASK_DISPLAYS = ["nested", "flat", "hidden"] as const;
+export type SubtaskDisplay = (typeof SUBTASK_DISPLAYS)[number];
+
 /** Magic filter value resolving against the `people` entry with `isSelf`. */
 export const SELF = "self";
 
@@ -292,8 +305,6 @@ export interface ViewFilters {
 	text?: string;
 	/** Defaults to hiding archived tasks (§7.7). */
 	includeArchived?: boolean;
-	/** Only tasks with no parent Task — i.e. hide sub-tasks from top level. */
-	topLevelOnly?: boolean;
 }
 
 /** Per-Saved-View, not global (§8.2). */
@@ -386,6 +397,11 @@ export interface SavedView {
 	/** Task fields hidden from this view's rows/cards (§8.4); `[]` shows all. */
 	hiddenFields: TaskField[];
 	/**
+	 * How this view treats sub-tasks (§7.2). Definitional — it changes what the
+	 * view shows — so it rides in `ViewDefinition` and the draft/Save cycle.
+	 */
+	subtaskDisplay: SubtaskDisplay;
+	/**
 	 * Which date field the Calendar view buckets tasks by. Definitional (it
 	 * changes what the view shows), so it participates in `ViewDefinition` and
 	 * the draft/Save cycle — not furniture like `calendar` below.
@@ -423,6 +439,7 @@ export type ViewDefinition = Pick<
 	| "sortDirection"
 	| "emptyColumnBehavior"
 	| "hiddenFields"
+	| "subtaskDisplay"
 	| "calendarDateField"
 >;
 

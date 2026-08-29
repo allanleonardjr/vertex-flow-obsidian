@@ -14,9 +14,15 @@
  * per group, what state to reflect and what handlers to attach. `ListView`
  * supplies all of it. A relations list supplies none of it and gets a plain,
  * read-only list of the same rows for free.
+ *
+ * A group carrying `rows` (the nested List view, §7.2) renders that indented
+ * forest instead of `tasks` — with disclosure toggles and a muted "ghost" row
+ * for any parent the filter excluded. Nested groups are drag-free; reordering a
+ * sub-task stays a task-editor action.
  */
 
 import { Fragment, type ReactNode } from "react";
+import type { NestedRow } from "../../core/views";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { Task, TaskField, WorkspaceSnapshot } from "../../core/types";
 import { TaskRowContent } from "./TaskRow";
@@ -29,6 +35,11 @@ export interface TaskListGroup {
 	color?: string | null;
 	tasks: Task[];
 	collapsed?: boolean;
+	/**
+	 * The nested forest for this group (§7.2). When present it's rendered
+	 * instead of `tasks`; `tasks` still carries the flat set for counts.
+	 */
+	rows?: NestedRow[];
 }
 
 /**
@@ -63,6 +74,10 @@ export interface TaskListProps {
 	hiddenFields?: readonly TaskField[];
 	/** Placeholder inside an empty *group* (List's "Drop tasks here"). */
 	emptyGroupLabel?: string;
+	/** Nested List view: which parent rows have their subtree collapsed. */
+	collapsedSubtrees?: ReadonlySet<string>;
+	/** Nested List view: toggle a parent row's subtree. */
+	onToggleSubtree?: (path: string) => void;
 	className?: string;
 	/** Extra content after the groups — List's drag preview portal. */
 	children?: ReactNode;
@@ -79,6 +94,8 @@ export function TaskList({
 	rowAction,
 	hiddenFields,
 	emptyGroupLabel,
+	collapsedSubtrees,
+	onToggleSubtree,
 	className,
 	children,
 	containerRef,
@@ -87,6 +104,7 @@ export function TaskList({
 		<div className={`vf-list${className ? ` ${className}` : ""}`} ref={containerRef}>
 			{groups.map((group) => {
 				const dropIndex = interaction?.dropIndexFor?.(group.key) ?? null;
+				const nested = group.rows != null;
 
 				return (
 					<Fragment key={group.key}>
@@ -105,27 +123,50 @@ export function TaskList({
 							data-group-key={group.key}
 						>
 							{!group.collapsed &&
-								group.tasks.map((task, index) => (
-									<Fragment key={task.path}>
-										{dropIndex === index && <div className="vf-drop-indicator" />}
-										<TaskListRow
-											task={task}
-											groupKey={group.key}
-											snapshot={snapshot}
-											taxonomies={taxonomies}
-											interaction={interaction}
-											onOpenTask={onOpenTask}
-											rowAction={rowAction}
-											hiddenFields={hiddenFields}
-										/>
-									</Fragment>
-								))}
+								(nested
+									? group.rows!.map((row) => (
+											<NestedListRow
+												key={`${row.ghost ? "ghost:" : ""}${row.task.path}`}
+												row={row}
+												collapsed={
+													collapsedSubtrees?.has(row.task.path) ?? false
+												}
+												onToggleSubtree={onToggleSubtree}
+												snapshot={snapshot}
+												taxonomies={taxonomies}
+												interaction={row.ghost ? undefined : interaction}
+												onOpenTask={onOpenTask}
+												rowAction={row.ghost ? undefined : rowAction}
+												hiddenFields={hiddenFields}
+											/>
+										))
+									: group.tasks.map((task, index) => (
+											<Fragment key={task.path}>
+												{dropIndex === index && (
+													<div className="vf-drop-indicator" />
+												)}
+												<TaskListRow
+													task={task}
+													groupKey={group.key}
+													snapshot={snapshot}
+													taxonomies={taxonomies}
+													interaction={interaction}
+													onOpenTask={onOpenTask}
+													rowAction={rowAction}
+													hiddenFields={hiddenFields}
+												/>
+											</Fragment>
+										)))}
 
-							{dropIndex === group.tasks.length && <div className="vf-drop-indicator" />}
-
-							{emptyGroupLabel && group.tasks.length === 0 && !group.collapsed && (
-								<div className="vf-list-empty">{emptyGroupLabel}</div>
+							{!nested && dropIndex === group.tasks.length && (
+								<div className="vf-drop-indicator" />
 							)}
+
+							{emptyGroupLabel &&
+								(nested ? group.rows!.length === 0 : group.tasks.length === 0) &&
+								!group.collapsed && (
+									<div className="vf-list-empty">{emptyGroupLabel}</div>
+								)}
 						</div>
 					</Fragment>
 				);
@@ -150,13 +191,14 @@ function GroupHeader({
 	const swatch = group.color && (
 		<span className="vf-status-dot" style={{ backgroundColor: group.color }} />
 	);
+	const count = group.tasks.length;
 
 	if (!onToggleCollapse) {
 		return (
 			<div className="vf-list-group">
 				{swatch}
 				<span>{group.label}</span>
-				<span className="vf-count">{group.tasks.length}</span>
+				<span className="vf-count">{count}</span>
 			</div>
 		);
 	}
@@ -176,8 +218,125 @@ function GroupHeader({
 			</span>
 			{swatch}
 			<span>{group.label}</span>
-			<span className="vf-count">{group.tasks.length}</span>
+			<span className="vf-count">{count}</span>
 		</button>
+	);
+}
+
+/** One row of the nested forest — indentation, an optional disclosure toggle. */
+function NestedListRow({
+	row,
+	collapsed,
+	onToggleSubtree,
+	snapshot,
+	taxonomies,
+	interaction,
+	onOpenTask,
+	rowAction,
+	hiddenFields,
+}: {
+	row: NestedRow;
+	collapsed: boolean;
+	onToggleSubtree?: (path: string) => void;
+	snapshot: WorkspaceSnapshot;
+	taxonomies: WorkspaceTaxonomies;
+	interaction?: TaskListInteraction;
+	onOpenTask?: (path: string) => void;
+	rowAction?: (task: Task) => ReactNode;
+	hiddenFields?: readonly TaskField[];
+}) {
+	const { task, depth, hasChildren, ghost } = row;
+
+	const disclosure = (
+		<span
+			className="vf-nest-disclosure"
+			style={{ marginInlineStart: depth * 18 }}
+			aria-hidden={!hasChildren}
+		>
+			{hasChildren && onToggleSubtree ? (
+				<button
+					type="button"
+					className={`vf-section-chevron vf-nest-chevron${collapsed ? "" : " is-open"}`}
+					aria-label={collapsed ? "Expand sub-tasks" : "Collapse sub-tasks"}
+					aria-expanded={!collapsed}
+					onClick={(event) => {
+						event.stopPropagation();
+						onToggleSubtree(task.path);
+					}}
+				>
+					›
+				</button>
+			) : null}
+		</span>
+	);
+
+	const content = (
+		<>
+			{disclosure}
+			<TaskRowContent
+				task={task}
+				snapshot={snapshot}
+				taxonomies={taxonomies}
+				hiddenFields={hiddenFields}
+			/>
+		</>
+	);
+
+	const className = [
+		"vf-row",
+		"vf-row-nested",
+		ghost ? "is-ghost" : "",
+		!ghost && interaction?.isFocused?.(task) ? "is-focused" : "",
+		!ghost && interaction?.isSelected?.(task) ? "is-selected" : "",
+		task.archived ? "is-archived" : "",
+		!ghost && rowAction ? "vf-row-with-action" : "",
+	]
+		.filter(Boolean)
+		.join(" ");
+
+	// Ghost rows never take part in selection or drag — they aren't results.
+	if (ghost) {
+		return (
+			<div className={className} data-nested="true">
+				<button
+					className="vf-row-open"
+					onClick={() => onOpenTask?.(task.path)}
+				>
+					{content}
+				</button>
+			</div>
+		);
+	}
+
+	if (rowAction) {
+		return (
+			<div className={className} data-task-path={task.path} data-nested="true">
+				<button
+					className="vf-row-open"
+					onClick={(event) => {
+						if (interaction?.onRowClick) interaction.onRowClick(event, task);
+						else onOpenTask?.(task.path);
+					}}
+				>
+					{content}
+				</button>
+				{rowAction(task)}
+			</div>
+		);
+	}
+
+	return (
+		<div
+			className={className}
+			data-task-path={task.path}
+			data-nested="true"
+			onClick={(event) => {
+				if (interaction?.onRowClick) interaction.onRowClick(event, task);
+				else onOpenTask?.(task.path);
+			}}
+		>
+			{content}
+		</div>
 	);
 }
 

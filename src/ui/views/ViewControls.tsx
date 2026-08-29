@@ -18,7 +18,6 @@ import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type {
 	SavedView,
 	ViewColumnState,
-	ViewFilters,
 	WorkspaceSnapshot,
 } from "../../core/types";
 import { newConfigId } from "../../core/ids";
@@ -37,6 +36,7 @@ import {
 	GroupChip,
 	LayoutToggle,
 	SortChip,
+	SubtasksChip,
 } from "./DisplayControls";
 import { FilterControls } from "./FilterControls";
 import { QueryBar } from "./QueryBar";
@@ -79,7 +79,6 @@ export function ViewControls({
 	const queryOpen = plugin.settings.queryBarOpen;
 
 	const selectedCount = selection.selectedPaths.length;
-	const showSubtasks = !view.filters.topLevelOnly;
 
 	// "Save" (overwrite in place) only makes sense for a real Saved View. The
 	// built-in "Tasks" and a synthesised label view aren't in `_views.md`, so an
@@ -99,13 +98,6 @@ export function ViewControls({
 	const descSourceMode = plugin.settings.descriptionSourceMode;
 
 	const editView = draft.edit;
-
-	const setShowSubtasks = (next: boolean) => {
-		const filters: ViewFilters = { ...view.filters };
-		if (next) delete filters.topLevelOnly;
-		else filters.topLevelOnly = true;
-		editView({ ...view, filters });
-	};
 
 	const saveAs = (name: string, icon: string | undefined) => {
 		const created: SavedView = {
@@ -218,6 +210,8 @@ export function ViewControls({
 				<span className="vf-bar-divider" />
 				<SortChip view={view} onChange={editView} />
 				<span className="vf-bar-divider" />
+				<SubtasksChip view={view} onChange={editView} />
+				<span className="vf-bar-divider" />
 				<FieldsControl view={view} onChange={editView} />
 				<span className="vf-bar-divider" />
 				<FilterControls
@@ -277,14 +271,6 @@ export function ViewControls({
 
 				<span className="vf-bar-spacer" />
 
-				<label className="vf-toggle">
-					<input
-						type="checkbox"
-						checked={showSubtasks}
-						onChange={(event) => setShowSubtasks(event.target.checked)}
-					/>
-					<span>Show sub-tasks</span>
-				</label>
 				<label className="vf-toggle">
 					<input
 						type="checkbox"

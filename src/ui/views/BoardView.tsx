@@ -304,11 +304,16 @@ function CardContent({
   hiddenFields?: readonly TaskField[];
 }) {
   const off = (field: TaskField) => hiddenFields?.includes(field) ?? false;
+  const tabs = useTabs();
 
   const scope = scopeOf(snapshot);
   const progress = off("progress")
     ? emptyProgress()
     : subtaskProgress(scope, task, taxonomies.status);
+
+  const parent = task.parent
+    ? snapshot.tasks.find((t) => t.path === task.parent)
+    : undefined;
 
   const showPriority = !off("priority");
   const showDue = !off("dueDate");
@@ -318,6 +323,24 @@ function CardContent({
 
   return (
     <>
+      {/* Parent trail — Linear puts the sub-task's parent above everything. */}
+      {parent && (
+        <button
+          type="button"
+          className="vf-card-parent"
+          title={`Sub-task of ${parent.id} ${parent.title}`}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            tabs.openTask(parent.path);
+          }}
+        >
+          <span aria-hidden>↳</span>
+          <span className="vf-id">{parent.id}</span>
+          <span className="vf-card-parent-name">{parent.title}</span>
+        </button>
+      )}
+
       {/* Top Header: ID + Type + Relation */}
       <div className="vf-card-top">
         <span className="vf-id">{task.id}</span>

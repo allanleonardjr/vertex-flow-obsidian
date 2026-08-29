@@ -2,6 +2,7 @@ export * from "./context";
 export * from "./filter";
 export * from "./sort";
 export * from "./group";
+export * from "./nest";
 export * from "./evaluate";
 export * from "./defaults";
 export * from "./seed";

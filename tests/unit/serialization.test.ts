@@ -601,6 +601,41 @@ describe("parseViews", () => {
 		expect(parseViews(serializeViews(value)).value).toEqual(value);
 	});
 
+	it("migrates the retired filters.topLevelOnly to subtaskDisplay: hidden", () => {
+		const { value } = parseViews({
+			views: [{ id: "v", name: "V", filters: { topLevelOnly: true } }],
+		});
+		expect(value[0].subtaskDisplay).toBe("hidden");
+		// The retired flag never survives the round-trip back to frontmatter.
+		expect(value[0].filters).toEqual({});
+	});
+
+	it("keeps an explicit subtaskDisplay over the legacy flag", () => {
+		const { value } = parseViews({
+			views: [
+				{
+					id: "v",
+					name: "V",
+					subtaskDisplay: "nested",
+					filters: { topLevelOnly: true },
+				},
+			],
+		});
+		expect(value[0].subtaskDisplay).toBe("nested");
+	});
+
+	it("omits subtaskDisplay at the 'flat' default and round-trips otherwise", () => {
+		const flat = parseViews({ views: [{ id: "v", name: "V" }] }).value;
+		expect(flat[0].subtaskDisplay).toBe("flat");
+		const serialized = serializeViews(flat) as { views: Record<string, unknown>[] };
+		expect(serialized.views[0].subtaskDisplay).toBeUndefined();
+
+		const nested = parseViews({
+			views: [{ id: "v", name: "V", subtaskDisplay: "nested" }],
+		}).value;
+		expect(parseViews(serializeViews(nested)).value).toEqual(nested);
+	});
+
 	it("parses calendarDateField and the calendar chrome block, omitting both at the default", () => {
 		const { value, issues } = parseViews({
 			views: [

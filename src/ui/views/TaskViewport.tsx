@@ -10,13 +10,17 @@
  * keeps only the shell, the tab strip, and Escape/tab handling.
  */
 
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  buildNestedRows,
   evaluateView,
+  focusableRowPaths,
   partitionScheduled,
   seedFromFilters,
 } from "../../core/views";
-import type { ViewContext } from "../../core/views";
+import type { NestedRow, ViewContext } from "../../core/views";
+import { childTasks, primaryParent, scopeOf } from "../../core/hierarchy";
+import { sortTasksByRank } from "../../core/ranking";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { SavedView, WorkspaceSnapshot } from "../../core/types";
 import { useCreateTask } from "../actions";
@@ -108,14 +112,13 @@ export function TaskViewport({
   );
 
   // "Clear filters" from a zero-match empty state. Drops every filter clause
-  // but keeps the two that aren't really filters — `topLevelOnly` and
-  // `includeArchived` are visibility switches, not what emptied the view.
+  // but keeps `includeArchived` — an archived-visibility switch, not what
+  // emptied the view. (`subtaskDisplay` isn't a filter at all any more.)
   const clearFilters = useCallback(() => {
-    const { topLevelOnly, includeArchived } = effective.filters;
+    const { includeArchived } = effective.filters;
     draft.edit({
       ...effective,
       filters: {
-        ...(topLevelOnly ? { topLevelOnly } : {}),
         ...(includeArchived ? { includeArchived } : {}),
       },
     });
@@ -129,6 +132,52 @@ export function TaskViewport({
       : effective.filters;
     return evaluateView(snapshot, { ...effective, filters }, context);
   }, [snapshot, context, effective, showArchived]);
+
+  // Which parent rows have their subtree collapsed in the nested List view.
+  // Transient session state, like Board column collapse — never persisted, and
+  // reset whenever the view changes.
+  const [collapsedSubtrees, setCollapsedSubtrees] = useState<Set<string>>(
+    () => new Set(),
+  );
+  useEffect(() => setCollapsedSubtrees(new Set()), [view.id]);
+  const toggleSubtree = useCallback((path: string) => {
+    setCollapsedSubtrees((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+  }, []);
+
+  /**
+   * The nested List view's rows — one forest per rendered group (§7.2). `null`
+   * for every other layout and for `flat`/`hidden`, which render plain rows.
+   */
+  const nestedGroups = useMemo(() => {
+    if (effective.viewType !== "list" || effective.subtaskDisplay !== "nested") {
+      return null;
+    }
+    const scope = scopeOf(snapshot);
+    const matchedPaths = new Set(evaluated.tasks.map((task) => task.path));
+    return evaluated.groups.map((group) => ({
+      key: group.key,
+      label: group.label,
+      color: group.color,
+      collapsed: group.collapsed,
+      hidden: group.hidden,
+      tasks: group.tasks,
+      rows: buildNestedRows(group.tasks, scope, {
+        matchedPaths,
+        collapsed: collapsedSubtrees,
+      }),
+    }));
+  }, [
+    effective.viewType,
+    effective.subtaskDisplay,
+    evaluated,
+    snapshot,
+    collapsedSubtrees,
+  ]);
 
   /**
    * The layout keyboard navigation walks.
@@ -156,6 +205,16 @@ export function TaskViewport({
       return [evaluated.tasks.map((task) => task.path)];
     }
 
+    // Nested List: walk the flattened forest, groups concatenated, ghosts and
+    // collapsed subtrees excluded (they aren't focusable — §9.1).
+    if (nestedGroups) {
+      return [
+        nestedGroups
+          .filter((group) => !group.hidden && !group.collapsed)
+          .flatMap((group) => focusableRowPaths(group.rows)),
+      ];
+    }
+
     const visible = evaluated.groups.filter((group) => !group.hidden);
     const paths = (group: (typeof visible)[number]) =>
       group.collapsed ? [] : group.tasks.map((task) => task.path);
@@ -163,7 +222,7 @@ export function TaskViewport({
     return effective.viewType === "board"
       ? visible.map(paths)
       : [visible.flatMap(paths)];
-  }, [evaluated.groups, evaluated.tasks, effective.viewType]);
+  }, [evaluated.groups, evaluated.tasks, effective.viewType, nestedGroups]);
 
   useVisualLayout(layout);
 
@@ -218,6 +277,40 @@ export function TaskViewport({
         },
       },
       { key: "c", run: () => newTask() },
+      // Walk the hierarchy from the focused task: `p` to its parent (task, or
+      // else its project), `s` into its first sub-task.
+      {
+        key: "p",
+        run: () => {
+          const focused = evaluated.tasks.find(
+            (t) => t.path === selection.focusedPath,
+          );
+          if (!focused) return;
+          const parent = primaryParent(focused);
+          if (parent.kind === "task") tabs.openTask(parent.path);
+          else if (parent.kind === "project") tabs.openProject(parent.path);
+        },
+      },
+      {
+        key: "s",
+        run: () => {
+          const focused = evaluated.tasks.find(
+            (t) => t.path === selection.focusedPath,
+          );
+          if (!focused) return;
+          const kids = sortTasksByRank(
+            childTasks(scopeOf(snapshot), focused.path),
+          );
+          const first = kids.find((kid) =>
+            evaluated.tasks.some((t) => t.path === kid.path),
+          );
+          if (!first) return;
+          if (nestedGroups && collapsedSubtrees.has(focused.path)) {
+            toggleSubtree(focused.path);
+          }
+          selection.focus(first.path);
+        },
+      },
       {
         key: "e",
         run: () => {
@@ -282,6 +375,9 @@ export function TaskViewport({
           view={effective}
           evaluated={evaluated}
           taxonomies={taxonomies}
+          nestedGroups={nestedGroups}
+          collapsedSubtrees={collapsedSubtrees}
+          onToggleSubtree={toggleSubtree}
           onColumnsChange={draft.setColumns}
           onNewTask={newTask}
           onClearFilters={clearFilters}

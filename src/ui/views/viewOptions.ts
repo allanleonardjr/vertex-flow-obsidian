@@ -15,6 +15,7 @@ import {
 	type EmptyColumnBehavior,
 	type GroupByField,
 	type SortField,
+	type SubtaskDisplay,
 	type TaskField,
 	type ViewFilters,
 	type WorkspaceSnapshot,
@@ -44,6 +45,13 @@ export const SORT_OPTIONS: { value: SortField; label: string }[] = [
 	{ value: "estimate", label: "Estimate" },
 	{ value: "createdAt", label: "Created" },
 	{ value: "updatedAt", label: "Updated" },
+];
+
+/** How the view treats sub-tasks (§7.2). `nested` only reshapes the List view. */
+export const SUBTASK_OPTIONS: { value: SubtaskDisplay; label: string }[] = [
+	{ value: "nested", label: "Nested" },
+	{ value: "flat", label: "Flat" },
+	{ value: "hidden", label: "Hidden" },
 ];
 
 /** Board-only: what happens to a column with no cards (§8.2). */

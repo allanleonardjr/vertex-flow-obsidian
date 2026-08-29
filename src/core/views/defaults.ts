@@ -35,6 +35,7 @@ export const DEFAULT_DEFINITION: ViewDefinition = {
 	sortDirection: DEFAULT_SORT_DIRECTION,
 	emptyColumnBehavior: "show-normal",
 	hiddenFields: [],
+	subtaskDisplay: "flat",
 	calendarDateField: "dueDate",
 };
 
@@ -69,9 +70,9 @@ export function defaultViews(): SavedView[] {
 			icon: "list",
 			viewType: "list",
 			groupBy: "status",
-			// Sub-tasks show nested under their parent in the List view rather
-			// than as loose top-level rows.
-			filters: { topLevelOnly: true },
+			// Ships as `flat` (the default): sub-tasks visible as loose rows, and
+			// drag-to-reorder still works. `nested` is one click away on the bar.
+			subtaskDisplay: "flat",
 		}),
 	];
 }

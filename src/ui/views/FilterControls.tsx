@@ -1,8 +1,9 @@
 /**
  * The filter half of the view bar: one tag per active filter clause and a
  * "+ Filter" affordance. The clause *set* is always visible as flat text tags;
- * clicking a tag opens just its value picker. "Show archived" / "Show
- * sub-tasks" are visibility switches, not clauses — they live in `ViewControls`.
+ * clicking a tag opens just its value picker. "Show archived" is a visibility
+ * switch, not a clause, and the sub-task mode is a display choice — both live on
+ * the bar in `ViewControls`, not here.
  */
 
 import { useState } from "react";

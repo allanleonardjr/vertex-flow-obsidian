@@ -12,6 +12,7 @@ import type {
 	GroupByField,
 	SavedView,
 	SortField,
+	SubtaskDisplay,
 	ViewType,
 } from "../../core/types";
 import { layoutIcon } from "../../core/views";
@@ -22,6 +23,7 @@ import {
 	FIELD_OPTIONS,
 	GROUP_OPTIONS,
 	SORT_OPTIONS,
+	SUBTASK_OPTIONS,
 	optionLabel,
 	type TaskField,
 } from "./viewOptions";
@@ -126,6 +128,41 @@ export function GroupChip({
 			value={view.groupBy}
 			options={GROUP_OPTIONS}
 			onSelect={(groupBy: GroupByField) => onChange({ ...view, groupBy })}
+		/>
+	);
+}
+
+/**
+ * How the view treats sub-tasks (§7.2). Definitional, so it sits with Group and
+ * Sort rather than beside the session-only "Show archived" toggle.
+ *
+ * `Nested` only means something on the List view — every other layout renders a
+ * tree as a flat set — so on Board/Timeline/Calendar the control drops to
+ * Flat/Hidden and a stored `nested` reads as `Flat`. The value is still kept, so
+ * flipping the view back to List restores the tree (same as `hiddenFields`).
+ */
+export function SubtasksChip({
+	view,
+	onChange,
+}: {
+	view: SavedView;
+	onChange: (next: SavedView) => void;
+}) {
+	const isList = view.viewType === "list";
+	const options = isList
+		? SUBTASK_OPTIONS
+		: SUBTASK_OPTIONS.filter((option) => option.value !== "nested");
+	const value: SubtaskDisplay =
+		!isList && view.subtaskDisplay === "nested" ? "flat" : view.subtaskDisplay;
+
+	return (
+		<BarSelect
+			label="Sub-tasks"
+			value={value}
+			options={options}
+			onSelect={(subtaskDisplay: SubtaskDisplay) =>
+				onChange({ ...view, subtaskDisplay })
+			}
 		/>
 	);
 }

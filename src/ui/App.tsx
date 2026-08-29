@@ -230,13 +230,14 @@ function labelView(snapshot: WorkspaceSnapshot, labelId: string): SavedView {
     columns: { collapsed: [], hidden: [] },
     emptyColumnBehavior: "show-normal",
     hiddenFields: [],
+    subtaskDisplay: "flat",
     calendarDateField: "dueDate",
   };
 }
 
 /**
- * A synthesised, never-persisted view showing one project's top-level tasks
- * (sub-tasks stay nested under their parent). Same shape as `labelView`;
+ * A synthesised, never-persisted view showing one project's tasks with
+ * sub-tasks nested under their parent. Same shape as `labelView`;
  * `ProjectDetailView` renders it beneath the project header.
  */
 export function projectView(project: Project): SavedView {
@@ -244,13 +245,14 @@ export function projectView(project: Project): SavedView {
     id: `project:${project.path}`,
     name: project.title,
     viewType: "list",
-    filters: { project: [project.path], topLevelOnly: true },
+    filters: { project: [project.path] },
     groupBy: "status",
     sortBy: "rank",
     sortDirection: "asc",
     columns: { collapsed: [], hidden: [] },
     emptyColumnBehavior: "show-normal",
     hiddenFields: [],
+    subtaskDisplay: "nested",
     calendarDateField: "dueDate",
   };
 }

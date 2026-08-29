@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import {
+  ancestorTasks,
   childTasks,
   descendantTasks,
   scopeOf,
@@ -35,6 +36,7 @@ import { EditorRail } from "./components/EditorRail";
 import { ResizeHandle } from "./components/ResizeHandle";
 import { MarkdownContent, MarkdownField } from "./components/Markdown";
 import { ProgressBar, StatusDot } from "./components/TaskBits";
+import { TaskBreadcrumb } from "./components/TaskBreadcrumb";
 import { EmbeddedTaskList } from "./components/EmbeddedTaskList";
 import { LabelEditor } from "./components/LabelEditor";
 import { RelationsEditor } from "./components/RelationsEditor";
@@ -44,6 +46,19 @@ import { usePlugin } from "./context";
 const TASK_INFO_MIN_HEIGHT = 80;
 const TASK_SECTIONS_MIN_HEIGHT = 160;
 const TASK_INFO_DEFAULT_HEIGHT = 220;
+
+/**
+ * Sub-tasks deeper than this still work, but get hard to scan — parenting past
+ * it asks for a nudge, never blocks (§7.2). One-based: a root task is level 1.
+ */
+const MAX_COMFORTABLE_DEPTH = 4;
+
+/** The level (1-based) a task would sit at if parented under `parentPath`. */
+function depthUnder(snapshot: WorkspaceSnapshot, parentPath: string): number {
+  const parent = snapshot.tasks.find((t) => t.path === parentPath);
+  if (!parent) return 1;
+  return ancestorTasks(scopeOf(snapshot), parent).length + 2;
+}
 
 export interface TaskDetailPanelProps {
   task: Task;
@@ -139,6 +154,13 @@ export function TaskDetailPanel({
           ✕
         </button>
       </header>
+
+      <TaskBreadcrumb
+        task={task}
+        snapshot={snapshot}
+        taxonomies={taxonomies}
+        onOpenTask={onOpenTask}
+      />
 
       <div className="vf-editor-body">
         <div className="vf-editor-main-col">
@@ -442,6 +464,7 @@ function AddSubtaskTrigger({
 }) {
   const plugin = usePlugin();
   const [conflict, setConflict] = useState<Task | null>(null);
+  const [tooDeep, setTooDeep] = useState<Task | null>(null);
 
   // Can't parent a task to itself, to one of its own descendants (a cycle), or
   // to a task that's already its child.
@@ -455,14 +478,22 @@ function AddSubtaskTrigger({
       candidate.parent !== task.path,
   );
 
-  const add = (path: string) => {
-    const picked = snapshot.tasks.find((t) => t.path === path);
-    if (!picked) return;
+  const commit = (picked: Task) => {
     if (picked.parent) {
       setConflict(picked);
       return;
     }
     void plugin.mutations.setParent(picked, task.path);
+  };
+
+  const add = (path: string) => {
+    const picked = snapshot.tasks.find((t) => t.path === path);
+    if (!picked) return;
+    if (depthUnder(snapshot, task.path) > MAX_COMFORTABLE_DEPTH) {
+      setTooDeep(picked);
+      return;
+    }
+    commit(picked);
   };
 
   return (
@@ -501,6 +532,23 @@ function AddSubtaskTrigger({
             setConflict(null);
           }}
           onClose={() => setConflict(null)}
+        />
+      )}
+
+      {tooDeep && (
+        <ConfirmDeleteDialog
+          title={`Nest "${tooDeep.title}" ${depthUnder(
+            snapshot,
+            task.path,
+          )} levels deep?`}
+          body="Deeply nested sub-tasks get hard to scan. You can still add it."
+          confirmLabel="Add anyway"
+          onCancel={() => setTooDeep(null)}
+          onConfirm={() => {
+            const picked = tooDeep;
+            setTooDeep(null);
+            commit(picked);
+          }}
         />
       )}
     </>
@@ -582,14 +630,37 @@ function ParentPicker({
     ? snapshot.tasks.find((t) => t.path === task.parent)
     : null;
 
+  const [tooDeep, setTooDeep] = useState<string | null>(null);
+
+  const choose = (parent: string | null) => {
+    if (parent && depthUnder(snapshot, parent) > MAX_COMFORTABLE_DEPTH) {
+      setTooDeep(parent);
+      return;
+    }
+    onChange({ parent });
+  };
+
   return (
     <PropertyRow label="Parent">
+      {tooDeep && (
+        <ConfirmDeleteDialog
+          title={`Nest "${task.title}" ${depthUnder(snapshot, tooDeep)} levels deep?`}
+          body="Deeply nested sub-tasks get hard to scan. You can still move it."
+          confirmLabel="Move anyway"
+          onCancel={() => setTooDeep(null)}
+          onConfirm={() => {
+            const parent = tooDeep;
+            setTooDeep(null);
+            onChange({ parent });
+          }}
+        />
+      )}
       <TaskSelectMenu
         candidates={candidates}
         snapshot={snapshot}
         taxonomies={taxonomies}
         value={task.parent}
-        onSelect={(parent) => onChange({ parent })}
+        onSelect={choose}
         noneLabel="No parent"
         searchPlaceholder="Search tasks…"
         trigger={({ open, toggle }) => (

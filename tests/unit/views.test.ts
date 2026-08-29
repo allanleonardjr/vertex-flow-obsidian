@@ -159,9 +159,22 @@ describe("filtering", () => {
 		expect(byShortForm.map((t) => t.id)).toEqual(byPath.map((t) => t.id));
 	});
 
-	it("hides sub-tasks with topLevelOnly", () => {
-		const top = applyFilters(snapshot.tasks, { topLevelOnly: true }, context);
-		expect(top.every((t) => t.parent === null)).toBe(true);
+	it("drops sub-tasks only when subtaskDisplay is hidden", () => {
+		const hidden = evaluateView(
+			snapshot,
+			view({ viewType: "list", groupBy: "none", subtaskDisplay: "hidden" }),
+			context,
+		);
+		expect(hidden.tasks.every((t) => t.parent === null)).toBe(true);
+
+		for (const mode of ["nested", "flat"] as const) {
+			const kept = evaluateView(
+				snapshot,
+				view({ viewType: "list", groupBy: "none", subtaskDisplay: mode }),
+				context,
+			);
+			expect(kept.tasks.some((t) => t.parent !== null)).toBe(true);
+		}
 	});
 
 	it("matches free text against title and id", () => {
@@ -357,7 +370,7 @@ describe("evaluateView", () => {
 		const views = defaultViews();
 		expect(views.map((v) => v.id)).toEqual(["tasks"]);
 		expect(views[0].viewType).toBe("list");
-		expect(views[0].filters.topLevelOnly).toBe(true);
+		expect(views[0].subtaskDisplay).toBe("flat");
 	});
 });
 
@@ -506,7 +519,7 @@ describe("seedFromFilters", () => {
 
 	it("ignores filters that don't map to a task field", () => {
 		expect(
-			seedFromFilters({ text: "abc", includeArchived: true, topLevelOnly: true }),
+			seedFromFilters({ text: "abc", includeArchived: true }),
 		).toEqual({});
 	});
 });

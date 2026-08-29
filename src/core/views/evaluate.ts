@@ -30,7 +30,13 @@ export function evaluateView(
 	context: ViewContext = snapshotContext(snapshot),
 ): EvaluatedView {
 	const filtered = applyFilters(snapshot.tasks, view.filters, context);
-	const sorted = sortTasks(filtered, view.sortBy, view.sortDirection, context);
+	// `hidden` drops sub-tasks outright; `nested` and `flat` both keep them in the
+	// evaluated set (the List view derives the tree from it — see `nest.ts`).
+	const visible =
+		view.subtaskDisplay === "hidden"
+			? filtered.filter((task) => task.parent == null)
+			: filtered;
+	const sorted = sortTasks(visible, view.sortBy, view.sortDirection, context);
 
 	return {
 		view,

@@ -62,7 +62,8 @@ describe("round-trip (Invariant A)", () => {
 		["project", withFilters({ project: [project] })],
 		["project with spaces", withFilters({ project: [spacedProject] })],
 		["parent", withFilters({ parent: [taskPath] })],
-		["topLevelOnly", withFilters({ topLevelOnly: true })],
+		["subtasks nested", def({ subtaskDisplay: "nested" })],
+		["subtasks hidden", def({ subtaskDisplay: "hidden" })],
 		["includeArchived", withFilters({ includeArchived: true })],
 		["text", withFilters({ text: "login" })],
 		["text with spaces", withFilters({ text: "login screen" })],
@@ -96,6 +97,7 @@ describe("round-trip (Invariant A)", () => {
 				sortDirection: "desc",
 				emptyColumnBehavior: "auto-hide",
 				hiddenFields: ["type", "progress"],
+				subtaskDisplay: "nested",
 				filters: {
 					status: ["todo", "in-progress"],
 					priority: ["high", NONE],
@@ -106,7 +108,6 @@ describe("round-trip (Invariant A)", () => {
 					project: [project],
 					parent: [taskPath],
 					text: "onboarding flow",
-					topLevelOnly: true,
 					includeArchived: true,
 				},
 			}),
@@ -177,7 +178,6 @@ describe("round-trip (generative)", () => {
 				}
 			}
 			if (next() < 0.3) filters.text = pick(pool);
-			if (next() < 0.2) filters.topLevelOnly = true;
 			if (next() < 0.2) filters.includeArchived = true;
 
 			const hiddenFields = TASK_FIELDS.filter(() => next() < 0.3);
@@ -186,6 +186,7 @@ describe("round-trip (generative)", () => {
 				def({
 					filters,
 					hiddenFields,
+					subtaskDisplay: pick(["nested", "flat", "hidden"] as const),
 					viewType: pick(["list", "board"] as const),
 					groupBy: pick(["none", "status", "priority", "label"] as const),
 					sortBy: pick(["rank", "title", "dueDate", "estimate"] as const),
@@ -226,7 +227,6 @@ describe("canonicalisation", () => {
 			canonicalizeFilters({
 				status: [],
 				text: "   ",
-				topLevelOnly: false,
 				includeArchived: false,
 			}),
 		).toEqual({});
@@ -252,14 +252,14 @@ describe("canonicalisation", () => {
 	it("viewDefinition drops identity and column state", () => {
 		expect(Object.keys(viewDefinition(defaultViews()[0])).sort()).toEqual([
 			"calendarDateField", "emptyColumnBehavior", "filters", "groupBy",
-			"hiddenFields", "sortBy", "sortDirection", "viewType",
+			"hiddenFields", "sortBy", "sortDirection", "subtaskDisplay", "viewType",
 		]);
 	});
 
 	it("does not change what a filter set matches (Invariant C)", () => {
 		const filterSets: ViewFilters[] = [
 			{ status: ["todo", "todo"], text: " onboarding " },
-			{ labels: [], priority: ["high"], topLevelOnly: false },
+			{ labels: [], priority: ["high"] },
 			{ assignee: [SELF], includeArchived: false },
 		];
 		for (const filters of filterSets) {
@@ -277,7 +277,7 @@ describe("canonicalisation", () => {
 describe("defaults", () => {
 	it("prints the built-in All Tasks view", () => {
 		expect(printQuery(viewDefinition(defaultViews()[0]), ctx)).toBe(
-			"is:top-level group:status sort:rank",
+			"group:status sort:rank",
 		);
 	});
 
@@ -456,18 +456,19 @@ describe("resolution", () => {
 		expect(parsed.issues[0].code).toBe("self-unconfigured");
 	});
 
-	it("keeps topLevelOnly and parent:unset structurally distinct", () => {
-		const a = withFilters({ topLevelOnly: true });
+	it("keeps subtasks:hidden and parent:unset structurally distinct", () => {
+		const a = def({ subtaskDisplay: "hidden" });
 		const b = withFilters({ parent: [NONE] });
 		expect(printQuery(a, ctx)).not.toBe(printQuery(b, ctx));
 		expectRoundTrip(a);
 		expectRoundTrip(b);
-		// ...even though `matchesLink` makes them agree on every task.
-		for (const task of snapshot.tasks) {
-			expect(matchesFilters(task, a.filters, viewCtx)).toBe(
-				matchesFilters(task, b.filters, viewCtx),
-			);
-		}
+	});
+
+	it("parses the retired is:top-level as subtasks:hidden", () => {
+		const parsed = parseQuery("is:top-level", ctx);
+		expect(parsed.ok).toBe(true);
+		expect(parsed.definition.subtaskDisplay).toBe("hidden");
+		expect(printQuery(parsed.definition, ctx)).toContain("subtasks:hidden");
 	});
 
 	it("refuses to guess an ambiguous basename", () => {

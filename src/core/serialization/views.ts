@@ -9,12 +9,14 @@
 import { parseLink } from "../links";
 import { canonicalizeHiddenFields } from "../views/filter";
 import {
+	SUBTASK_DISPLAYS,
 	TASK_FIELDS,
 	type EmptyColumnBehavior,
 	type GroupByField,
 	type SavedView,
 	type SortDirection,
 	type SortField,
+	type SubtaskDisplay,
 	type ViewCalendarState,
 	type ViewFilters,
 	type ViewTimelineState,
@@ -158,9 +160,6 @@ export function parseFilters(raw: unknown): ViewFilters {
 		includeArchived: record.includeArchived != null
 			? asBoolean(record.includeArchived, false)
 			: undefined,
-		topLevelOnly: record.topLevelOnly != null
-			? asBoolean(record.topLevelOnly, false)
-			: undefined,
 	}) as ViewFilters;
 }
 
@@ -171,6 +170,21 @@ export function parseView(raw: unknown, index: number): ParseResult<SavedView> {
 	const id = asString(record.id) ?? `view-${index + 1}`;
 	const viewType = pick(record.viewType, VIEW_TYPES, "list", log, "viewType");
 	const columns = asRecord(record.columns);
+
+	// Migration: the retired `filters.topLevelOnly` boolean becomes
+	// `subtaskDisplay: "hidden"` when no explicit `subtaskDisplay` is present.
+	const subtaskDisplay: SubtaskDisplay =
+		record.subtaskDisplay != null
+			? pick(
+					record.subtaskDisplay,
+					[...SUBTASK_DISPLAYS],
+					"flat",
+					log,
+					"subtaskDisplay",
+				)
+			: asBoolean(asRecord(record.filters).topLevelOnly, false)
+				? "hidden"
+				: "flat";
 
 	return {
 		value: {
@@ -206,6 +220,7 @@ export function parseView(raw: unknown, index: number): ParseResult<SavedView> {
 			hiddenFields: canonicalizeHiddenFields(
 				pickAll(record.hiddenFields, TASK_FIELDS, log, "hiddenFields"),
 			),
+			subtaskDisplay,
 			calendarDateField: pick(
 				record.calendarDateField,
 				CALENDAR_DATE_FIELDS,
@@ -258,6 +273,8 @@ export function serializeView(view: SavedView): Record<string, unknown> {
 		hiddenFields: view.hiddenFields,
 		// Omitted at the default, like `hiddenFields: []` — keeps `_views.md`
 		// diffs quiet for the common case.
+		subtaskDisplay:
+			view.subtaskDisplay === "flat" ? undefined : view.subtaskDisplay,
 		calendarDateField:
 			view.calendarDateField === "dueDate"
 				? undefined

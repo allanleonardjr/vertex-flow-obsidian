@@ -75,8 +75,6 @@ export function matchesFilters(
 	// revealed by the "Show archived" toggle rather than by a status filter.
 	if (task.archived && !filters.includeArchived) return false;
 
-	if (filters.topLevelOnly && task.parent) return false;
-
 	if (!matchesSingle(task.status, filters.status)) return false;
 	if (!matchesSingle(task.priority, filters.priority)) return false;
 	if (!matchesSingle(task.taskType, filters.taskType)) return false;
@@ -128,7 +126,7 @@ export function applyFilters(
  */
 export type ArrayFilterKey = Exclude<
 	keyof ViewFilters,
-	"text" | "includeArchived" | "topLevelOnly"
+	"text" | "includeArchived"
 >;
 
 export const FILTER_ARRAY_FIELDS: readonly ArrayFilterKey[] = [
@@ -170,7 +168,6 @@ export function canonicalizeFilters(filters: ViewFilters): ViewFilters {
 	const text = filters.text?.trim();
 	if (text) out.text = text;
 	if (filters.includeArchived) out.includeArchived = true;
-	if (filters.topLevelOnly) out.topLevelOnly = true;
 
 	return out;
 }
@@ -229,6 +226,7 @@ export function viewDefinition(view: SavedView): ViewDefinition {
 		sortDirection: view.sortDirection,
 		emptyColumnBehavior: view.emptyColumnBehavior,
 		hiddenFields: view.hiddenFields,
+		subtaskDisplay: view.subtaskDisplay,
 		calendarDateField: view.calendarDateField,
 	};
 }
@@ -244,6 +242,7 @@ export function canonicalizeDefinition(
 		sortDirection: definition.sortDirection,
 		emptyColumnBehavior: definition.emptyColumnBehavior,
 		hiddenFields: canonicalizeHiddenFields(definition.hiddenFields),
+		subtaskDisplay: definition.subtaskDisplay,
 		calendarDateField: definition.calendarDateField,
 	};
 }
@@ -266,7 +265,6 @@ export function isEmptyFilterSet(filters: ViewFilters): boolean {
 		!filters.project?.length &&
 		!filters.parent?.length &&
 		!filters.mentions?.length &&
-		!filters.text?.trim() &&
-		!filters.topLevelOnly
+		!filters.text?.trim()
 	);
 }

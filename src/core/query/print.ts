@@ -32,6 +32,7 @@ import {
 	GROUP_VALUES,
 	LAYOUT_VALUES,
 	SORT_VALUES,
+	SUBTASK_VALUES,
 	TEXT_FIELD,
 	VERBATIM_PREFIX,
 	type FilterFieldSpec,
@@ -204,9 +205,6 @@ export function printQuery(
 
 	if (filters.text) parts.push(printText(filters.text));
 
-	if (filters.topLevelOnly) {
-		parts.push(`${FLAG_TOKENS.topLevelOnly.field}:${FLAG_TOKENS.topLevelOnly.value}`);
-	}
 	if (filters.includeArchived) {
 		parts.push(
 			`${FLAG_TOKENS.includeArchived.field}:${FLAG_TOKENS.includeArchived.value}`,
@@ -231,6 +229,11 @@ export function printQuery(
 	// ignores it" rule, so switching layouts never silently drops the setting.
 	if (canonical.calendarDateField !== DEFAULT_DEFINITION.calendarDateField) {
 		parts.push(`date:${DATE_FIELD_VALUES[canonical.calendarDateField].token}`);
+	}
+	// Printed whenever non-default, like `hide:` — kept even when the layout
+	// ignores it, so switching layouts never silently drops the setting.
+	if (canonical.subtaskDisplay !== DEFAULT_DEFINITION.subtaskDisplay) {
+		parts.push(`subtasks:${SUBTASK_VALUES[canonical.subtaskDisplay].token}`);
 	}
 	if (canonical.hiddenFields.length > 0) {
 		const tokens = canonical.hiddenFields.map((field) => FIELD_VALUES[field].token);

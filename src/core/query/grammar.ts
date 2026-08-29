@@ -12,6 +12,7 @@ import type {
 	EmptyColumnBehavior,
 	GroupByField,
 	SortField,
+	SubtaskDisplay,
 	TaskField,
 	ViewType,
 } from "../types";
@@ -144,6 +145,13 @@ export const EMPTY_VALUES: Record<EmptyColumnBehavior, EnumValueSpec> = {
 	"auto-hide": { token: "auto-hide", aliases: ["hide"] },
 };
 
+/** How the view treats sub-tasks (`subtasks:` clause, §7.2). */
+export const SUBTASK_VALUES: Record<SubtaskDisplay, EnumValueSpec> = {
+	nested: { token: "nested", aliases: ["nest", "tree", "indent"] },
+	flat: { token: "flat", aliases: ["show", "loose"] },
+	hidden: { token: "hidden", aliases: ["hide", "top-level", "toplevel", "root"] },
+};
+
 /** Task fields the `hide:` clause can name (§8.4). Keyed for exhaustiveness. */
 export const FIELD_VALUES: Record<TaskField, EnumValueSpec> = {
 	type: { token: "type", aliases: ["tasktype", "kind"] },
@@ -179,9 +187,15 @@ export const VERBATIM_PREFIX = "=";
 /* ------------------------------------------------------------- flags ------ */
 
 export const FLAG_TOKENS = {
-	topLevelOnly: { field: "is", value: "top-level", aliases: ["toplevel", "root"] },
 	includeArchived: { field: "show", value: "archived", aliases: [] },
 } as const;
+
+/**
+ * Legacy spellings of the removed `is:top-level` flag. Still parsed — they set
+ * `subtaskDisplay: "hidden"` — so a query written before the tri-state existed
+ * keeps working. The printer emits `subtasks:hidden` instead.
+ */
+export const LEGACY_TOP_LEVEL_VALUES = ["top-level", "toplevel", "root"] as const;
 
 /** `include:archived` reads fine; accept it as a second spelling of `show:`. */
 export const FLAG_FIELD_ALIASES: Record<string, string> = { include: "show" };
@@ -264,6 +278,10 @@ export const EMPTY_BY_TOKEN = indexBy(
 	Object.entries(EMPTY_VALUES) as [EmptyColumnBehavior, EnumValueSpec][],
 ) as Map<string, EmptyColumnBehavior>;
 
+export const SUBTASK_BY_TOKEN = indexBy(
+	Object.entries(SUBTASK_VALUES) as [SubtaskDisplay, EnumValueSpec][],
+) as Map<string, SubtaskDisplay>;
+
 export const FIELD_BY_TOKEN = indexBy(
 	Object.entries(FIELD_VALUES) as [TaskField, EnumValueSpec][],
 ) as Map<string, TaskField>;
@@ -277,6 +295,7 @@ export const ALL_FIELD_TOKENS: readonly string[] = [
 	"empty",
 	"hide",
 	"date",
+	"subtasks",
 	"is",
 	"show",
 	"include",

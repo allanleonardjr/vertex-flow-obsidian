@@ -15,6 +15,7 @@ import type {
 	EmptyColumnBehavior,
 	GroupByField,
 	SortField,
+	SubtaskDisplay,
 	TaskField,
 	ViewDefinition,
 	ViewFilters,
@@ -34,8 +35,10 @@ import {
 	FLAG_TOKENS,
 	GROUP_BY_TOKEN,
 	LAYOUT_BY_TOKEN,
+	LEGACY_TOP_LEVEL_VALUES,
 	NOT_EXPRESSIBLE,
 	SORT_BY_TOKEN,
+	SUBTASK_BY_TOKEN,
 } from "./grammar";
 import { lex, type LexedToken } from "./lex";
 import { resolveValue } from "./resolve";
@@ -89,6 +92,7 @@ export function parseQuery(
 	let emptyColumnBehavior: EmptyColumnBehavior =
 		DEFAULT_DEFINITION.emptyColumnBehavior;
 	const hiddenFields: TaskField[] = [...DEFAULT_DEFINITION.hiddenFields];
+	let subtaskDisplay: SubtaskDisplay = DEFAULT_DEFINITION.subtaskDisplay;
 	let calendarDateField = DEFAULT_DEFINITION.calendarDateField;
 
 	const seen = new Set<string>();
@@ -151,10 +155,11 @@ export function parseQuery(
 		if (field === "is") {
 			const value = soleValue(token);
 			if (!value) continue;
-			const wanted = FLAG_TOKENS.topLevelOnly;
 			const lowered = value.text.trim().toLowerCase();
-			if (lowered === wanted.value || wanted.aliases.includes(lowered as never)) {
-				filters.topLevelOnly = true;
+			// `is:top-level` is retired; keep parsing it as `subtasks:hidden`.
+			if (LEGACY_TOP_LEVEL_VALUES.includes(lowered as never)) {
+				noteDuplicate("subtasks", token.span);
+				subtaskDisplay = "hidden";
 			} else {
 				fail("unknown-value", `"is:${lowered}" isn't a known flag`, token.span);
 			}
@@ -180,7 +185,8 @@ export function parseQuery(
 			field === "sort" ||
 			field === "layout" ||
 			field === "empty" ||
-			field === "date"
+			field === "date" ||
+			field === "subtasks"
 		) {
 			const value = soleValue(token);
 			if (!value) continue;
@@ -219,6 +225,11 @@ export function parseQuery(
 						value.span,
 					);
 				} else calendarDateField = match;
+			} else if (field === "subtasks") {
+				const match = SUBTASK_BY_TOKEN.get(raw);
+				if (!match) {
+					fail("unknown-value", `"${raw}" isn't a sub-task mode`, value.span);
+				} else subtaskDisplay = match;
 			} else {
 				const match = EMPTY_BY_TOKEN.get(raw);
 				if (!match) {
@@ -295,6 +306,7 @@ export function parseQuery(
 		sortDirection,
 		emptyColumnBehavior,
 		hiddenFields,
+		subtaskDisplay,
 		calendarDateField,
 	});
 
