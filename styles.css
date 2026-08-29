@@ -44,8 +44,12 @@ body {
   --vf-ui-medium-base: var(--font-ui-medium);
 }
 
-body.vf-text-cozy { --vf-text-scale: 1.12; }
-body.vf-text-comfortable { --vf-text-scale: 1.25; }
+body.vf-text-cozy {
+  --vf-text-scale: 1.12;
+}
+body.vf-text-comfortable {
+  --vf-text-scale: 1.25;
+}
 
 .vertex-flow,
 .vf-drag-layer,
@@ -904,7 +908,10 @@ body.vf-dragging {
   cursor: pointer;
 }
 .vf-icon-select-trigger:hover {
-  background: var(--background-modifier-form-field-highlighted, var(--background-modifier-hover)) !important;
+  background: var(
+    --background-modifier-form-field-highlighted,
+    var(--background-modifier-hover)
+  ) !important;
 }
 .vf-icon-select-caret {
   margin-left: auto;
@@ -1140,7 +1147,9 @@ body.vf-dragging {
   background: var(--background-primary);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
   cursor: pointer;
-  transition: border-color 120ms ease, box-shadow 120ms ease;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
 }
 
 .vf-template-card:hover,
@@ -1572,7 +1581,10 @@ body.vf-dragging {
   color: var(--text-error);
 }
 .vf-menu-item-danger:hover {
-  background: var(--background-modifier-error-hover, var(--background-modifier-hover)) !important;
+  background: var(
+    --background-modifier-error-hover,
+    var(--background-modifier-hover)
+  ) !important;
 }
 
 /* Mark the current value, the way a native <select> shows a tick. */
@@ -3556,8 +3568,12 @@ body.vf-bar-dragging .vf-timeline-bar {
   cursor: ew-resize;
 }
 
-.vf-timeline-handle.is-start { left: -7px; }
-.vf-timeline-handle.is-end { right: -7px; }
+.vf-timeline-handle.is-start {
+  left: -7px;
+}
+.vf-timeline-handle.is-end {
+  right: -7px;
+}
 
 .vf-timeline-handle::after {
   content: "";
@@ -3657,8 +3673,12 @@ body.vf-bar-dragging .vf-timeline-bar {
   background: transparent;
 }
 
-.vf-resize-x { cursor: ew-resize; }
-.vf-resize-y { cursor: row-resize; }
+.vf-resize-x {
+  cursor: ew-resize;
+}
+.vf-resize-y {
+  cursor: row-resize;
+}
 
 .vf-resize-handle:hover,
 .vf-resize-handle:active {
@@ -4130,7 +4150,9 @@ body.vf-bar-dragging .vf-timeline-bar {
   background: transparent;
   color: var(--vf-muted);
   cursor: pointer;
-  transition: border-color 120ms ease, color 120ms ease;
+  transition:
+    border-color 120ms ease,
+    color 120ms ease;
 }
 .vf-dash-add-tile:hover {
   border-color: var(--interactive-accent);
@@ -4259,8 +4281,12 @@ body.vf-bar-dragging .vf-timeline-bar {
   animation: vf-dash-shimmer 1.4s ease infinite;
 }
 @keyframes vf-dash-shimmer {
-  0% { background-position: 100% 50%; }
-  100% { background-position: 0 50%; }
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
 }
 
 /* -- Widget config dialog ------------------------------------------- */
@@ -4304,4 +4330,42 @@ body.vf-bar-dragging .vf-timeline-bar {
 .vf-widget-config-fields .vf-field > span {
   font-size: var(--font-ui-smaller);
   color: var(--vf-muted);
+}
+
+/* --- Welcome screen (first-run onboarding, before the template gallery) - */
+
+.vf-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  max-width: 420px;
+  height: 100%;
+  margin: 0 auto;
+  padding: 28px;
+  text-align: center;
+  gap: 10px;
+}
+
+.vf-welcome-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  margin-bottom: 8px;
+  border-radius: 14px;
+  background: var(--background-modifier-hover);
+  color: var(--text-accent);
+}
+
+.vf-welcome h1 {
+  margin: 0;
+  font-size: var(--font-ui-larger, 1.5em);
+}
+
+.vf-welcome-sub {
+  margin: 0 0 12px;
+  color: var(--vf-muted);
+  line-height: 1.5;
 }
