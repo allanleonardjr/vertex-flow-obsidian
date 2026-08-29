@@ -514,12 +514,7 @@ export class Mutations {
 		views: SavedView[],
 	): Promise<void> {
 		const path = joinPath(snapshot.workspace.root, VIEWS_NOTE);
-		const file = this.io.getFile(path);
-		if (file) {
-			await this.io.replaceFrontmatter(file, serializeViews(views));
-		} else {
-			await this.io.create(path, serializeViews(views));
-		}
+		await this.io.writeConfigNote(path, serializeViews(views));
 		await this.index.rebuild();
 	}
 
@@ -561,12 +556,7 @@ export class Mutations {
 		dashboards: DashboardConfig[],
 	): Promise<void> {
 		const path = joinPath(snapshot.workspace.root, DASHBOARDS_NOTE);
-		const file = this.io.getFile(path);
-		if (file) {
-			await this.io.replaceFrontmatter(file, serializeDashboards(dashboards));
-		} else {
-			await this.io.create(path, serializeDashboards(dashboards));
-		}
+		await this.io.writeConfigNote(path, serializeDashboards(dashboards));
 		await this.index.rebuild();
 	}
 

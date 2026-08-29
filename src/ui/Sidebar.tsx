@@ -11,7 +11,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { BUILT_IN_VIEW_ID, layoutIcon, newView } from "../core/views";
-import { newDashboard, newDashboardId } from "../core/dashboards";
+import { newDashboard } from "../core/dashboards";
 import { isProjectTitleTaken } from "../core/serialization";
 import {
   describeUsage,
@@ -624,7 +624,6 @@ function DashboardsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
     const dashboard = newDashboard(newId(), "New dashboard");
     void plugin.mutations.addDashboard(snapshot, dashboard).then(() => {
       openDashboard(dashboard.id);
-      console.log("created", dashboard);
       setDialog({ mode: "create", dashboard });
     });
   };
