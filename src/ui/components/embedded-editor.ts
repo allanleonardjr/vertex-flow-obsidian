@@ -29,6 +29,7 @@
  * `MarkdownField` is a complete, working rollback.
  */
 
+import { TFile } from "obsidian";
 import type { App } from "obsidian";
 
 /** Internal Obsidian surfaces have no typings; confine the `any` to here. */
@@ -38,6 +39,13 @@ export interface EmbeddedEditorOptions {
 	value: string;
 	onChange: (value: string) => void;
 	onBlur?: (value: string) => void;
+	/**
+	 * The owning note's vault path. Lets the editor's `owner` stub carry a
+	 * `.file` identity, which Obsidian uses to look up per-file state such as
+	 * heading-fold decorations — without it, a decoration recompute can blank
+	 * the rendered pane.
+	 */
+	sourcePath?: string;
 }
 
 export interface EmbeddedEditorHandle {
@@ -120,10 +128,17 @@ export function createEmbeddedEditor(
 	if (!Editor) return null;
 
 	try {
+		const abstractFile = options.sourcePath
+			? app.vault.getAbstractFileByPath(options.sourcePath)
+			: null;
+		const file = abstractFile instanceof TFile ? abstractFile : null;
+
 		// The owner object the internal editor expects — it calls these back
-		// during scrolling and mode checks.
+		// during scrolling and mode checks. `.file` lets Obsidian identify the
+		// owning note for per-file state (heading-fold decorations, etc.).
 		const owner: Internal = {
 			app,
+			file: file ?? undefined,
 			getMode: () => "source",
 			onMarkdownScroll: () => {},
 			showSearch: () => {},
@@ -135,20 +150,54 @@ export function createEmbeddedEditor(
 			owner,
 		);
 
+		// Obsidian points `app.workspace.activeEditor` at this `owner` stub while
+		// a field is focused (the same mechanism it uses for Canvas's embedded
+		// card editor). Internal code — the status-bar word count, for one —
+		// then reads `activeEditor.editor.getSelection()` on every selection
+		// change, so `owner` must carry a working `.editor` or that throws and,
+		// because the stale reference is never cleared, poisons every later
+		// field focus until Obsidian reloads.
+		owner.editor = editor.editor ?? editor;
+
 		editor.set?.(options.value ?? "", false);
 
 		// Changes arrive through the base class's own update hook; wrap rather
-		// than replace so whatever it does internally still happens.
+		// than replace so whatever it does internally still happens — and guard
+		// it so an internal throw can't stop our onChange from firing.
 		const inheritedOnUpdate = typeof editor.onUpdate === "function"
 			? editor.onUpdate.bind(editor)
 			: null;
 		editor.onUpdate = (update: unknown, changed: boolean) => {
-			inheritedOnUpdate?.(update, changed);
+			try {
+				inheritedOnUpdate?.(update, changed);
+			} catch (cause) {
+				console.warn(
+					"[Vertex Flow] Embedded editor's inherited onUpdate threw; " +
+						"continuing so the change isn't lost.",
+					cause,
+				);
+			}
 			if (changed) options.onChange(readValue(editor));
 		};
 
 		const contentEl: HTMLElement | undefined = (editor.editor?.cm ?? editor.cm)?.contentDOM;
-		const handleBlur = () => options.onBlur?.(readValue(editor));
+
+		// Manage `app.workspace.activeEditor` for this field explicitly, the way
+		// Obsidian's own Canvas view does, rather than trusting internal
+		// auto-registration to clean up after itself.
+		const workspace = (app as unknown as Internal).workspace;
+		const claimActiveEditor = () => {
+			if (workspace && workspace.activeEditor !== owner) workspace.activeEditor = owner;
+		};
+		const releaseActiveEditor = () => {
+			if (workspace && workspace.activeEditor === owner) workspace.activeEditor = null;
+		};
+
+		const handleBlur = () => {
+			releaseActiveEditor();
+			options.onBlur?.(readValue(editor));
+		};
+		contentEl?.addEventListener("focus", claimActiveEditor);
 		contentEl?.addEventListener("blur", handleBlur);
 
 		return {
@@ -162,7 +211,9 @@ export function createEmbeddedEditor(
 				}
 			},
 			destroy: () => {
+				contentEl?.removeEventListener("focus", claimActiveEditor);
 				contentEl?.removeEventListener("blur", handleBlur);
+				releaseActiveEditor();
 				try {
 					editor.destroy?.();
 					editor.unload?.();

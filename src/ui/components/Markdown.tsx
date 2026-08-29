@@ -94,6 +94,8 @@ export function MarkdownField({
 	const onChangeRef = useRef(onChange);
 	onChangeRef.current = onChange;
 	const initialValueRef = useRef(value);
+	const sourcePathRef = useRef(sourcePath);
+	sourcePathRef.current = sourcePath;
 
 	useEffect(() => {
 		if (!host) return;
@@ -101,6 +103,7 @@ export function MarkdownField({
 		const handle = createEmbeddedEditor(plugin.app, host, {
 			value: initialValueRef.current,
 			onChange: (next) => onChangeRef.current(next),
+			sourcePath: sourcePathRef.current,
 		});
 
 		handleRef.current = handle;
