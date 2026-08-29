@@ -1,7 +1,7 @@
 /**
- * The pure decision behind the tab strip's unsaved-changes guard, split out of
- * `tabs-context.tsx` so it can be unit-tested (the React wiring around it
- * can't).
+ * Pure helpers behind `tabs-context.tsx` — the unsaved-changes guard decision
+ * and the drag-reorder splice — split out so they can be unit-tested (the React
+ * wiring around them can't).
  *
  * Only the active tab is ever mounted, so only it can hold a live draft. The
  * rules:
@@ -32,4 +32,37 @@ export function shouldPromptUnsavedGuard(input: {
 
 	// navigate: a no-op switch to the current tab shouldn't prompt.
 	return input.targetId !== input.activeId;
+}
+
+/**
+ * Move the tab `tabId` to sit at gap `toIndex` (an insertion point in the
+ * *current* array, `0` = before the first tab). Rules:
+ *
+ *   - The pinned tab at index 0 never moves, and nothing lands to its left
+ *     (target is clamped to a minimum of 1).
+ *   - Dropping a tab back where it already sits is a no-op — the same array is
+ *     returned so React doesn't re-render the strip.
+ */
+export function reorderTabs<T extends { id: string }>(
+	tabs: T[],
+	tabId: string,
+	toIndex: number,
+): T[] {
+	const from = tabs.findIndex((tab) => tab.id === tabId);
+	if (from <= 0) return tabs; // not found, or the pinned tab
+
+	// Gap right before or right after the tab's current slot → nothing moves.
+	if (toIndex === from || toIndex === from + 1) return tabs;
+
+	const moved = tabs[from];
+	const without = tabs.filter((tab) => tab.id !== tabId);
+	// `toIndex` indexes the original array; shift left when the removed tab sat
+	// before the gap.
+	const target = Math.max(
+		1,
+		Math.min(from < toIndex ? toIndex - 1 : toIndex, without.length),
+	);
+
+	without.splice(target, 0, moved);
+	return without;
 }

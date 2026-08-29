@@ -22,7 +22,11 @@ import {
 	type ReactNode,
 } from "react";
 import { usePlugin, useSettingsWriter } from "./context";
-import { shouldPromptUnsavedGuard, type GuardedAction } from "./tabs-guard";
+import {
+	reorderTabs,
+	shouldPromptUnsavedGuard,
+	type GuardedAction,
+} from "./tabs-guard";
 
 /** The non-task screens, each a single reusable tab (never duplicated). */
 export type BrowseKind = "projects" | "settings" | "help" | "new-workspace";
@@ -86,6 +90,12 @@ export interface TabsApi {
 	/** Switch to the pinned Board/List tab without opening anything new. */
 	activateWorkspace: () => void;
 	activate: (id: string) => void;
+	/**
+	 * Move a tab to a new position in the strip. `toIndex` is an insertion gap
+	 * in the current list; the pinned workspace tab stays at index 0 and nothing
+	 * lands to its left. Never changes which tab is active.
+	 */
+	reorder: (tabId: string, toIndex: number) => void;
 	/** Close a tab. A no-op on the pinned workspace tab — there's nothing to fall back to if it closed. */
 	close: (id: string) => void;
 	closeActive: () => void;
@@ -267,6 +277,12 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 		[mayLeaveActive],
 	);
 
+	// Reordering is not navigation — it never touches `activeId`, so it doesn't
+	// run the unsaved-changes guard.
+	const reorder = useCallback((tabId: string, toIndex: number) => {
+		setTabs((current) => reorderTabs(current, tabId, toIndex));
+	}, []);
+
 	const close = useCallback(
 		async (id: string) => {
 			if (id === "workspace") return;
@@ -400,6 +416,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			openProject,
 			activateWorkspace,
 			activate,
+			reorder,
 			close,
 			closeActive,
 			closeAllTasks,
@@ -422,6 +439,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			openProject,
 			activateWorkspace,
 			activate,
+			reorder,
 			close,
 			closeActive,
 			closeAllTasks,

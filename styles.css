@@ -1715,6 +1715,24 @@ body.vf-dragging {
   background: var(--background-modifier-hover);
 }
 
+/* -- Drag-to-reorder ---------------------------------------------------- */
+
+/* The source tab dims in place while dragging — no floating ghost (a single
+   row doesn't need one), just a dimmed source plus the insertion line. */
+.vf-tab.is-dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+
+/* A thin vertical bar in the gap the dragged tab would drop into. */
+.vf-tab-drop-line {
+  flex: 0 0 2px;
+  align-self: stretch;
+  margin: 4px 0 0;
+  border-radius: 1px;
+  background: var(--interactive-accent);
+}
+
 .vf-tab.is-active {
   background: var(--background-primary);
   color: var(--text-normal);

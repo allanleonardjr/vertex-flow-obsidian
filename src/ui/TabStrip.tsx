@@ -4,7 +4,7 @@
  * closable can ever leave you without a way back to it.
  */
 
-import { useMemo } from "react";
+import { Fragment, useMemo } from "react";
 import { getValue, workspaceTaxonomies } from "../core/taxonomy";
 import { layoutIcon } from "../core/views";
 import type { SavedView, WorkspaceSnapshot } from "../core/types";
@@ -12,6 +12,7 @@ import { Icon } from "./components/Icon";
 import { StatusDot } from "./components/TaskBits";
 import { usePlugin } from "./context";
 import { useTabs, type BrowseKind, type Tab } from "./tabs-context";
+import { useTabDrag } from "./useTabDrag";
 
 const BROWSE_ICON: Record<BrowseKind, string> = {
 	projects: "▣",
@@ -39,7 +40,8 @@ export function TabStrip({
 	builtInView: SavedView;
 }) {
 	const plugin = usePlugin();
-	const { tabs, activeId, activate, close } = useTabs();
+	const { tabs, activeId, activate, close, reorder } = useTabs();
+	const drag = useTabDrag(reorder);
 
 	// Task tabs show a bare title by default. Titles aren't unique across a
 	// vault though — two tasks in different projects can share a name — so
@@ -59,21 +61,43 @@ export function TabStrip({
 		return duplicates;
 	}, [tabs, plugin]);
 
+	const dragging = drag.dragTabId != null;
+
 	return (
 		<div className="vf-tabs" role="tablist">
-			{tabs.map((tab) => (
-				<TabRow
-					key={tab.id}
-					tab={tab}
-					active={tab.id === activeId}
-					snapshot={snapshot}
-					builtInView={builtInView}
-					duplicateTaskTitles={duplicateTaskTitles}
-					onActivate={() => activate(tab.id)}
-					onClose={tab.id === "workspace" ? null : () => close(tab.id)}
-					plugin={plugin}
-				/>
+			{tabs.map((tab, index) => (
+				<Fragment key={tab.id}>
+					{dragging && drag.dropIndex === index && (
+						<span className="vf-tab-drop-line" aria-hidden />
+					)}
+					<TabRow
+						tab={tab}
+						active={tab.id === activeId}
+						dragging={drag.isDragging(tab.id)}
+						snapshot={snapshot}
+						builtInView={builtInView}
+						duplicateTaskTitles={duplicateTaskTitles}
+						onPointerDown={
+							tab.id === "workspace"
+								? undefined
+								: (event) => drag.onPointerDown(event, tab.id)
+						}
+						onActivate={() => {
+							// A drag ends with a trailing click — don't let it also
+							// switch tabs.
+							if (drag.consumeDragClick()) return;
+							void activate(tab.id);
+						}}
+						onClose={
+							tab.id === "workspace" ? null : () => void close(tab.id)
+						}
+						plugin={plugin}
+					/>
+				</Fragment>
 			))}
+			{dragging && drag.dropIndex === tabs.length && (
+				<span className="vf-tab-drop-line" aria-hidden />
+			)}
 		</div>
 	);
 }
@@ -81,18 +105,24 @@ export function TabStrip({
 function TabRow({
 	tab,
 	active,
+	dragging,
 	snapshot,
 	builtInView,
 	duplicateTaskTitles,
+	onPointerDown,
 	onActivate,
 	onClose,
 	plugin,
 }: {
 	tab: Tab;
 	active: boolean;
+	/** This tab is the one currently being dragged. */
+	dragging: boolean;
 	snapshot: WorkspaceSnapshot;
 	builtInView: SavedView;
 	duplicateTaskTitles: Set<string>;
+	/** Absent for the pinned workspace tab, which can't be dragged. */
+	onPointerDown?: (event: React.PointerEvent) => void;
 	onActivate: () => void;
 	onClose: (() => void) | null;
 	plugin: ReturnType<typeof usePlugin>;
@@ -182,7 +212,11 @@ function TabRow({
 		<div
 			role="tab"
 			aria-selected={active}
-			className={`vf-tab${active ? " is-active" : ""}${tab.id === "workspace" ? " is-pinned" : ""}`}
+			data-tab-id={tab.id}
+			className={`vf-tab${active ? " is-active" : ""}${
+				tab.id === "workspace" ? " is-pinned" : ""
+			}${dragging ? " is-dragging" : ""}`}
+			onPointerDown={onPointerDown}
 			onClick={onActivate}
 		>
 			{icon}
