@@ -28,6 +28,7 @@ import {
   useDebouncedSave,
 } from "./components/fields";
 import { CollapsibleSection } from "./components/CollapsibleSection";
+import { ConfirmDeleteDialog } from "./components/ConfirmDeleteDialog";
 import { DescriptionSection } from "./components/DescriptionSection";
 import { EditorRail } from "./components/EditorRail";
 import { MarkdownContent, MarkdownField } from "./components/Markdown";
@@ -607,6 +608,7 @@ function CommentList({
 }) {
   const plugin = usePlugin();
   const [draft, setDraft] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const self = plugin
     .activeWorkspace()
     ?.workspace.people.find((person) => person.isSelf);
@@ -616,8 +618,23 @@ function CommentList({
     onChanged(doc.comments);
   };
 
+  const deletingComment = comments.find((c) => c.id === deletingId);
+
   return (
     <div className="vf-comments">
+      {deletingComment && (
+        <ConfirmDeleteDialog
+          title="Delete comment?"
+          body="This can't be undone."
+          onCancel={() => setDeletingId(null)}
+          onConfirm={() => {
+            setDeletingId(null);
+            void plugin.mutations
+              .deleteComment(task, deletingComment.id)
+              .then(reload);
+          }}
+        />
+      )}
       {comments.map((comment) => (
         <article key={comment.id} className="vf-comment">
           <header>
@@ -627,11 +644,7 @@ function CommentList({
               type="button"
               className="vf-icon-button"
               title="Delete comment"
-              onClick={() =>
-                void plugin.mutations
-                  .deleteComment(task, comment.id)
-                  .then(reload)
-              }
+              onClick={() => setDeletingId(comment.id)}
             >
               ✕
             </button>

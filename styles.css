@@ -4145,27 +4145,25 @@ body.vf-bar-dragging .vf-timeline-bar {
   flex: 1;
 }
 
+/* Reads as plain text, exactly like the Saved View / Project header title
+   (`.vf-editable-title-input`): no border, no fill, no focus ring — the caret
+   is the only cue that it's editable. */
 .vf-dash-widget-title {
   flex: 0 1 auto;
-  min-width: 2ch;
+  width: auto;
   max-width: 100%;
-  border: none;
-  background: transparent;
+  min-width: 2ch;
+  field-sizing: content;
+  padding: 0;
+  border: none !important;
+  border-radius: 0;
+  outline: none !important;
+  background: transparent !important;
   box-shadow: none !important;
-  padding: 2px 4px;
   font-size: var(--font-ui-small);
   font-weight: 600;
   color: var(--text-normal);
   cursor: text;
-}
-.vf-dash-widget-title:hover {
-  background: var(--background-modifier-hover);
-  border-radius: 4px;
-}
-.vf-dash-widget-title:focus {
-  background: var(--background-primary);
-  outline: 1px solid var(--interactive-accent);
-  border-radius: 4px;
 }
 
 .vf-dash-widget-menu {

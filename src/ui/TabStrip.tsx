@@ -125,7 +125,7 @@ function TabRow({
 		if (!dashboard) return null;
 		icon = (
 			<span className="vf-tab-icon">
-				<Icon id="layout-dashboard" size={13} />
+				<Icon id={dashboard.icon} fallback="layout-dashboard" size={13} />
 			</span>
 		);
 		label = `${dashboard.name} - Dashboard`;

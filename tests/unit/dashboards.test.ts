@@ -85,6 +85,7 @@ describe("parse / serialize round-trip", () => {
 	const source: DashboardConfig = {
 		id: "overview",
 		name: "Overview",
+		icon: "gauge",
 		filters: { status: ["todo", "in-progress"], assignee: ["alice"] },
 		widgets: [
 			widget({

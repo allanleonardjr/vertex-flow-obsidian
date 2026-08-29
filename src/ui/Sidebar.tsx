@@ -14,13 +14,19 @@ import { BUILT_IN_VIEW_ID, layoutIcon, newView } from "../core/views";
 import { newDashboard, newDashboardId } from "../core/dashboards";
 import { isProjectTitleTaken } from "../core/serialization";
 import {
+	describeUsage,
 	findTaxonomyUsage,
 	planTaxonomyDeletion,
 	workspaceTaxonomies,
 	type TaxonomyDeletionPlan,
 	type TaxonomyUsage,
 } from "../core/taxonomy";
-import type { Project, SavedView, WorkspaceSnapshot } from "../core/types";
+import type {
+	DashboardConfig,
+	Project,
+	SavedView,
+	WorkspaceSnapshot,
+} from "../core/types";
 import { Icon } from "./components/Icon";
 import { LabelChip } from "./components/TaskBits";
 import { DeleteWorkspaceDialog } from "./DeleteWorkspaceDialog";
@@ -28,7 +34,7 @@ import { LabelDialog } from "./modals/LabelDialog";
 import { ReplaceValueDialog } from "./settings/ReplaceValueDialog";
 import { usePlugin, useSettingsWriter, useWorkspaces } from "./context";
 import { NamedIconDialog } from "./modals/NamedIconDialog";
-import { NameDialog } from "./dashboards/NameDialog";
+import { ConfirmDeleteDialog } from "./components/ConfirmDeleteDialog";
 import { useTabs } from "./tabs-context";
 
 const MIN_WIDTH = 170;
@@ -467,6 +473,7 @@ function ViewsSection({
 	const plugin = usePlugin();
 	const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
 	const [dialog, setDialog] = useState<ViewDialogState>(null);
+	const [deleting, setDeleting] = useState<SavedView | null>(null);
 
 	const newId = () => `view-${Date.now().toString(36)}`;
 
@@ -538,10 +545,10 @@ function ViewsSection({
 							</button>
 							{view.id !== BUILT_IN_VIEW_ID && (
 								<button
-									className="vf-menu-item"
+									className="vf-menu-item vf-menu-item-danger"
 									onClick={() => {
 										setMenuOpenId(null);
-										remove(view);
+										setDeleting(view);
 									}}
 								>
 									Delete
@@ -551,6 +558,18 @@ function ViewsSection({
 					}
 				/>
 			))}
+
+			{deleting && (
+				<ConfirmDeleteDialog
+					title={`Delete view "${deleting.name}"?`}
+					body="The view definition is removed. Tasks are not affected."
+					onCancel={() => setDeleting(null)}
+					onConfirm={() => {
+						remove(deleting);
+						setDeleting(null);
+					}}
+				/>
+			)}
 
 			{dialog && (
 				<NamedIconDialog
@@ -575,30 +594,38 @@ function ViewsSection({
 
 /* ------------------------------------------------------------- dashboards -- */
 
+type DashboardDialogState =
+	| { mode: "create"; dashboard: DashboardConfig }
+	| { mode: "edit"; dashboard: DashboardConfig }
+	| null;
+
 function DashboardsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 	const plugin = usePlugin();
 	const { activeTab, openDashboard } = useTabs();
 	const [menuId, setMenuId] = useState<string | null>(null);
-	const [renaming, setRenaming] = useState<string | null>(null);
+	const [dialog, setDialog] = useState<DashboardDialogState>(null);
+	const [deleting, setDeleting] = useState<DashboardConfig | null>(null);
 
 	const dashboards = [...snapshot.dashboards].sort((a, b) =>
 		a.name.localeCompare(b.name),
 	);
 	const activeDashboardId =
 		activeTab.kind === "dashboard" ? activeTab.dashboardId : null;
-	const renameTarget = dashboards.find((d) => d.id === renaming);
 
+	// Mirror the "new view" flow: create with a default name, then open the
+	// name + icon modal to finish it.
 	const create = () => {
 		const dashboard = newDashboard(newDashboardId(), "New dashboard");
-		void plugin.mutations
-			.addDashboard(snapshot, dashboard)
-			.then(() => openDashboard(dashboard.id));
+		void plugin.mutations.addDashboard(snapshot, dashboard).then(() => {
+			openDashboard(dashboard.id);
+			setDialog({ mode: "create", dashboard });
+		});
 	};
 
 	const duplicate = (id: string) => {
 		const source = snapshot.dashboards.find((d) => d.id === id);
 		if (!source) return;
-		const copy = {
+		const copy: DashboardConfig = {
 			...source,
 			id: newDashboardId(),
 			name: `${source.name} copy`,
@@ -623,7 +650,8 @@ function DashboardsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 					<NavRow
 						key={dashboard.id}
 						label={dashboard.name}
-						icon="layout-dashboard"
+						icon={dashboard.icon}
+						iconFallback="layout-dashboard"
 						variant="view"
 						active={activeDashboardId === dashboard.id}
 						onClick={() => openDashboard(dashboard.id)}
@@ -639,10 +667,10 @@ function DashboardsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 									className="vf-menu-item"
 									onClick={() => {
 										setMenuId(null);
-										setRenaming(dashboard.id);
+										setDialog({ mode: "edit", dashboard });
 									}}
 								>
-									Rename
+									Edit
 								</button>
 								<button
 									className="vf-menu-item"
@@ -657,10 +685,7 @@ function DashboardsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 									className="vf-menu-item vf-menu-item-danger"
 									onClick={() => {
 										setMenuId(null);
-										void plugin.mutations.deleteDashboard(
-											snapshot,
-											dashboard.id,
-										);
+										setDeleting(dashboard);
 									}}
 								>
 									Delete
@@ -671,18 +696,35 @@ function DashboardsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 				))
 			)}
 
-			{renameTarget && (
-				<NameDialog
-					title="Rename dashboard"
-					initialName={renameTarget.name}
-					confirmLabel="Save"
-					onConfirm={(name) =>
+			{dialog && (
+				<NamedIconDialog
+					title={
+						dialog.mode === "create" ? "Name your dashboard" : "Edit dashboard"
+					}
+					initialName={dialog.dashboard.name}
+					initialIcon={dialog.dashboard.icon}
+					iconFallback="layout-dashboard"
+					confirmLabel={dialog.mode === "create" ? "Create" : "Save"}
+					onConfirm={(name, icon) =>
 						void plugin.mutations.updateDashboard(snapshot, {
-							...renameTarget,
+							...dialog.dashboard,
 							name,
+							icon,
 						})
 					}
-					onClose={() => setRenaming(null)}
+					onClose={() => setDialog(null)}
+				/>
+			)}
+
+			{deleting && (
+				<ConfirmDeleteDialog
+					title={`Delete dashboard "${deleting.name}"?`}
+					body={`Removes the dashboard and its ${deleting.widgets.length} chart${deleting.widgets.length === 1 ? "" : "s"}. Tasks are not affected.`}
+					onCancel={() => setDeleting(null)}
+					onConfirm={() => {
+						void plugin.mutations.deleteDashboard(snapshot, deleting.id);
+						setDeleting(null);
+					}}
 				/>
 			)}
 		</Section>
@@ -806,6 +848,11 @@ function LabelsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 		plan: TaxonomyDeletionPlan;
 		usage: TaxonomyUsage;
 	} | null>(null);
+	// Plain "are you sure?" gate, shown before the reassign / remove-from-all modal.
+	const [confirming, setConfirming] = useState<{
+		plan: TaxonomyDeletionPlan;
+		usage: TaxonomyUsage;
+	} | null>(null);
 
 	const editLabel = ordered.find((l) => l.id === editing);
 	const activeLabelId = activeTab.kind === "label" ? activeTab.labelId : null;
@@ -816,8 +863,18 @@ function LabelsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 			projects: snapshot.projects,
 		});
 		const plan = planTaxonomyDeletion(labels, id, usage.count);
+		setConfirming({ plan, usage });
+	};
+
+	const performDelete = (plan: TaxonomyDeletionPlan, usage: TaxonomyUsage) => {
+		setConfirming(null);
 		if (!plan.blocked) {
-			void plugin.mutations.applyTaxonomyDeletionPlan(snapshot, labels, plan, null);
+			void plugin.mutations.applyTaxonomyDeletionPlan(
+				snapshot,
+				labels,
+				plan,
+				null,
+			);
 			return;
 		}
 		setDeletion({ plan, usage });
@@ -895,6 +952,19 @@ function LabelsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 						plugin.mutations.updateLabel(snapshot, editLabel.id, { name, color })
 					}
 					onClose={() => setEditing(null)}
+				/>
+			)}
+
+			{confirming && (
+				<ConfirmDeleteDialog
+					title={`Delete label "${confirming.plan.valueName}"?`}
+					body={
+						confirming.plan.blocked
+							? `It's on ${describeUsage(confirming.usage)} — you'll choose what happens to ${confirming.usage.count === 1 ? "it" : "them"} next.`
+							: "This can't be undone."
+					}
+					onCancel={() => setConfirming(null)}
+					onConfirm={() => performDelete(confirming.plan, confirming.usage)}
 				/>
 			)}
 

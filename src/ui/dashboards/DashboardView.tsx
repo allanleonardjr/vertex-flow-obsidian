@@ -33,10 +33,11 @@ import type {
 import { usePlugin } from "../context";
 import { useTabs } from "../tabs-context";
 import { FilterControls } from "../views/FilterControls";
+import { Icon } from "../components/Icon";
+import { ConfirmDeleteDialog } from "../components/ConfirmDeleteDialog";
+import { NamedIconDialog } from "../modals/NamedIconDialog";
 import { AddWidgetTile } from "./AddWidgetTile";
-import { ConfirmDialog } from "./ConfirmDialog";
 import { DashboardGrid } from "./DashboardGrid";
-import { NameDialog } from "./NameDialog";
 import { useDashboardDraft } from "./useDashboardDraft";
 import { WidgetConfigDialog, type WidgetConfigResult } from "./WidgetConfigDialog";
 import { WidgetFrame } from "./WidgetFrame";
@@ -184,7 +185,11 @@ function DashboardBody({
 				<div className="vf-view-title">
 					<h2>
 						<span className="vf-view-title-icon" aria-hidden>
-							{/* layout-dashboard */}
+							<Icon
+								id={dashboard.icon}
+								fallback="layout-dashboard"
+								size={16}
+							/>
 						</span>
 						{dashboard.name}
 						<span className="vf-view-title-code">
@@ -218,15 +223,19 @@ function DashboardBody({
 									Save
 								</button>
 							)}
-							<button
-								type="button"
-								className="vf-bar-item vf-bar-save"
-								onClick={() => setDialog({ mode: "save-as" })}
-							>
-								Save dashboard as…
-							</button>
 						</>
 					)}
+
+					{/* Always available — duplicating a clean, saved dashboard as a
+					    starting point is a legitimate move, not just a way to
+					    rescue unsaved edits. */}
+					<button
+						type="button"
+						className="vf-bar-item vf-bar-save"
+						onClick={() => setDialog({ mode: "save-as" })}
+					>
+						Save dashboard as…
+					</button>
 
 					<button
 						className="mod-cta"
@@ -300,22 +309,27 @@ function DashboardBody({
 			)}
 
 			{dialog?.mode === "delete" && (
-				<ConfirmDialog
-					title="Delete chart"
-					body={`Remove "${dialog.widget.title}" from this dashboard? The layout will close the gap.`}
+				<ConfirmDeleteDialog
+					title={`Delete chart "${dialog.widget.title}"?`}
+					body="It's removed from this dashboard and the layout closes the gap."
 					confirmLabel="Delete chart"
-					onConfirm={() => remove(dialog.widget)}
-					onClose={() => setDialog(null)}
+					onConfirm={() => {
+						remove(dialog.widget);
+						setDialog(null);
+					}}
+					onCancel={() => setDialog(null)}
 				/>
 			)}
 
 			{dialog?.mode === "save-as" && (
-				<NameDialog
+				<NamedIconDialog
 					title="Save dashboard as"
 					initialName={`${dashboard.name} copy`}
+					initialIcon={dashboard.icon}
+					iconFallback="layout-dashboard"
 					confirmLabel="Create dashboard"
-					onConfirm={(name) => {
-						void draft.saveAs(name).then((id) => openDashboard(id));
+					onConfirm={(name, icon) => {
+						void draft.saveAs(name, icon).then((id) => openDashboard(id));
 					}}
 					onClose={() => setDialog(null)}
 				/>

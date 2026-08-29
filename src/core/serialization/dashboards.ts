@@ -178,6 +178,7 @@ export function parseDashboard(
 	const log = new IssueLog();
 	const id = asString(record.id) ?? `dashboard-${index + 1}`;
 	const name = asString(record.name) ?? id;
+	const icon = asString(record.icon) ?? undefined;
 
 	const widgetList = Array.isArray(record.widgets) ? record.widgets : [];
 	const widgets: DashboardWidget[] = [];
@@ -195,6 +196,7 @@ export function parseDashboard(
 		value: {
 			id,
 			name,
+			icon,
 			widgets,
 			filters: parseFilters(record.filters),
 		},
@@ -273,6 +275,7 @@ export function serializeDashboard(
 	return compact({
 		id: dashboard.id,
 		name: dashboard.name,
+		icon: dashboard.icon,
 		filters: compact(dashboard.filters as Record<string, unknown>) as ViewFilters,
 		widgets: dashboard.widgets.map(serializeWidget),
 	});

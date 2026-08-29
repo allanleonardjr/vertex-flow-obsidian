@@ -120,6 +120,9 @@ function TitleInput({
 		<input
 			type="text"
 			className="vf-dash-widget-title"
+			// `size` is the width fallback where `field-sizing: content` isn't
+			// supported — same trick as `EditableTitle`.
+			size={Math.max(4, Math.min(value.length + 1, 60))}
 			value={value}
 			aria-label="Chart title"
 			spellCheck={false}

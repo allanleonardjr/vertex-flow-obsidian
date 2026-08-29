@@ -22,8 +22,12 @@ export function newWidgetId(): string {
 	return `w-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 }
 
-export function newDashboard(id: string, name: string): DashboardConfig {
-	return { id, name, widgets: [], filters: {} };
+export function newDashboard(
+	id: string,
+	name: string,
+	icon = "layout-dashboard",
+): DashboardConfig {
+	return { id, name, icon, widgets: [], filters: {} };
 }
 
 /**

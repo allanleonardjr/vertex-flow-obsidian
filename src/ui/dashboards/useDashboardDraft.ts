@@ -30,7 +30,7 @@ export interface DashboardDraft {
 	/** Write the draft over the saved dashboard. */
 	save: () => Promise<void>;
 	/** Clone the current draft into a new dashboard; resolves to its id. */
-	saveAs: (name: string) => Promise<string>;
+	saveAs: (name: string, icon?: string) => Promise<string>;
 	/** Throw the draft away. */
 	reset: () => void;
 }
@@ -67,12 +67,13 @@ export function useDashboardDraft(
 	}, [draft, plugin, live, dashboard.name]);
 
 	const saveAs = useCallback(
-		async (name: string) => {
+		async (name: string, icon?: string) => {
 			const id = makeId();
 			const clone: DashboardConfig = {
 				...effective,
 				id,
 				name,
+				icon: icon ?? effective.icon,
 				widgets: effective.widgets.map((w) => ({ ...w })),
 			};
 			await plugin.mutations.addDashboard(live(), clone);

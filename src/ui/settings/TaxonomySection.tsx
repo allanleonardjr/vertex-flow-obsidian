@@ -16,6 +16,7 @@ import {
 	planTaxonomyDeletion,
 	reorderValues,
 	updateValue,
+	describeUsage,
 	type Taxonomy,
 	type TaxonomyDeletionPlan,
 	type TaxonomyUsage,
@@ -31,6 +32,7 @@ import {
 import { withTaxonomy } from "../../core/taxonomy";
 import { usePlugin } from "../context";
 import { ReplaceValueDialog } from "./ReplaceValueDialog";
+import { ConfirmDeleteDialog } from "../components/ConfirmDeleteDialog";
 
 const CATEGORY_LABEL: Record<StatusCategory, string> = {
 	backlog: "Backlog",
@@ -58,6 +60,11 @@ export function TaxonomySection({
 		plan: TaxonomyDeletionPlan;
 		usage: TaxonomyUsage;
 	} | null>(null);
+	// The plain "are you sure?" gate, shown before any reassignment modal.
+	const [confirming, setConfirming] = useState<{
+		plan: TaxonomyDeletionPlan;
+		usage: TaxonomyUsage;
+	} | null>(null);
 
 	const commit = (next: Taxonomy) => {
 		void plugin.mutations.saveWorkspaceConfig(withTaxonomy(snapshot.workspace, next));
@@ -82,14 +89,6 @@ export function TaxonomySection({
 		const usage = findTaxonomyUsage(kind, valueId, usageScope);
 		const plan = planTaxonomyDeletion(taxonomy, valueId, usage.count);
 
-		if (!plan.blocked) {
-			// Zero usage never needs a replacement — this also handles renumbering
-			// `order` on an ordered taxonomy, so ranks stay contiguous.
-			const { taxonomy: next } = applyTaxonomyDeletion(taxonomy, plan, null);
-			commit(next);
-			return;
-		}
-
 		if (plan.lastValueInUse) {
 			new Notice(
 				`Can't delete "${plan.valueName}" — it's the only ${plan.label} left, and ${usage.count} item(s) still use it.`,
@@ -97,6 +96,21 @@ export function TaxonomySection({
 			return;
 		}
 
+		// Always confirm first; the reassignment modal (if the value is in use)
+		// comes after the user says yes.
+		setConfirming({ plan, usage });
+	};
+
+	/** Run the actual deletion once the "are you sure?" gate is cleared. */
+	const performDelete = (plan: TaxonomyDeletionPlan, usage: TaxonomyUsage) => {
+		setConfirming(null);
+		if (!plan.blocked) {
+			// Zero usage never needs a replacement — this also handles renumbering
+			// `order` on an ordered taxonomy, so ranks stay contiguous.
+			const { taxonomy: next } = applyTaxonomyDeletion(taxonomy, plan, null);
+			commit(next);
+			return;
+		}
 		setDialog({ plan, usage });
 	};
 
@@ -138,6 +152,21 @@ export function TaxonomySection({
 					commit(addValue(taxonomy, { name, color, category }))
 				}
 			/>
+
+			{confirming && (
+				<ConfirmDeleteDialog
+					title={`Delete ${confirming.plan.label} "${confirming.plan.valueName}"?`}
+					body={
+						confirming.plan.blocked
+							? `It's used by ${describeUsage(confirming.usage)} — you'll pick a replacement next.`
+							: "This can't be undone."
+					}
+					onCancel={() => setConfirming(null)}
+					onConfirm={() =>
+						performDelete(confirming.plan, confirming.usage)
+					}
+				/>
+			)}
 
 			{dialog && (
 				<ReplaceValueDialog
