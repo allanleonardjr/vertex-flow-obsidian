@@ -197,7 +197,11 @@ export function ViewControls({
 						{view.groupBy !== "none" && view.viewType === "board" && (
 							<EmptyColumnsChip view={view} onChange={editView} />
 						)}
-						{view.groupBy !== "none" && view.viewType === "list" && (
+						{/* List and Board share one collapsed-column set, so the bulk
+						    toggle has to be reachable from both — otherwise a board
+						    inherits a "collapse all" done on the list with no way
+						    back. */}
+						{view.groupBy !== "none" && (
 							<CollapseAllToggle
 								view={view}
 								evaluated={evaluated}
