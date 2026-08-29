@@ -3,87 +3,59 @@
  *
  * A task note's body has up to three parts:
  *
- *     ## Description          ← what the editor edits
- *     …prose, sub-headings…
- *
- *     ## Some other section   ← the user's own writing, never touched
+ *     <!-- PLUGIN_DESCRIPTION_START -->
+ *     ## Description
+ *     …prose, sub-headings…    ← what the editor edits
+ *     <!-- PLUGIN_DESCRIPTION_END -->
  *
  *     <!-- PLUGIN_COMMENTS_START -->  ← owned by comments.ts
+
+ *     ## Some other section   ← the user's own writing, never touched
  *
  * Editing the description must not disturb either of the other two. Everything
  * here is string surgery on an already-split body, so it stays testable and
  * free of the Obsidian API.
  */
 
-import { splitBody, withComments, parseComments } from "./comments";
-
+export const DESCRIPTION_START_TAG = "<!-- PLUGIN_DESCRIPTION_START -->";
+export const DESCRIPTION_END_TAG = "<!-- PLUGIN_DESCRIPTION_END -->";
 export const DESCRIPTION_HEADING = "## Description";
 
-/** A level-1 or level-2 heading ends the description; `###` sub-sections don't. */
-const SECTION_BOUNDARY = /^#{1,2}\s/;
-const DESCRIPTION_RE = /^##\s+description\s*$/i;
+/**
+ * Serializes a description string into a safely fenced markdown block.
+ * If the description is empty or undefined, it returns an empty string.
+ */
+export function serializeDescription(
+  description: string | undefined | null,
+): string {
+  console.log("description", description);
+  if (!description || description.trim().length === 0) {
+    return "";
+  }
 
-interface DescriptionSpan {
-	/** Line index of the `## Description` heading, or -1 when absent. */
-	heading: number;
-	/** First line of content (inclusive). */
-	start: number;
-	/** One past the last line of content. */
-	end: number;
-}
-
-function locate(lines: string[]): DescriptionSpan {
-	const heading = lines.findIndex((line) => DESCRIPTION_RE.test(line.trim()));
-
-	// No heading: the whole prose *is* the description. Notes created by hand,
-	// or by another tool, shouldn't have their text hidden from the editor just
-	// because they lack our heading.
-	if (heading === -1) return { heading: -1, start: 0, end: lines.length };
-
-	let end = lines.length;
-	for (let i = heading + 1; i < lines.length; i++) {
-		if (SECTION_BOUNDARY.test(lines[i])) {
-			end = i;
-			break;
-		}
-	}
-	return { heading, start: heading + 1, end };
-}
-
-/** The description text of a note body, without its heading. */
-export function extractDescription(body: string): string {
-	const prose = splitBody(body).description;
-	const lines = prose.split("\n");
-	const span = locate(lines);
-	return lines.slice(span.start, span.end).join("\n").trim();
+  return [
+    DESCRIPTION_START_TAG,
+    DESCRIPTION_HEADING,
+    description.trim(),
+    DESCRIPTION_END_TAG,
+  ].join("\n");
 }
 
 /**
- * Write the description back, preserving every other section and the comment
- * block. A note without the heading gains one on first save, so subsequent
- * edits become surgical.
+ * Parses a description from the raw file content using regex matching.
+ * It strictly looks for content within the boundaries of the START and END tags,
+ * ignoring any internal markdown syntax that might otherwise break section parsing.
  */
-export function withDescription(body: string, text: string): string {
-	const split = splitBody(body);
-	const lines = split.description.split("\n");
-	const span = locate(lines);
-	const content = text.trim();
+export function parseDescription(fileContent: string): string {
+  // [\s\S]*? ensures we match multiline content safely without being greedy
+  const blockRegex =
+    /<!-- PLUGIN_DESCRIPTION_START -->\s*## Description\s*([\s\S]*?)\s*<!-- PLUGIN_DESCRIPTION_END -->/;
+  const match = fileContent.match(blockRegex);
 
-	const before = span.heading === -1 ? [] : lines.slice(0, span.heading);
-	const after = lines.slice(span.end);
+  if (match && match[1]) {
+    const parsedDescription = match[1].trim();
+    return parsedDescription.length > 0 ? parsedDescription : "";
+  }
 
-	const section =
-		content.length > 0 ? [DESCRIPTION_HEADING, "", content, ""] : [];
-
-	const prose = [...before, ...section, ...after]
-		.join("\n")
-		.replace(/\n{3,}/g, "\n\n")
-		.trim();
-
-	// Round-trip through the comments writer so the delimited block, and any
-	// trailing content after it, are reassembled exactly as they were.
-	return withComments(
-		prose ? `${prose}\n` : "",
-		parseComments(body),
-	);
+  return "";
 }

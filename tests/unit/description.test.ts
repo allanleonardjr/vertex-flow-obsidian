@@ -1,18 +1,23 @@
 import { describe, expect, it } from "vitest";
 import {
-	COMMENTS_END,
-	COMMENTS_START,
-	extractDescription,
-	parseComments,
-	withDescription,
-} from "../../src/core/serialization";
+  COMMENTS_END,
+  COMMENTS_START,
+} from "../../src/core/serialization/comments"; // Update path if needed
+import {
+  parseDescription,
+  serializeDescription,
+  DESCRIPTION_START_TAG,
+  DESCRIPTION_END_TAG,
+} from "../../src/core/serialization/description"; // Update path if needed
 
-const WITH_COMMENTS = `## Description
+const WITH_COMMENTS = `${DESCRIPTION_START_TAG}
+## Description
 Dragging into an empty column fails.
 
 ### Steps to Reproduce
 1. Make a column.
 2. Drag a card.
+${DESCRIPTION_END_TAG}
 
 ${COMMENTS_START}
 ## Comments
@@ -22,100 +27,64 @@ Looking at it now.
 ${COMMENTS_END}
 `;
 
-describe("extractDescription", () => {
-	it("reads the section under the heading", () => {
-		expect(extractDescription("## Description\nSomething broke.\n")).toBe(
-			"Something broke.",
-		);
-	});
+describe("parseDescription", () => {
+  it("reads the fenced section under the heading", () => {
+    const body = `${DESCRIPTION_START_TAG}\n## Description\nSomething broke.\n\n${DESCRIPTION_END_TAG}`;
+    expect(parseDescription(body)).toBe("Something broke.");
+  });
 
-	it("keeps sub-headings, which belong to the description", () => {
-		const text = extractDescription(WITH_COMMENTS);
-		expect(text).toContain("Dragging into an empty column fails.");
-		expect(text).toContain("### Steps to Reproduce");
-		expect(text).toContain("2. Drag a card.");
-	});
+  it("keeps sub-headings, which belong to the description", () => {
+    const text = parseDescription(WITH_COMMENTS);
+    expect(text).toContain("Dragging into an empty column fails.");
+    expect(text).toContain("### Steps to Reproduce");
+    expect(text).toContain("2. Drag a card.");
+  });
 
-	it("stops at the next level-2 section", () => {
-		const body = "## Description\nThe description.\n\n## Notes\nUnrelated.\n";
-		expect(extractDescription(body)).toBe("The description.");
-	});
+  it("stops at the end tag, ignoring other sections", () => {
+    const body = `${DESCRIPTION_START_TAG}\n## Description\nThe description.\n\n${DESCRIPTION_END_TAG}\n\n## Notes\nUnrelated.\n`;
+    expect(parseDescription(body)).toBe("The description.");
+  });
 
-	it("never reaches into the comment block", () => {
-		expect(extractDescription(WITH_COMMENTS)).not.toContain("Looking at it now");
-		expect(extractDescription(WITH_COMMENTS)).not.toContain("PLUGIN_COMMENTS");
-	});
+  it("never reaches into the comment block", () => {
+    expect(parseDescription(WITH_COMMENTS)).not.toContain("Looking at it now");
+    expect(parseDescription(WITH_COMMENTS)).not.toContain("PLUGIN_COMMENTS");
+  });
 
-	it("treats a headingless note as all description", () => {
-		// Notes written by hand, or by another tool, shouldn't hide their text
-		// from the editor just because they lack our heading.
-		expect(extractDescription("Just some notes I typed.\n")).toBe(
-			"Just some notes I typed.",
-		);
-	});
+  it("returns an empty string for a note without XML description tags", () => {
+    // Notes without our strict XML fencing are ignored
+    expect(parseDescription("Just some notes I typed.\n")).toBe("");
+  });
 
-	it("is empty for an empty body", () => {
-		expect(extractDescription("")).toBe("");
-		expect(extractDescription("## Description\n\n")).toBe("");
-	});
+  it("is empty for an empty body", () => {
+    expect(parseDescription("")).toBe("");
+    expect(
+      parseDescription(
+        `${DESCRIPTION_START_TAG}\n## Description\n\n${DESCRIPTION_END_TAG}`,
+      ),
+    ).toBe("");
+  });
 });
 
-describe("withDescription", () => {
-	it("round-trips", () => {
-		const updated = withDescription(WITH_COMMENTS, "A brand new description.");
-		expect(extractDescription(updated)).toBe("A brand new description.");
-	});
+describe("serializeDescription", () => {
+  it("round-trips perfectly with parseDescription", () => {
+    const newDesc = "A brand new description.";
+    const serialized = serializeDescription(newDesc);
+    expect(parseDescription(serialized)).toBe("A brand new description.");
+  });
 
-	it("preserves the comment block untouched", () => {
-		const updated = withDescription(WITH_COMMENTS, "Changed.");
-		const comments = parseComments(updated);
-		expect(comments).toHaveLength(1);
-		expect(comments[0].body).toBe("Looking at it now.");
-	});
+  it("includes the fencing tags and removes the blank line below the heading", () => {
+    const serialized = serializeDescription("Changed.");
 
-	it("preserves other sections the user wrote", () => {
-		const body = "## Description\nOld.\n\n## Notes\nKeep me.\n";
-		const updated = withDescription(body, "New.");
-		expect(updated).toContain("## Notes");
-		expect(updated).toContain("Keep me.");
-		expect(extractDescription(updated)).toBe("New.");
-	});
+    // Asserts the blank line was successfully removed
+    expect(serialized).toContain("## Description\nChanged.");
+    expect(serialized).toContain(DESCRIPTION_START_TAG);
+    expect(serialized).toContain(DESCRIPTION_END_TAG);
+  });
 
-	it("adds the heading to a note that had none", () => {
-		const updated = withDescription("Loose prose.\n", "Now structured.");
-		expect(updated).toContain("## Description");
-		expect(extractDescription(updated)).toBe("Now structured.");
-		// The loose prose was the description, so replacing it is correct.
-		expect(updated).not.toContain("Loose prose.");
-	});
-
-	it("becomes surgical after the first save", () => {
-		const once = withDescription("Loose prose.\n", "First.");
-		const twice = withDescription(once, "Second.");
-		expect(extractDescription(twice)).toBe("Second.");
-		expect(twice.match(/## Description/g)).toHaveLength(1);
-	});
-
-	it("drops the section when the description is cleared", () => {
-		const updated = withDescription("## Description\nGone soon.\n", "");
-		expect(updated).not.toContain("## Description");
-		expect(extractDescription(updated)).toBe("");
-	});
-
-	it("keeps comments when the description is cleared", () => {
-		const updated = withDescription(WITH_COMMENTS, "");
-		expect(parseComments(updated)).toHaveLength(1);
-	});
-
-	it("writes a description into a completely empty note", () => {
-		const updated = withDescription("", "First words.");
-		expect(extractDescription(updated)).toBe("First words.");
-	});
-
-	it("does not accumulate blank lines across repeated saves", () => {
-		let body = "## Description\nStart.\n";
-		for (let i = 0; i < 5; i++) body = withDescription(body, `Pass ${i}.`);
-		expect(body).not.toMatch(/\n{3,}/);
-		expect(extractDescription(body)).toBe("Pass 4.");
-	});
+  it("returns an empty string when the description is cleared or empty", () => {
+    expect(serializeDescription("")).toBe("");
+    expect(serializeDescription("   ")).toBe("");
+    expect(serializeDescription(undefined)).toBe("");
+    expect(serializeDescription(null)).toBe("");
+  });
 });
