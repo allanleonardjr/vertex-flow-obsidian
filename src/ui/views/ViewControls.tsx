@@ -16,8 +16,8 @@ import type {
 	ViewFilters,
 	WorkspaceSnapshot,
 } from "../../core/types";
-import { useCreateTask } from "../actions";
 import { usePlugin, useSettingsWriter } from "../context";
+import { Icon } from "../components/Icon";
 import { NamedIconDialog } from "../modals/NamedIconDialog";
 import { useSelection } from "../selection";
 import {
@@ -39,6 +39,8 @@ export function ViewControls({
 	taxonomies,
 	evaluated,
 	onSelectView,
+	onNewTask,
+	hideTitle = false,
 }: {
 	snapshot: WorkspaceSnapshot;
 	/** The view being rendered — the draft when one is pending. */
@@ -49,11 +51,19 @@ export function ViewControls({
 	taxonomies: WorkspaceTaxonomies;
 	evaluated: EvaluatedView;
 	onSelectView: (id: string) => void;
+	/** Create a task seeded from this view's filters (see `TaskViewport`). */
+	onNewTask: () => void;
+	/**
+	 * Drop the title row (name, count, "New task"). Set when an outer header
+	 * already names the thing being viewed — the Project Detail screen — so the
+	 * bar isn't preceded by a redundant second heading. Bulk-selection controls
+	 * still appear here when something is selected.
+	 */
+	hideTitle?: boolean;
 }) {
 	const plugin = usePlugin();
 	const writeSettings = useSettingsWriter();
 	const selection = useSelection();
-	const createTask = useCreateTask();
 	const [savingAs, setSavingAs] = useState(false);
 	const queryOpen = plugin.settings.queryBarOpen;
 
@@ -94,31 +104,46 @@ export function ViewControls({
 
 	return (
 		<header className="vf-view-header">
-			<div className="vf-view-title">
-				<h2>
-					{snapshot.workspace.name}{" "}
-					<span className="vf-view-title-code">
-						({snapshot.workspace.idPrefix})
-					</span>
-				</h2>
-				<span className="vf-count">
-					{evaluated.total} {evaluated.total === 1 ? "task" : "tasks"}
-				</span>
+			{(!hideTitle || selectedCount > 0) && (
+				<div className="vf-view-title">
+					{!hideTitle && (
+						<>
+							<h2>
+								<span className="vf-view-title-icon" aria-hidden>
+									<Icon
+										id={view.icon}
+										fallback={view.viewType === "board" ? "columns-3" : "list"}
+										size={16}
+									/>
+								</span>
+								{view.name}
+								<span className="vf-view-title-code">
+									({snapshot.workspace.idPrefix})
+								</span>
+							</h2>
+							<span className="vf-count">
+								{evaluated.total} {evaluated.total === 1 ? "task" : "tasks"}
+							</span>
+						</>
+					)}
 
-				<span className="vf-view-title-spacer" />
+					<span className="vf-view-title-spacer" />
 
-				{selectedCount > 0 && (
-					<>
-						<span className="vf-count">{selectedCount} selected</span>
-						<BulkStatus snapshot={snapshot} evaluated={evaluated} />
-						<button onClick={() => selection.clearSelection()}>Clear</button>
-					</>
-				)}
+					{selectedCount > 0 && (
+						<>
+							<span className="vf-count">{selectedCount} selected</span>
+							<BulkStatus snapshot={snapshot} evaluated={evaluated} />
+							<button onClick={() => selection.clearSelection()}>Clear</button>
+						</>
+					)}
 
-				<button className="mod-cta" onClick={() => void createTask(snapshot)}>
-					New task
-				</button>
-			</div>
+					{!hideTitle && (
+						<button className="mod-cta" onClick={onNewTask}>
+							New task
+						</button>
+					)}
+				</div>
+			)}
 
 			<div className="vf-view-bar">
 				<LayoutToggle view={view} onChange={editView} />

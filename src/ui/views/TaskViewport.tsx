@@ -10,8 +10,8 @@
  * keeps only the shell, the tab strip, and Escape/tab handling.
  */
 
-import { useEffect, useMemo } from "react";
-import { evaluateView } from "../../core/views";
+import { useCallback, useEffect, useMemo } from "react";
+import { evaluateView, seedFromFilters } from "../../core/views";
 import type { ViewContext } from "../../core/views";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { SavedView, WorkspaceSnapshot } from "../../core/types";
@@ -37,6 +37,7 @@ export function TaskViewport({
 	containerRef,
 	active,
 	onSelectView,
+	hideViewTitle,
 }: {
 	snapshot: WorkspaceSnapshot;
 	view: SavedView;
@@ -48,6 +49,11 @@ export function TaskViewport({
 	active: boolean;
 	/** Switch the sidebar/tab to another Saved View, after "Save as…". */
 	onSelectView: (id: string) => void;
+	/**
+	 * Suppress the control bar's own title row — used by the Project Detail
+	 * screen, which renders its own header above this viewport.
+	 */
+	hideViewTitle?: boolean;
 }) {
 	const plugin = usePlugin();
 	const selection = useSelection();
@@ -60,6 +66,14 @@ export function TaskViewport({
 	// below renders `draft.effective`, never the on-disk view directly.
 	const draft = useViewDraft(snapshot, view);
 	const effective = draft.effective;
+
+	// "New task" from a filtered view pre-fills the fields the filter pins to a
+	// single value — create a task while looking at one project or label and it
+	// lands there, not in the unfiltered backlog.
+	const newTask = useCallback(
+		() => void createTask(snapshot, seedFromFilters(effective.filters, context)),
+		[createTask, snapshot, effective.filters, context],
+	);
 
 	const evaluated = useMemo(() => {
 		// "Show archived" is a session preference layered over the saved view,
@@ -143,7 +157,7 @@ export function TaskViewport({
 					if (selection.focusedPath) void plugin.mutations.open(selection.focusedPath);
 				},
 			},
-			{ key: "c", run: () => void createTask(snapshot) },
+			{ key: "c", run: () => newTask() },
 			{
 				key: "e",
 				run: () => {
@@ -173,6 +187,8 @@ export function TaskViewport({
 				taxonomies={taxonomies}
 				evaluated={evaluated}
 				onSelectView={onSelectView}
+				onNewTask={newTask}
+				hideTitle={hideViewTitle}
 			/>
 			{effective.viewType === "board" ? (
 				<BoardView

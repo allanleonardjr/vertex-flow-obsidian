@@ -79,6 +79,7 @@ export function ProjectDetailView({
 				containerRef={containerRef}
 				active={active}
 				onSelectView={onSelectView}
+				hideViewTitle
 			/>
 		</>
 	);
@@ -110,7 +111,12 @@ function ProjectHeader({
 				<span className="vf-project-head-icon" aria-hidden>
 					<Icon id={project.icon} fallback="folder" size={16} />
 				</span>
-				<h2 className="vf-project-head-title">{project.title}</h2>
+				<h2 className="vf-project-head-title">
+					{project.title}{" "}
+					<span className="vf-view-title-code">
+						({snapshot.workspace.idPrefix})
+					</span>
+				</h2>
 				<span className="vf-project-head-spacer" />
 				<button className="mod-cta" onClick={onNewTask}>
 					New task

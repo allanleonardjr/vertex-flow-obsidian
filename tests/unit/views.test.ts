@@ -10,6 +10,7 @@ import {
 	newView,
 	evaluateView,
 	groupTasks,
+	seedFromFilters,
 	hiddenGroups,
 	isEmptyFilterSet,
 	matchesFilters,
@@ -413,5 +414,58 @@ describe("hiddenFields", () => {
 
 	it("keeps every TASK_FIELDS member representable", () => {
 		expect(canonicalizeHiddenFields([...TASK_FIELDS])).toEqual([...TASK_FIELDS]);
+	});
+});
+
+describe("seedFromFilters", () => {
+	it("seeds nothing from an empty filter set", () => {
+		expect(seedFromFilters({})).toEqual({});
+	});
+
+	it("seeds a single-valued filter", () => {
+		expect(seedFromFilters({ project: ["Sample/Projects/Core App Experience"] })).toEqual({
+			project: "Sample/Projects/Core App Experience",
+		});
+		expect(seedFromFilters({ status: ["todo"] })).toEqual({ status: "todo" });
+		expect(seedFromFilters({ taskType: ["bug"] })).toEqual({ taskType: "bug" });
+	});
+
+	it("applies every concrete label (multi-select, additive)", () => {
+		expect(seedFromFilters({ labels: ["design", "frontend"] })).toEqual({
+			labels: ["design", "frontend"],
+		});
+	});
+
+	it("skips a filter that ORs several values — no single right answer", () => {
+		expect(seedFromFilters({ status: ["todo", "in-progress"] })).toEqual({});
+	});
+
+	it("ignores the NONE sentinel", () => {
+		expect(seedFromFilters({ assignee: [NONE], labels: [NONE] })).toEqual({});
+	});
+
+	it("resolves `self` for assignee against the isSelf person", () => {
+		expect(seedFromFilters({ assignee: [SELF] }, context)).toEqual({
+			assignee: "alice",
+		});
+	});
+
+	it("drops `self` for assignee when no one is flagged isSelf", () => {
+		expect(seedFromFilters({ assignee: [SELF] })).toEqual({});
+	});
+
+	it("lets a parent filter win over a project filter (single primary parent)", () => {
+		expect(
+			seedFromFilters({
+				parent: ["Sample/Tasks/SMP-0101"],
+				project: ["Sample/Projects/Core App Experience"],
+			}),
+		).toEqual({ parent: "Sample/Tasks/SMP-0101" });
+	});
+
+	it("ignores filters that don't map to a task field", () => {
+		expect(
+			seedFromFilters({ text: "abc", includeArchived: true, topLevelOnly: true }),
+		).toEqual({});
 	});
 });
