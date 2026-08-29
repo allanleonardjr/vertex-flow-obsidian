@@ -3,6 +3,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { Notice } from "obsidian";
 import {
   childTasks,
   computeProgress,
@@ -25,6 +26,7 @@ import {
   TypeSelect,
   useDebouncedSave,
 } from "./components/fields";
+import { DescriptionSection } from "./components/DescriptionSection";
 import { EditorRail } from "./components/EditorRail";
 import { MarkdownContent, MarkdownField } from "./components/Markdown";
 import { ProgressBar, StatusDot } from "./components/TaskBits";
@@ -54,6 +56,16 @@ export function TaskDetailPanel({
   const plugin = usePlugin();
   const [comments, setComments] = useState<Comment[]>([]);
   const [description, setDescription] = useState<string | null>(null);
+  const [descCollapsed, setDescCollapsed] = useState(
+    plugin.settings.descriptionCollapsed,
+  );
+
+  const toggleDescription = () => {
+    const next = !descCollapsed;
+    setDescCollapsed(next);
+    plugin.settings.descriptionCollapsed = next;
+    void plugin.saveSettings();
+  };
 
   const scope = scopeOf(snapshot);
   const children = childTasks(scope, task.path);
@@ -106,11 +118,14 @@ export function TaskDetailPanel({
         <main className="vf-editor-main">
           <TitleField task={task} />
 
-          {description === null ? (
-            <div className="vf-editor-loading">Loading…</div>
-          ) : (
-            <DescriptionField task={task} initial={description} />
-          )}
+          <DescriptionSection
+            collapsed={descCollapsed}
+            onToggleCollapsed={toggleDescription}
+            value={description}
+            editorKey={task.path}
+            sourcePath={withExtension(task.path)}
+            onSave={(text) => void plugin.mutations.setDescription(task, text)}
+          />
 
           <section className="vf-editor-section">
             <h4>
@@ -129,6 +144,13 @@ export function TaskDetailPanel({
                 }
               }}
               removeTitle={(title) => `Unlink sub-task ${title}`}
+              renderAddTrigger={() => (
+                <AddSubtaskTrigger
+                  task={task}
+                  snapshot={snapshot}
+                  taxonomies={taxonomies}
+                />
+              )}
             />
           </section>
 
@@ -342,19 +364,74 @@ function TitleField({ task }: { task: Task }) {
   );
 }
 
-function DescriptionField({ task, initial }: { task: Task; initial: string }) {
+/**
+ * "+ Add sub-task" — styled like the relations add-triggers. Picking a task
+ * makes *this* task its parent. A task that already has a parent isn't
+ * silently re-parented: the user is told to change or clear that parent first.
+ */
+function AddSubtaskTrigger({
+  task,
+  snapshot,
+  taxonomies,
+}: {
+  task: Task;
+  snapshot: WorkspaceSnapshot;
+  taxonomies: WorkspaceTaxonomies;
+}) {
   const plugin = usePlugin();
-  const [text, setText] = useDebouncedSave(initial, (value) => {
-    void plugin.mutations.setDescription(task, value);
-  });
+
+  // Can't parent a task to itself, to one of its own descendants (a cycle), or
+  // to a task that's already its child.
+  const blocked = new Set(
+    descendantTasks(scopeOf(snapshot), task.path).map((t) => t.path),
+  );
+  const candidates = snapshot.tasks.filter(
+    (candidate) =>
+      candidate.path !== task.path &&
+      !blocked.has(candidate.path) &&
+      candidate.parent !== task.path,
+  );
+
+  const add = (path: string) => {
+    const picked = snapshot.tasks.find((t) => t.path === path);
+    if (!picked) return;
+
+    if (picked.parent) {
+      const currentParent = snapshot.tasks.find(
+        (t) => t.path === picked.parent,
+      );
+      new Notice(
+        `"${picked.title}" already has a parent${
+          currentParent ? ` (${currentParent.title})` : ""
+        }. Change or clear its parent first, or pick another task.`,
+      );
+      return;
+    }
+
+    void plugin.mutations.setParent(picked, task.path);
+  };
 
   return (
-    <MarkdownField
-      className="vf-editor-description"
-      value={text}
-      onChange={setText}
-      sourcePath={withExtension(task.path)}
-      placeholder="Add a description… start typing Markdown — [[wikilinks]], #tags, and ![[embeds]] all work, with live preview and link suggestions as you go"
+    <TaskSelectMenu
+      candidates={candidates}
+      snapshot={snapshot}
+      taxonomies={taxonomies}
+      value={null}
+      onSelect={(path) => path && add(path)}
+      noneLabel="Cancel"
+      searchPlaceholder="Search tasks…"
+      trigger={({ open, toggle }) => (
+        <button
+          type="button"
+          className={`vf-add-relation${open ? " is-on" : ""}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            toggle();
+          }}
+        >
+          + Add sub-task
+        </button>
+      )}
     />
   );
 }

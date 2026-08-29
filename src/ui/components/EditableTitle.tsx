@@ -67,8 +67,9 @@ export function EditableTitle({
 				ref={focusRef}
 				type="text"
 				className="vf-editable-title-input"
-				// Size to the text so the suffix hugs the name like a static heading.
-				size={Math.max(6, Math.min(value.length + 1, 48))}
+				// Grow with the text so the suffix hugs the name like a static
+				// heading; flex still lets it shrink when the header is cramped.
+				size={Math.max(4, Math.min(value.length + 1, 80))}
 				value={value}
 				placeholder={placeholder}
 				onChange={(event) => setValue(event.target.value)}
