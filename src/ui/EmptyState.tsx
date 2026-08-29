@@ -9,6 +9,8 @@
 
 import { useState } from "react";
 import { Icon } from "./components/Icon";
+// import { HelpView } from "./help/HelpView";
+import { RoughNotation } from "react-rough-notation";
 import { TemplateGallery } from "./TemplateGallery";
 
 export function EmptyState() {
@@ -16,28 +18,53 @@ export function EmptyState() {
 
   return (
     <div className="vf-empty-scroll">
-      {showGallery ? (
-        <TemplateGallery onClose={() => setShowGallery(false)} />
-      ) : (
-        <Welcome onClose={() => setShowGallery(true)} />
-      )}
+      <div className="vf-app-background">
+        {showGallery ? (
+          <TemplateGallery onClose={() => setShowGallery(false)} />
+        ) : (
+          <Welcome onClose={() => setShowGallery(true)} />
+          //<HelpView />
+        )}
+      </div>
     </div>
   );
 }
 
 function Welcome({ onClose }: { onClose: () => void }) {
+  const iconSize = 70;
+  const padding = iconSize / 10; //7; // space between the icon and the edge of its box
+
   return (
     <div className="vf-welcome">
-      <div className="vf-welcome-icon">
-        <Icon id="kanban" fallback="layers" size={30} />
+      <div
+        className="vf-welcome-icon"
+        style={{
+          width: iconSize + padding * 2,
+          height: iconSize + padding * 2,
+          borderRadius: (iconSize + padding * 2) * 0.23,
+        }}
+      >
+        <Icon id="kanban-square" fallback="layers" size={iconSize} />
       </div>
       <h1>Welcome to Vertex Flow</h1>
       <p className="vf-welcome-sub">
         Task management for your Obsidian vault. <br />
-        Projects and Tasks, List and Board views, all stored as plain Markdown
-        notes.
+        Projects and Tasks, List and Board views, all stored as{" "}
+        <RoughNotation
+          type="underline"
+          multiline={true}
+          color="#ff0000"
+          animationDelay={300}
+          show={true}
+        >
+          <span style={{ fontWeight: "bold" }}>plain Markdown notes.</span>
+        </RoughNotation>
       </p>
-      <button type="button" className="mod-cta" onClick={onClose}>
+      <button
+        type="button"
+        className="vf-welcome-cta mod-cta"
+        onClick={onClose}
+      >
         Create your first workspace
       </button>
     </div>

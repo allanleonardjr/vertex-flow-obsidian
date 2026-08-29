@@ -37,6 +37,7 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-grid-layout": "^2.2.4",
+    "react-rough-notation": "^1.0.8",
     "recharts": "^3.10.1"
   },
   "pnpm": {
