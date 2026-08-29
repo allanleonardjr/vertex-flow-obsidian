@@ -56,6 +56,7 @@ import { useSelection, useScrollFocusIntoView } from "../selection";
 import { useTabs } from "../tabs-context";
 import { useBarDrag, type BarDragZone } from "./useBarDrag";
 import { useScheduleDrag } from "./useScheduleDrag";
+import { PREVIEW_OFFSET_PX } from "./useTaskDrag";
 
 /** Named zoom presets — pixels per day (§4.6: the UI owns these values). */
 const ZOOM_PRESETS: { id: string; label: string; scale: number }[] = [
@@ -392,6 +393,9 @@ export function TimelineView({
 	const scheduleGhostDate = scheduleDrag.drag
 		? clientPointToDate(scheduleDrag.drag.x, scheduleDrag.drag.y)
 		: null;
+	const draggedScheduleTask = scheduleDrag.drag
+		? unscheduled.find((task) => task.path === scheduleDrag.drag?.rowKey)
+		: undefined;
 
 	return (
 		<div
@@ -670,13 +674,43 @@ export function TimelineView({
 			</div>
 
 			{scheduleDrag.drag &&
+				draggedScheduleTask &&
+				createPortal(
+					<div
+						className="vf-drag-layer"
+						style={{
+							transform: `translate(${
+								scheduleDrag.drag.x + PREVIEW_OFFSET_PX
+							}px, ${scheduleDrag.drag.y + PREVIEW_OFFSET_PX}px)`,
+							width: scheduleDrag.drag.width,
+						}}
+						aria-hidden
+					>
+						<div className="vf-row vf-row-preview">
+							<TaskRowContent
+								task={draggedScheduleTask}
+								snapshot={snapshot}
+								taxonomies={taxonomies}
+								hiddenFields={view.hiddenFields}
+							/>
+						</div>
+					</div>,
+					document.body,
+				)}
+
+			{scheduleDrag.drag &&
 				createPortal(
 					<div
 						className="vf-timeline-schedule-ghost"
 						style={{
-							transform: `translate(${scheduleDrag.drag.x + 16}px, ${
-								scheduleDrag.drag.y + 16
-							}px)`,
+							// Hangs off the top-right of the card preview, like an
+							// OS drag badge, so it never covers the row content.
+							transform: `translate(${
+								scheduleDrag.drag.x +
+								PREVIEW_OFFSET_PX +
+								scheduleDrag.drag.width -
+								8
+							}px, ${scheduleDrag.drag.y + PREVIEW_OFFSET_PX - 12}px)`,
 						}}
 						aria-hidden
 					>

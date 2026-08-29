@@ -1724,6 +1724,18 @@ body.vf-dragging {
   cursor: grabbing;
 }
 
+/* Floating copy of the dragged tab, portaled to <body> inside .vf-drag-layer
+   — same visual language as the List/Board row preview. */
+.vf-tab-preview {
+  width: 100%;
+  max-width: none;
+  background: var(--background-primary);
+  border: 1px solid var(--vf-border);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  transform: rotate(1deg);
+  opacity: 0.95;
+}
+
 /* A thin vertical bar in the gap the dragged tab would drop into. */
 .vf-tab-drop-line {
   flex: 0 0 2px;

@@ -6,8 +6,9 @@
  * after a long press. On release the raw client coordinates are handed back;
  * the view converts them to a date and commits (`updateTask({ dueDate })`).
  *
- * There is no bar to preview here, so the state is just the pointer position —
- * the view renders a floating date read-out that follows the cursor.
+ * The state carries the pointer position plus the source row's width, so the
+ * view can float a preview card of the dragged task next to the cursor (the
+ * same pattern as List/Board) alongside the target-date read-out.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -18,6 +19,8 @@ export interface ScheduleDragState {
 	/** Current pointer position, viewport coordinates. */
 	x: number;
 	y: number;
+	/** Width of the source row, so a floating preview matches it. */
+	width: number;
 }
 
 export interface ScheduleDragApi {
@@ -41,6 +44,7 @@ export function useScheduleDrag(
 		pointerId: number;
 		startX: number;
 		startY: number;
+		width: number;
 		lifted: boolean;
 		longPress: number | null;
 	} | null>(null);
@@ -67,7 +71,7 @@ export function useScheduleDrag(
 		if (!current || current.lifted) return;
 		current.lifted = true;
 		document.body.classList.add("vf-bar-dragging");
-		setDrag({ rowKey: current.rowKey, x, y });
+		setDrag({ rowKey: current.rowKey, x, y, width: current.width });
 	}, []);
 
 	const onPointerDown = useCallback(
@@ -77,11 +81,14 @@ export function useScheduleDrag(
 			if (target.closest("button:not(.vf-row-open), input, select, a, textarea")) {
 				return;
 			}
+			// Measure now, while the row is still in its resting position.
+			const rect = event.currentTarget.getBoundingClientRect();
 			gesture.current = {
 				rowKey,
 				pointerId: event.pointerId,
 				startX: event.clientX,
 				startY: event.clientY,
+				width: rect.width,
 				lifted: false,
 				longPress: null,
 			};
@@ -113,7 +120,12 @@ export function useScheduleDrag(
 				}
 				return;
 			}
-			setDrag({ rowKey: current.rowKey, x: event.clientX, y: event.clientY });
+			setDrag({
+				rowKey: current.rowKey,
+				x: event.clientX,
+				y: event.clientY,
+				width: current.width,
+			});
 		};
 
 		const onUp = (event: PointerEvent) => {

@@ -5,6 +5,7 @@
  */
 
 import { Fragment, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { getValue, workspaceTaxonomies } from "../core/taxonomy";
 import { layoutIcon } from "../core/views";
 import type { SavedView, WorkspaceSnapshot } from "../core/types";
@@ -13,6 +14,7 @@ import { StatusDot } from "./components/TaskBits";
 import { usePlugin } from "./context";
 import { useTabs, type BrowseKind, type Tab } from "./tabs-context";
 import { useTabDrag } from "./useTabDrag";
+import { PREVIEW_OFFSET_PX } from "./views/useTaskDrag";
 
 const BROWSE_ICON: Record<BrowseKind, string> = {
 	projects: "▣",
@@ -61,7 +63,13 @@ export function TabStrip({
 		return duplicates;
 	}, [tabs, plugin]);
 
-	const dragging = drag.dragTabId != null;
+	const dragging = drag.drag != null;
+	const draggedTab = drag.drag
+		? tabs.find((tab) => tab.id === drag.drag?.tabId)
+		: undefined;
+	const draggedContent = draggedTab
+		? tabContent(draggedTab, snapshot, builtInView, duplicateTaskTitles, plugin)
+		: null;
 
 	return (
 		<div className="vf-tabs" role="tablist">
@@ -98,35 +106,43 @@ export function TabStrip({
 			{dragging && drag.dropIndex === tabs.length && (
 				<span className="vf-tab-drop-line" aria-hidden />
 			)}
+
+			{drag.drag &&
+				draggedContent &&
+				createPortal(
+					<div
+						className="vf-drag-layer"
+						style={{
+							transform: `translate(${
+								drag.drag.x + PREVIEW_OFFSET_PX
+							}px, ${drag.drag.y + PREVIEW_OFFSET_PX}px)`,
+							width: drag.drag.width,
+						}}
+						aria-hidden
+					>
+						<div className="vf-tab vf-tab-preview">
+							{draggedContent.icon}
+							<span className="vf-tab-title">{draggedContent.label}</span>
+						</div>
+					</div>,
+					document.body,
+				)}
 		</div>
 	);
 }
 
-function TabRow({
-	tab,
-	active,
-	dragging,
-	snapshot,
-	builtInView,
-	duplicateTaskTitles,
-	onPointerDown,
-	onActivate,
-	onClose,
-	plugin,
-}: {
-	tab: Tab;
-	active: boolean;
-	/** This tab is the one currently being dragged. */
-	dragging: boolean;
-	snapshot: WorkspaceSnapshot;
-	builtInView: SavedView;
-	duplicateTaskTitles: Set<string>;
-	/** Absent for the pinned workspace tab, which can't be dragged. */
-	onPointerDown?: (event: React.PointerEvent) => void;
-	onActivate: () => void;
-	onClose: (() => void) | null;
-	plugin: ReturnType<typeof usePlugin>;
-}) {
+/**
+ * The icon + label a tab shows, with no interactive wrapper — shared by the
+ * rendered row and the drag preview. Returns `null` for a tab whose target has
+ * gone (a just-deleted view, a task removed by sync); the row renders nothing.
+ */
+function tabContent(
+	tab: Tab,
+	snapshot: WorkspaceSnapshot,
+	builtInView: SavedView,
+	duplicateTaskTitles: Set<string>,
+	plugin: ReturnType<typeof usePlugin>,
+): { icon: React.ReactNode; label: React.ReactNode } | null {
 	let icon: React.ReactNode;
 	let label: React.ReactNode;
 
@@ -208,6 +224,43 @@ function TabRow({
 				: browseLabel(tab.kind);
 	}
 
+	return { icon, label };
+}
+
+function TabRow({
+	tab,
+	active,
+	dragging,
+	snapshot,
+	builtInView,
+	duplicateTaskTitles,
+	onPointerDown,
+	onActivate,
+	onClose,
+	plugin,
+}: {
+	tab: Tab;
+	active: boolean;
+	/** This tab is the one currently being dragged. */
+	dragging: boolean;
+	snapshot: WorkspaceSnapshot;
+	builtInView: SavedView;
+	duplicateTaskTitles: Set<string>;
+	/** Absent for the pinned workspace tab, which can't be dragged. */
+	onPointerDown?: (event: React.PointerEvent) => void;
+	onActivate: () => void;
+	onClose: (() => void) | null;
+	plugin: ReturnType<typeof usePlugin>;
+}) {
+	const content = tabContent(
+		tab,
+		snapshot,
+		builtInView,
+		duplicateTaskTitles,
+		plugin,
+	);
+	if (!content) return null;
+
 	return (
 		<div
 			role="tab"
@@ -219,8 +272,8 @@ function TabRow({
 			onPointerDown={onPointerDown}
 			onClick={onActivate}
 		>
-			{icon}
-			<span className="vf-tab-title">{label}</span>
+			{content.icon}
+			<span className="vf-tab-title">{content.label}</span>
 			{onClose && (
 				<button
 					className="vf-tab-close"

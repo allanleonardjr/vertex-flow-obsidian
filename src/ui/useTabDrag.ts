@@ -8,6 +8,10 @@
  * a first-class target and a plain touch-drag must not fight the strip's own
  * horizontal scroll.
  *
+ * The state carries the pointer position and the source tab's width, so the
+ * strip can float a preview copy of the dragged tab next to the cursor — the
+ * same pattern as List/Board — alongside the insertion-line indicator.
+ *
  * The pinned "workspace" tab (id `"workspace"`, always index 0) can't be
  * dragged, and nothing can be dropped to its left — the minimum insertion
  * index is 1.
@@ -18,9 +22,18 @@ import { LONG_PRESS_MS, liftVerdict } from "./views/pointerGesture";
 
 const PINNED_TAB_ID = "workspace";
 
+export interface TabDragState {
+	tabId: string;
+	/** Current pointer position, viewport coordinates. */
+	x: number;
+	y: number;
+	/** Width of the source tab, so a floating preview matches it. */
+	width: number;
+}
+
 export interface TabDragApi {
 	/** The tab currently being dragged, or null. */
-	dragTabId: string | null;
+	drag: TabDragState | null;
 	/** The gap the drop indicator sits in (index into the rendered strip), or null. */
 	dropIndex: number | null;
 	/** Attach to each non-pinned tab's `onPointerDown`. */
@@ -36,7 +49,7 @@ export interface TabDragApi {
 export function useTabDrag(
 	onReorder: (tabId: string, toIndex: number) => void,
 ): TabDragApi {
-	const [dragTabId, setDragTabId] = useState<string | null>(null);
+	const [drag, setDrag] = useState<TabDragState | null>(null);
 	const [dropIndex, setDropIndex] = useState<number | null>(null);
 
 	const gesture = useRef<{
@@ -44,6 +57,7 @@ export function useTabDrag(
 		pointerId: number;
 		startX: number;
 		startY: number;
+		width: number;
 		lifted: boolean;
 		longPress: number | null;
 	} | null>(null);
@@ -64,15 +78,20 @@ export function useTabDrag(
 	const endGesture = useCallback(() => {
 		cancelLongPress();
 		gesture.current = null;
-		setDragTabId(null);
+		setDrag(null);
 		setDropIndex(null);
 	}, []);
 
-	const lift = useCallback((clientX: number) => {
+	const lift = useCallback((clientX: number, clientY: number) => {
 		const current = gesture.current;
 		if (!current || current.lifted) return;
 		current.lifted = true;
-		setDragTabId(current.tabId);
+		setDrag({
+			tabId: current.tabId,
+			x: clientX,
+			y: clientY,
+			width: current.width,
+		});
 		setDropIndex(resolveDropIndex(clientX));
 	}, []);
 
@@ -82,19 +101,22 @@ export function useTabDrag(
 			if (event.button !== 0 || tabId === PINNED_TAB_ID) return;
 			if ((event.target as HTMLElement).closest("button, input, a")) return;
 
+			// Measure now, while the tab is still in its resting position.
+			const rect = event.currentTarget.getBoundingClientRect();
 			gesture.current = {
 				tabId,
 				pointerId: event.pointerId,
 				startX: event.clientX,
 				startY: event.clientY,
+				width: rect.width,
 				lifted: false,
 				longPress: null,
 			};
 
 			if (event.pointerType === "touch" || event.pointerType === "pen") {
-				const { clientX } = event;
+				const { clientX, clientY } = event;
 				gesture.current.longPress = window.setTimeout(
-					() => lift(clientX),
+					() => lift(clientX, clientY),
 					LONG_PRESS_MS,
 				);
 			}
@@ -112,7 +134,7 @@ export function useTabDrag(
 
 			if (!current.lifted) {
 				const verdict = liftVerdict(event.pointerType, dx, dy);
-				if (verdict === "lift") lift(event.clientX);
+				if (verdict === "lift") lift(event.clientX, event.clientY);
 				else if (verdict === "abandon") {
 					cancelLongPress();
 					gesture.current = null;
@@ -120,6 +142,12 @@ export function useTabDrag(
 				return;
 			}
 
+			setDrag({
+				tabId: current.tabId,
+				x: event.clientX,
+				y: event.clientY,
+				width: current.width,
+			});
 			setDropIndex(resolveDropIndex(event.clientX));
 		};
 
@@ -156,10 +184,10 @@ export function useTabDrag(
 	}, [lift, endGesture, onReorder]);
 
 	return {
-		dragTabId,
+		drag,
 		dropIndex,
 		onPointerDown,
-		isDragging: (tabId) => dragTabId === tabId,
+		isDragging: (tabId) => drag?.tabId === tabId,
 		consumeDragClick: () => {
 			const suppressed = suppressClick.current;
 			suppressClick.current = false;
