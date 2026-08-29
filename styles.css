@@ -2508,6 +2508,38 @@ body.vf-dragging {
   padding-bottom: 8px;
 }
 
+/* Task editor: title / description / sections stack, mirroring the project
+   editor's info-over-tasks split (reuses the generic `.vf-editor-main-col`). */
+.vf-task-editor-title {
+  flex: 0 0 auto;
+  padding-bottom: 0;
+}
+
+.vf-task-editor-info {
+  flex: 0 0 auto;
+  overflow-y: auto;
+  border-bottom: 1px solid var(--vf-border);
+  padding-top: 8px;
+}
+
+.vf-task-editor-info.is-collapsed {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.vf-task-editor-resize {
+  flex: none;
+  height: 5px;
+  margin: -3px 0;
+}
+
+.vf-task-editor-sections {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 20px 18px;
+}
+
 /* ---- Collapsible description (shared: Saved View + Project) ---- */
 
 .vf-description-toggle {
@@ -2543,19 +2575,12 @@ body.vf-dragging {
   overflow-y: auto;
 }
 
-/* Horizontal counterpart of `.vf-editor-resize-handle` — between info and tasks. */
-.vf-vertical-resize-handle {
-  flex-shrink: 0;
+/* Handle between the project info pane and its task list — the generic
+   `.vf-resize-handle` / `.vf-resize-y`, sized down for this spot. */
+.vf-project-editor-resize {
+  flex: none;
   height: 5px;
   margin: -3px 0;
-  cursor: row-resize;
-  touch-action: none;
-  z-index: 1;
-}
-
-.vf-vertical-resize-handle:hover,
-.vf-vertical-resize-handle:active {
-  border-top: 2px solid var(--interactive-accent);
 }
 
 /* The project's task list, filling whatever height the info block leaves. */

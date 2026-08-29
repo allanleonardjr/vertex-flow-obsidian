@@ -11,7 +11,7 @@
  * section keep the escape hatch to the file.
  */
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { projectProgress, projectTaskBreakdown, scopeOf } from "../core/hierarchy";
 import type { ViewContext } from "../core/views";
 import type { WorkspaceTaxonomies } from "../core/taxonomy";
@@ -26,6 +26,7 @@ import {
   StatusSelect,
 } from "./components/fields";
 import { DescriptionSection } from "./components/DescriptionSection";
+import { ResizeHandle } from "./components/ResizeHandle";
 import { EditableTitle } from "./components/EditableTitle";
 import { EditorRail } from "./components/EditorRail";
 import { LabelEditor } from "./components/LabelEditor";
@@ -186,7 +187,7 @@ function ProjectEditor({
         </button>
       </header>
 
-      <div className="vf-editor-body vf-project-editor">
+      <div className="vf-editor-body">
         <div className="vf-editor-main-col">
           <main
             className={`vf-editor-main vf-project-editor-info${
@@ -211,13 +212,19 @@ function ProjectEditor({
           </main>
 
           {!descCollapsed && (
-            <VerticalResizeHandle
+            <ResizeHandle
+              axis="y"
+              sign={1}
               value={infoHeight}
+              min={INFO_MIN_HEIGHT}
+              computeMax={(colHeight) => colHeight - TASKS_MIN_HEIGHT}
               onResize={setInfoHeight}
               onResizeEnd={(next) => {
                 plugin.settings.projectInfoHeight = next;
                 void plugin.saveSettings();
               }}
+              resetTo={INFO_DEFAULT_HEIGHT}
+              className="vf-project-editor-resize"
             />
           )}
 
@@ -313,66 +320,6 @@ const INFO_MIN_HEIGHT = 80;
 /** Keep at least this much for the task list below the handle. */
 const TASKS_MIN_HEIGHT = 120;
 const INFO_DEFAULT_HEIGHT = 220;
-
-/**
- * The drag handle between the project info pane and its task list — the
- * horizontal counterpart of `EditorRail`'s width handle.
- */
-function VerticalResizeHandle({
-  value,
-  onResize,
-  onResizeEnd,
-}: {
-  value: number;
-  onResize: (height: number) => void;
-  onResizeEnd: (height: number) => void;
-}) {
-  const drag = useRef<{
-    startY: number;
-    startHeight: number;
-    max: number;
-  } | null>(null);
-
-  return (
-    <div
-      className="vf-vertical-resize-handle"
-      role="separator"
-      aria-orientation="horizontal"
-      aria-valuenow={value}
-      onPointerDown={(event) => {
-        if (event.button !== 0) return;
-        const col = event.currentTarget.parentElement;
-        const height = col?.clientHeight ?? window.innerHeight;
-        drag.current = {
-          startY: event.clientY,
-          startHeight: value,
-          max: Math.max(INFO_MIN_HEIGHT, height - TASKS_MIN_HEIGHT),
-        };
-        event.currentTarget.setPointerCapture(event.pointerId);
-      }}
-      onPointerMove={(event) => {
-        if (!drag.current) return;
-        const delta = event.clientY - drag.current.startY;
-        const next = Math.min(
-          drag.current.max,
-          Math.max(INFO_MIN_HEIGHT, drag.current.startHeight + delta),
-        );
-        onResize(next);
-      }}
-      onPointerUp={(event) => {
-        if (!drag.current) return;
-        drag.current = null;
-        event.currentTarget.releasePointerCapture(event.pointerId);
-        onResizeEnd(value);
-      }}
-      onDoubleClick={() => {
-        onResize(INFO_DEFAULT_HEIGHT);
-        onResizeEnd(INFO_DEFAULT_HEIGHT);
-      }}
-      title="Drag to resize — double-click to reset"
-    />
-  );
-}
 
 /**
  * A read-only look at the project note exactly as it sits on disk — frontmatter

@@ -45,6 +45,8 @@ export interface VertexFlowSettings {
 	editorSectionsCollapsed: Record<string, boolean>;
 	/** Height, in pixels, of the Project editor's info pane above its task list. */
 	projectInfoHeight: number;
+	/** Height, in pixels, of the Task editor's description pane above Sub-tasks. */
+	taskDescriptionHeight: number;
 	/** Timeline view: width of the sticky task-label column left of the chart. */
 	timelineLeftWidth: number;
 	/** Timeline view: that label column collapsed to a sliver. */
@@ -85,6 +87,7 @@ export const DEFAULT_SETTINGS: VertexFlowSettings = {
 	descriptionCollapsed: false,
 	editorSectionsCollapsed: {},
 	projectInfoHeight: 220,
+	taskDescriptionHeight: 220,
 	timelineLeftWidth: 300,
 	timelineLeftCollapsed: false,
 	timelineLowerHeight: 200,

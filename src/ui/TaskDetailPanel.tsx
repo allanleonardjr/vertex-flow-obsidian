@@ -31,6 +31,7 @@ import { CollapsibleSection } from "./components/CollapsibleSection";
 import { ConfirmDeleteDialog } from "./components/ConfirmDeleteDialog";
 import { DescriptionSection } from "./components/DescriptionSection";
 import { EditorRail } from "./components/EditorRail";
+import { ResizeHandle } from "./components/ResizeHandle";
 import { MarkdownContent, MarkdownField } from "./components/Markdown";
 import { ProgressBar, StatusDot } from "./components/TaskBits";
 import { EmbeddedTaskList } from "./components/EmbeddedTaskList";
@@ -38,6 +39,10 @@ import { LabelEditor } from "./components/LabelEditor";
 import { RelationsEditor } from "./components/RelationsEditor";
 import { TaskSelectMenu } from "./components/TaskSelectMenu";
 import { usePlugin } from "./context";
+
+const TASK_INFO_MIN_HEIGHT = 80;
+const TASK_SECTIONS_MIN_HEIGHT = 160;
+const TASK_INFO_DEFAULT_HEIGHT = 220;
 
 export interface TaskDetailPanelProps {
   task: Task;
@@ -61,6 +66,9 @@ export function TaskDetailPanel({
   const [description, setDescription] = useState<string | null>(null);
   const [descCollapsed, setDescCollapsed] = useState(
     plugin.settings.descriptionCollapsed,
+  );
+  const [descHeight, setDescHeight] = useState(
+    plugin.settings.taskDescriptionHeight,
   );
 
   const toggleDescription = () => {
@@ -122,65 +130,97 @@ export function TaskDetailPanel({
       </header>
 
       <div className="vf-editor-body">
-        <main className="vf-editor-main">
-          <TitleField task={task} />
+        <div className="vf-editor-main-col">
+          <div className="vf-editor-main vf-task-editor-title">
+            <TitleField task={task} />
+          </div>
 
-          <DescriptionSection
-            collapsed={descCollapsed}
-            onToggleCollapsed={toggleDescription}
-            value={description}
-            editorKey={task.path}
-            sourcePath={withExtension(task.path)}
-            onSave={(text) => void plugin.mutations.setDescription(task, text)}
-          />
-
-          <CollapsibleSection
-            id="subtasks"
-            title="Sub-tasks"
-            aside={
-              progress.total > 0 ? <ProgressBar progress={progress} /> : null
+          <main
+            className={`vf-editor-main vf-task-editor-info${
+              descCollapsed ? " is-collapsed" : ""
+            }`}
+            style={
+              descCollapsed
+                ? undefined
+                : { height: descHeight, flex: "0 0 auto" }
             }
           >
-            <EmbeddedTaskList
-              tasks={children}
-              snapshot={snapshot}
-              taxonomies={taxonomies}
-              onOpenTask={onOpenTask}
-              onRemove={(path) => {
-                const child = children.find((c) => c.path === path);
-                if (child) {
-                  void plugin.mutations.updateTask(child, { parent: null });
-                }
+            <DescriptionSection
+              collapsed={descCollapsed}
+              onToggleCollapsed={toggleDescription}
+              value={description}
+              editorKey={task.path}
+              sourcePath={withExtension(task.path)}
+              onSave={(text) => void plugin.mutations.setDescription(task, text)}
+            />
+          </main>
+
+          {!descCollapsed && (
+            <ResizeHandle
+              axis="y"
+              sign={1}
+              value={descHeight}
+              min={TASK_INFO_MIN_HEIGHT}
+              computeMax={(colHeight) => colHeight - TASK_SECTIONS_MIN_HEIGHT}
+              onResize={setDescHeight}
+              onResizeEnd={(next) => {
+                plugin.settings.taskDescriptionHeight = next;
+                void plugin.saveSettings();
               }}
-              removeTitle={(title) => `Unlink sub-task ${title}`}
-              renderAddTrigger={() => (
-                <AddSubtaskTrigger
-                  task={task}
-                  snapshot={snapshot}
-                  taxonomies={taxonomies}
-                />
-              )}
+              resetTo={TASK_INFO_DEFAULT_HEIGHT}
+              className="vf-task-editor-resize"
             />
-          </CollapsibleSection>
+          )}
 
-          <CollapsibleSection id="relations" title="Relations">
-            <RelationsEditor
-              task={task}
-              snapshot={snapshot}
-              taxonomies={taxonomies}
-              onChange={update}
-              onOpenTask={onOpenTask}
-            />
-          </CollapsibleSection>
+          <div className="vf-task-editor-sections">
+            <CollapsibleSection
+              id="subtasks"
+              title="Sub-tasks"
+              aside={
+                progress.total > 0 ? <ProgressBar progress={progress} /> : null
+              }
+            >
+              <EmbeddedTaskList
+                tasks={children}
+                snapshot={snapshot}
+                taxonomies={taxonomies}
+                onOpenTask={onOpenTask}
+                onRemove={(path) => {
+                  const child = children.find((c) => c.path === path);
+                  if (child) {
+                    void plugin.mutations.updateTask(child, { parent: null });
+                  }
+                }}
+                removeTitle={(title) => `Unlink sub-task ${title}`}
+                renderAddTrigger={() => (
+                  <AddSubtaskTrigger
+                    task={task}
+                    snapshot={snapshot}
+                    taxonomies={taxonomies}
+                  />
+                )}
+              />
+            </CollapsibleSection>
 
-          <CollapsibleSection id="comments" title="Comments">
-            <CommentList
-              task={task}
-              comments={comments}
-              onChanged={(next) => setComments(next)}
-            />
-          </CollapsibleSection>
-        </main>
+            <CollapsibleSection id="relations" title="Relations">
+              <RelationsEditor
+                task={task}
+                snapshot={snapshot}
+                taxonomies={taxonomies}
+                onChange={update}
+                onOpenTask={onOpenTask}
+              />
+            </CollapsibleSection>
+
+            <CollapsibleSection id="comments" title="Comments">
+              <CommentList
+                task={task}
+                comments={comments}
+                onChanged={(next) => setComments(next)}
+              />
+            </CollapsibleSection>
+          </div>
+        </div>
 
         <EditorRail>
           <PropertyRow label="Status">
@@ -484,8 +524,8 @@ function ReparentSubtaskDialog({
         <p className="vf-dialog-lead">
           It's already a sub-task of{" "}
           {currentParent ? `"${label(currentParent)}"` : "another task"}. A task
-          has only one parent, so moving it under "{label(newParent)}" removes it
-          from there.
+          has only one parent, so moving it under "{label(newParent)}" removes
+          it from there.
         </p>
         <div className="vf-dialog-actions">
           <button onClick={onClose}>Cancel</button>
@@ -555,7 +595,9 @@ function ParentPicker({
                 <span className="vf-icon-select-name">{parentTask.title}</span>
               </>
             ) : (
-              <span className="vf-icon-select-name vf-prop-empty">No parent</span>
+              <span className="vf-icon-select-name vf-prop-empty">
+                No parent
+              </span>
             )}
             <span className="vf-icon-select-caret" aria-hidden>
               ⌄
