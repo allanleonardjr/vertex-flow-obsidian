@@ -2802,6 +2802,8 @@ body.vf-dragging {
 }
 
 .vf-bar-icon {
+  display: inline-flex;
+  align-items: center;
   font-size: 11px;
   opacity: 0.75;
 }

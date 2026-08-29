@@ -30,7 +30,7 @@ export function EmptyView({
   return (
     <div className="vf-app-background vf-view-empty">
       <span className="vf-view-empty-icon" aria-hidden>
-        <Icon id={icon} fallback={iconFallback} size={22} />
+        <Icon id={icon} fallback={iconFallback} size={33} />
       </span>
       <p className="vf-view-empty-title">{title}</p>
       {note != null && <p className="vf-empty-note">{note}</p>}

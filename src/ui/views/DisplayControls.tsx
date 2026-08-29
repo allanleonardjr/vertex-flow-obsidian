@@ -13,6 +13,8 @@ import type {
 	SortField,
 	ViewType,
 } from "../../core/types";
+import { layoutIcon } from "../../core/views";
+import { Icon } from "../components/Icon";
 import { Popover } from "../components/Popover";
 import {
 	EMPTY_COLUMN_OPTIONS,
@@ -30,11 +32,11 @@ export function LayoutToggle({
 	view: SavedView;
 	onChange: (next: SavedView) => void;
 }) {
-	const layouts: { value: ViewType; label: string; icon: string }[] = [
-		{ value: "list", label: "List", icon: "☰" },
-		{ value: "board", label: "Board", icon: "▦" },
-		{ value: "timeline", label: "Timeline", icon: "▤" },
-		{ value: "calendar", label: "Calendar", icon: "▥" },
+	const layouts: { value: ViewType; label: string }[] = [
+		{ value: "list", label: "List" },
+		{ value: "board", label: "Board" },
+		{ value: "timeline", label: "Timeline" },
+		{ value: "calendar", label: "Calendar" },
 	];
 	return (
 		<div className="vf-layout-toggle" role="group" aria-label="Layout">
@@ -50,7 +52,7 @@ export function LayoutToggle({
 					}
 				>
 					<span className="vf-bar-icon" aria-hidden>
-						{layout.icon}
+						<Icon id={layoutIcon(layout.value)} size={14} />
 					</span>
 					{layout.label}
 				</button>
