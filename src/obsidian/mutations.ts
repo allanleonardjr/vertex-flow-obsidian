@@ -53,6 +53,7 @@ import {
 import {
 	applyDeletion,
 	danglingRelationEdits,
+	danglingRelationEditsForWorkspaceDeletion,
 	scopeOf,
 	type DeletionChoice,
 	type DeletionOutcome,
@@ -313,7 +314,26 @@ export class Mutations {
 
 		// Relations aren't hierarchy, so they're tidied silently rather than
 		// prompted about (§7.3).
-		for (const edit of danglingRelationEdits(scope, outcome.deletePaths)) {
+		await this.applyRelationEdits(danglingRelationEdits(scope, outcome.deletePaths));
+
+		for (const path of outcome.deletePaths) {
+			const file = this.io.getFile(path);
+			if (file) await this.io.trash(file);
+		}
+
+		await this.index.rebuild();
+		return outcome.followUps;
+	}
+
+	/**
+	 * Rewrite the `relations` frontmatter of each task named in `edits` — the
+	 * silent §7.3 cleanup, shared by single-entity deletion and whole-workspace
+	 * deletion so the link-formatting only lives in one place.
+	 */
+	private async applyRelationEdits(
+		edits: { path: string; relations: Task["relations"] }[],
+	): Promise<void> {
+		for (const edit of edits) {
 			const file = this.io.getFile(edit.path);
 			if (!file) continue;
 			await this.io.updateFrontmatter(file, (frontmatter) => {
@@ -325,14 +345,6 @@ export class Mutations {
 				};
 			});
 		}
-
-		for (const path of outcome.deletePaths) {
-			const file = this.io.getFile(path);
-			if (file) await this.io.trash(file);
-		}
-
-		await this.index.rebuild();
-		return outcome.followUps;
 	}
 
 	// -- Taxonomy (§5.6) ------------------------------------------------------
@@ -584,6 +596,38 @@ export class Mutations {
 		await this.index.rebuild();
 		new Notice(`Created workspace "${generated.workspace.name}"`);
 		return generated.workspace;
+	}
+
+	/**
+	 * Delete an entire workspace: trash its root folder — every note, not just
+	 * `_workspace.md` — and tidy up any relation links pointing into it from
+	 * other workspaces.
+	 *
+	 * The relation sweep runs **vault-wide** (unlike `applyDeletionPlan`, which
+	 * stays inside one `HierarchyScope`): the doomed workspace's tasks vanish
+	 * all at once, so a `blocks`/`blockedBy`/`related`/`duplicateOf` link in a
+	 * *surviving* workspace would be left dangling. Relations aren't hierarchy,
+	 * so this is silent — no prompt (§7.3).
+	 *
+	 * The folder goes to Obsidian's trash (honouring the user's "deleted files"
+	 * setting), so a mistaken delete is recoverable.
+	 *
+	 * `activeWorkspaceRoot` isn't reset here: both `useActiveWorkspace()` and
+	 * `main.activeWorkspace()` fall back to `index.list()[0]` (and the UI to the
+	 * onboarding empty state) when the stored root no longer resolves.
+	 */
+	async deleteWorkspace(snapshot: WorkspaceSnapshot): Promise<void> {
+		const root = snapshot.workspace.root;
+
+		await this.applyRelationEdits(
+			danglingRelationEditsForWorkspaceDeletion(this.index.list(), root),
+		);
+
+		const folder = this.io.getFolder(root);
+		if (folder) await this.io.trash(folder);
+
+		await this.index.rebuild();
+		new Notice(`Deleted workspace "${snapshot.workspace.name}"`);
 	}
 
 	// -- Helpers --------------------------------------------------------------

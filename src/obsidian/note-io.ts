@@ -52,6 +52,12 @@ export class NoteIO {
 		return file instanceof TFile ? file : null;
 	}
 
+	/** The folder at a bare (extension-less) path, e.g. a workspace root. */
+	getFolder(path: string): TFolder | null {
+		const folder = this.app.vault.getAbstractFileByPath(normalizePath(path));
+		return folder instanceof TFolder ? folder : null;
+	}
+
 	// -- Writing --------------------------------------------------------------
 
 	async ensureFolder(path: string): Promise<void> {
@@ -134,8 +140,11 @@ export class NoteIO {
 		});
 	}
 
-	/** Move to trash, honouring the user's "deleted files" preference. */
-	async trash(file: TFile): Promise<void> {
+	/**
+	 * Move to trash, honouring the user's "deleted files" preference. Accepts a
+	 * folder too — deleting a whole workspace trashes its root folder in one go.
+	 */
+	async trash(file: TFile | TFolder): Promise<void> {
 		await this.app.fileManager.trashFile(file);
 	}
 

@@ -21,6 +21,7 @@ import {
 import type { Project, SavedView, WorkspaceSnapshot } from "../core/types";
 import { Icon } from "./components/Icon";
 import { LabelChip } from "./components/TaskBits";
+import { DeleteWorkspaceDialog } from "./DeleteWorkspaceDialog";
 import { LabelDialog } from "./modals/LabelDialog";
 import { ReplaceValueDialog } from "./settings/ReplaceValueDialog";
 import { usePlugin, useSettingsWriter, useWorkspaces } from "./context";
@@ -332,8 +333,10 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 	const tabs = useTabs();
 	const [menuRoot, setMenuRoot] = useState<string | null>(null);
 	const [editRoot, setEditRoot] = useState<string | null>(null);
+	const [deleteRoot, setDeleteRoot] = useState<string | null>(null);
 
 	const editing = workspaces.find((w) => w.workspace.root === editRoot);
+	const deleting = workspaces.find((w) => w.workspace.root === deleteRoot);
 
 	return (
 		<Section
@@ -389,6 +392,16 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 							>
 								Settings
 							</button>
+							<div className="vf-menu-divider" aria-hidden />
+							<button
+								className="vf-menu-item vf-menu-item-danger"
+								onClick={() => {
+									setMenuRoot(null);
+									setDeleteRoot(entry.workspace.root);
+								}}
+							>
+								Delete
+							</button>
 						</RowMenu>
 					}
 				/>
@@ -409,6 +422,13 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 						})
 					}
 					onClose={() => setEditRoot(null)}
+				/>
+			)}
+
+			{deleting && (
+				<DeleteWorkspaceDialog
+					snapshot={deleting}
+					onClose={() => setDeleteRoot(null)}
 				/>
 			)}
 		</Section>

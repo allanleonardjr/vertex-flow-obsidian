@@ -71,6 +71,60 @@ export function suggestPrefix(
 	return disambiguatePrefix(derivePrefix(workspaceName), taken);
 }
 
+/** One workspace's identity, as the index discovers it while scanning the vault. */
+export interface WorkspacePrefixEntry {
+	/** Vault path of the `_workspace.md` note — the key issues are reported against. */
+	notePath: string;
+	name: string;
+	idPrefix: string;
+}
+
+export interface PrefixCollision {
+	notePath: string;
+	prefix: string;
+	/** Names of the *other* workspaces sharing this prefix. */
+	others: string[];
+}
+
+/**
+ * Find workspaces that share an `idPrefix` (§3).
+ *
+ * Creation-time disambiguation (`suggestPrefix`) only guards prefixes the plugin
+ * mints itself — a workspace folder copied in from elsewhere, or restored from
+ * trash, can still collide. `linksMatch` leans on prefixes being unique
+ * vault-wide to resolve short-form `[[wikilink]]`s, so a duplicate is a real
+ * correctness bug, not a cosmetic one — but not a fatal one either: both
+ * workspaces still load, and the collision is surfaced as a note issue.
+ *
+ * Returns one entry per colliding workspace (so each `_workspace.md` gets its
+ * own issue), naming the others it clashes with.
+ */
+export function detectPrefixCollisions(
+	workspaces: Iterable<WorkspacePrefixEntry>,
+): PrefixCollision[] {
+	const groups = new Map<string, WorkspacePrefixEntry[]>();
+	for (const entry of workspaces) {
+		const key = entry.idPrefix.trim().toUpperCase();
+		if (!key) continue;
+		const group = groups.get(key) ?? [];
+		group.push(entry);
+		groups.set(key, group);
+	}
+
+	const collisions: PrefixCollision[] = [];
+	for (const [prefix, group] of groups) {
+		if (group.length < 2) continue;
+		for (const entry of group) {
+			collisions.push({
+				notePath: entry.notePath,
+				prefix,
+				others: group.filter((o) => o !== entry).map((o) => o.name),
+			});
+		}
+	}
+	return collisions;
+}
+
 export const ID_DIGITS = 4;
 
 /** `("PRD", 104)` → `"PRD-0104"`. */

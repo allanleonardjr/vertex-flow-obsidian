@@ -1565,6 +1565,15 @@ body.vf-dragging {
   color: var(--text-accent);
 }
 
+/* Destructive row (e.g. "Delete workspace") — ruled off above via
+   .vf-menu-divider, then tinted with the theme's error colour. */
+.vf-menu-item-danger {
+  color: var(--text-error);
+}
+.vf-menu-item-danger:hover {
+  background: var(--background-modifier-error-hover, var(--background-modifier-hover)) !important;
+}
+
 /* Mark the current value, the way a native <select> shows a tick. */
 .vf-menu-item.is-active::after {
   content: "✓";

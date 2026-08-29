@@ -18,6 +18,7 @@ import { parseProject } from "../core/serialization/entities";
 import { parseTask } from "../core/serialization/task";
 import { parseViews } from "../core/serialization/views";
 import { parseWorkspace } from "../core/serialization/workspace";
+import { detectPrefixCollisions } from "../core/ids";
 import {
 	BUILT_IN_VIEW_ID,
 	BUILT_IN_VIEW_NAME,
@@ -162,16 +163,26 @@ export class VaultIndex {
 	async rebuild(): Promise<void> {
 		const files = this.app.vault.getMarkdownFiles();
 		const issues = new Map<string, string[]>();
+		const addIssue = (path: string, message: string) => {
+			const list = issues.get(path);
+			if (list) list.push(message);
+			else issues.set(path, [message]);
+		};
 
 		// Pass 1: find the workspaces. Everything else needs to know which
 		// workspace it belongs to (and that workspace's default status).
 		const configs = new Map<string, WorkspaceSnapshot>();
+		const prefixEntries: {
+			notePath: string;
+			name: string;
+			idPrefix: string;
+		}[] = [];
 		for (const file of files) {
 			const path = withoutExtension(file.path);
 			if (basenameOf(path) !== WORKSPACE_NOTE) continue;
 
 			const parsed = parseWorkspace(this.io.readFrontmatter(file), { path });
-			if (parsed.issues.length > 0) issues.set(path, parsed.issues);
+			for (const message of parsed.issues) addIssue(path, message);
 
 			configs.set(parsed.value.root, {
 				workspace: parsed.value,
@@ -179,6 +190,23 @@ export class VaultIndex {
 				projects: [],
 				views: [],
 			});
+			prefixEntries.push({
+				notePath: path,
+				name: parsed.value.name,
+				idPrefix: parsed.value.idPrefix,
+			});
+		}
+
+		// Two workspaces sharing an `idPrefix` break short-form wikilink
+		// resolution (§3). Not fatal — both still load — but flagged on each
+		// `_workspace.md` through the same "this note has issues" surface.
+		for (const collision of detectPrefixCollisions(prefixEntries)) {
+			const others = collision.others.map((name) => `"${name}"`).join(", ");
+			addIssue(
+				collision.notePath,
+				`ID prefix "${collision.prefix}" is also used by ${others}. ` +
+					`Task links may resolve to the wrong workspace — change one prefix in workspace settings.`,
+			);
 		}
 
 		// Pass 2: sort every other note into its workspace.
