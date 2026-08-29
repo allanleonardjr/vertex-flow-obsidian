@@ -3980,6 +3980,14 @@ body.vf-bar-dragging .vf-timeline-bar {
   opacity: 0.4;
 }
 
+.vf-chip-relations {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--vf-muted-bg, rgba(255, 255, 255, 0.08));
+  color: var(--vf-muted, currentColor);
+}
+
 .vf-cal-more {
   align-self: flex-start;
   padding: 1px 5px !important;

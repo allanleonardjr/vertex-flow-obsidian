@@ -1,4 +1,11 @@
-import { Signal, SignalHigh, SignalLow, SignalMedium, SignalZero } from "lucide-react";
+import {
+  Signal,
+  SignalHigh,
+  SignalLow,
+  SignalMedium,
+  SignalZero,
+  Link,
+} from "lucide-react";
 import { listValues, type WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { Task } from "../../core/types";
 
@@ -34,7 +41,11 @@ export function PriorityIcon({
 }) {
   if (index == null || index < 0) {
     return (
-      <span className="vf-priority-icon is-none" title={name ?? "No priority"} aria-hidden>
+      <span
+        className="vf-priority-icon is-none"
+        title={name ?? "No priority"}
+        aria-hidden
+      >
         <SignalZero size={14} />
       </span>
     );
@@ -211,10 +222,27 @@ export function Assignee({
 }
 
 export function RelationBadge({ task }: { task: Task }) {
+  /* const count = Object.values(task.relations ?? {})
+    .flat()
+    .filter(Boolean).length;
+  if (count === 0) return null;
+
+  return <span className="vf-chip">{count} rel</span>; */
+
   const count = Object.values(task.relations ?? {})
     .flat()
     .filter(Boolean).length;
   if (count === 0) return null;
 
-  return <span className="vf-chip">{count} rel</span>;
+  const label = `${count} relation${count === 1 ? "" : "s"}`;
+
+  return (
+    <span
+      className="vf-chip vf-chip-relations"
+      title={label}
+      aria-label={label}
+    >
+      <Link size={12} /> {count}
+    </span>
+  );
 }
