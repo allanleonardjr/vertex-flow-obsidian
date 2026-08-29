@@ -225,17 +225,17 @@ export class VaultIndex {
 			if (!snapshot) continue;
 
 			if (base === VIEWS_NOTE) {
-				// Disk fallback: this note may have been written milliseconds ago
-				// (a "New view" the user is watching for) and not be in the
-				// metadata cache yet.
-				const parsed = parseViews(await this.io.frontmatterOrRead(file));
+				// Read from disk, not the metadata cache: this note may have been
+				// written milliseconds ago (a "New view" the user is watching
+				// for) and the cache would still hold its previous contents.
+				const parsed = parseViews(await this.io.readConfigFrontmatter(file));
 				if (parsed.issues.length > 0) issues.set(path, parsed.issues);
 				snapshot.views = parsed.value;
 				continue;
 			}
 
 			if (base === DASHBOARDS_NOTE) {
-				const parsed = parseDashboards(await this.io.frontmatterOrRead(file));
+				const parsed = parseDashboards(await this.io.readConfigFrontmatter(file));
 				if (parsed.issues.length > 0) issues.set(path, parsed.issues);
 				snapshot.dashboards = parsed.value;
 				continue;

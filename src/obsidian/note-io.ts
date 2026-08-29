@@ -112,22 +112,19 @@ export class NoteIO {
 	}
 
 	/**
-	 * Frontmatter from the metadata cache, falling back to a disk read + parse
-	 * when the cache hasn't caught up.
+	 * Frontmatter of a config note (`_views` / `_dashboards`), read straight
+	 * from disk rather than the metadata cache.
 	 *
-	 * A note Obsidian created moments ago isn't in the metadata cache until it
-	 * processes the `create` event on a later tick. An index rebuild that runs
-	 * right after writing a config note (which is exactly what every
-	 * `save*`→`rebuild` does) would otherwise read empty frontmatter and briefly
-	 * behave as if a just-created view/dashboard doesn't exist — long enough for
-	 * the UI to close the tab that was opened for it. Only worth doing for the
-	 * handful of config notes, not for every task.
+	 * These notes are the source of truth the whole index is built from, and
+	 * every `save*` writes one and then rebuilds immediately — before Obsidian's
+	 * metadata cache has processed the change. The cache would hand back the
+	 * *pre-write* contents for a beat, long enough for the UI to close a tab
+	 * that was just opened for a freshly created view/dashboard. A direct read
+	 * of one or two tiny files per rebuild is cheap and always current.
 	 */
-	async frontmatterOrRead(
+	async readConfigFrontmatter(
 		file: TFile,
 	): Promise<Record<string, unknown> | null> {
-		const cached = this.readFrontmatter(file);
-		if (cached) return cached;
 		const { frontmatter } = splitNote(await this.read(file));
 		return Object.keys(frontmatter).length > 0 ? frontmatter : null;
 	}

@@ -5,8 +5,9 @@
  * Editing the filter bar or moving / resizing / adding / removing widgets
  * applies immediately to what's on screen but is held here, not written to
  * `_dashboards`. `_dashboards` is shared across a synced vault, so the write is
- * explicit (Save / Save As). The dashboard's *name* is identity, not part of
- * the draft — renaming from the sidebar writes straight through.
+ * explicit (Save / Save As). The dashboard's *name and icon* are identity, not
+ * part of the draft — editing them (sidebar or the header title) writes
+ * straight through, and Save preserves whatever is currently on disk.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -62,9 +63,13 @@ export function useDashboardDraft(
 
 	const save = useCallback(async () => {
 		if (!draft) return;
-		await plugin.mutations.updateDashboard(live(), { ...draft, name: dashboard.name });
+		await plugin.mutations.updateDashboard(live(), {
+			...draft,
+			name: dashboard.name,
+			icon: dashboard.icon,
+		});
 		setDraft(null);
-	}, [draft, plugin, live, dashboard.name]);
+	}, [draft, plugin, live, dashboard.name, dashboard.icon]);
 
 	const saveAs = useCallback(
 		async (name: string, icon?: string) => {

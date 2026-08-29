@@ -34,6 +34,7 @@ import { usePlugin } from "../context";
 import { useTabs } from "../tabs-context";
 import { FilterControls } from "../views/FilterControls";
 import { Icon } from "../components/Icon";
+import { EditableTitle } from "../components/EditableTitle";
 import { ConfirmDeleteDialog } from "../components/ConfirmDeleteDialog";
 import { useUnsavedGuard } from "../components/useUnsavedGuard";
 import { NamedIconDialog } from "../modals/NamedIconDialog";
@@ -195,19 +196,42 @@ function DashboardBody({
 			{leaveGuard}
 			<header className="vf-view-header vf-dash-header">
 				<div className="vf-view-title">
-					<h2>
-						<span className="vf-view-title-icon" aria-hidden>
-							<Icon
-								id={dashboard.icon}
-								fallback="layout-dashboard"
-								size={16}
-							/>
-						</span>
-						{dashboard.name}
-						<span className="vf-view-title-code">
-							({snapshot.workspace.idPrefix})
-						</span>
-					</h2>
+					{canOverwrite ? (
+						<EditableTitle
+							key={dashboard.id}
+							icon={dashboard.icon}
+							iconFallback="layout-dashboard"
+							name={dashboard.name}
+							suffix={`(${snapshot.workspace.idPrefix})`}
+							placeholder="Dashboard name"
+							onRename={(name) =>
+								plugin.mutations.updateDashboard(snapshot, {
+									...dashboard,
+									name,
+								})
+							}
+							onIconChange={(icon) =>
+								void plugin.mutations.updateDashboard(snapshot, {
+									...dashboard,
+									icon,
+								})
+							}
+						/>
+					) : (
+						<h2>
+							<span className="vf-view-title-icon" aria-hidden>
+								<Icon
+									id={dashboard.icon}
+									fallback="layout-dashboard"
+									size={16}
+								/>
+							</span>
+							{dashboard.name}
+							<span className="vf-view-title-code">
+								({snapshot.workspace.idPrefix})
+							</span>
+						</h2>
+					)}
 					<span className="vf-count">
 						{effective.widgets.length}{" "}
 						{effective.widgets.length === 1 ? "chart" : "charts"}
