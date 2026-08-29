@@ -6,6 +6,7 @@
 
 import { useMemo } from "react";
 import { getValue, workspaceTaxonomies } from "../core/taxonomy";
+import { layoutIcon } from "../core/views";
 import type { SavedView, WorkspaceSnapshot } from "../core/types";
 import { Icon } from "./components/Icon";
 import { StatusDot } from "./components/TaskBits";
@@ -113,7 +114,7 @@ function TabRow({
 			<span className="vf-tab-icon">
 				<Icon
 					id={view.icon}
-					fallback={view.viewType === "board" ? "columns-3" : "list"}
+					fallback={layoutIcon(view.viewType)}
 					size={13}
 				/>
 			</span>

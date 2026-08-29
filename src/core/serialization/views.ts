@@ -16,11 +16,14 @@ import {
 	type SortDirection,
 	type SortField,
 	type ViewFilters,
+	type ViewTimelineState,
 	type ViewType,
 } from "../types";
 import {
 	IssueLog,
 	asBoolean,
+	asDate,
+	asNumber,
 	asString,
 	asStringArray,
 	asRecord,
@@ -28,7 +31,27 @@ import {
 	type ParseResult,
 } from "./coerce";
 
-const VIEW_TYPES: ViewType[] = ["list", "board"];
+const VIEW_TYPES: ViewType[] = ["list", "board", "timeline"];
+
+/** Fallback pixels-per-day when a timeline block is present but `scale` isn't. */
+const DEFAULT_TIMELINE_SCALE = 16;
+
+/**
+ * Parse the optional per-session Timeline chrome. Absent (or empty) block →
+ * `undefined`, so it never lands in serialized frontmatter until the view is
+ * actually opened as a timeline and panned or zoomed.
+ */
+function parseTimeline(raw: unknown): ViewTimelineState | undefined {
+	if (raw == null) return undefined;
+	const record = asRecord(raw);
+	const scale = asNumber(record.scale);
+	const scrollDate = asDate(record.scrollDate);
+	if (scale == null && scrollDate == null) return undefined;
+	return {
+		scale: scale != null && scale > 0 ? scale : DEFAULT_TIMELINE_SCALE,
+		scrollDate: scrollDate ?? null,
+	};
+}
 const GROUP_FIELDS: GroupByField[] = [
 	"none",
 	"status",
@@ -163,6 +186,7 @@ export function parseView(raw: unknown, index: number): ParseResult<SavedView> {
 			hiddenFields: canonicalizeHiddenFields(
 				pickAll(record.hiddenFields, TASK_FIELDS, log, "hiddenFields"),
 			),
+			timeline: parseTimeline(record.timeline),
 		},
 		issues: log.issues.map((issue) => `View "${id}": ${issue}`),
 	};
@@ -204,6 +228,12 @@ export function serializeView(view: SavedView): Record<string, unknown> {
 		},
 		emptyColumnBehavior: view.emptyColumnBehavior,
 		hiddenFields: view.hiddenFields,
+		timeline: view.timeline
+			? compact({
+					scale: view.timeline.scale,
+					scrollDate: view.timeline.scrollDate,
+				})
+			: undefined,
 	});
 }
 

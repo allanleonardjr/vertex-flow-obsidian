@@ -6,13 +6,18 @@
  * shared across a synced vault, so an exploratory filter shouldn't silently
  * rewrite the view everyone else opens — the save is explicit.
  *
- * Column collapse/hide is the deliberate exception: it's transient board chrome
- * rather than part of the view's definition, so it writes through immediately
- * and never counts as "unsaved changes".
+ * Column collapse/hide and the timeline's zoom/scroll are the deliberate
+ * exceptions: transient view chrome rather than part of the view's definition,
+ * so they write through immediately and never count as "unsaved changes".
  */
 
 import { useCallback, useEffect, useState } from "react";
-import type { SavedView, ViewColumnState, WorkspaceSnapshot } from "../../core/types";
+import type {
+	SavedView,
+	ViewColumnState,
+	ViewTimelineState,
+	WorkspaceSnapshot,
+} from "../../core/types";
 import { canonicalizeDefinition, viewDefinition } from "../../core/views";
 import { useViewWriter } from "./useViewWriter";
 
@@ -38,6 +43,8 @@ export interface ViewDraft {
 	edit: (next: SavedView) => void;
 	/** Persist column collapse/hide straight to disk, bypassing the draft. */
 	setColumns: (columns: ViewColumnState) => void;
+	/** Persist the timeline's zoom/scroll straight to disk, bypassing the draft. */
+	setTimeline: (timeline: ViewTimelineState) => void;
 	/** Write the draft over the saved view. */
 	save: () => void;
 	/** Throw the draft away. */
@@ -56,9 +63,12 @@ export function useViewDraft(
 	// on every index rebuild.
 	useEffect(() => setDraft(null), [view.id, snapshot.workspace.root]);
 
-	// Columns always come from disk, so collapsing a column while a draft is
-	// pending doesn't get reverted when the draft is saved or discarded.
-	const effective = draft ? { ...draft, columns: view.columns } : view;
+	// Columns and timeline chrome always come from disk, so collapsing a column
+	// or zooming the timeline while a draft is pending isn't reverted when the
+	// draft is saved or discarded.
+	const effective = draft
+		? { ...draft, columns: view.columns, timeline: view.timeline }
+		: view;
 	const dirty = draft != null && definitionOf(draft) !== definitionOf(view);
 
 	const edit = useCallback((next: SavedView) => setDraft(next), []);
@@ -68,13 +78,18 @@ export function useViewDraft(
 		[writeView, view],
 	);
 
+	const setTimeline = useCallback(
+		(timeline: ViewTimelineState) => writeView({ ...view, timeline }),
+		[writeView, view],
+	);
+
 	const save = useCallback(() => {
 		if (!draft) return;
-		writeView({ ...draft, columns: view.columns });
+		writeView({ ...draft, columns: view.columns, timeline: view.timeline });
 		setDraft(null);
-	}, [draft, writeView, view.columns]);
+	}, [draft, writeView, view.columns, view.timeline]);
 
 	const reset = useCallback(() => setDraft(null), []);
 
-	return { effective, dirty, edit, setColumns, save, reset };
+	return { effective, dirty, edit, setColumns, setTimeline, save, reset };
 }

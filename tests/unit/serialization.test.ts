@@ -672,6 +672,39 @@ describe("parseViews", () => {
 		expect(parseViews(serialized).value).toEqual(value);
 	});
 
+	it("parses the timeline chrome block and omits it when absent", () => {
+		const { value } = parseViews({
+			views: [
+				{
+					id: "a",
+					name: "A",
+					viewType: "timeline",
+					timeline: { scale: 24, scrollDate: "2026-08-20" },
+				},
+				{ id: "b", name: "B", viewType: "timeline" },
+			],
+		});
+		expect(value[0].viewType).toBe("timeline");
+		expect(value[0].timeline).toEqual({ scale: 24, scrollDate: "2026-08-20" });
+		expect(value[1].timeline).toBeUndefined();
+
+		const serialized = serializeViews(value) as {
+			views: Record<string, unknown>[];
+		};
+		expect(serialized.views[1]).not.toHaveProperty("timeline");
+		expect(parseViews(serialized).value).toEqual(value);
+	});
+
+	it("defaults a missing timeline scale and drops a null scrollDate on round-trip", () => {
+		const { value } = parseViews({
+			views: [{ id: "a", name: "A", timeline: { scrollDate: null, scale: 0 } }],
+		});
+		// scale <= 0 falls back; scrollDate null is preserved as null.
+		expect(value[0].timeline?.scale).toBeGreaterThan(0);
+		expect(value[0].timeline?.scrollDate).toBeNull();
+		expect(parseViews(serializeViews(value)).value).toEqual(value);
+	});
+
 	it("round-trips a view carrying hiddenFields", () => {
 		const first = parseViews({
 			views: [

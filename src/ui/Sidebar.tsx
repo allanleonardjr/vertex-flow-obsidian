@@ -10,7 +10,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { BUILT_IN_VIEW_ID, newView } from "../core/views";
+import { BUILT_IN_VIEW_ID, layoutIcon, newView } from "../core/views";
 import { isProjectTitleTaken } from "../core/serialization";
 import {
 	findTaxonomyUsage,
@@ -500,7 +500,7 @@ function ViewsSection({
 					key={view.id}
 					label={view.name}
 					icon={view.icon}
-					iconFallback={view.viewType === "board" ? "columns-3" : "list"}
+					iconFallback={layoutIcon(view.viewType)}
 					variant="view"
 					active={onWorkspaceTab && view.id === activeViewId}
 					onClick={() => onSelectView(view.id)}
@@ -553,7 +553,7 @@ function ViewsSection({
 					title={dialog.mode === "create" ? "Name your view" : "Edit view"}
 					initialName={dialog.view.name}
 					initialIcon={dialog.view.icon}
-					iconFallback={dialog.view.viewType === "board" ? "columns-3" : "list"}
+					iconFallback={layoutIcon(dialog.view.viewType)}
 					confirmLabel={dialog.mode === "create" ? "Create" : "Save"}
 					onConfirm={(name, icon) =>
 						void plugin.mutations.updateView(snapshot, {

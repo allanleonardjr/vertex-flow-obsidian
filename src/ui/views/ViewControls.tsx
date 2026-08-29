@@ -8,7 +8,12 @@
 
 import { useState } from "react";
 import type { EvaluatedView } from "../../core/views";
-import { BUILT_IN_VIEW_ID, newView, setColumnsCollapsed } from "../../core/views";
+import {
+	BUILT_IN_VIEW_ID,
+	layoutIcon,
+	newView,
+	setColumnsCollapsed,
+} from "../../core/views";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type {
 	SavedView,
@@ -126,9 +131,7 @@ export function ViewControls({
 								<EditableTitle
 									key={savedView.id}
 									icon={savedView.icon}
-									iconFallback={
-										savedView.viewType === "board" ? "columns-3" : "list"
-									}
+									iconFallback={layoutIcon(savedView.viewType)}
 									name={savedView.name}
 									suffix={`(${snapshot.workspace.idPrefix})`}
 									placeholder="View name"
@@ -150,9 +153,7 @@ export function ViewControls({
 									<span className="vf-view-title-icon" aria-hidden>
 										<Icon
 											id={view.icon}
-											fallback={
-												view.viewType === "board" ? "columns-3" : "list"
-											}
+											fallback={layoutIcon(view.viewType)}
 											size={16}
 										/>
 									</span>
@@ -188,17 +189,22 @@ export function ViewControls({
 
 			<div className="vf-view-bar">
 				<LayoutToggle view={view} onChange={editView} />
-				<span className="vf-bar-divider" />
-				<GroupChip view={view} onChange={editView} />
-				{view.groupBy !== "none" && view.viewType === "board" && (
-					<EmptyColumnsChip view={view} onChange={editView} />
-				)}
-				{view.groupBy !== "none" && view.viewType === "list" && (
-					<CollapseAllToggle
-						view={view}
-						evaluated={evaluated}
-						onColumnsChange={draft.setColumns}
-					/>
+				{/* The timeline ignores grouping entirely, so its control is hidden. */}
+				{view.viewType !== "timeline" && (
+					<>
+						<span className="vf-bar-divider" />
+						<GroupChip view={view} onChange={editView} />
+						{view.groupBy !== "none" && view.viewType === "board" && (
+							<EmptyColumnsChip view={view} onChange={editView} />
+						)}
+						{view.groupBy !== "none" && view.viewType === "list" && (
+							<CollapseAllToggle
+								view={view}
+								evaluated={evaluated}
+								onColumnsChange={draft.setColumns}
+							/>
+						)}
+					</>
 				)}
 				<span className="vf-bar-divider" />
 				<SortChip view={view} onChange={editView} />
@@ -321,7 +327,7 @@ export function ViewControls({
 								: savedView.name
 					}
 					initialIcon={view.icon}
-					iconFallback={view.viewType === "board" ? "columns-3" : "list"}
+					iconFallback={layoutIcon(view.viewType)}
 					confirmLabel="Create view"
 					onConfirm={saveAs}
 					onClose={() => setSavingAs(false)}

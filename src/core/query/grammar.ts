@@ -125,6 +125,7 @@ export const SORT_VALUES: Record<SortField, EnumValueSpec> = {
 export const LAYOUT_VALUES: Record<ViewType, EnumValueSpec> = {
 	list: { token: "list", aliases: [] },
 	board: { token: "board", aliases: ["kanban"] },
+	timeline: { token: "timeline", aliases: ["gantt"] },
 };
 
 export const EMPTY_VALUES: Record<EmptyColumnBehavior, EnumValueSpec> = {

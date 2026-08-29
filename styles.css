@@ -3257,3 +3257,469 @@ body.vf-dragging {
 .vf-help-empty {
   color: var(--vf-muted);
 }
+
+/* ------------------------------------------------------------------ *
+ * Timeline / Gantt view (§8.1)                                        *
+ * ------------------------------------------------------------------ */
+
+.vf-timeline {
+  --vf-tl-left-w: 300px;
+  --vf-tl-row-h: 32px;
+  --vf-tl-header-h: 40px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.vf-timeline-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--vf-border);
+}
+
+.vf-timeline-zoom {
+  display: inline-flex;
+  gap: 1px;
+}
+
+.vf-timeline-zoom-opt {
+  padding: 3px 8px;
+  border: none !important;
+  border-radius: 4px;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+}
+
+.vf-timeline-zoom-opt:hover {
+  background: var(--background-modifier-hover) !important;
+}
+
+.vf-timeline-zoom-opt.is-on {
+  color: var(--text-accent);
+  font-weight: 500;
+  background: var(--background-modifier-hover) !important;
+}
+
+/* Body: chart region + optional lower pane, with a draggable separator. */
+.vf-timeline-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Chart region: fixed label column | separator | horizontally-scrolling chart.
+   Only the chart scrolls; the label column mirrors its vertical scroll. */
+.vf-timeline-chart-region {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.vf-timeline-labels {
+  flex: none;
+  width: var(--vf-tl-left-w);
+  overflow: hidden;
+  border-right: 1px solid var(--vf-border);
+  background: var(--background-primary);
+}
+
+.vf-timeline-labels-inner {
+  min-width: 100%;
+  width: max-content;
+}
+
+.vf-timeline-corner {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  height: var(--vf-tl-header-h);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px 0 12px;
+  background: var(--background-primary);
+  border-bottom: 1px solid var(--vf-border);
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  overflow: hidden;
+}
+
+.vf-timeline-corner-count {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vf-timeline-left-toggle {
+  flex: none;
+  margin-left: auto;
+}
+
+.vf-timeline.is-left-collapsed .vf-timeline-corner {
+  padding: 0;
+  justify-content: center;
+}
+
+.vf-timeline.is-left-collapsed .vf-timeline-row-label {
+  padding: 0 !important;
+}
+
+.vf-timeline-row-label {
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-start !important;
+  gap: 6px;
+  width: 100%;
+  height: var(--vf-tl-row-h);
+  padding: 0 12px !important;
+  border: none !important;
+  border-bottom: 1px solid var(--vf-border) !important;
+  border-radius: 0 !important;
+  background: var(--background-primary) !important;
+  box-shadow: none !important;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.vf-timeline-row-label:hover {
+  background: var(--background-modifier-hover) !important;
+}
+
+.vf-timeline-row-label.is-focused,
+.vf-timeline-row-label.is-selected {
+  color: var(--text-accent);
+}
+
+.vf-timeline-row-label.is-archived {
+  opacity: 0.55;
+}
+
+.vf-timeline-chart {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+}
+
+.vf-timeline-chart-content {
+  position: relative;
+}
+
+.vf-timeline-chart-header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  height: var(--vf-tl-header-h);
+  background: var(--background-primary);
+  border-bottom: 1px solid var(--vf-border);
+}
+
+/* Top band: wide month / year cells, one per period, with room for the label. */
+.vf-timeline-band {
+  position: relative;
+  height: 16px;
+  border-bottom: 1px solid var(--vf-border);
+}
+
+.vf-timeline-band-cell {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  border-left: 1px solid var(--background-modifier-border-hover);
+  overflow: hidden;
+  color: var(--text-normal);
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.vf-timeline-band-cell span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Bottom band: equal-width day (or month) columns. */
+.vf-timeline-ticks {
+  position: relative;
+  height: calc(var(--vf-tl-header-h) - 17px);
+}
+
+.vf-timeline-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  padding-left: 4px;
+  border-left: 1px solid var(--vf-border);
+  overflow: hidden;
+  color: var(--vf-muted);
+  font-size: 10px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.vf-timeline-tick.is-major {
+  border-left-color: var(--background-modifier-border-hover);
+  color: var(--text-normal);
+}
+
+.vf-timeline-lane {
+  position: relative;
+  height: var(--vf-tl-row-h);
+  border-bottom: 1px solid var(--vf-border);
+}
+
+.vf-timeline-bar {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 18px;
+  border-radius: 4px;
+  background: var(--interactive-accent);
+  opacity: 0.9;
+  cursor: grab;
+}
+
+.vf-timeline-bar.is-open {
+  background: linear-gradient(
+    to right,
+    var(--interactive-accent) 0,
+    var(--interactive-accent) 24px,
+    transparent 100%
+  );
+  border-radius: 4px 0 0 4px;
+}
+
+.vf-timeline-lane.is-dragging .vf-timeline-bar,
+.vf-timeline-lane.is-dragging .vf-timeline-diamond {
+  opacity: 1;
+  box-shadow: 0 0 0 2px var(--interactive-accent-hover);
+}
+
+body.vf-bar-dragging,
+body.vf-bar-dragging .vf-timeline-bar {
+  cursor: grabbing;
+  user-select: none;
+}
+
+/* ~14px hit target, ~6px visible grip. */
+.vf-timeline-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 14px;
+  cursor: ew-resize;
+}
+
+.vf-timeline-handle.is-start { left: -7px; }
+.vf-timeline-handle.is-end { right: -7px; }
+
+.vf-timeline-handle::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 4px;
+  width: 6px;
+  border-radius: 3px;
+  background: var(--text-on-accent);
+  opacity: 0;
+}
+
+.vf-timeline-bar:hover .vf-timeline-handle::after {
+  opacity: 0.5;
+}
+
+/* Milestone: a diamond centred on its date. */
+.vf-timeline-milestone-wrap {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  cursor: grab;
+}
+
+.vf-timeline-diamond {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 13px;
+  height: 13px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: var(--interactive-accent);
+  border-radius: 2px;
+}
+
+/* Date read-out shown while dragging (or on hover). One per draggable point. */
+.vf-timeline-date-label {
+  position: absolute;
+  z-index: 5;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--background-secondary-alt);
+  border: 1px solid var(--vf-border);
+  color: var(--text-normal);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.08s ease;
+}
+
+/* Combined "{start} – {due}" read-out for a range bar — centred above the bar,
+   exactly like the milestone's date sits above its diamond. */
+.vf-timeline-date-label.is-span {
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, calc(-50% - 15px));
+}
+
+/* Open bar (start, no due): anchor the "{start} →" label at the start edge,
+   since the bar itself runs to the far side of the chart. */
+.vf-timeline-date-label.is-span-open {
+  left: 0;
+  transform: translate(0, calc(-50% - 15px));
+}
+
+/* Milestone: centred above its diamond. */
+.vf-timeline-date-label.is-solo {
+  left: 0;
+  top: 50%;
+  transform: translate(-50%, calc(-50% - 15px));
+}
+
+.vf-timeline-bar:hover .vf-timeline-date-label,
+.vf-timeline-milestone-wrap:hover .vf-timeline-date-label,
+.vf-timeline-lane.is-dragging .vf-timeline-date-label {
+  opacity: 1;
+}
+
+.vf-timeline-today {
+  position: absolute;
+  top: 0;
+  width: 0;
+  border-left: 2px solid var(--color-red, var(--interactive-accent));
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 4;
+}
+
+/* Separators ------------------------------------------------------- */
+
+.vf-resize-handle {
+  z-index: 6;
+  background: transparent;
+}
+
+.vf-resize-x { cursor: ew-resize; }
+.vf-resize-y { cursor: row-resize; }
+
+.vf-resize-handle:hover,
+.vf-resize-handle:active {
+  background: var(--interactive-accent);
+}
+
+.vf-timeline-left-handle {
+  flex: none;
+  width: 7px;
+  margin: 0 -3px;
+}
+
+.vf-timeline-lower-handle {
+  flex: none;
+  height: 7px;
+  margin: -3px 0;
+}
+
+/* Lower (Unscheduled) pane --------------------------------------- */
+
+.vf-timeline-lower {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-top: 1px solid var(--vf-border);
+  overflow: hidden;
+}
+
+.vf-timeline-lower.is-collapsed {
+  height: auto;
+}
+
+.vf-timeline-lower-head {
+  flex: none;
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-start !important;
+  gap: 6px;
+  width: 100%;
+  height: 28px;
+  padding: 0 12px !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: var(--background-secondary) !important;
+  box-shadow: none !important;
+  color: var(--vf-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+.vf-timeline-lower-head:hover {
+  background: var(--background-modifier-hover) !important;
+}
+
+.vf-timeline-lower-hint {
+  margin-left: 8px;
+  text-transform: none;
+  letter-spacing: 0;
+  opacity: 0.7;
+}
+
+.vf-timeline-lower-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.vf-timeline-unscheduled-row {
+  cursor: grab;
+}
+
+.vf-timeline-unscheduled-row.is-dragging {
+  opacity: 0.4;
+}
+
+/* Floating date read-out while dragging an unscheduled task onto the chart. */
+.vf-timeline-schedule-ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}

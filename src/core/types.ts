@@ -244,8 +244,11 @@ export interface WorkspaceConfig {
 // Saved Views (§4.6, §8.3)
 // ---------------------------------------------------------------------------
 
-/** List and Board are v1. Calendar/timeline/graph are phased in later (§8.1). */
-export type ViewType = "list" | "board";
+/**
+ * List and Board are v1; Timeline (Gantt) follows (§8.1). Calendar and graph
+ * are still phased in later.
+ */
+export type ViewType = "list" | "board" | "timeline";
 
 export type GroupByField =
 	| "none"
@@ -302,6 +305,23 @@ export interface ViewColumnState {
 }
 
 /**
+ * Per-session Timeline chrome: current zoom and horizontal scroll position.
+ *
+ * Persisted to `_views.md` but deliberately **not** part of `ViewDefinition` —
+ * same treatment as `columns` (§4.6). Panning or zooming the timeline writes
+ * straight through and never marks the view unsaved.
+ *
+ * `scale` is pixels-per-day. The named zoom presets (Day/Week/Month/Quarter/
+ * Year) are just scale values chosen in the UI layer; the "All" preset is
+ * computed from the visible date range at render time and never stored.
+ */
+export interface ViewTimelineState {
+	scale: number;
+	/** Date pinned to the left edge of the scroll pane, or null for "not set". */
+	scrollDate: IsoDate | null;
+}
+
+/**
  * Task fields a Saved View can hide from its rows/cards (§8.4).
  *
  * Status icon, Task ID and Task title are mandatory and never members here.
@@ -339,6 +359,12 @@ export interface SavedView {
 	emptyColumnBehavior: EmptyColumnBehavior;
 	/** Task fields hidden from this view's rows/cards (§8.4); `[]` shows all. */
 	hiddenFields: TaskField[];
+	/**
+	 * Timeline zoom/scroll chrome — present only once the view has been opened
+	 * as a timeline and panned or zoomed. Excluded from `ViewDefinition`, like
+	 * `columns`.
+	 */
+	timeline?: ViewTimelineState;
 }
 
 /**
@@ -347,8 +373,8 @@ export interface SavedView {
  * This is the unit the text query language round-trips (`core/query`) and the
  * unit `useViewDraft` compares to decide whether a view is unsaved — one
  * definition of "the same view" rather than two that can drift. `name`, `icon`
- * and `id` are identity; `columns` is per-session furniture that writes
- * straight through to disk.
+ * and `id` are identity; `columns` and `timeline` are per-session furniture
+ * that writes straight through to disk.
  */
 export type ViewDefinition = Pick<
 	SavedView,

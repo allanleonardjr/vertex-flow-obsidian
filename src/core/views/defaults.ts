@@ -8,7 +8,14 @@
  * are a two-click view the user builds themselves rather than something baked in.
  */
 
-import type { SavedView, ViewDefinition } from "../types";
+import type { SavedView, ViewDefinition, ViewType } from "../types";
+
+/** The default curated icon for a view of each layout. */
+export function layoutIcon(viewType: ViewType): string {
+	if (viewType === "board") return "columns-3";
+	if (viewType === "timeline") return "chart-gantt";
+	return "list";
+}
 
 export const DEFAULT_SORT_DIRECTION = "asc" as const;
 
@@ -77,7 +84,7 @@ export function newView(
 	return view({
 		id,
 		name,
-		icon: icon ?? (viewType === "board" ? "columns-3" : "list"),
+		icon: icon ?? layoutIcon(viewType),
 		viewType,
 		groupBy: viewType === "board" ? "status" : "none",
 	});

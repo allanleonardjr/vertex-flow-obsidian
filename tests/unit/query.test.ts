@@ -128,7 +128,7 @@ describe("round-trip (Invariant A)", () => {
 			expectRoundTrip(def({ sortBy }));
 			expectRoundTrip(def({ sortBy, sortDirection: "desc" }));
 		}
-		for (const viewType of ["list", "board"] as const) {
+		for (const viewType of ["list", "board", "timeline"] as const) {
 			expectRoundTrip(def({ viewType }));
 		}
 		for (const field of TASK_FIELDS) {

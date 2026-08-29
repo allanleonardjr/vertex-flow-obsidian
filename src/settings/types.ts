@@ -45,6 +45,14 @@ export interface VertexFlowSettings {
 	editorSectionsCollapsed: Record<string, boolean>;
 	/** Height, in pixels, of the Project editor's info pane above its task list. */
 	projectInfoHeight: number;
+	/** Timeline view: width of the sticky task-label column left of the chart. */
+	timelineLeftWidth: number;
+	/** Timeline view: that label column collapsed to a sliver. */
+	timelineLeftCollapsed: boolean;
+	/** Timeline view: height of the Unscheduled pane below the chart. */
+	timelineLowerHeight: number;
+	/** Timeline view: that Unscheduled pane collapsed to its header. */
+	timelineLowerCollapsed: boolean;
 	/** Size of the Parent / relation task-picker popover, drag-resizable. */
 	taskPickerWidth: number;
 	taskPickerHeight: number;
@@ -75,6 +83,10 @@ export const DEFAULT_SETTINGS: VertexFlowSettings = {
 	descriptionCollapsed: false,
 	editorSectionsCollapsed: {},
 	projectInfoHeight: 220,
+	timelineLeftWidth: 300,
+	timelineLeftCollapsed: false,
+	timelineLowerHeight: 200,
+	timelineLowerCollapsed: false,
 	taskPickerWidth: 380,
 	taskPickerHeight: 360,
 	helpSidebarWidth: 240,

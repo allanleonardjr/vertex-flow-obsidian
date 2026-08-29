@@ -17,11 +17,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-
-const LONG_PRESS_MS = 400;
-const MOUSE_THRESHOLD_PX = 4;
-/** How far a finger may wander before a long press is treated as a scroll. */
-const TOUCH_SLOP_PX = 10;
+import { LONG_PRESS_MS, liftVerdict } from "./pointerGesture";
 
 /**
  * How far below-right of the pointer the preview hangs.
@@ -175,11 +171,10 @@ export function useTaskDrag(
 			const dy = Math.abs(event.clientY - current.startY);
 
 			if (!current.lifted) {
-				if (event.pointerType === "mouse") {
-					if (dx > MOUSE_THRESHOLD_PX || dy > MOUSE_THRESHOLD_PX) {
-						lift(event.clientX, event.clientY);
-					}
-				} else if (dx > TOUCH_SLOP_PX || dy > TOUCH_SLOP_PX) {
+				const verdict = liftVerdict(event.pointerType, dx, dy);
+				if (verdict === "lift") {
+					lift(event.clientX, event.clientY);
+				} else if (verdict === "abandon") {
 					// The finger moved before the long press fired — that's a
 					// scroll, so abandon the gesture entirely.
 					cancelLongPress();

@@ -33,6 +33,7 @@ export function LayoutToggle({
 	const layouts: { value: ViewType; label: string; icon: string }[] = [
 		{ value: "list", label: "List", icon: "☰" },
 		{ value: "board", label: "Board", icon: "▦" },
+		{ value: "timeline", label: "Timeline", icon: "▤" },
 	];
 	return (
 		<div className="vf-layout-toggle" role="group" aria-label="Layout">

@@ -11,7 +11,7 @@
  */
 
 import { useCallback, useEffect, useMemo } from "react";
-import { evaluateView, seedFromFilters } from "../../core/views";
+import { evaluateView, partitionScheduled, seedFromFilters } from "../../core/views";
 import type { ViewContext } from "../../core/views";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { SavedView, WorkspaceSnapshot } from "../../core/types";
@@ -26,6 +26,7 @@ import {
 import { useTabs } from "../tabs-context";
 import { BoardView } from "./BoardView";
 import { ListView } from "./ListView";
+import { TimelineView } from "./TimelineView";
 import { ViewControls } from "./ViewControls";
 import { useViewDraft } from "./useViewDraft";
 
@@ -93,10 +94,17 @@ export function TaskViewport({
 	 * press.
 	 *
 	 * Board: one entry per column. List: one column, groups concatenated in
-	 * render order. Collapsed groups contribute nothing, because you can't focus
-	 * what you can't see.
+	 * render order. Timeline: it ignores grouping entirely and renders scheduled
+	 * rows then unscheduled, so its layout matches that order, not the groups.
+	 * Collapsed groups contribute nothing, because you can't focus what you
+	 * can't see.
 	 */
 	const layout = useMemo<FocusLayout>(() => {
+		if (effective.viewType === "timeline") {
+			const { scheduled, unscheduled } = partitionScheduled(evaluated.tasks);
+			return [[...scheduled, ...unscheduled].map((task) => task.path)];
+		}
+
 		const visible = evaluated.groups.filter((group) => !group.hidden);
 		const paths = (group: (typeof visible)[number]) =>
 			group.collapsed ? [] : group.tasks.map((task) => task.path);
@@ -104,7 +112,7 @@ export function TaskViewport({
 		return effective.viewType === "board"
 			? visible.map(paths)
 			: [visible.flatMap(paths)];
-	}, [evaluated.groups, effective.viewType]);
+	}, [evaluated.groups, evaluated.tasks, effective.viewType]);
 
 	useVisualLayout(layout);
 
@@ -190,7 +198,15 @@ export function TaskViewport({
 				onNewTask={newTask}
 				hideTitle={hideViewTitle}
 			/>
-			{effective.viewType === "board" ? (
+			{effective.viewType === "timeline" ? (
+				<TimelineView
+					snapshot={snapshot}
+					view={effective}
+					evaluated={evaluated}
+					taxonomies={taxonomies}
+					onTimelineChange={draft.setTimeline}
+				/>
+			) : effective.viewType === "board" ? (
 				<BoardView
 					snapshot={snapshot}
 					view={effective}
