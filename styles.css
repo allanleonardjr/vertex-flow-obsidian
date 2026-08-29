@@ -1075,7 +1075,7 @@ body.vf-dragging {
   line-height: 1.5;
 }
 
-.vf-empty-view {
+.vf-view-empty {
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -1083,6 +1083,23 @@ body.vf-dragging {
   justify-content: center;
   gap: 4px;
   color: var(--vf-muted);
+}
+
+.vf-view-empty-icon {
+  display: inline-flex;
+  margin-bottom: 4px;
+  color: var(--text-faint);
+  opacity: 0.7;
+}
+
+.vf-view-empty-title {
+  margin: 0;
+  font-size: var(--font-ui-medium);
+  color: var(--text-muted);
+}
+
+.vf-empty-cta {
+  margin-top: 4px;
 }
 
 /* --- Template gallery (workspace creation, §13) --------------------------- */
@@ -4353,7 +4370,7 @@ body.vf-bar-dragging .vf-timeline-bar {
   /* background-size: 120px 120px; */
 }
 
-.vf-app-background {
+.vf-app-background-old {
   /* display: flex; */
   width: 100%;
   height: 100%;
@@ -4361,6 +4378,15 @@ body.vf-bar-dragging .vf-timeline-bar {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='320' viewBox='0 0 320 320'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round' opacity='0.03'%3E%3C!-- Kanban --%3E%3Crect x='20' y='20' width='50' height='60' rx='4' transform='rotate(10 45 50)'/%3E%3Cpath d='M36 20v60M52 20v60' transform='rotate(10 45 50)'/%3E%3C!-- Bar Chart --%3E%3Cpath d='M180 40v30M195 25v45M210 50v20' transform='rotate(-15 195 50)'/%3E%3C!-- Gantt Timeline --%3E%3Crect x='230' y='180' width='70' height='45' rx='3' transform='rotate(8 265 202)'/%3E%3Cpath d='M240 195h40M240 210h25' transform='rotate(8 265 202)'/%3E%3C!-- Pie Chart --%3E%3Cpath d='M60 220a25 25 0 1 0 25-25h-25z' transform='rotate(35 72 208)'/%3E%3Cpath d='M72 208l18-18' transform='rotate(35 72 208)'/%3E%3C!-- Calendar --%3E%3Crect x='130' y='120' width='55' height='55' rx='4' transform='rotate(-12 157 147)'/%3E%3Cpath d='M130 138h55M148 120v55' transform='rotate(-12 157 147)'/%3E%3C!-- List View --%3E%3Cpath d='M40 130h45M40 145h45M40 160h30' transform='rotate(20 62 145)'/%3E%3Ccircle cx='30' cy='130' r='2' transform='rotate(20 62 145)'/%3E%3Ccircle cx='30' cy='145' r='2' transform='rotate(20 62 145)'/%3E%3Ccircle cx='30' cy='160' r='2' transform='rotate(20 62 145)'/%3E%3C!-- Network / Workflow --%3E%3Ccircle cx='250' cy='70' r='6' transform='rotate(-5 250 70)'/%3E%3Ccircle cx='280' cy='100' r='6' transform='rotate(-5 250 70)'/%3E%3Cpath d='M254 74l22 22' transform='rotate(-5 250 70)'/%3E%3C!-- Folder --%3E%3Cpath d='M110 40h30l5 5h30v35H110z' transform='rotate(-25 135 60)'/%3E%3C/g%3E%3C/svg%3E");
   background-repeat: repeat;
   background-size: 320px 320px;
+}
+
+.vf-app-background {
+  width: 100%;
+  height: 100%;
+  background-color: var(--background-primary);
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='360' height='360' viewBox='0 0 360 360'><g fill='none' stroke='%23888888' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round' opacity='0.15'><g transform='translate(64.7,68.0) rotate(-1.6) scale(0.460) translate(-50,-50)'><path d='M50 15a35 35 0 1 1 -24.7 59.7L50 50z'/><path d='M50 50L50 15'/></g><g transform='translate(176.9,64.5) rotate(30.2) scale(0.460) translate(-50,-50)'><path d='M10 25h30l8 10h42v45H10z'/></g><g transform='translate(291.3,59.0) rotate(-12.3) scale(0.460) translate(-50,-50)'><path d='M35 25h50M35 50h50M35 75h35'/><circle cx='18' cy='25' r='4'/><circle cx='18' cy='50' r='4'/><circle cx='18' cy='75' r='4'/></g><g transform='translate(54.7,174.8) rotate(-21.9) scale(0.460) translate(-50,-50)'><path d='M50 15a35 35 0 1 1 -24.7 59.7L50 50z'/><path d='M50 50L50 15'/></g><g transform='translate(175.7,176.3) rotate(12.5) scale(0.460) translate(-50,-50)'><rect x='12' y='20' width='76' height='68' rx='6'/><path d='M12 42h76M32 12v18M68 12v18'/></g><g transform='translate(307.4,182.2) rotate(5.7) scale(0.460) translate(-50,-50)'><rect x='15' y='15' width='70' height='70' rx='10'/><path d='M32 52l14 14 24-30'/></g><g transform='translate(52.7,292.9) rotate(12.3) scale(0.460) translate(-50,-50)'><rect x='12' y='20' width='76' height='68' rx='6'/><path d='M12 42h76M32 12v18M68 12v18'/></g><g transform='translate(184.0,298.2) rotate(11.5) scale(0.460) translate(-50,-50)'><path d='M35 25h50M35 50h50M35 75h35'/><circle cx='18' cy='25' r='4'/><circle cx='18' cy='50' r='4'/><circle cx='18' cy='75' r='4'/></g><g transform='translate(293.1,291.5) rotate(29.1) scale(0.460) translate(-50,-50)'><path d='M10 25h30l8 10h42v45H10z'/></g></g></svg>");
+  background-repeat: repeat;
+  background-size: 360px 360px;
 }
 
 .vf-welcome-icon {

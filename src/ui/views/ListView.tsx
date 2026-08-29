@@ -13,7 +13,7 @@ import { createPortal } from "react-dom";
 import { Trash2 } from "lucide-react";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { EvaluatedView } from "../../core/views";
-import { toggleColumnCollapsed } from "../../core/views";
+import { layoutIcon, toggleColumnCollapsed } from "../../core/views";
 import { planDeletion, scopeOf, type DeletionPlan } from "../../core/hierarchy";
 import type {
   SavedView,
@@ -22,6 +22,7 @@ import type {
   ViewColumnState,
   WorkspaceSnapshot,
 } from "../../core/types";
+import { EmptyView } from "../components/EmptyView";
 import { TaskList, type TaskListInteraction } from "../components/TaskList";
 import { TaskRowContent } from "../components/TaskRow";
 import { DeleteEntityDialog } from "../DeleteEntityDialog";
@@ -38,6 +39,10 @@ export interface ListViewProps {
   taxonomies: WorkspaceTaxonomies;
   /** Group collapse writes straight through to disk — see `useViewDraft`. */
   onColumnsChange: (columns: ViewColumnState) => void;
+  /** Create a task seeded from this view's filters (see `TaskViewport`). */
+  onNewTask: () => void;
+  /** Discard unsaved view edits — the view bar's "Reset". */
+  onClearFilters: () => void;
 }
 
 export function ListView({
@@ -46,6 +51,8 @@ export function ListView({
   evaluated,
   taxonomies,
   onColumnsChange,
+  onNewTask,
+  onClearFilters,
 }: ListViewProps) {
   const drag = useTaskDrag(useTaskDropHandler(view, evaluated));
   const selection = useSelection();
@@ -60,13 +67,26 @@ export function ListView({
   useScrollFocusIntoView(list);
 
   if (evaluated.total === 0) {
+    const filtered = evaluated.filteredOut > 0;
     return (
-      <div className="vf-empty-view">
-        <p>Nothing here yet.</p>
-        <p className="vf-empty-note">
-          Press <kbd>c</kbd> to create a task.
-        </p>
-      </div>
+      <EmptyView
+        icon={view.icon}
+        iconFallback={layoutIcon(view.viewType)}
+        title={filtered ? "No tasks match this filter" : "Nothing here yet."}
+        note={
+          filtered ? undefined : (
+            <>
+              Press <kbd>c</kbd> to create a task.
+            </>
+          )
+        }
+        onNewTask={filtered ? undefined : onNewTask}
+        action={
+          filtered
+            ? { label: "Clear filters", onClick: onClearFilters }
+            : undefined
+        }
+      />
     );
   }
 

@@ -47,7 +47,7 @@ export function BrowseList({ children }: { children: ReactNode }) {
 }
 
 /**
- * Deliberately *not* `.vf-empty-view` (the List/Board empty state, centered
+ * Deliberately *not* `.vf-view-empty` (the List/Board empty state, centered
  * mid-page) — that reads fine as "nothing matched this filter," but a browse
  * screen with zero items yet is still a real page, and centering it made the
  * whole screen look off relative to List's normal flush-top-left layout the

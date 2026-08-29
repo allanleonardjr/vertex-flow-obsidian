@@ -84,7 +84,9 @@ export function ViewControls({
 	// "Save" (overwrite in place) only makes sense for a real Saved View. The
 	// built-in "Tasks" and a synthesised label view aren't in `_views.md`, so an
 	// ad-hoc filter there becomes a *new* view or nothing at all.
-	const canOverwrite = snapshot.views.some((v) => v.id === savedView.id);
+	const canOverwrite =
+		savedView.id !== BUILT_IN_VIEW_ID &&
+		snapshot.views.some((v) => v.id === savedView.id);
 
 	// The name/icon are editable inline for any real Saved View (the built-in
 	// included); a synthesised label view isn't one and stays a plain heading.

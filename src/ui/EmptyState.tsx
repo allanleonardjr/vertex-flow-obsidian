@@ -18,14 +18,14 @@ export function EmptyState() {
 
   return (
     <div className="vf-empty-scroll">
-      <div className="vf-app-background">
-        {showGallery ? (
-          <TemplateGallery onClose={() => setShowGallery(false)} />
-        ) : (
+      {showGallery ? (
+        <TemplateGallery onClose={() => setShowGallery(false)} />
+      ) : (
+        <div className="vf-app-background">
           <Welcome onClose={() => setShowGallery(true)} />
-          //<HelpView />
-        )}
-      </div>
+        </div>
+        //<HelpView />
+      )}
     </div>
   );
 }

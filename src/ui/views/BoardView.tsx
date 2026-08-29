@@ -353,7 +353,10 @@ function CardContent({
             {showDue && <DueDate task={task} />}
           </div>
           {showAssignee && (
-            <Assignee people={snapshot.workspace.people} assignee={task.assignee} />
+            <Assignee
+              people={snapshot.workspace.people}
+              assignee={task.assignee}
+            />
           )}
         </div>
       )}
