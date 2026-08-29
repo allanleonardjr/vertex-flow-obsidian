@@ -3,7 +3,8 @@
  * status, task count, and computed progress.
  */
 
-import { projectProgress, projectTasks, scopeOf } from "../../core/hierarchy";
+import { projectProgress, projectTaskCount, scopeOf } from "../../core/hierarchy";
+import { usePlugin } from "../context";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { WorkspaceSnapshot } from "../../core/types";
 import { useCreateProject } from "../actions";
@@ -27,6 +28,7 @@ export function ProjectsBrowseView({
 	snapshot: WorkspaceSnapshot;
 	taxonomies: WorkspaceTaxonomies;
 }) {
+	const plugin = usePlugin();
 	const createProject = useCreateProject();
 	const tabs = useTabs();
 	const scope = scopeOf(snapshot);
@@ -46,7 +48,11 @@ export function ProjectsBrowseView({
 			) : (
 				<BrowseList>
 					{snapshot.projects.map((project) => {
-						const tasks = projectTasks(scope, project.path);
+						const taskCount = projectTaskCount(
+							scope,
+							project.path,
+							plugin.settings.showArchived,
+						);
 						// §7.1: progress is computed independently of the project's
 						// own status, and never fed back into it.
 						const progress = projectProgress(scope, project.path, taxonomies.status);
@@ -65,7 +71,7 @@ export function ProjectsBrowseView({
 									<span className="vf-browse-title">{project.title}</span>
 								</div>
 								<BrowseMeta>
-									<span>{pluralize(tasks.length, "task")}</span>
+									<span>{pluralize(taskCount, "task")}</span>
 									<span>Created {formatFullDate(project.createdAt)}</span>
 								</BrowseMeta>
 								<BrowseProgress progress={progress} />

@@ -6,10 +6,11 @@ import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   childTasks,
-  computeProgress,
   descendantTasks,
   scopeOf,
+  subtaskProgress,
 } from "../core/hierarchy";
+import { sortTasksByRank } from "../core/ranking";
 import { withExtension } from "../obsidian/note-io";
 import type { WorkspaceTaxonomies } from "../core/taxonomy";
 import type { Comment, Task, WorkspaceSnapshot } from "../core/types";
@@ -69,8 +70,12 @@ export function TaskDetailPanel({
   };
 
   const scope = scopeOf(snapshot);
-  const children = childTasks(scope, task.path);
-  const progress = computeProgress(children, taxonomies.status);
+  // Sub-tasks list in the shared global `rank` order (§6) so drag-reordering
+  // them here writes a rank that every other view honours too.
+  const children = sortTasksByRank(childTasks(scope, task.path));
+  // Progress excludes archived sub-tasks (§7.7); the list below still shows
+  // them.
+  const progress = subtaskProgress(scope, task, taxonomies.status);
 
   const update = (patch: Partial<Task>) =>
     void plugin.mutations.updateTask(task, patch);
@@ -132,7 +137,7 @@ export function TaskDetailPanel({
             id="subtasks"
             title="Sub-tasks"
             aside={
-              children.length > 0 ? <ProgressBar progress={progress} /> : null
+              progress.total > 0 ? <ProgressBar progress={progress} /> : null
             }
           >
             <EmbeddedTaskList
@@ -144,6 +149,12 @@ export function TaskDetailPanel({
                 const child = children.find((c) => c.path === path);
                 if (child) {
                   void plugin.mutations.updateTask(child, { parent: null });
+                }
+              }}
+              onReorder={(path, toIndex) => {
+                const child = children.find((c) => c.path === path);
+                if (child) {
+                  void plugin.mutations.moveTask(child, children, toIndex);
                 }
               }}
               removeTitle={(title) => `Unlink sub-task ${title}`}

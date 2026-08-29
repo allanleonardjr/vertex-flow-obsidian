@@ -232,9 +232,21 @@ export function computeProgress(tasks: Task[], statuses: Taxonomy): Progress {
 }
 
 /**
+ * Archived tasks are parked, out-of-scope work (§7.7), so they never count
+ * toward a progress rollup — a parked sub-task shouldn't hold a parent's bar
+ * below 100%, nor should un-archiving one suddenly change the maths. This is
+ * unconditional: unlike the "Show archived" list toggle, a progress figure has
+ * one correct value.
+ */
+function forRollup(tasks: Task[]): Task[] {
+  return tasks.filter((task) => !task.archived);
+}
+
+/**
  * Sub-task progress bar for a parent task (§7.2). Direct children only — a
  * progress bar that silently counted grandchildren would misrepresent what the
- * user sees listed underneath it.
+ * user sees listed underneath it. Archived children are excluded (see
+ * `forRollup`).
  *
  * Note what this function deliberately does *not* do: it never flips the
  * parent's own status when everything underneath is finished. Manual control is
@@ -245,7 +257,7 @@ export function subtaskProgress(
   task: Task,
   statuses: Taxonomy,
 ): Progress {
-  return computeProgress(childTasks(scope, task.path), statuses);
+  return computeProgress(forRollup(childTasks(scope, task.path)), statuses);
 }
 
 /**
@@ -259,8 +271,26 @@ export function projectProgress(
   statuses: Taxonomy,
 ): Progress {
   // Top-level only: a sub-task is already counted in its own parent's rollup
-  // (§7.2), so counting it here too would double it.
-  return computeProgress(topLevelProjectTasks(scope, project), statuses);
+  // (§7.2), so counting it here too would double it. Archived tasks excluded,
+  // same as `subtaskProgress`.
+  return computeProgress(forRollup(topLevelProjectTasks(scope, project)), statuses);
+}
+
+/**
+ * A project's own task count — its direct (non-sub-task) tasks, dropping
+ * archived ones unless the caller is showing archived. A sub-task carries its
+ * parent's `project` link but belongs to its parent, not the project, so it is
+ * never counted here (only `task.parent == null` makes a task the project's).
+ */
+export function projectTaskCount(
+  scope: HierarchyScope,
+  project: LinkTarget,
+  includeArchived: boolean,
+): number {
+  const tasks = topLevelProjectTasks(scope, project);
+  return includeArchived
+    ? tasks.length
+    : tasks.filter((task) => !task.archived).length;
 }
 
 /**

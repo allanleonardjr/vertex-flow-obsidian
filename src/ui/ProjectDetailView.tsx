@@ -12,7 +12,7 @@
  */
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { projectProgress, projectTasks, scopeOf } from "../core/hierarchy";
+import { projectProgress, projectTaskCount, scopeOf } from "../core/hierarchy";
 import type { ViewContext } from "../core/views";
 import type { WorkspaceTaxonomies } from "../core/taxonomy";
 import type { Project, WorkspaceSnapshot } from "../core/types";
@@ -128,7 +128,13 @@ function ProjectEditor({
   };
 
   const scope = scopeOf(snapshot);
-  const taskCount = projectTasks(scope, project.path).length;
+  // Matches the task viewport below: direct (non-sub-task) tasks, and the
+  // "Show archived" toggle is respected just like it is there.
+  const taskCount = projectTaskCount(
+    scope,
+    project.path,
+    plugin.settings.showArchived,
+  );
   // §7.1: progress is computed independently of the project's own status, and
   // never fed back into it.
   const progress = projectProgress(scope, project.path, taxonomies.status);

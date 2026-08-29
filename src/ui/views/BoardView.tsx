@@ -8,7 +8,7 @@
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { childTasks, computeProgress, scopeOf } from "../../core/hierarchy";
+import { scopeOf, subtaskProgress } from "../../core/hierarchy";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { EvaluatedView } from "../../core/views";
 import { toggleColumnCollapsed } from "../../core/views";
@@ -301,7 +301,7 @@ function CardContent({
   const scope = scopeOf(snapshot);
   const progress = off("progress")
     ? emptyProgress()
-    : computeProgress(childTasks(scope, task.path), taxonomies.status);
+    : subtaskProgress(scope, task, taxonomies.status);
 
   const showPriority = !off("priority");
   const showDue = !off("dueDate");

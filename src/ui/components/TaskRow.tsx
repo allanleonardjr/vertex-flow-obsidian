@@ -8,7 +8,7 @@
  * filename, which told you nothing about the thing you were linking to.
  */
 
-import { childTasks, computeProgress, scopeOf } from "../../core/hierarchy";
+import { scopeOf, subtaskProgress } from "../../core/hierarchy";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import {
 	emptyProgress,
@@ -48,7 +48,7 @@ export function TaskRowContent({
 	const scope = scopeOf(snapshot);
 	const progress = off("progress")
 		? emptyProgress()
-		: computeProgress(childTasks(scope, task.path), taxonomies.status);
+		: subtaskProgress(scope, task, taxonomies.status);
 
 	return (
 		<>

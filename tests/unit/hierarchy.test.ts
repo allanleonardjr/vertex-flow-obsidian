@@ -8,6 +8,7 @@ import {
 	newTaskProject,
 	primaryParent,
 	projectProgress,
+	projectTaskCount,
 	projectTasks,
 	scopeOf,
 	subtaskProgress,
@@ -253,6 +254,23 @@ describe("sub-task rollup (§7.2)", () => {
 		// The whole point of §7.2: 100% complete, status untouched.
 		expect(parent.status).toBe("in-progress");
 	});
+
+	it("excludes archived sub-tasks from the rollup (§7.7)", () => {
+		const parent = task({ path: T("1") });
+		const local: HierarchyScope = {
+			tasks: [
+				parent,
+				task({ path: T("2"), parent: T("1"), status: "done" }),
+				task({ path: T("3"), parent: T("1"), status: "todo" }),
+				task({ path: T("4"), parent: T("1"), status: "todo", archived: true }),
+			],
+			projects: [],
+		};
+		const progress = subtaskProgress(local, parent, statuses);
+		// The archived todo doesn't count: 1 done of 2, not of 3.
+		expect(progress.total).toBe(2);
+		expect(progress.percent).toBe(50);
+	});
 });
 
 describe("project progress (§7.1)", () => {
@@ -295,5 +313,37 @@ describe("project progress (§7.1)", () => {
 		const project = snapshot.projects.find((p) => p.title.startsWith("App Store"));
 		expect(project?.status).toBe("backlog");
 		expect(projectProgress(scope, project!.path, statuses).total).toBe(3);
+	});
+
+	it("excludes archived top-level tasks from project progress", () => {
+		const local: HierarchyScope = {
+			projects: [],
+			tasks: [
+				task({ path: T("1"), project: P("Projects/X"), status: "done" }),
+				task({ path: T("2"), project: P("Projects/X"), status: "todo", archived: true }),
+			],
+		};
+		expect(projectProgress(local, P("Projects/X"), statuses).total).toBe(1);
+	});
+});
+
+describe("projectTaskCount", () => {
+	const local: HierarchyScope = {
+		projects: [],
+		tasks: [
+			task({ path: T("1"), project: P("Projects/X") }),
+			task({ path: T("2"), project: P("Projects/X"), archived: true }),
+			// A sub-task that carries the project link belongs to its parent.
+			task({ path: T("3"), project: P("Projects/X"), parent: T("1") }),
+		],
+	};
+
+	it("counts direct tasks only, never sub-tasks", () => {
+		expect(projectTaskCount(local, P("Projects/X"), true)).toBe(2);
+	});
+
+	it("drops archived tasks unless asked to include them", () => {
+		expect(projectTaskCount(local, P("Projects/X"), false)).toBe(1);
+		expect(projectTaskCount(local, P("Projects/X"), true)).toBe(2);
 	});
 });
