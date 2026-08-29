@@ -324,6 +324,12 @@ export interface SavedView {
 	name: string;
 	/** Curated icon id (see `ui/components/Icon.tsx`); optional, falls back at render. */
 	icon?: string;
+	/**
+	 * Free-text note about what this view is for. Metadata, not part of
+	 * `ViewDefinition` — editing it never marks the view unsaved, same as `name`
+	 * and `icon`. Stored as a plain frontmatter string in `_views.md`.
+	 */
+	description?: string;
 	viewType: ViewType;
 	filters: ViewFilters;
 	groupBy: GroupByField;

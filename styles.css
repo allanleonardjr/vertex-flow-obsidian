@@ -2343,33 +2343,71 @@ body.vf-dragging {
   color: var(--vf-muted);
 }
 
-/* The editable project name in the header — reads as a title, edits in place.
-   `size` on the element sets its width, so `width` must not be forced to 100%. */
-.vf-project-title-input {
+/* ---- Editable title + icon (shared: Saved View header, Project header) ---- */
+
+.vf-editable-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* The name — reads exactly like the static `.vf-view-title h2` it replaces
+   until you interact. `size` on the element sets its width, so `width` must not
+   be forced to 100%; no fill, ever. */
+.vf-editable-title-input {
   flex: 0 1 auto;
   width: auto;
   max-width: 100%;
   min-width: 6ch;
-  padding: 2px 5px;
+  padding: 1px 4px;
+  margin: -1px -4px;
   border: 1px solid transparent;
   border-radius: 4px;
-  background: transparent;
+  background: transparent !important;
   box-shadow: none !important;
   color: var(--text-normal);
   font-size: var(--font-ui-medium);
   font-weight: 600;
 }
 
-.vf-project-title-input:hover {
+.vf-editable-title-input:hover {
   border-color: var(--vf-border);
 }
 
-.vf-project-title-input:focus {
+.vf-editable-title-input:focus {
   border-color: var(--interactive-accent);
-  background: var(--background-primary);
 }
 
-.vf-project-editor-header .vf-view-title-code,
+.vf-editable-title-suffix {
+  flex: 0 0 auto;
+  color: var(--vf-muted);
+  font-weight: 400;
+  font-size: var(--font-ui-medium);
+  white-space: nowrap;
+}
+
+/* Match the static heading so a label view and an editable view look alike. */
+.vf-view-title h2 {
+  font-weight: 600;
+}
+
+/* Chrome-less icon trigger for the header — clickable, no box. */
+.vf-title-icon .vf-icon-trigger {
+  width: auto;
+  padding: 2px !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--vf-muted);
+}
+
+.vf-title-icon .vf-icon-trigger:hover,
+.vf-title-icon .vf-icon-trigger.is-on {
+  background: transparent !important;
+  color: var(--text-normal);
+}
+
 .vf-project-editor-header .vf-count {
   flex: 0 0 auto;
   white-space: nowrap;
@@ -2384,9 +2422,9 @@ body.vf-dragging {
   min-height: 0;
 }
 
-/* Project info (title + description). When the description is expanded its
-   height is drag-controlled (inline style); collapsed, it sizes to the title.
-   Either way it scrolls internally and the task list takes the rest. */
+/* Project info = the collapsible description. Expanded, its height is
+   drag-controlled (inline style); collapsed, it's just the toggle. Scrolls
+   internally; the task list takes the rest. */
 .vf-project-editor-info {
   flex: 0 0 auto;
   overflow-y: auto;
@@ -2398,6 +2436,41 @@ body.vf-dragging {
 .vf-project-editor-info.is-collapsed {
   padding-top: 8px;
   padding-bottom: 8px;
+}
+
+/* ---- Collapsible description (shared: Saved View + Project) ---- */
+
+.vf-description-toggle {
+  margin-bottom: 4px;
+}
+
+/* Borderless Markdown field, so the description reads like a plain note. */
+.vf-description-plain .vf-markdown-native,
+.vf-description-plain .vf-markdown-edit {
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.vf-description-plain .vf-markdown-native:focus-within {
+  border: none;
+}
+
+.vf-description-plain .vf-markdown-placeholder {
+  top: 0;
+  left: 0;
+}
+
+/* A Saved View's description sits below the control bar. */
+.vf-view-description {
+  padding: 8px 14px 10px;
+  border-top: 1px solid var(--vf-border);
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.vf-view-description .vf-editor-description {
+  margin-top: 4px;
 }
 
 /* Horizontal counterpart of `.vf-editor-resize-handle` — between info and tasks. */

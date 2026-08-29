@@ -39,8 +39,8 @@ export interface VertexFlowSettings {
 	queryBarOpen: boolean;
 	/** Whether the raw-source section at the bottom of the task editor is open. */
 	editorSourceOpen: boolean;
-	/** Whether the Project editor's description section is collapsed. */
-	projectDescriptionCollapsed: boolean;
+	/** Whether the collapsible description section (View / Project headers) is closed. */
+	descriptionCollapsed: boolean;
 	/** Height, in pixels, of the Project editor's info pane above its task list. */
 	projectInfoHeight: number;
 	/** Size of the Parent / relation task-picker popover, drag-resizable. */
@@ -70,7 +70,7 @@ export const DEFAULT_SETTINGS: VertexFlowSettings = {
 	sidebarMinimized: false,
 	queryBarOpen: false,
 	editorSourceOpen: false,
-	projectDescriptionCollapsed: false,
+	descriptionCollapsed: false,
 	projectInfoHeight: 220,
 	taskPickerWidth: 380,
 	taskPickerHeight: 360,

@@ -16,7 +16,12 @@ import type {
 	ViewFilters,
 	WorkspaceSnapshot,
 } from "../../core/types";
+import { joinPath } from "../../core/links";
+import { withExtension } from "../../obsidian/note-io";
+import { VIEWS_NOTE } from "../../obsidian/index-store";
 import { usePlugin, useSettingsWriter } from "../context";
+import { DescriptionSection } from "../components/DescriptionSection";
+import { EditableTitle } from "../components/EditableTitle";
 import { Icon } from "../components/Icon";
 import { NamedIconDialog } from "../modals/NamedIconDialog";
 import { useSelection } from "../selection";
@@ -75,6 +80,15 @@ export function ViewControls({
 	// ad-hoc filter there becomes a *new* view or nothing at all.
 	const canOverwrite = snapshot.views.some((v) => v.id === savedView.id);
 
+	// The name/icon are editable inline for any real Saved View (the built-in
+	// included); a synthesised label view isn't one and stays a plain heading.
+	const titleEditable = canOverwrite;
+	// The description section is offered for real user views only — not the
+	// built-in "All Tasks", and not synthesised label views.
+	const showDescription =
+		!hideTitle && canOverwrite && savedView.id !== BUILT_IN_VIEW_ID;
+	const descCollapsed = plugin.settings.descriptionCollapsed;
+
 	const editView = draft.edit;
 
 	const setShowSubtasks = (next: boolean) => {
@@ -108,19 +122,46 @@ export function ViewControls({
 				<div className="vf-view-title">
 					{!hideTitle && (
 						<>
-							<h2>
-								<span className="vf-view-title-icon" aria-hidden>
-									<Icon
-										id={view.icon}
-										fallback={view.viewType === "board" ? "columns-3" : "list"}
-										size={16}
-									/>
-								</span>
-								{view.name}
-								<span className="vf-view-title-code">
-									({snapshot.workspace.idPrefix})
-								</span>
-							</h2>
+							{titleEditable ? (
+								<EditableTitle
+									key={savedView.id}
+									icon={savedView.icon}
+									iconFallback={
+										savedView.viewType === "board" ? "columns-3" : "list"
+									}
+									name={savedView.name}
+									suffix={`(${snapshot.workspace.idPrefix})`}
+									placeholder="View name"
+									onRename={(name) =>
+										plugin.mutations.updateView(snapshot, {
+											...savedView,
+											name,
+										})
+									}
+									onIconChange={(icon) =>
+										void plugin.mutations.updateView(snapshot, {
+											...savedView,
+											icon,
+										})
+									}
+								/>
+							) : (
+								<h2>
+									<span className="vf-view-title-icon" aria-hidden>
+										<Icon
+											id={view.icon}
+											fallback={
+												view.viewType === "board" ? "columns-3" : "list"
+											}
+											size={16}
+										/>
+									</span>
+									{view.name}
+									<span className="vf-view-title-code">
+										({snapshot.workspace.idPrefix})
+									</span>
+								</h2>
+							)}
 							<span className="vf-count">
 								{evaluated.total} {evaluated.total === 1 ? "task" : "tasks"}
 							</span>
@@ -244,6 +285,28 @@ export function ViewControls({
 			{queryOpen && (
 				<div id="vf-query-row">
 					<QueryBar snapshot={snapshot} view={view} onChange={editView} />
+				</div>
+			)}
+
+			{showDescription && (
+				<div className="vf-view-description">
+					<DescriptionSection
+						collapsed={descCollapsed}
+						onToggleCollapsed={() =>
+							writeSettings({ descriptionCollapsed: !descCollapsed })
+						}
+						value={savedView.description ?? ""}
+						editorKey={savedView.id}
+						sourcePath={withExtension(
+							joinPath(snapshot.workspace.root, VIEWS_NOTE),
+						)}
+						onSave={(text) =>
+							void plugin.mutations.updateView(snapshot, {
+								...savedView,
+								description: text.trim() || undefined,
+							})
+						}
+					/>
 				</div>
 			)}
 

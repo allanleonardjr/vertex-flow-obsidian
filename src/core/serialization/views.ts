@@ -134,6 +134,7 @@ export function parseView(raw: unknown, index: number): ParseResult<SavedView> {
 			id,
 			name: asString(record.name) ?? id,
 			icon: asString(record.icon) ?? undefined,
+			description: asString(record.description) ?? undefined,
 			viewType,
 			filters: parseFilters(record.filters),
 			groupBy: pick(
@@ -191,6 +192,7 @@ export function serializeView(view: SavedView): Record<string, unknown> {
 		id: view.id,
 		name: view.name,
 		icon: view.icon,
+		description: view.description,
 		viewType: view.viewType,
 		filters: compact(view.filters as Record<string, unknown>),
 		groupBy: view.groupBy,

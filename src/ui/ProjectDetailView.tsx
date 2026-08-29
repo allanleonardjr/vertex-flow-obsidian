@@ -11,14 +11,7 @@
  * section keep the escape hatch to the file.
  */
 
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
-import { Notice } from "obsidian";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { projectProgress, projectTasks, scopeOf } from "../core/hierarchy";
 import type { ViewContext } from "../core/views";
 import type { WorkspaceTaxonomies } from "../core/taxonomy";
@@ -31,12 +24,11 @@ import {
   PrioritySelect,
   PropertyRow,
   StatusSelect,
-  useDebouncedSave,
 } from "./components/fields";
+import { DescriptionSection } from "./components/DescriptionSection";
+import { EditableTitle } from "./components/EditableTitle";
 import { EditorRail } from "./components/EditorRail";
-import { Icon, IconField } from "./components/Icon";
 import { LabelEditor } from "./components/LabelEditor";
-import { MarkdownField } from "./components/Markdown";
 import { ProgressBar } from "./components/TaskBits";
 import { usePlugin } from "./context";
 import { useTabs } from "./tabs-context";
@@ -124,14 +116,14 @@ function ProjectEditor({
   const plugin = usePlugin();
   const [description, setDescription] = useState<string | null>(null);
   const [descCollapsed, setDescCollapsed] = useState(
-    plugin.settings.projectDescriptionCollapsed,
+    plugin.settings.descriptionCollapsed,
   );
   const [infoHeight, setInfoHeight] = useState(plugin.settings.projectInfoHeight);
 
   const toggleDescription = () => {
     const next = !descCollapsed;
     setDescCollapsed(next);
-    plugin.settings.projectDescriptionCollapsed = next;
+    plugin.settings.descriptionCollapsed = next;
     void plugin.saveSettings();
   };
 
@@ -157,13 +149,20 @@ function ProjectEditor({
   return (
     <>
       <header className="vf-editor-header vf-project-editor-header">
-        <span className="vf-view-title-icon" aria-hidden>
-          <Icon id={project.icon} fallback="folder" size={16} />
-        </span>
-        <ProjectTitleField project={project} />
-        <span className="vf-view-title-code">
-          ({snapshot.workspace.idPrefix})
-        </span>
+        <EditableTitle
+          icon={project.icon}
+          iconFallback="folder"
+          name={project.title}
+          suffix={`(${snapshot.workspace.idPrefix})`}
+          placeholder="Project title"
+          autoFocus={project.title === NEW_PROJECT_TITLE}
+          onRename={(name) =>
+            plugin.mutations.updateProject(project, { title: name })
+          }
+          onIconChange={(icon) =>
+            void plugin.mutations.updateProject(project, { icon })
+          }
+        />
         <span className="vf-count">
           {taskCount} {taskCount === 1 ? "task" : "tasks"}
         </span>
@@ -194,30 +193,16 @@ function ProjectEditor({
                 : { height: infoHeight, flex: "0 0 auto" }
             }
           >
-            <button
-              type="button"
-              className="vf-rail-section-toggle vf-project-desc-toggle"
-              aria-expanded={!descCollapsed}
-              onClick={toggleDescription}
-            >
-              <span
-                className={`vf-section-chevron${descCollapsed ? "" : " is-open"}`}
-                aria-hidden
-              >
-                ›
-              </span>
-              Description
-            </button>
-
-            {!descCollapsed &&
-              (description === null ? (
-                <div className="vf-editor-loading">Loading…</div>
-              ) : (
-                <ProjectDescriptionField
-                  project={project}
-                  initial={description}
-                />
-              ))}
+            <DescriptionSection
+              collapsed={descCollapsed}
+              onToggleCollapsed={toggleDescription}
+              value={description}
+              editorKey={project.path}
+              sourcePath={withExtension(project.path)}
+              onSave={(text) =>
+                void plugin.mutations.setProjectDescription(project, text)
+              }
+            />
           </main>
 
           {!descCollapsed && (
@@ -235,14 +220,6 @@ function ProjectEditor({
         </div>
 
         <EditorRail>
-          <PropertyRow label="Icon">
-            <IconField
-              value={project.icon}
-              fallback="folder"
-              onChange={(icon) => update({ icon })}
-            />
-          </PropertyRow>
-
           <PropertyRow label="Status">
             <StatusSelect
               taxonomy={taxonomies.status}
@@ -445,71 +422,3 @@ function ProjectRawSourceSection({ project }: { project: Project }) {
   );
 }
 
-/**
- * The project's name — rendered inline in the header next to the icon and ID
- * prefix, matching the `All Tasks (PREFIX)` title of a Saved View. A rename to a
- * title another project in the workspace already uses is rejected by
- * `updateProject`; the field surfaces that and reverts rather than leaving a
- * duplicate name showing.
- */
-function ProjectTitleField({ project }: { project: Project }) {
-  const plugin = usePlugin();
-  const [title, setTitle, flush] = useDebouncedSave(project.title, (value) => {
-    void plugin.mutations
-      .updateProject(project, { title: value.trim() || NEW_PROJECT_TITLE })
-      .catch((cause) => {
-        new Notice(cause instanceof Error ? cause.message : String(cause));
-        setTitle(project.title);
-      });
-  });
-
-  const isPlaceholder = project.title === NEW_PROJECT_TITLE;
-  const focusRef = useCallback(
-    (element: HTMLInputElement | null) => {
-      if (element && isPlaceholder) {
-        element.focus();
-        element.select();
-      }
-    },
-    [isPlaceholder],
-  );
-
-  return (
-    <input
-      ref={focusRef}
-      type="text"
-      className="vf-project-title-input"
-      // Size to the title so the ID prefix and task count sit right beside it,
-      // the way a Saved View's title does. Clamped so neither a one-word
-      // project nor a very long name distorts the header.
-      size={Math.max(6, Math.min(title.length + 1, 48))}
-      value={title}
-      placeholder="Project title"
-      onChange={(event) => setTitle(event.target.value)}
-      onBlur={flush}
-    />
-  );
-}
-
-function ProjectDescriptionField({
-  project,
-  initial,
-}: {
-  project: Project;
-  initial: string;
-}) {
-  const plugin = usePlugin();
-  const [text, setText] = useDebouncedSave(initial, (value) => {
-    void plugin.mutations.setProjectDescription(project, value);
-  });
-
-  return (
-    <MarkdownField
-      className="vf-editor-description"
-      value={text}
-      onChange={setText}
-      sourcePath={withExtension(project.path)}
-      placeholder="Add a description… start typing Markdown — [[wikilinks]], #tags, and ![[embeds]] all work, with live preview and link suggestions as you go"
-    />
-  );
-}

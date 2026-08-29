@@ -675,10 +675,13 @@ export function IconField({
 	value,
 	fallback,
 	onChange,
+	className,
 }: {
 	value: string | undefined;
 	fallback?: string;
 	onChange: (id: string) => void;
+	/** Appended to the wrapper — e.g. `vf-title-icon` for the chrome-less variant. */
+	className?: string;
 }) {
 	const [open, setOpen] = useState(false);
 
@@ -693,7 +696,7 @@ export function IconField({
 	}, [open]);
 
 	return (
-		<div className="vf-icon-field">
+		<div className={`vf-icon-field${className ? ` ${className}` : ""}`}>
 			<button
 				type="button"
 				className={`vf-icon-trigger${open ? " is-on" : ""}`}

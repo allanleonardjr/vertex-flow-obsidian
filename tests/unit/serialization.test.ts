@@ -628,6 +628,22 @@ describe("parseViews", () => {
 		expect(parseViews(serializeViews(value)).value).toEqual(value);
 	});
 
+	it("round-trips a description, and leaves it undefined when absent", () => {
+		const { value } = parseViews({
+			views: [
+				{ id: "a", name: "A", description: "Everything blocked on me." },
+				{ id: "b", name: "B" },
+			],
+		});
+		expect(value[0].description).toBe("Everything blocked on me.");
+		expect(value[1].description).toBeUndefined();
+		const serialized = serializeViews(value) as {
+			views: Record<string, unknown>[];
+		};
+		expect(serialized.views[1]).not.toHaveProperty("description");
+		expect(parseViews(serialized).value).toEqual(value);
+	});
+
 	it("parses hiddenFields, canonicalising and coercing a scalar", () => {
 		const { value, issues } = parseViews({
 			views: [
