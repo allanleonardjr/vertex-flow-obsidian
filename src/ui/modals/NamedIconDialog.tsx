@@ -19,6 +19,7 @@ export function NamedIconDialog({
 	confirmLabel,
 	validateName,
 	onConfirm,
+	onCancel,
 	onClose,
 }: {
 	title: string;
@@ -34,6 +35,12 @@ export function NamedIconDialog({
 	 */
 	validateName?: (name: string) => string | null;
 	onConfirm: (name: string, icon: string | undefined) => void;
+	/**
+	 * Called when the dialog is dismissed *without* confirming (Cancel button or
+	 * backdrop click) — not after a successful confirm. Callers that pre-create
+	 * the thing being named (a new View / Dashboard) use this to discard it.
+	 */
+	onCancel?: () => void;
 	onClose: () => void;
 }) {
 	const [name, setName] = useState(initialName);
@@ -42,6 +49,11 @@ export function NamedIconDialog({
 	const nameError = validateName?.(name) ?? null;
 	const valid = name.trim().length > 0 && !nameError;
 
+	const cancel = () => {
+		onCancel?.();
+		onClose();
+	};
+
 	const submit = () => {
 		if (!valid) return;
 		onConfirm(name.trim(), icon);
@@ -49,7 +61,7 @@ export function NamedIconDialog({
 	};
 
 	return createPortal(
-		<div className="vf-editor-backdrop" onClick={onClose}>
+		<div className="vf-editor-backdrop" onClick={cancel}>
 			<div
 				className="vf-dialog"
 				role="dialog"
@@ -85,7 +97,7 @@ export function NamedIconDialog({
 				</div>
 
 				<div className="vf-dialog-actions">
-					<button onClick={onClose}>Cancel</button>
+					<button onClick={cancel}>Cancel</button>
 					<button className="mod-cta" disabled={!valid} onClick={submit}>
 						{confirmLabel}
 					</button>

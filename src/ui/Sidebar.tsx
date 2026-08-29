@@ -589,6 +589,13 @@ function ViewsSection({
               icon,
             })
           }
+          // Cancelling the "name your new view" step discards the view that was
+          // auto-created to open it; App's `pruneViews` then closes its tab.
+          onCancel={
+            dialog.mode === "create"
+              ? () => void plugin.mutations.deleteView(snapshot, dialog.view.id)
+              : undefined
+          }
           onClose={() => setDialog(null)}
         />
       )}
@@ -717,6 +724,18 @@ function DashboardsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
               name,
               icon,
             })
+          }
+          // Cancelling the "name your new dashboard" step discards the dashboard
+          // that was auto-created to open it; App's `pruneDashboards` then
+          // closes its tab.
+          onCancel={
+            dialog.mode === "create"
+              ? () =>
+                  void plugin.mutations.deleteDashboard(
+                    snapshot,
+                    dialog.dashboard.id,
+                  )
+              : undefined
           }
           onClose={() => setDialog(null)}
         />
