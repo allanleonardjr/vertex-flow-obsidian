@@ -439,6 +439,7 @@ body.vf-text-comfortable {
 }
 
 .vf-row-with-action {
+  position: relative;
   padding: 0;
   gap: 0;
 }
@@ -464,33 +465,46 @@ body.vf-text-comfortable {
 /* Linear-style integrated action button. Two variants share this shape:
    `.vf-row-remove` really deletes (List view, confirms first), `.vf-row-unlink`
    only breaks a link (sub-tasks, relations). They differ solely in the hover
-   colour below — red for destructive, neutral for the rest. */
-.vf-row-remove,
-.vf-row-unlink {
+   colour below — red for destructive, neutral for the rest.
+
+   Taken out of flow and floated over the row's right edge (the row is
+   `position: relative` via `.vf-row-with-action`) so an invisible button never
+   reserves a permanent right gutter — an unhovered row stays balanced 14/14
+   with its left edge. It fades in over the far-right meta on hover, the way
+   Linear's row actions do. */
+/* `.vf-icon-button` is always also on these elements and is defined later in
+   this file, so match it here to keep the layout/background props winning. */
+.vf-icon-button.vf-row-remove,
+.vf-icon-button.vf-row-unlink {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 22px;
   height: 22px;
-  margin-left: 6px;
-  margin-right: 4px;
   padding: 0;
   border: 1px solid transparent;
   border-radius: 4px;
-  background: transparent;
+  background: var(--background-modifier-hover);
   color: var(--vf-muted);
   opacity: 0;
   pointer-events: none;
-  transition: all 0.12s ease-in-out;
+  transition: opacity 0.12s ease-in-out, background 0.12s ease-in-out,
+    border-color 0.12s ease-in-out, color 0.12s ease-in-out;
   cursor: pointer;
 }
 
-/* Reveal cleanly on row hover */
+/* Reveal cleanly on row hover. Fully opaque — the button floats over the
+   far-right meta now, so a translucent one would just look like a rendering
+   glitch. The muted icon colour keeps it quiet until directly hovered. */
 .vf-row:hover .vf-row-remove,
 .vf-row-with-action:hover .vf-row-remove,
 .vf-row:hover .vf-row-unlink,
 .vf-row-with-action:hover .vf-row-unlink {
-  opacity: 0.6;
+  opacity: 1;
   pointer-events: auto;
 }
 
