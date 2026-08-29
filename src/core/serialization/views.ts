@@ -15,6 +15,7 @@ import {
 	type SavedView,
 	type SortDirection,
 	type SortField,
+	type ViewCalendarState,
 	type ViewFilters,
 	type ViewTimelineState,
 	type ViewType,
@@ -31,7 +32,12 @@ import {
 	type ParseResult,
 } from "./coerce";
 
-const VIEW_TYPES: ViewType[] = ["list", "board", "timeline"];
+const VIEW_TYPES: ViewType[] = ["list", "board", "timeline", "calendar"];
+
+const CALENDAR_DATE_FIELDS: SavedView["calendarDateField"][] = [
+	"dueDate",
+	"startDate",
+];
 
 /** Fallback pixels-per-day when a timeline block is present but `scale` isn't. */
 const DEFAULT_TIMELINE_SCALE = 16;
@@ -51,6 +57,20 @@ function parseTimeline(raw: unknown): ViewTimelineState | undefined {
 		scale: scale != null && scale > 0 ? scale : DEFAULT_TIMELINE_SCALE,
 		scrollDate: scrollDate ?? null,
 	};
+}
+
+/**
+ * Parse the optional per-session Calendar chrome. Absent (or empty) block →
+ * `undefined`, mirroring `parseTimeline` — it never lands in serialized
+ * frontmatter until the view is opened as a calendar and paged off its default
+ * month.
+ */
+function parseCalendar(raw: unknown): ViewCalendarState | undefined {
+	if (raw == null) return undefined;
+	const record = asRecord(raw);
+	const visibleMonth = asDate(record.visibleMonth);
+	if (visibleMonth == null) return undefined;
+	return { visibleMonth };
 }
 const GROUP_FIELDS: GroupByField[] = [
 	"none",
@@ -186,7 +206,15 @@ export function parseView(raw: unknown, index: number): ParseResult<SavedView> {
 			hiddenFields: canonicalizeHiddenFields(
 				pickAll(record.hiddenFields, TASK_FIELDS, log, "hiddenFields"),
 			),
+			calendarDateField: pick(
+				record.calendarDateField,
+				CALENDAR_DATE_FIELDS,
+				"dueDate",
+				log,
+				"calendarDateField",
+			),
 			timeline: parseTimeline(record.timeline),
+			calendar: parseCalendar(record.calendar),
 		},
 		issues: log.issues.map((issue) => `View "${id}": ${issue}`),
 	};
@@ -228,11 +256,20 @@ export function serializeView(view: SavedView): Record<string, unknown> {
 		},
 		emptyColumnBehavior: view.emptyColumnBehavior,
 		hiddenFields: view.hiddenFields,
+		// Omitted at the default, like `hiddenFields: []` — keeps `_views.md`
+		// diffs quiet for the common case.
+		calendarDateField:
+			view.calendarDateField === "dueDate"
+				? undefined
+				: view.calendarDateField,
 		timeline: view.timeline
 			? compact({
 					scale: view.timeline.scale,
 					scrollDate: view.timeline.scrollDate,
 				})
+			: undefined,
+		calendar: view.calendar?.visibleMonth
+			? { visibleMonth: view.calendar.visibleMonth }
 			: undefined,
 	});
 }

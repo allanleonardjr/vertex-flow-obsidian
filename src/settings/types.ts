@@ -53,6 +53,8 @@ export interface VertexFlowSettings {
 	timelineLowerHeight: number;
 	/** Timeline view: that Unscheduled pane collapsed to its header. */
 	timelineLowerCollapsed: boolean;
+	/** Calendar view: the Unscheduled drawer collapsed to its header. */
+	calendarUnscheduledCollapsed: boolean;
 	/** Size of the Parent / relation task-picker popover, drag-resizable. */
 	taskPickerWidth: number;
 	taskPickerHeight: number;
@@ -87,6 +89,7 @@ export const DEFAULT_SETTINGS: VertexFlowSettings = {
 	timelineLeftCollapsed: false,
 	timelineLowerHeight: 200,
 	timelineLowerCollapsed: false,
+	calendarUnscheduledCollapsed: false,
 	taskPickerWidth: 380,
 	taskPickerHeight: 360,
 	helpSidebarWidth: 240,

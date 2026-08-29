@@ -36,19 +36,43 @@ export function TaskRowContent({
 	snapshot,
 	taxonomies,
 	hiddenFields,
+	dense = false,
 }: {
 	task: Task;
 	snapshot: WorkspaceSnapshot;
 	taxonomies: WorkspaceTaxonomies;
 	/** Fields this view hides (§8.4). Omitted (relations lists, pickers) shows all. */
 	hiddenFields?: readonly TaskField[];
+	/**
+	 * Compact single-line render for tight containers (Calendar day chips):
+	 * status dot + title only, no ID and no trailing meta cluster. The
+	 * `hiddenFields` list still applies to whatever a caller chooses to show.
+	 */
+	dense?: boolean;
 }) {
 	const off = (field: TaskField) => hiddenFields?.includes(field) ?? false;
 
 	const scope = scopeOf(snapshot);
-	const progress = off("progress")
-		? emptyProgress()
-		: subtaskProgress(scope, task, taxonomies.status);
+	const progress =
+		dense || off("progress")
+			? emptyProgress()
+			: subtaskProgress(scope, task, taxonomies.status);
+
+	if (dense) {
+		return (
+			<>
+				<StatusDot taxonomies={taxonomies} status={task.status} />
+				<span className="vf-row-title">
+					{task.parent && (
+						<span className="vf-subtask-marker" title="Sub-task">
+							↳
+						</span>
+					)}
+					{task.title}
+				</span>
+			</>
+		);
+	}
 
 	return (
 		<>

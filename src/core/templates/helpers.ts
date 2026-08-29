@@ -110,6 +110,7 @@ export function makeView(
 		columns: { collapsed: [], hidden: [] },
 		emptyColumnBehavior: "show-normal",
 		hiddenFields: [],
+		calendarDateField: "dueDate",
 	};
 }
 

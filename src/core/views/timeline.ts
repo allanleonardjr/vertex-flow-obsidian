@@ -62,7 +62,8 @@ export type RangeBar = Extract<Bar, { kind: "range" }>;
 // Day arithmetic
 // ---------------------------------------------------------------------------
 
-const MS_PER_DAY = 86_400_000;
+/** Milliseconds in one UTC day. Shared with `calendar.ts`'s month arithmetic. */
+export const MS_PER_DAY = 86_400_000;
 
 /**
  * Day numbers are clamped to a four-digit-year window so every result still

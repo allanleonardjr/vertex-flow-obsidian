@@ -201,6 +201,7 @@ function labelView(
 		columns: { collapsed: [], hidden: [] },
 		emptyColumnBehavior: "show-normal",
 		hiddenFields: [],
+		calendarDateField: "dueDate",
 	};
 }
 
@@ -221,5 +222,6 @@ export function projectView(project: Project): SavedView {
 		columns: { collapsed: [], hidden: [] },
 		emptyColumnBehavior: "show-normal",
 		hiddenFields: [],
+		calendarDateField: "dueDate",
 	};
 }

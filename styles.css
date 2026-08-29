@@ -3723,3 +3723,283 @@ body.vf-bar-dragging .vf-timeline-bar {
   pointer-events: none;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
+
+/* ------------------------------------------------------------------ *
+ * Calendar (month grid) view (§8.1)                                   *
+ * ------------------------------------------------------------------ */
+
+.vf-calendar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.vf-calendar-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--vf-border);
+}
+
+.vf-calendar-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.vf-calendar-month {
+  min-width: 9.5em;
+  padding: 0 4px;
+  font-weight: 600;
+  font-size: var(--font-ui-small);
+  text-align: left;
+}
+
+.vf-calendar-datefield {
+  display: inline-flex;
+  gap: 1px;
+}
+
+.vf-calendar-datefield-opt {
+  padding: 3px 8px;
+  border: none !important;
+  border-radius: 4px;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+}
+
+.vf-calendar-datefield-opt:hover {
+  background: var(--background-modifier-hover) !important;
+}
+
+.vf-calendar-datefield-opt.is-on {
+  color: var(--text-accent);
+  font-weight: 500;
+  background: var(--background-modifier-hover) !important;
+}
+
+/* One scroll container holds the weekday header and the grid, so the two
+   share an inner width and their columns always line up. */
+.vf-calendar-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.vf-calendar-weekdays {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  background: var(--background-primary);
+  border-bottom: 1px solid var(--vf-border);
+}
+
+.vf-calendar-weekday {
+  padding: 4px 8px;
+  color: var(--vf-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-align: left;
+}
+
+.vf-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: minmax(104px, auto);
+  align-content: start;
+}
+
+.vf-calendar-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: 3px 4px 5px;
+  border-right: 1px solid var(--vf-border);
+  border-bottom: 1px solid var(--vf-border);
+  cursor: pointer;
+}
+
+.vf-calendar-cell:nth-child(7n) {
+  border-right: none;
+}
+
+.vf-calendar-cell.is-outside {
+  background: var(--background-secondary);
+}
+
+.vf-calendar-cell.is-outside .vf-calendar-daynum {
+  opacity: 0.45;
+}
+
+.vf-calendar-cell.is-drag-target {
+  background: var(--background-modifier-hover);
+  box-shadow: inset 0 0 0 2px var(--interactive-accent);
+}
+
+.vf-calendar-daynum {
+  align-self: flex-start;
+  padding: 1px 5px;
+  color: var(--vf-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.vf-calendar-cell.is-today .vf-calendar-daynum {
+  min-width: 20px;
+  border-radius: 999px;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  font-weight: 600;
+  text-align: center;
+}
+
+.vf-calendar-cell-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.vf-cal-chip {
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-start !important;
+  gap: 5px;
+  width: 100%;
+  padding: 2px 5px !important;
+  border: none !important;
+  border-radius: 4px;
+  background: var(--background-secondary) !important;
+  box-shadow: none !important;
+  color: var(--text-normal);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: grab;
+}
+
+.vf-cal-chip .vf-row-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vf-cal-chip:hover {
+  background: var(--background-modifier-hover) !important;
+}
+
+.vf-cal-chip.is-focused,
+.vf-cal-chip.is-selected {
+  color: var(--text-accent);
+  box-shadow: inset 0 0 0 1px var(--interactive-accent) !important;
+}
+
+.vf-cal-chip.is-archived {
+  opacity: 0.55;
+}
+
+.vf-cal-chip.is-dragging {
+  opacity: 0.4;
+}
+
+.vf-cal-more {
+  align-self: flex-start;
+  padding: 1px 5px !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--vf-muted);
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.vf-cal-more:hover {
+  color: var(--text-accent);
+  background: var(--background-modifier-hover) !important;
+}
+
+.vf-calendar-more-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.vf-calendar-more-head {
+  padding: 2px 5px 4px;
+  color: var(--vf-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Unscheduled drawer — visually consistent with the Timeline lower pane. */
+.vf-calendar-unscheduled {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 40%;
+  border-top: 1px solid var(--vf-border);
+  overflow: hidden;
+}
+
+.vf-calendar-unscheduled.is-collapsed {
+  max-height: none;
+}
+
+.vf-calendar-unscheduled-head {
+  flex: none;
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-start !important;
+  gap: 6px;
+  width: 100%;
+  height: 28px;
+  padding: 0 12px !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: var(--background-secondary) !important;
+  box-shadow: none !important;
+  color: var(--vf-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+.vf-calendar-unscheduled-head:hover {
+  background: var(--background-modifier-hover) !important;
+}
+
+.vf-calendar-unscheduled-hint {
+  margin-left: 8px;
+  text-transform: none;
+  letter-spacing: 0;
+  opacity: 0.7;
+}
+
+.vf-calendar-unscheduled-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.vf-calendar-unscheduled-row {
+  cursor: grab;
+}
+
+.vf-calendar-unscheduled-row.is-dragging {
+  opacity: 0.4;
+}

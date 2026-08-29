@@ -34,6 +34,7 @@ export function LayoutToggle({
 		{ value: "list", label: "List", icon: "☰" },
 		{ value: "board", label: "Board", icon: "▦" },
 		{ value: "timeline", label: "Timeline", icon: "▤" },
+		{ value: "calendar", label: "Calendar", icon: "▥" },
 	];
 	return (
 		<div className="vf-layout-toggle" role="group" aria-label="Layout">

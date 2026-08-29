@@ -15,55 +15,9 @@ import {
 	type Bar,
 	type RangeBar,
 } from "../../src/core/views/timeline";
-import { emptyRelations, type Project, type Task } from "../../src/core/types";
+import { project, task } from "./fixtures";
 
 /* ----------------------------------------------------------- fixtures ----- */
-
-function task(partial: Partial<Task>): Task {
-	return {
-		type: "task",
-		id: "TSK-1",
-		title: "T",
-		taskType: null,
-		status: "todo",
-		priority: null,
-		rank: "0|hzzzzz:",
-		project: null,
-		parent: null,
-		assignee: null,
-		estimate: null,
-		labels: [],
-		startDate: null,
-		dueDate: null,
-		archived: false,
-		archivedAt: null,
-		relations: emptyRelations(),
-		createdAt: "2026-01-01T00:00:00Z",
-		updatedAt: "2026-01-01T00:00:00Z",
-		path: "W/Tasks/TSK-1",
-		mentions: [],
-		...partial,
-	};
-}
-
-function project(partial: Partial<Project>): Project {
-	return {
-		type: "project",
-		title: "P",
-		status: "in-progress",
-		priority: null,
-		labels: [],
-		startDate: null,
-		dueDate: null,
-		owner: null,
-		archived: false,
-		archivedAt: null,
-		createdAt: "2026-01-01T00:00:00Z",
-		updatedAt: "2026-01-01T00:00:00Z",
-		path: "W/Projects/P",
-		...partial,
-	};
-}
 
 const range = (start: string, end: string): RangeBar => ({
 	kind: "range",

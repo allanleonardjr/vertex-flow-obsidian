@@ -189,8 +189,9 @@ export function ViewControls({
 
 			<div className="vf-view-bar">
 				<LayoutToggle view={view} onChange={editView} />
-				{/* The timeline ignores grouping entirely, so its control is hidden. */}
-				{view.viewType !== "timeline" && (
+				{/* Timeline and Calendar ignore grouping entirely (a day grid has no
+				    columns to group), so the control is hidden for both. */}
+				{view.viewType !== "timeline" && view.viewType !== "calendar" && (
 					<>
 						<span className="vf-bar-divider" />
 						<GroupChip view={view} onChange={editView} />

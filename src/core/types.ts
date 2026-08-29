@@ -245,10 +245,10 @@ export interface WorkspaceConfig {
 // ---------------------------------------------------------------------------
 
 /**
- * List and Board are v1; Timeline (Gantt) follows (§8.1). Calendar and graph
- * are still phased in later.
+ * List and Board are v1; Timeline (Gantt) and Calendar follow (§8.1). The graph
+ * view is still phased in later.
  */
-export type ViewType = "list" | "board" | "timeline";
+export type ViewType = "list" | "board" | "timeline" | "calendar";
 
 export type GroupByField =
 	| "none"
@@ -322,6 +322,24 @@ export interface ViewTimelineState {
 }
 
 /**
+ * Per-session Calendar chrome: which month the grid is showing.
+ *
+ * Persisted to `_views.md` but, like `ViewTimelineState`, deliberately **not**
+ * part of `ViewDefinition` (§4.6) — paging between months writes straight
+ * through and never marks the view unsaved. Always normalised to the 1st of the
+ * month (`startOfMonth`) whenever it's written, so `visibleMonth` has one
+ * canonical representation. `null` means "not set" — the view falls back to the
+ * month containing today.
+ *
+ * The date field the grid buckets by is *not* here — that's `calendarDateField`
+ * on `SavedView`, which is definitional (it changes what the view shows) and
+ * flows through the normal draft/Save cycle.
+ */
+export interface ViewCalendarState {
+	visibleMonth: IsoDate | null;
+}
+
+/**
  * Task fields a Saved View can hide from its rows/cards (§8.4).
  *
  * Status icon, Task ID and Task title are mandatory and never members here.
@@ -360,11 +378,23 @@ export interface SavedView {
 	/** Task fields hidden from this view's rows/cards (§8.4); `[]` shows all. */
 	hiddenFields: TaskField[];
 	/**
+	 * Which date field the Calendar view buckets tasks by. Definitional (it
+	 * changes what the view shows), so it participates in `ViewDefinition` and
+	 * the draft/Save cycle — not furniture like `calendar` below.
+	 */
+	calendarDateField: "dueDate" | "startDate";
+	/**
 	 * Timeline zoom/scroll chrome — present only once the view has been opened
 	 * as a timeline and panned or zoomed. Excluded from `ViewDefinition`, like
 	 * `columns`.
 	 */
 	timeline?: ViewTimelineState;
+	/**
+	 * Calendar visible-month chrome — present only once the view has been opened
+	 * as a calendar and paged off its default month. Excluded from
+	 * `ViewDefinition`, like `columns` and `timeline`.
+	 */
+	calendar?: ViewCalendarState;
 }
 
 /**
@@ -373,8 +403,8 @@ export interface SavedView {
  * This is the unit the text query language round-trips (`core/query`) and the
  * unit `useViewDraft` compares to decide whether a view is unsaved — one
  * definition of "the same view" rather than two that can drift. `name`, `icon`
- * and `id` are identity; `columns` and `timeline` are per-session furniture
- * that writes straight through to disk.
+ * and `id` are identity; `columns`, `timeline` and `calendar` are per-session
+ * furniture that writes straight through to disk.
  */
 export type ViewDefinition = Pick<
 	SavedView,
@@ -385,6 +415,7 @@ export type ViewDefinition = Pick<
 	| "sortDirection"
 	| "emptyColumnBehavior"
 	| "hiddenFields"
+	| "calendarDateField"
 >;
 
 // ---------------------------------------------------------------------------

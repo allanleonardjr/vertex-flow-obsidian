@@ -6,14 +6,17 @@
  * shared across a synced vault, so an exploratory filter shouldn't silently
  * rewrite the view everyone else opens — the save is explicit.
  *
- * Column collapse/hide and the timeline's zoom/scroll are the deliberate
- * exceptions: transient view chrome rather than part of the view's definition,
- * so they write through immediately and never count as "unsaved changes".
+ * Column collapse/hide, the timeline's zoom/scroll, and the calendar's visible
+ * month are the deliberate exceptions: transient view chrome rather than part
+ * of the view's definition, so they write through immediately and never count
+ * as "unsaved changes". (The calendar's *date field* is definitional and does
+ * go through the draft.)
  */
 
 import { useCallback, useEffect, useState } from "react";
 import type {
 	SavedView,
+	ViewCalendarState,
 	ViewColumnState,
 	ViewTimelineState,
 	WorkspaceSnapshot,
@@ -45,6 +48,8 @@ export interface ViewDraft {
 	setColumns: (columns: ViewColumnState) => void;
 	/** Persist the timeline's zoom/scroll straight to disk, bypassing the draft. */
 	setTimeline: (timeline: ViewTimelineState) => void;
+	/** Persist the calendar's visible month straight to disk, bypassing the draft. */
+	setCalendar: (calendar: ViewCalendarState) => void;
 	/** Write the draft over the saved view. */
 	save: () => void;
 	/** Throw the draft away. */
@@ -67,7 +72,12 @@ export function useViewDraft(
 	// or zooming the timeline while a draft is pending isn't reverted when the
 	// draft is saved or discarded.
 	const effective = draft
-		? { ...draft, columns: view.columns, timeline: view.timeline }
+		? {
+				...draft,
+				columns: view.columns,
+				timeline: view.timeline,
+				calendar: view.calendar,
+			}
 		: view;
 	const dirty = draft != null && definitionOf(draft) !== definitionOf(view);
 
@@ -83,13 +93,32 @@ export function useViewDraft(
 		[writeView, view],
 	);
 
+	const setCalendar = useCallback(
+		(calendar: ViewCalendarState) => writeView({ ...view, calendar }),
+		[writeView, view],
+	);
+
 	const save = useCallback(() => {
 		if (!draft) return;
-		writeView({ ...draft, columns: view.columns, timeline: view.timeline });
+		writeView({
+			...draft,
+			columns: view.columns,
+			timeline: view.timeline,
+			calendar: view.calendar,
+		});
 		setDraft(null);
-	}, [draft, writeView, view.columns, view.timeline]);
+	}, [draft, writeView, view.columns, view.timeline, view.calendar]);
 
 	const reset = useCallback(() => setDraft(null), []);
 
-	return { effective, dirty, edit, setColumns, setTimeline, save, reset };
+	return {
+		effective,
+		dirty,
+		edit,
+		setColumns,
+		setTimeline,
+		setCalendar,
+		save,
+		reset,
+	};
 }

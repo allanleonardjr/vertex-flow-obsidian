@@ -14,6 +14,7 @@ import type { SavedView, ViewDefinition, ViewType } from "../types";
 export function layoutIcon(viewType: ViewType): string {
 	if (viewType === "board") return "columns-3";
 	if (viewType === "timeline") return "chart-gantt";
+	if (viewType === "calendar") return "calendar";
 	return "list";
 }
 
@@ -34,6 +35,7 @@ export const DEFAULT_DEFINITION: ViewDefinition = {
 	sortDirection: DEFAULT_SORT_DIRECTION,
 	emptyColumnBehavior: "show-normal",
 	hiddenFields: [],
+	calendarDateField: "dueDate",
 };
 
 function view(partial: Partial<SavedView> & Pick<SavedView, "id" | "name">): SavedView {

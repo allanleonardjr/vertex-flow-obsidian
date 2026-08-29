@@ -79,6 +79,8 @@ describe("round-trip (Invariant A)", () => {
 		["stale taxonomy id", withFilters({ status: ["long-gone"] })],
 		["stale person", withFilters({ assignee: ["ghost"] })],
 		["board layout", def({ viewType: "board" })],
+		["calendar layout", def({ viewType: "calendar" })],
+		["calendar by start date", def({ viewType: "calendar", calendarDateField: "startDate" })],
 		["grouping", def({ groupBy: "priority" })],
 		["sorting", def({ sortBy: "dueDate" })],
 		["descending", def({ sortBy: "dueDate", sortDirection: "desc" })],
@@ -128,8 +130,11 @@ describe("round-trip (Invariant A)", () => {
 			expectRoundTrip(def({ sortBy }));
 			expectRoundTrip(def({ sortBy, sortDirection: "desc" }));
 		}
-		for (const viewType of ["list", "board", "timeline"] as const) {
+		for (const viewType of ["list", "board", "timeline", "calendar"] as const) {
 			expectRoundTrip(def({ viewType }));
+		}
+		for (const calendarDateField of ["dueDate", "startDate"] as const) {
+			expectRoundTrip(def({ viewType: "calendar", calendarDateField }));
 		}
 		for (const field of TASK_FIELDS) {
 			expectRoundTrip(def({ hiddenFields: [field] }));
@@ -246,8 +251,8 @@ describe("canonicalisation", () => {
 
 	it("viewDefinition drops identity and column state", () => {
 		expect(Object.keys(viewDefinition(defaultViews()[0])).sort()).toEqual([
-			"emptyColumnBehavior", "filters", "groupBy", "hiddenFields",
-			"sortBy", "sortDirection", "viewType",
+			"calendarDateField", "emptyColumnBehavior", "filters", "groupBy",
+			"hiddenFields", "sortBy", "sortDirection", "viewType",
 		]);
 	});
 

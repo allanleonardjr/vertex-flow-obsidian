@@ -25,6 +25,7 @@ import {
 } from "../selection";
 import { useTabs } from "../tabs-context";
 import { BoardView } from "./BoardView";
+import { CalendarView } from "./CalendarView";
 import { ListView } from "./ListView";
 import { TimelineView } from "./TimelineView";
 import { ViewControls } from "./ViewControls";
@@ -103,6 +104,12 @@ export function TaskViewport({
 		if (effective.viewType === "timeline") {
 			const { scheduled, unscheduled } = partitionScheduled(evaluated.tasks);
 			return [[...scheduled, ...unscheduled].map((task) => task.path)];
+		}
+
+		// Calendar renders on a day grid, not a linear column — j/k just walks
+		// the filtered+sorted list, scheduled and unscheduled alike.
+		if (effective.viewType === "calendar") {
+			return [evaluated.tasks.map((task) => task.path)];
 		}
 
 		const visible = evaluated.groups.filter((group) => !group.hidden);
@@ -205,6 +212,15 @@ export function TaskViewport({
 					evaluated={evaluated}
 					taxonomies={taxonomies}
 					onTimelineChange={draft.setTimeline}
+				/>
+			) : effective.viewType === "calendar" ? (
+				<CalendarView
+					snapshot={snapshot}
+					view={effective}
+					evaluated={evaluated}
+					taxonomies={taxonomies}
+					onCalendarChange={draft.setCalendar}
+					onChange={draft.edit}
 				/>
 			) : effective.viewType === "board" ? (
 				<BoardView

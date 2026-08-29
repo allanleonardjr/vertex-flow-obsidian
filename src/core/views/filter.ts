@@ -207,6 +207,7 @@ export function viewDefinition(view: SavedView): ViewDefinition {
 		sortDirection: view.sortDirection,
 		emptyColumnBehavior: view.emptyColumnBehavior,
 		hiddenFields: view.hiddenFields,
+		calendarDateField: view.calendarDateField,
 	};
 }
 
@@ -221,6 +222,7 @@ export function canonicalizeDefinition(
 		sortDirection: definition.sortDirection,
 		emptyColumnBehavior: definition.emptyColumnBehavior,
 		hiddenFields: canonicalizeHiddenFields(definition.hiddenFields),
+		calendarDateField: definition.calendarDateField,
 	};
 }
 

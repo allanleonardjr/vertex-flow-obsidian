@@ -126,6 +126,16 @@ export const LAYOUT_VALUES: Record<ViewType, EnumValueSpec> = {
 	list: { token: "list", aliases: [] },
 	board: { token: "board", aliases: ["kanban"] },
 	timeline: { token: "timeline", aliases: ["gantt"] },
+	calendar: { token: "calendar", aliases: ["cal"] },
+};
+
+/** Calendar-only: which date field the month grid buckets by (`date:` clause). */
+export const DATE_FIELD_VALUES: Record<
+	"dueDate" | "startDate",
+	EnumValueSpec
+> = {
+	dueDate: { token: "due", aliases: ["duedate", "due-date"] },
+	startDate: { token: "start", aliases: ["startdate", "start-date"] },
 };
 
 export const EMPTY_VALUES: Record<EmptyColumnBehavior, EnumValueSpec> = {
@@ -240,6 +250,13 @@ export const LAYOUT_BY_TOKEN = indexBy(
 	Object.entries(LAYOUT_VALUES) as [ViewType, EnumValueSpec][],
 ) as Map<string, ViewType>;
 
+export const DATE_FIELD_BY_TOKEN = indexBy(
+	Object.entries(DATE_FIELD_VALUES) as [
+		"dueDate" | "startDate",
+		EnumValueSpec,
+	][],
+) as Map<string, "dueDate" | "startDate">;
+
 export const EMPTY_BY_TOKEN = indexBy(
 	Object.entries(EMPTY_VALUES) as [EmptyColumnBehavior, EnumValueSpec][],
 ) as Map<string, EmptyColumnBehavior>;
@@ -256,6 +273,7 @@ export const ALL_FIELD_TOKENS: readonly string[] = [
 	"layout",
 	"empty",
 	"hide",
+	"date",
 	"is",
 	"show",
 	"include",

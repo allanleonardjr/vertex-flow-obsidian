@@ -25,6 +25,7 @@ import { DEFAULT_DEFINITION } from "../views/defaults";
 import type { QueryContext } from "./context";
 import {
 	ALL_FIELD_TOKENS,
+	DATE_FIELD_BY_TOKEN,
 	EMPTY_BY_TOKEN,
 	FIELD_BY_TOKEN,
 	FILTER_FIELDS,
@@ -88,6 +89,7 @@ export function parseQuery(
 	let emptyColumnBehavior: EmptyColumnBehavior =
 		DEFAULT_DEFINITION.emptyColumnBehavior;
 	const hiddenFields: TaskField[] = [...DEFAULT_DEFINITION.hiddenFields];
+	let calendarDateField = DEFAULT_DEFINITION.calendarDateField;
 
 	const seen = new Set<string>();
 
@@ -173,7 +175,13 @@ export function parseQuery(
 
 		/* -- presentation enums -- */
 
-		if (field === "group" || field === "sort" || field === "layout" || field === "empty") {
+		if (
+			field === "group" ||
+			field === "sort" ||
+			field === "layout" ||
+			field === "empty" ||
+			field === "date"
+		) {
 			const value = soleValue(token);
 			if (!value) continue;
 			noteDuplicate(field, token.span);
@@ -202,6 +210,15 @@ export function parseQuery(
 				const match = LAYOUT_BY_TOKEN.get(raw);
 				if (!match) fail("unknown-value", `"${raw}" isn't a layout`, value.span);
 				else viewType = match;
+			} else if (field === "date") {
+				const match = DATE_FIELD_BY_TOKEN.get(raw);
+				if (!match) {
+					fail(
+						"unknown-value",
+						`"${raw}" isn't a calendar date field`,
+						value.span,
+					);
+				} else calendarDateField = match;
 			} else {
 				const match = EMPTY_BY_TOKEN.get(raw);
 				if (!match) {
@@ -278,6 +295,7 @@ export function parseQuery(
 		sortDirection,
 		emptyColumnBehavior,
 		hiddenFields,
+		calendarDateField,
 	});
 
 	return {

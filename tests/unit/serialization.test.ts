@@ -581,12 +581,59 @@ describe("parseViews", () => {
 
 	it("falls back on unknown enum values and reports them", () => {
 		const { value, issues } = parseViews({
-			views: [{ id: "v", viewType: "calendar", groupBy: "phase", sortBy: "vibes" }],
+			views: [{ id: "v", viewType: "kanban-x", groupBy: "phase", sortBy: "vibes" }],
 		});
 		expect(value[0].viewType).toBe("list");
 		expect(value[0].groupBy).toBe("none");
 		expect(value[0].sortBy).toBe("rank");
 		expect(issues).toHaveLength(3);
+	});
+
+	it("accepts and preserves the calendar layout", () => {
+		const { value, issues } = parseViews({
+			views: [{ id: "v", name: "V", viewType: "calendar" }],
+		});
+		expect(issues).toEqual([]);
+		expect(value[0].viewType).toBe("calendar");
+		// The date field defaults, and grouping falls to "none" like any non-board.
+		expect(value[0].calendarDateField).toBe("dueDate");
+		expect(value[0].groupBy).toBe("none");
+		expect(parseViews(serializeViews(value)).value).toEqual(value);
+	});
+
+	it("parses calendarDateField and the calendar chrome block, omitting both at the default", () => {
+		const { value, issues } = parseViews({
+			views: [
+				{
+					id: "a",
+					name: "A",
+					viewType: "calendar",
+					calendarDateField: "startDate",
+					calendar: { visibleMonth: "2026-08-01" },
+				},
+				{ id: "b", name: "B", viewType: "calendar" },
+			],
+		});
+		expect(issues).toEqual([]);
+		expect(value[0].calendarDateField).toBe("startDate");
+		expect(value[0].calendar).toEqual({ visibleMonth: "2026-08-01" });
+		expect(value[1].calendarDateField).toBe("dueDate");
+		expect(value[1].calendar).toBeUndefined();
+
+		const serialized = serializeViews(value) as {
+			views: Record<string, unknown>[];
+		};
+		expect(serialized.views[1]).not.toHaveProperty("calendarDateField");
+		expect(serialized.views[1]).not.toHaveProperty("calendar");
+		expect(parseViews(serialized).value).toEqual(value);
+	});
+
+	it("falls back on an unknown calendarDateField and reports it", () => {
+		const { value, issues } = parseViews({
+			views: [{ id: "v", name: "V", calendarDateField: "whenever" }],
+		});
+		expect(value[0].calendarDateField).toBe("dueDate");
+		expect(issues).toHaveLength(1);
 	});
 
 	it("defaults a board to grouping by status", () => {
