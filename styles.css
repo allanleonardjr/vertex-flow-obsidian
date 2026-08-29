@@ -28,6 +28,35 @@
   font-size: var(--font-ui-small);
 }
 
+/*
+ * Interface text size (Settings → Vertex Flow → Interface text size).
+ *
+ * `--vf-text-scale` is set by a `<body>` class and multiplies the plugin's
+ * three UI-font tokens. It's redefined only on the plugin's own roots — its
+ * own subtree plus every element it portals to <body> (dialogs, autocomplete,
+ * drag layer, task picker) — so the surrounding Obsidian UI is untouched.
+ * `*-base` captures the theme's own values first, so a theme that customises
+ * them still scales from the right starting point.
+ */
+body {
+  --vf-ui-smaller-base: var(--font-ui-smaller);
+  --vf-ui-small-base: var(--font-ui-small);
+  --vf-ui-medium-base: var(--font-ui-medium);
+}
+
+body.vf-text-cozy { --vf-text-scale: 1.12; }
+body.vf-text-comfortable { --vf-text-scale: 1.25; }
+
+.vertex-flow,
+.vf-drag-layer,
+.vf-autocomplete,
+.vf-editor-backdrop,
+.vf-task-menu {
+  --font-ui-smaller: calc(var(--vf-ui-smaller-base) * var(--vf-text-scale, 1));
+  --font-ui-small: calc(var(--vf-ui-small-base) * var(--vf-text-scale, 1));
+  --font-ui-medium: calc(var(--vf-ui-medium-base) * var(--vf-text-scale, 1));
+}
+
 .vf-shell {
   display: flex;
   height: 100%;

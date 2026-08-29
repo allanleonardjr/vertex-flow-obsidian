@@ -14,6 +14,7 @@ import { Mutations } from "./obsidian/mutations";
 import { NoteIO } from "./obsidian/note-io";
 import { VertexFlowSettingTab } from "./settings/SettingTab";
 import { DEFAULT_SETTINGS, type VertexFlowSettings } from "./settings/types";
+import { applyUiTextSize, clearUiTextSize } from "./settings/ui-text-size";
 import { VERTEX_VIEW_TYPE, VertexFlowView } from "./ui/view";
 
 export default class VertexFlowPlugin extends Plugin {
@@ -27,6 +28,7 @@ export default class VertexFlowPlugin extends Plugin {
 
 	override async onload(): Promise<void> {
 		await this.loadSettings();
+		applyUiTextSize(this.settings.uiTextSize);
 
 		this.io = new NoteIO(this.app);
 		this.index = new VaultIndex(this.app, this.io);
@@ -54,7 +56,9 @@ export default class VertexFlowPlugin extends Plugin {
 	}
 
 	override onunload(): void {
-		// Obsidian detaches registered views automatically; nothing else to undo.
+		// Obsidian detaches registered views automatically; the one bit of
+		// global state we add is the text-size body class.
+		clearUiTextSize();
 	}
 
 	private registerCommands(): void {

@@ -10,6 +10,8 @@
 
 import { App, PluginSettingTab, Setting } from "obsidian";
 import type VertexFlowPlugin from "../main";
+import type { UiTextSize } from "./types";
+import { applyUiTextSize } from "./ui-text-size";
 
 export class VertexFlowSettingTab extends PluginSettingTab {
 	constructor(
@@ -22,6 +24,27 @@ export class VertexFlowSettingTab extends PluginSettingTab {
 	override display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
+
+		new Setting(containerEl)
+			.setName("Interface text size")
+			.setDesc(
+				"Vertex Flow ships at a compact, Linear-style density. Pick a " +
+					"larger size to scale the whole plugin UI up.",
+			)
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOptions({
+						compact: "Compact",
+						cozy: "Cozy",
+						comfortable: "Comfortable",
+					})
+					.setValue(this.plugin.settings.uiTextSize)
+					.onChange(async (value) => {
+						this.plugin.settings.uiTextSize = value as UiTextSize;
+						applyUiTextSize(this.plugin.settings.uiTextSize);
+						await this.plugin.saveSettings();
+					}),
+			);
 
 		new Setting(containerEl)
 			.setName("Open task notes in Vertex Flow")

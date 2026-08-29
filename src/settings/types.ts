@@ -6,9 +6,18 @@
  * holds per-install UI state that would be meaningless to sync or diff.
  */
 
+/**
+ * Interface text density. `compact` is the built-in Linear-style baseline;
+ * the larger tiers scale the plugin's `--font-ui-*` tokens up by a fixed
+ * factor (see `--vf-text-scale` in `styles.css`).
+ */
+export type UiTextSize = "compact" | "cozy" | "comfortable";
+
 export interface VertexFlowSettings {
 	/** Root of the workspace currently open in the main view. */
 	activeWorkspaceRoot: string | null;
+	/** Interface text size — scales the whole plugin UI, not per-workspace. */
+	uiTextSize: UiTextSize;
 	/** The "Show archived" toggle (§7.7) — a session preference, not a filter. */
 	showArchived: boolean;
 	/** Where new workspaces are offered by default. */
@@ -45,6 +54,7 @@ export interface VertexFlowSettings {
 
 export const DEFAULT_SETTINGS: VertexFlowSettings = {
 	activeWorkspaceRoot: null,
+	uiTextSize: "compact",
 	showArchived: false,
 	defaultWorkspaceFolder: "Vertex Flow",
 	editorRailWidth: 264,
