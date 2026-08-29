@@ -32,6 +32,8 @@ import {
 } from "../core/serialization/entities";
 import { serializeTask } from "../core/serialization/task";
 import { serializeViews } from "../core/serialization/views";
+import { serializeDashboards } from "../core/serialization/dashboards";
+import { duplicateWidget as cloneWidget } from "../core/dashboards";
 import { serializeWorkspace } from "../core/serialization/workspace";
 import {
 	addValue,
@@ -49,6 +51,8 @@ import { TAXONOMY_PALETTE } from "../core/taxonomy/defaults";
 import {
 	emptyRelations,
 	type Comment,
+	type DashboardConfig,
+	type DashboardWidget,
 	type Project,
 	type ProjectDocument,
 	type SavedView,
@@ -67,7 +71,13 @@ import {
 	type DeletionOutcome,
 	type DeletionPlan,
 } from "../core/hierarchy";
-import { FOLDERS, VaultIndex, VIEWS_NOTE, WORKSPACE_NOTE } from "./index-store";
+import {
+	DASHBOARDS_NOTE,
+	FOLDERS,
+	VaultIndex,
+	VIEWS_NOTE,
+	WORKSPACE_NOTE,
+} from "./index-store";
 import { NoteIO } from "./note-io";
 
 export interface NewTaskInput {
@@ -537,6 +547,120 @@ export class Mutations {
 			snapshot,
 			this.liveViews(snapshot).filter((v) => v.id !== id),
 		);
+	}
+
+	// -- Dashboards (§Dashboards Phase 1) ------------------------------------
+
+	/**
+	 * Write the whole dashboard list back to `_dashboards`, creating the note on
+	 * first use. Mirrors `saveViews` — the UI holds an in-memory draft and calls
+	 * this only on an explicit Save / Save As.
+	 */
+	async saveDashboards(
+		snapshot: WorkspaceSnapshot,
+		dashboards: DashboardConfig[],
+	): Promise<void> {
+		const path = joinPath(snapshot.workspace.root, DASHBOARDS_NOTE);
+		const file = this.io.getFile(path);
+		if (file) {
+			await this.io.replaceFrontmatter(file, serializeDashboards(dashboards));
+		} else {
+			await this.io.create(path, serializeDashboards(dashboards));
+		}
+		await this.index.rebuild();
+	}
+
+	/** Read the live dashboard list, so concurrent edits don't clobber. */
+	private liveDashboards(snapshot: WorkspaceSnapshot): DashboardConfig[] {
+		return (this.index.get(snapshot.workspace.root) ?? snapshot).dashboards;
+	}
+
+	async addDashboard(
+		snapshot: WorkspaceSnapshot,
+		dashboard: DashboardConfig,
+	): Promise<void> {
+		await this.saveDashboards(snapshot, [
+			...this.liveDashboards(snapshot),
+			dashboard,
+		]);
+	}
+
+	/** Replace one dashboard by id — the Save from the dashboard view. */
+	async updateDashboard(
+		snapshot: WorkspaceSnapshot,
+		dashboard: DashboardConfig,
+	): Promise<void> {
+		await this.saveDashboards(
+			snapshot,
+			this.liveDashboards(snapshot).map((d) =>
+				d.id === dashboard.id ? dashboard : d,
+			),
+		);
+	}
+
+	async deleteDashboard(
+		snapshot: WorkspaceSnapshot,
+		id: string,
+	): Promise<void> {
+		await this.saveDashboards(
+			snapshot,
+			this.liveDashboards(snapshot).filter((d) => d.id !== id),
+		);
+	}
+
+	/** Apply a widget-list transform to one dashboard and persist. */
+	private async mutateDashboardWidgets(
+		snapshot: WorkspaceSnapshot,
+		dashboardId: string,
+		transform: (widgets: DashboardWidget[]) => DashboardWidget[],
+	): Promise<void> {
+		const dashboards = this.liveDashboards(snapshot).map((d) =>
+			d.id === dashboardId ? { ...d, widgets: transform(d.widgets) } : d,
+		);
+		await this.saveDashboards(snapshot, dashboards);
+	}
+
+	async addWidget(
+		snapshot: WorkspaceSnapshot,
+		dashboardId: string,
+		widget: DashboardWidget,
+	): Promise<void> {
+		await this.mutateDashboardWidgets(snapshot, dashboardId, (widgets) => [
+			...widgets,
+			widget,
+		]);
+	}
+
+	async updateWidget(
+		snapshot: WorkspaceSnapshot,
+		dashboardId: string,
+		widget: DashboardWidget,
+	): Promise<void> {
+		await this.mutateDashboardWidgets(snapshot, dashboardId, (widgets) =>
+			widgets.map((w) => (w.id === widget.id ? widget : w)),
+		);
+	}
+
+	async deleteWidget(
+		snapshot: WorkspaceSnapshot,
+		dashboardId: string,
+		widgetId: string,
+	): Promise<void> {
+		await this.mutateDashboardWidgets(snapshot, dashboardId, (widgets) =>
+			widgets.filter((w) => w.id !== widgetId),
+		);
+	}
+
+	async duplicateWidget(
+		snapshot: WorkspaceSnapshot,
+		dashboardId: string,
+		widgetId: string,
+	): Promise<void> {
+		await this.mutateDashboardWidgets(snapshot, dashboardId, (widgets) => {
+			const source = widgets.find((w) => w.id === widgetId);
+			if (!source) return widgets;
+			return [...widgets, cloneWidget(source, widgets)];
+		});
 	}
 
 	// -- Projects -----------------------------------------------------------

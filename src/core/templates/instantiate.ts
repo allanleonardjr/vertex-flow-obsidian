@@ -193,7 +193,7 @@ export function instantiateTemplate(
 		root,
 		workspace,
 		notes,
-		snapshot: { workspace, tasks, projects, views },
+		snapshot: { workspace, tasks, projects, views, dashboards: [] },
 	};
 }
 

@@ -20,6 +20,7 @@ import {
 } from "../core/serialization/entities";
 import { parseTask } from "../core/serialization/task";
 import { parseViews } from "../core/serialization/views";
+import { parseDashboards } from "../core/serialization/dashboards";
 import { parseWorkspace } from "../core/serialization/workspace";
 import { detectPrefixCollisions } from "../core/ids";
 import {
@@ -34,6 +35,7 @@ import { NoteIO, withoutExtension } from "./note-io";
 
 export const WORKSPACE_NOTE = "_workspace";
 export const VIEWS_NOTE = "_views";
+export const DASHBOARDS_NOTE = "_dashboards";
 
 /** Folder names used when creating notes. Reading tolerates any layout. */
 export const FOLDERS = {
@@ -192,6 +194,7 @@ export class VaultIndex {
 				tasks: [],
 				projects: [],
 				views: [],
+				dashboards: [],
 			});
 			prefixEntries.push({
 				notePath: path,
@@ -225,6 +228,13 @@ export class VaultIndex {
 				const parsed = parseViews(this.io.readFrontmatter(file));
 				if (parsed.issues.length > 0) issues.set(path, parsed.issues);
 				snapshot.views = parsed.value;
+				continue;
+			}
+
+			if (base === DASHBOARDS_NOTE) {
+				const parsed = parseDashboards(this.io.readFrontmatter(file));
+				if (parsed.issues.length > 0) issues.set(path, parsed.issues);
+				snapshot.dashboards = parsed.value;
 				continue;
 			}
 

@@ -11,6 +11,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { BUILT_IN_VIEW_ID, layoutIcon, newView } from "../core/views";
+import { newDashboard, newDashboardId } from "../core/dashboards";
 import { isProjectTitleTaken } from "../core/serialization";
 import {
 	findTaxonomyUsage,
@@ -27,6 +28,7 @@ import { LabelDialog } from "./modals/LabelDialog";
 import { ReplaceValueDialog } from "./settings/ReplaceValueDialog";
 import { usePlugin, useSettingsWriter, useWorkspaces } from "./context";
 import { NamedIconDialog } from "./modals/NamedIconDialog";
+import { NameDialog } from "./dashboards/NameDialog";
 import { useTabs } from "./tabs-context";
 
 const MIN_WIDTH = 170;
@@ -84,6 +86,8 @@ export function Sidebar({
 						onWorkspaceTab={onWorkspaceTab}
 						onSelectView={onSelectView}
 					/>
+
+					<DashboardsSection snapshot={snapshot} />
 
 					<ProjectsSection snapshot={snapshot} />
 
@@ -563,6 +567,122 @@ function ViewsSection({
 						})
 					}
 					onClose={() => setDialog(null)}
+				/>
+			)}
+		</Section>
+	);
+}
+
+/* ------------------------------------------------------------- dashboards -- */
+
+function DashboardsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
+	const plugin = usePlugin();
+	const { activeTab, openDashboard } = useTabs();
+	const [menuId, setMenuId] = useState<string | null>(null);
+	const [renaming, setRenaming] = useState<string | null>(null);
+
+	const dashboards = [...snapshot.dashboards].sort((a, b) =>
+		a.name.localeCompare(b.name),
+	);
+	const activeDashboardId =
+		activeTab.kind === "dashboard" ? activeTab.dashboardId : null;
+	const renameTarget = dashboards.find((d) => d.id === renaming);
+
+	const create = () => {
+		const dashboard = newDashboard(newDashboardId(), "New dashboard");
+		void plugin.mutations
+			.addDashboard(snapshot, dashboard)
+			.then(() => openDashboard(dashboard.id));
+	};
+
+	const duplicate = (id: string) => {
+		const source = snapshot.dashboards.find((d) => d.id === id);
+		if (!source) return;
+		const copy = {
+			...source,
+			id: newDashboardId(),
+			name: `${source.name} copy`,
+			widgets: source.widgets.map((w) => ({ ...w })),
+		};
+		void plugin.mutations
+			.addDashboard(snapshot, copy)
+			.then(() => openDashboard(copy.id));
+	};
+
+	return (
+		<Section
+			id="dashboards"
+			title="Dashboards"
+			count={dashboards.length}
+			action={<AddButton title="New dashboard" onClick={create} />}
+		>
+			{dashboards.length === 0 ? (
+				<p className="vf-section-empty">No dashboards yet</p>
+			) : (
+				dashboards.map((dashboard) => (
+					<NavRow
+						key={dashboard.id}
+						label={dashboard.name}
+						icon="layout-dashboard"
+						variant="view"
+						active={activeDashboardId === dashboard.id}
+						onClick={() => openDashboard(dashboard.id)}
+						trailing={
+							<RowMenu
+								open={menuId === dashboard.id}
+								onToggle={() =>
+									setMenuId((m) => (m === dashboard.id ? null : dashboard.id))
+								}
+								onClose={() => setMenuId(null)}
+							>
+								<button
+									className="vf-menu-item"
+									onClick={() => {
+										setMenuId(null);
+										setRenaming(dashboard.id);
+									}}
+								>
+									Rename
+								</button>
+								<button
+									className="vf-menu-item"
+									onClick={() => {
+										setMenuId(null);
+										duplicate(dashboard.id);
+									}}
+								>
+									Duplicate
+								</button>
+								<button
+									className="vf-menu-item vf-menu-item-danger"
+									onClick={() => {
+										setMenuId(null);
+										void plugin.mutations.deleteDashboard(
+											snapshot,
+											dashboard.id,
+										);
+									}}
+								>
+									Delete
+								</button>
+							</RowMenu>
+						}
+					/>
+				))
+			)}
+
+			{renameTarget && (
+				<NameDialog
+					title="Rename dashboard"
+					initialName={renameTarget.name}
+					confirmLabel="Save"
+					onConfirm={(name) =>
+						void plugin.mutations.updateDashboard(snapshot, {
+							...renameTarget,
+							name,
+						})
+					}
+					onClose={() => setRenaming(null)}
 				/>
 			)}
 		</Section>

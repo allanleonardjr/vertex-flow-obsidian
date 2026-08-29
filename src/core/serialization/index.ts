@@ -3,5 +3,6 @@ export * from "./task";
 export * from "./entities";
 export * from "./workspace";
 export * from "./views";
+export * from "./dashboards";
 export * from "./comments";
 export * from "./description";

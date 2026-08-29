@@ -120,6 +120,15 @@ function TabRow({
 			</span>
 		);
 		label = `${view.name} - View`;
+	} else if (tab.kind === "dashboard") {
+		const dashboard = snapshot.dashboards.find((d) => d.id === tab.dashboardId);
+		if (!dashboard) return null;
+		icon = (
+			<span className="vf-tab-icon">
+				<Icon id="layout-dashboard" size={13} />
+			</span>
+		);
+		label = `${dashboard.name} - Dashboard`;
 	} else if (tab.kind === "label") {
 		const labelValue = getValue(
 			workspaceTaxonomies(snapshot.workspace).label,

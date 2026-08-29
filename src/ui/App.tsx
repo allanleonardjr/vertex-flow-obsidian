@@ -18,6 +18,7 @@ import { ProjectDetailView } from "./ProjectDetailView";
 import { TemplateGallery } from "./TemplateGallery";
 import { SelectionProvider, useSelection } from "./selection";
 import { ProjectsBrowseView } from "./browse/ProjectsBrowseView";
+import { DashboardView } from "./dashboards/DashboardView";
 import { Sidebar } from "./Sidebar";
 import { WorkspaceSettingsView } from "./settings/WorkspaceSettingsView";
 import { TabsProvider, useTabs } from "./tabs-context";
@@ -99,6 +100,11 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
 			snapshot.projects.some((p) => p.path === path),
 		);
 	}, [tabs, snapshot.projects]);
+	useEffect(() => {
+		tabs.pruneDashboards((id) =>
+			snapshot.dashboards.some((d) => d.id === id),
+		);
+	}, [tabs, snapshot.dashboards]);
 
 	// Escape closes whatever tab you're on (falling back to the pinned
 	// Board/List tab, which can never itself be closed); on that pinned tab,
@@ -152,6 +158,13 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
 					<HelpView />
 				) : tabs.activeTab.kind === "new-workspace" ? (
 					<TemplateGallery onClose={() => tabs.close("new-workspace")} />
+				) : tabs.activeTab.kind === "dashboard" ? (
+					<DashboardView
+						key={tabs.activeTab.dashboardId}
+						dashboardId={tabs.activeTab.dashboardId}
+						snapshot={snapshot}
+						context={active.context}
+					/>
 				) : tabs.activeTab.kind === "project" ? (
 					<ProjectDetailView
 						path={tabs.activeTab.path}

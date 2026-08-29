@@ -4003,3 +4003,277 @@ body.vf-bar-dragging .vf-timeline-bar {
 .vf-calendar-unscheduled-row.is-dragging {
   opacity: 0.4;
 }
+
+/* ======================================================================== *
+ *  Dashboards (§Dashboards Phase 1)
+ * ======================================================================== */
+
+/* -- react-grid-layout base (vendored; upstream css/styles.css, themed) --- */
+
+.vertex-flow .react-grid-layout {
+  position: relative;
+  transition: height 200ms ease;
+}
+.vertex-flow .react-grid-item {
+  transition: all 200ms ease;
+  transition-property: left, top, width, height;
+  box-sizing: border-box;
+}
+.vertex-flow .react-grid-item.cssTransforms {
+  transition-property: transform, width, height;
+}
+.vertex-flow .react-grid-item.resizing {
+  transition: none;
+  z-index: 3;
+  will-change: width, height;
+}
+.vertex-flow .react-grid-item.react-draggable-dragging {
+  transition: none;
+  z-index: 3;
+  will-change: transform;
+}
+.vertex-flow .react-grid-item.react-grid-placeholder {
+  background: var(--interactive-accent);
+  opacity: 0.18;
+  border-radius: var(--vf-radius);
+  transition-duration: 100ms;
+  z-index: 2;
+  user-select: none;
+}
+.vertex-flow .react-grid-item > .react-resizable-handle {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  right: 0;
+  bottom: 0;
+  cursor: se-resize;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.vertex-flow .react-grid-item:hover > .react-resizable-handle {
+  opacity: 1;
+}
+.vertex-flow .react-grid-item > .react-resizable-handle::after {
+  content: "";
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid var(--text-faint);
+  border-bottom: 2px solid var(--text-faint);
+}
+
+/* -- Shell --------------------------------------------------------------- */
+
+.vf-dash-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px 14px 24px;
+}
+
+.vf-dash-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 320px;
+}
+
+.vf-dash-header .vf-view-bar {
+  min-height: 30px;
+}
+
+/* -- Empty-grid add tile ----------------------------------------------- */
+
+.vf-dash-add-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 260px;
+  height: 180px;
+  padding: 0;
+  border: 2px dashed var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: transparent;
+  color: var(--vf-muted);
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+.vf-dash-add-tile:hover {
+  border-color: var(--interactive-accent);
+  color: var(--text-normal);
+}
+.vf-dash-add-tile-plus {
+  display: inline-flex;
+}
+
+/* -- Widget frame ----------------------------------------------------- */
+
+.vf-dash-grid-item {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.vf-dash-widget {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-primary);
+  overflow: hidden;
+}
+
+.vf-dash-widget-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 6px 6px 10px;
+  border-bottom: 1px solid var(--vf-border);
+  cursor: grab;
+}
+.vf-dash-widget-head:active {
+  cursor: grabbing;
+}
+.vf-dash-widget-head-spacer {
+  flex: 1;
+}
+
+.vf-dash-widget-title {
+  flex: 0 1 auto;
+  min-width: 2ch;
+  max-width: 100%;
+  border: none;
+  background: transparent;
+  box-shadow: none !important;
+  padding: 2px 4px;
+  font-size: var(--font-ui-small);
+  font-weight: 600;
+  color: var(--text-normal);
+  cursor: text;
+}
+.vf-dash-widget-title:hover {
+  background: var(--background-modifier-hover);
+  border-radius: 4px;
+}
+.vf-dash-widget-title:focus {
+  background: var(--background-primary);
+  outline: 1px solid var(--interactive-accent);
+  border-radius: 4px;
+}
+
+.vf-dash-widget-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.vf-dash-widget-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  padding: 6px;
+}
+
+.vf-dash-chart {
+  width: 100%;
+  height: 100%;
+}
+
+.vf-dash-widget-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  text-align: center;
+  padding: 8px;
+}
+
+/* -- KPI --------------------------------------------------------------- */
+
+.vf-dash-kpi {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+.vf-dash-kpi-value {
+  font-size: clamp(1.6rem, 6vw, 2.75rem);
+  font-weight: 700;
+  color: var(--text-normal);
+  line-height: 1;
+}
+
+/* -- Loading skeleton ------------------------------------------------- */
+
+.vf-dash-skeleton {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+.vf-dash-skeleton-tile {
+  height: 260px;
+  border-radius: var(--vf-radius);
+  background: linear-gradient(
+    90deg,
+    var(--background-secondary) 25%,
+    var(--background-modifier-hover) 37%,
+    var(--background-secondary) 63%
+  );
+  background-size: 400% 100%;
+  animation: vf-dash-shimmer 1.4s ease infinite;
+}
+@keyframes vf-dash-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+/* -- Widget config dialog ------------------------------------------- */
+
+.vf-widget-config {
+  width: min(460px, 92vw);
+}
+.vf-widget-config-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 14px;
+}
+.vf-widget-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+}
+.vf-widget-type.is-on {
+  border-color: var(--interactive-accent);
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+.vf-widget-config-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.vf-widget-config-fields .vf-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.vf-widget-config-fields .vf-field > span {
+  font-size: var(--font-ui-smaller);
+  color: var(--vf-muted);
+}

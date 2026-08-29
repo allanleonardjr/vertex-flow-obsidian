@@ -419,6 +419,161 @@ export type ViewDefinition = Pick<
 >;
 
 // ---------------------------------------------------------------------------
+// Dashboards (§Dashboards Phase 1)
+// ---------------------------------------------------------------------------
+
+/**
+ * The chart kinds a dashboard widget can be. `timeline` here is a chart type
+ * (cumulative area over time), unrelated to the Timeline/Gantt *view*.
+ */
+export type ChartType = "bar" | "line" | "pie" | "timeline" | "kpi";
+
+export const CHART_TYPES: readonly ChartType[] = [
+	"bar",
+	"line",
+	"pie",
+	"timeline",
+	"kpi",
+] as const;
+
+/** Discrete fields a bar/pie/line-grouping/kpi-scope can group or scope by. */
+export type DashboardGroupingField =
+	| "status"
+	| "priority"
+	| "taskType"
+	| "label"
+	| "assignee"
+	| "project";
+
+export const DASHBOARD_GROUPING_FIELDS: readonly DashboardGroupingField[] = [
+	"status",
+	"priority",
+	"taskType",
+	"label",
+	"assignee",
+	"project",
+] as const;
+
+/** X-axis fields a line/timeline chart can plot against. */
+export type DashboardTemporalField = "dueDate" | "startDate" | "createdAt";
+
+export const DASHBOARD_TEMPORAL_FIELDS: readonly DashboardTemporalField[] = [
+	"dueDate",
+	"startDate",
+	"createdAt",
+] as const;
+
+/** How a line/timeline chart buckets its temporal axis. */
+export type DashboardTimeBucket = "day" | "week" | "month";
+
+export const DASHBOARD_TIME_BUCKETS: readonly DashboardTimeBucket[] = [
+	"day",
+	"week",
+	"month",
+] as const;
+
+/**
+ * What a KPI widget measures. `count` is the task count; the two `estimate`
+ * aggregates sum/average the plain `estimate` number (§5.4 — the plugin does no
+ * other math on it).
+ */
+export type DashboardMetric = "count" | "estimateSum" | "estimateAvg";
+
+export const DASHBOARD_METRICS: readonly DashboardMetric[] = [
+	"count",
+	"estimateSum",
+	"estimateAvg",
+] as const;
+
+/**
+ * A single discrete predicate a KPI can be scoped to — e.g. `status === "done"`.
+ * `value` is a taxonomy id, `Person.id`, project link target, or the `NONE`
+ * sentinel; for `label` it matches tasks carrying that label.
+ */
+export interface DashboardScope {
+	field: DashboardGroupingField;
+	value: string;
+}
+
+export interface BarFieldMapping {
+	chartType: "bar";
+	groupBy: DashboardGroupingField;
+}
+
+export interface PieFieldMapping {
+	chartType: "pie";
+	groupBy: DashboardGroupingField;
+}
+
+export interface LineFieldMapping {
+	chartType: "line";
+	xField: DashboardTemporalField;
+	bucket: DashboardTimeBucket;
+	/** Optional secondary split into one series per discrete value. */
+	groupBy: DashboardGroupingField | null;
+}
+
+export interface TimelineFieldMapping {
+	chartType: "timeline";
+	xField: DashboardTemporalField;
+	bucket: DashboardTimeBucket;
+	groupBy: DashboardGroupingField | null;
+}
+
+export interface KpiFieldMapping {
+	chartType: "kpi";
+	metric: DashboardMetric;
+	/** Optional single discrete predicate narrowing which tasks are counted. */
+	scope: DashboardScope | null;
+}
+
+/**
+ * Shape depends on `chartType` — a discriminated union so an invalid
+ * chart-type/field combination is unrepresentable (the config popover derives
+ * its options from the compatibility matrix in `core/dashboards/compat`).
+ */
+export type DashboardFieldMapping =
+	| BarFieldMapping
+	| PieFieldMapping
+	| LineFieldMapping
+	| TimelineFieldMapping
+	| KpiFieldMapping;
+
+export interface DashboardWidgetLayout {
+	x: number;
+	y: number;
+	w: number;
+	h: number;
+}
+
+export interface DashboardWidget {
+	id: string;
+	chartType: ChartType;
+	/** User-editable; an auto-generated default until `titleIsCustom`. */
+	title: string;
+	/** True once the user has renamed it — auto-titles never overwrite it. */
+	titleIsCustom: boolean;
+	fieldMapping: DashboardFieldMapping;
+	layout: DashboardWidgetLayout;
+}
+
+export interface DashboardConfig {
+	id: string;
+	name: string;
+	widgets: DashboardWidget[];
+	/**
+	 * Dashboard-wide filter, applied once at the top-level data fetch (Phase 1 —
+	 * widgets have no independent filters). Reuses `ViewFilters` so the filter
+	 * bar shares the List/Board filter UI and the query engine wholesale.
+	 */
+	filters: ViewFilters;
+}
+
+export interface WorkspaceDashboards {
+	dashboards: DashboardConfig[];
+}
+
+// ---------------------------------------------------------------------------
 // Index snapshot
 // ---------------------------------------------------------------------------
 
@@ -431,6 +586,7 @@ export interface WorkspaceSnapshot {
 	tasks: Task[];
 	projects: Project[];
 	views: SavedView[];
+	dashboards: DashboardConfig[];
 }
 
 // ---------------------------------------------------------------------------

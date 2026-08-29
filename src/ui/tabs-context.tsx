@@ -32,6 +32,8 @@ export type Tab =
 	| { id: string; kind: "task"; path: string }
 	/** A user Saved View, opened from the sidebar. Closable. */
 	| { id: string; kind: "view"; viewId: string }
+	/** A dashboard, opened from the sidebar. Closable. */
+	| { id: string; kind: "dashboard"; dashboardId: string }
 	/** A label's tasks — a synthesised, never-persisted view. Closable. */
 	| { id: string; kind: "label"; labelId: string }
 	/** One project: a detail header above its tasks (synthesised view). Closable. */
@@ -54,6 +56,10 @@ function labelTabId(labelId: string): string {
 	return `label:${labelId}`;
 }
 
+function dashboardTabId(dashboardId: string): string {
+	return `dashboard:${dashboardId}`;
+}
+
 function projectTabId(path: string): string {
 	return `project:${path}`;
 }
@@ -71,6 +77,8 @@ export interface TabsApi {
 	openView: (viewId: string) => void;
 	/** Open (or reveal) a label's tasks as its own transient tab. */
 	openLabel: (labelId: string) => void;
+	/** Open (or reveal) a dashboard as its own tab. */
+	openDashboard: (dashboardId: string) => void;
 	/** Open (or reveal) a project's detail screen as its own transient tab. */
 	openProject: (path: string) => void;
 	/** Switch to the pinned Board/List tab without opening anything new. */
@@ -87,6 +95,8 @@ export interface TabsApi {
 	pruneViews: (existing: (viewId: string) => boolean) => void;
 	/** Drop label tabs whose label no longer exists. */
 	pruneLabels: (existing: (labelId: string) => boolean) => void;
+	/** Drop dashboard tabs whose dashboard no longer exists. */
+	pruneDashboards: (existing: (dashboardId: string) => boolean) => void;
 	/** Drop project tabs whose project no longer exists (deleted, or a workspace switch). */
 	pruneProjects: (existing: (path: string) => boolean) => void;
 }
@@ -157,6 +167,16 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			current.some((tab) => tab.id === id)
 				? current
 				: [...current, { id, kind: "project", path }],
+		);
+		setActiveId(id);
+	}, []);
+
+	const openDashboard = useCallback((dashboardId: string) => {
+		const id = dashboardTabId(dashboardId);
+		setTabs((current) =>
+			current.some((tab) => tab.id === id)
+				? current
+				: [...current, { id, kind: "dashboard", dashboardId }],
 		);
 		setActiveId(id);
 	}, []);
@@ -234,6 +254,22 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 		});
 	}, []);
 
+	const pruneDashboards = useCallback(
+		(existing: (dashboardId: string) => boolean) => {
+			setTabs((current) => {
+				const next = current.filter(
+					(tab) => tab.kind !== "dashboard" || existing(tab.dashboardId),
+				);
+				if (next.length === current.length) return current;
+				setActiveId((active) =>
+					next.some((tab) => tab.id === active) ? active : "workspace",
+				);
+				return next;
+			});
+		},
+		[],
+	);
+
 	const pruneProjects = useCallback((existing: (path: string) => boolean) => {
 		setTabs((current) => {
 			const next = current.filter(
@@ -267,6 +303,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			openScreen,
 			openView,
 			openLabel,
+			openDashboard,
 			openProject,
 			activateWorkspace,
 			activate,
@@ -276,6 +313,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			pruneTasks,
 			pruneViews,
 			pruneLabels,
+			pruneDashboards,
 			pruneProjects,
 		}),
 		[
@@ -286,6 +324,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			openScreen,
 			openView,
 			openLabel,
+			openDashboard,
 			openProject,
 			activateWorkspace,
 			activate,
@@ -294,6 +333,9 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			closeAllTasks,
 			pruneTasks,
 			pruneViews,
+			pruneLabels,
+			pruneDashboards,
+			pruneProjects,
 		],
 	);
 
