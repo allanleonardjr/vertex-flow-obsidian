@@ -276,24 +276,42 @@ export function projectProgress(
   return computeProgress(forRollup(topLevelProjectTasks(scope, project)), statuses);
 }
 
+/** A project's task tally, split so the header can show it unambiguously. */
+export interface ProjectTaskBreakdown {
+  /** Active, top-level (parent-less) tasks — what the project list shows by default. */
+  tasks: number;
+  /** Active sub-tasks (any depth) carrying the project link. */
+  subtasks: number;
+  /** Archived tasks in the project, top-level and sub combined. */
+  archived: number;
+}
+
 /**
- * A project's task count — every task carrying its `project` link, sub-tasks
- * included, dropping archived ones unless the caller is showing archived.
+ * The project's whole scope of work, counted from `project`-link membership
+ * (the same rule the view filter and `projectTasks` use). Deliberately
+ * independent of any viewport's "Show sub-tasks" / "Show archived" toggles —
+ * this is a stable fact about the project, not a reflection of what's on screen.
  *
- * This counts more than the project viewport lists (which hides sub-tasks via
- * `topLevelOnly`): the header figure is the project's total scope of work.
- * `projectProgress` still rolls up top-level tasks only, so its denominator can
- * legitimately be smaller than this.
+ * `tasks` alone equals the default project viewport's row count;
+ * `tasks + subtasks + archived` equals that viewport with both toggles on.
+ * (`projectProgress` still rolls up top-level tasks only, so its denominator
+ * can be smaller than `tasks`.)
  */
-export function projectTaskCount(
+export function projectTaskBreakdown(
   scope: HierarchyScope,
   project: LinkTarget,
-  includeArchived: boolean,
-): number {
-  const tasks = projectTasks(scope, project);
-  return includeArchived
-    ? tasks.length
-    : tasks.filter((task) => !task.archived).length;
+): ProjectTaskBreakdown {
+  let tasks = 0;
+  let subtasks = 0;
+  let archived = 0;
+
+  for (const task of projectTasks(scope, project)) {
+    if (task.archived) archived += 1;
+    else if (task.parent == null) tasks += 1;
+    else subtasks += 1;
+  }
+
+  return { tasks, subtasks, archived };
 }
 
 /**

@@ -12,7 +12,7 @@
  */
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { projectProgress, projectTaskCount, scopeOf } from "../core/hierarchy";
+import { projectProgress, projectTaskBreakdown, scopeOf } from "../core/hierarchy";
 import type { ViewContext } from "../core/views";
 import type { WorkspaceTaxonomies } from "../core/taxonomy";
 import type { Project, WorkspaceSnapshot } from "../core/types";
@@ -128,13 +128,9 @@ function ProjectEditor({
   };
 
   const scope = scopeOf(snapshot);
-  // Matches the task viewport below: direct (non-sub-task) tasks, and the
-  // "Show archived" toggle is respected just like it is there.
-  const taskCount = projectTaskCount(
-    scope,
-    project.path,
-    plugin.settings.showArchived,
-  );
+  // A stable summary of the project's scope — not tied to the list's
+  // "Show sub-tasks" / "Show archived" toggles.
+  const counts = projectTaskBreakdown(scope, project.path);
   // §7.1: progress is computed independently of the project's own status, and
   // never fed back into it.
   const progress = projectProgress(scope, project.path, taxonomies.status);
@@ -170,7 +166,9 @@ function ProjectEditor({
           }
         />
         <span className="vf-count">
-          {taskCount} {taskCount === 1 ? "task" : "tasks"}
+          {counts.tasks} {counts.tasks === 1 ? "task" : "tasks"}
+          {counts.subtasks > 0 && ` · ${counts.subtasks} sub-task${counts.subtasks === 1 ? "" : "s"}`}
+          {counts.archived > 0 && ` · ${counts.archived} archived`}
         </span>
         {project.archived && <span className="vf-chip">Archived</span>}
         <span className="vf-editor-spacer" />
@@ -296,7 +294,9 @@ function ProjectEditor({
               <ProgressBar progress={progress} />
             ) : (
               <span className="vf-prop-empty">
-                {taskCount === 0 ? "No tasks yet" : "—"}
+                {counts.tasks + counts.subtasks + counts.archived === 0
+                  ? "No tasks yet"
+                  : "—"}
               </span>
             )}
           </PropertyRow>

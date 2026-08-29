@@ -8,7 +8,7 @@ import {
 	newTaskProject,
 	primaryParent,
 	projectProgress,
-	projectTaskCount,
+	projectTaskBreakdown,
 	projectTasks,
 	scopeOf,
 	subtaskProgress,
@@ -327,23 +327,34 @@ describe("project progress (§7.1)", () => {
 	});
 });
 
-describe("projectTaskCount", () => {
+describe("projectTaskBreakdown", () => {
 	const local: HierarchyScope = {
 		projects: [],
 		tasks: [
 			task({ path: T("1"), project: P("Projects/X") }),
-			task({ path: T("2"), project: P("Projects/X"), archived: true }),
-			// A sub-task that carries the project link still counts for the project.
-			task({ path: T("3"), project: P("Projects/X"), parent: T("1") }),
+			task({ path: T("2"), project: P("Projects/X") }),
+			task({ path: T("3"), project: P("Projects/X"), archived: true }),
+			// Sub-tasks carrying the project link.
+			task({ path: T("4"), project: P("Projects/X"), parent: T("1") }),
+			task({ path: T("5"), project: P("Projects/X"), parent: T("1"), archived: true }),
+			// A different project — not counted.
+			task({ path: T("6"), project: P("Projects/Y") }),
 		],
 	};
 
-	it("counts every project-linked task, sub-tasks included", () => {
-		expect(projectTaskCount(local, P("Projects/X"), true)).toBe(3);
+	it("splits active top-level, active sub-tasks, and archived", () => {
+		expect(projectTaskBreakdown(local, P("Projects/X"))).toEqual({
+			tasks: 2,
+			subtasks: 1,
+			archived: 2,
+		});
 	});
 
-	it("drops archived tasks unless asked to include them", () => {
-		expect(projectTaskCount(local, P("Projects/X"), false)).toBe(2);
-		expect(projectTaskCount(local, P("Projects/X"), true)).toBe(3);
+	it("is all zeros for a project with no tasks", () => {
+		expect(projectTaskBreakdown(local, P("Projects/Z"))).toEqual({
+			tasks: 0,
+			subtasks: 0,
+			archived: 0,
+		});
 	});
 });

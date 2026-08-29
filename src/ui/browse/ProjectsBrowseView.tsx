@@ -3,8 +3,7 @@
  * status, task count, and computed progress.
  */
 
-import { projectProgress, projectTaskCount, scopeOf } from "../../core/hierarchy";
-import { usePlugin } from "../context";
+import { projectProgress, projectTaskBreakdown, scopeOf } from "../../core/hierarchy";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { WorkspaceSnapshot } from "../../core/types";
 import { useCreateProject } from "../actions";
@@ -28,7 +27,6 @@ export function ProjectsBrowseView({
 	snapshot: WorkspaceSnapshot;
 	taxonomies: WorkspaceTaxonomies;
 }) {
-	const plugin = usePlugin();
 	const createProject = useCreateProject();
 	const tabs = useTabs();
 	const scope = scopeOf(snapshot);
@@ -48,11 +46,10 @@ export function ProjectsBrowseView({
 			) : (
 				<BrowseList>
 					{snapshot.projects.map((project) => {
-						const taskCount = projectTaskCount(
-							scope,
-							project.path,
-							plugin.settings.showArchived,
-						);
+						// All active work in the project (top-level + sub-tasks); the
+						// detail header breaks this down further.
+						const counts = projectTaskBreakdown(scope, project.path);
+						const taskCount = counts.tasks + counts.subtasks;
 						// §7.1: progress is computed independently of the project's
 						// own status, and never fed back into it.
 						const progress = projectProgress(scope, project.path, taxonomies.status);
