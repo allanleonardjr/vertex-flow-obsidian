@@ -2082,6 +2082,11 @@ body.vf-dragging {
   text-transform: uppercase;
 }
 
+/* Collapsible section header — matches the Description toggle. */
+.vf-editor-section-toggle[aria-expanded="true"] {
+  margin-bottom: 6px;
+}
+
 /* --- Properties --------------------------------------------------------- */
 
 .vf-prop {

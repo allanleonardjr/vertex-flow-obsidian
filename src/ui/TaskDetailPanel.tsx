@@ -3,7 +3,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { Notice } from "obsidian";
+import { createPortal } from "react-dom";
 import {
   childTasks,
   computeProgress,
@@ -26,6 +26,7 @@ import {
   TypeSelect,
   useDebouncedSave,
 } from "./components/fields";
+import { CollapsibleSection } from "./components/CollapsibleSection";
 import { DescriptionSection } from "./components/DescriptionSection";
 import { EditorRail } from "./components/EditorRail";
 import { MarkdownContent, MarkdownField } from "./components/Markdown";
@@ -127,11 +128,13 @@ export function TaskDetailPanel({
             onSave={(text) => void plugin.mutations.setDescription(task, text)}
           />
 
-          <section className="vf-editor-section">
-            <h4>
-              Sub-tasks{" "}
-              {children.length > 0 && <ProgressBar progress={progress} />}
-            </h4>
+          <CollapsibleSection
+            id="subtasks"
+            title="Sub-tasks"
+            aside={
+              children.length > 0 ? <ProgressBar progress={progress} /> : null
+            }
+          >
             <EmbeddedTaskList
               tasks={children}
               snapshot={snapshot}
@@ -152,10 +155,9 @@ export function TaskDetailPanel({
                 />
               )}
             />
-          </section>
+          </CollapsibleSection>
 
-          <section className="vf-editor-section">
-            <h4>Relations</h4>
+          <CollapsibleSection id="relations" title="Relations">
             <RelationsEditor
               task={task}
               snapshot={snapshot}
@@ -163,16 +165,15 @@ export function TaskDetailPanel({
               onChange={update}
               onOpenTask={onOpenTask}
             />
-          </section>
+          </CollapsibleSection>
 
-          <section className="vf-editor-section">
-            <h4>Comments</h4>
+          <CollapsibleSection id="comments" title="Comments">
             <CommentList
               task={task}
               comments={comments}
               onChanged={(next) => setComments(next)}
             />
-          </section>
+          </CollapsibleSection>
         </main>
 
         <EditorRail>
@@ -366,8 +367,8 @@ function TitleField({ task }: { task: Task }) {
 
 /**
  * "+ Add sub-task" — styled like the relations add-triggers. Picking a task
- * makes *this* task its parent. A task that already has a parent isn't
- * silently re-parented: the user is told to change or clear that parent first.
+ * makes *this* task its parent. A task that already has a parent isn't silently
+ * re-parented: a modal asks whether to move it here or cancel.
  */
 function AddSubtaskTrigger({
   task,
@@ -379,6 +380,7 @@ function AddSubtaskTrigger({
   taxonomies: WorkspaceTaxonomies;
 }) {
   const plugin = usePlugin();
+  const [conflict, setConflict] = useState<Task | null>(null);
 
   // Can't parent a task to itself, to one of its own descendants (a cycle), or
   // to a task that's already its child.
@@ -395,44 +397,97 @@ function AddSubtaskTrigger({
   const add = (path: string) => {
     const picked = snapshot.tasks.find((t) => t.path === path);
     if (!picked) return;
-
     if (picked.parent) {
-      const currentParent = snapshot.tasks.find(
-        (t) => t.path === picked.parent,
-      );
-      new Notice(
-        `"${picked.title}" already has a parent${
-          currentParent ? ` (${currentParent.title})` : ""
-        }. Change or clear its parent first, or pick another task.`,
-      );
+      setConflict(picked);
       return;
     }
-
     void plugin.mutations.setParent(picked, task.path);
   };
 
   return (
-    <TaskSelectMenu
-      candidates={candidates}
-      snapshot={snapshot}
-      taxonomies={taxonomies}
-      value={null}
-      onSelect={(path) => path && add(path)}
-      noneLabel="Cancel"
-      searchPlaceholder="Search tasks…"
-      trigger={({ open, toggle }) => (
-        <button
-          type="button"
-          className={`vf-add-relation${open ? " is-on" : ""}`}
-          onClick={(event) => {
-            event.stopPropagation();
-            toggle();
+    <>
+      <TaskSelectMenu
+        candidates={candidates}
+        snapshot={snapshot}
+        taxonomies={taxonomies}
+        value={null}
+        onSelect={(path) => path && add(path)}
+        noneLabel="Cancel"
+        searchPlaceholder="Search tasks…"
+        trigger={({ open, toggle }) => (
+          <button
+            type="button"
+            className={`vf-add-relation${open ? " is-on" : ""}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              toggle();
+            }}
+          >
+            + Add sub-task
+          </button>
+        )}
+      />
+
+      {conflict && (
+        <ReparentSubtaskDialog
+          child={conflict}
+          currentParent={
+            snapshot.tasks.find((t) => t.path === conflict.parent) ?? null
+          }
+          newParentTitle={task.title}
+          onConfirm={() => {
+            void plugin.mutations.setParent(conflict, task.path);
+            setConflict(null);
           }}
-        >
-          + Add sub-task
-        </button>
+          onClose={() => setConflict(null)}
+        />
       )}
-    />
+    </>
+  );
+}
+
+/**
+ * The task picked for "+ Add sub-task" is already someone else's sub-task.
+ * A task has exactly one primary parent (Golden Rule), so this is a real
+ * either/or: move it here, or leave it where it is.
+ */
+function ReparentSubtaskDialog({
+  child,
+  currentParent,
+  newParentTitle,
+  onConfirm,
+  onClose,
+}: {
+  child: Task;
+  currentParent: Task | null;
+  newParentTitle: string;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  return createPortal(
+    <div className="vf-editor-backdrop" onClick={onClose}>
+      <div
+        className="vf-dialog"
+        role="dialog"
+        aria-modal="true"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <h3>Move "{child.title}" here?</h3>
+        <p className="vf-dialog-lead">
+          It's already a sub-task of{" "}
+          {currentParent ? `"${currentParent.title}"` : "another task"}. A task
+          has only one parent, so moving it under "{newParentTitle}" removes it
+          from there.
+        </p>
+        <div className="vf-dialog-actions">
+          <button onClick={onClose}>Cancel</button>
+          <button className="mod-cta" onClick={onConfirm}>
+            Move it here
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }
 
