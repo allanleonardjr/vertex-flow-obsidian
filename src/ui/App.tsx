@@ -12,8 +12,9 @@ import {
 	type ActiveWorkspace,
 } from "./context";
 import { workspaceTaxonomies } from "../core/taxonomy";
-import type { SavedView, WorkspaceSnapshot } from "../core/types";
+import type { Project, SavedView, WorkspaceSnapshot } from "../core/types";
 import { EmptyState } from "./EmptyState";
+import { ProjectDetailView } from "./ProjectDetailView";
 import { TemplateGallery } from "./TemplateGallery";
 import { SelectionProvider, useSelection } from "./selection";
 import { ProjectsBrowseView } from "./browse/ProjectsBrowseView";
@@ -93,6 +94,11 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
 			snapshot.workspace.labels.some((l) => l.id === id),
 		);
 	}, [tabs, snapshot.workspace.labels]);
+	useEffect(() => {
+		tabs.pruneProjects((path) =>
+			snapshot.projects.some((p) => p.path === path),
+		);
+	}, [tabs, snapshot.projects]);
 
 	// Escape closes whatever tab you're on (falling back to the pinned
 	// Board/List tab, which can never itself be closed); on that pinned tab,
@@ -146,6 +152,16 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
 					<HelpView />
 				) : tabs.activeTab.kind === "new-workspace" ? (
 					<TemplateGallery onClose={() => tabs.close("new-workspace")} />
+				) : tabs.activeTab.kind === "project" ? (
+					<ProjectDetailView
+						path={tabs.activeTab.path}
+						snapshot={snapshot}
+						taxonomies={active.taxonomies}
+						context={active.context}
+						containerRef={container}
+						active
+						onSelectView={selectView}
+					/>
 				) : (
 					<TaskViewport
 						snapshot={snapshot}
@@ -179,6 +195,26 @@ function labelView(
 		name: label?.name ?? labelId,
 		viewType: "list",
 		filters: { labels: [labelId] },
+		groupBy: "status",
+		sortBy: "rank",
+		sortDirection: "asc",
+		columns: { collapsed: [], hidden: [] },
+		emptyColumnBehavior: "show-normal",
+		hiddenFields: [],
+	};
+}
+
+/**
+ * A synthesised, never-persisted view showing one project's top-level tasks
+ * (sub-tasks stay nested under their parent). Same shape as `labelView`;
+ * `ProjectDetailView` renders it beneath the project header.
+ */
+export function projectView(project: Project): SavedView {
+	return {
+		id: `project:${project.path}`,
+		name: project.title,
+		viewType: "list",
+		filters: { project: [project.path], topLevelOnly: true },
 		groupBy: "status",
 		sortBy: "rank",
 		sortDirection: "asc",

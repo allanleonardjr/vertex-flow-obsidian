@@ -2289,6 +2289,67 @@ body.vf-dragging {
 }
 
 /* =========================================================================
+   Project detail header (sits above the project's task viewport)
+   ========================================================================= */
+
+.vf-project-head {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--vf-border);
+}
+
+.vf-project-head-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vf-project-head-icon {
+  display: inline-flex;
+  color: var(--vf-muted);
+}
+
+.vf-project-head-title {
+  margin: 0;
+  font-size: var(--font-ui-medium);
+}
+
+.vf-project-head-spacer {
+  flex: 1;
+}
+
+.vf-project-head-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.vf-project-head-fact {
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+/* Rendered "## Overview" prose — kept compact under the meta row. */
+.vf-project-head-overview {
+  max-height: 180px;
+  overflow-y: auto;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.vf-project-head-overview > :first-child {
+  margin-top: 0;
+}
+
+.vf-project-head-overview > :last-child {
+  margin-bottom: 0;
+}
+
+/* =========================================================================
    Workspace settings
    ========================================================================= */
 

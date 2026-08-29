@@ -33,7 +33,9 @@ export type Tab =
 	/** A user Saved View, opened from the sidebar. Closable. */
 	| { id: string; kind: "view"; viewId: string }
 	/** A label's tasks — a synthesised, never-persisted view. Closable. */
-	| { id: string; kind: "label"; labelId: string };
+	| { id: string; kind: "label"; labelId: string }
+	/** One project: a detail header above its tasks (synthesised view). Closable. */
+	| { id: string; kind: "project"; path: string };
 
 const WORKSPACE_TAB: Tab = { id: "workspace", kind: "workspace" };
 
@@ -52,6 +54,10 @@ function labelTabId(labelId: string): string {
 	return `label:${labelId}`;
 }
 
+function projectTabId(path: string): string {
+	return `project:${path}`;
+}
+
 export interface TabsApi {
 	/** Always starts with the pinned workspace tab. */
 	tabs: Tab[];
@@ -65,6 +71,8 @@ export interface TabsApi {
 	openView: (viewId: string) => void;
 	/** Open (or reveal) a label's tasks as its own transient tab. */
 	openLabel: (labelId: string) => void;
+	/** Open (or reveal) a project's detail screen as its own transient tab. */
+	openProject: (path: string) => void;
 	/** Switch to the pinned Board/List tab without opening anything new. */
 	activateWorkspace: () => void;
 	activate: (id: string) => void;
@@ -79,6 +87,8 @@ export interface TabsApi {
 	pruneViews: (existing: (viewId: string) => boolean) => void;
 	/** Drop label tabs whose label no longer exists. */
 	pruneLabels: (existing: (labelId: string) => boolean) => void;
+	/** Drop project tabs whose project no longer exists (deleted, or a workspace switch). */
+	pruneProjects: (existing: (path: string) => boolean) => void;
 }
 
 const TabsCtx = createContext<TabsApi | null>(null);
@@ -135,6 +145,18 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			current.some((tab) => tab.id === id)
 				? current
 				: [...current, { id, kind: "label", labelId }],
+		);
+		setActiveId(id);
+	}, []);
+
+	const openProject = useCallback((path: string) => {
+		// No cross-workspace switch (unlike `openTask`): a project is only ever
+		// opened from its own workspace's sidebar or browse screen.
+		const id = projectTabId(path);
+		setTabs((current) =>
+			current.some((tab) => tab.id === id)
+				? current
+				: [...current, { id, kind: "project", path }],
 		);
 		setActiveId(id);
 	}, []);
@@ -212,6 +234,19 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 		});
 	}, []);
 
+	const pruneProjects = useCallback((existing: (path: string) => boolean) => {
+		setTabs((current) => {
+			const next = current.filter(
+				(tab) => tab.kind !== "project" || existing(tab.path),
+			);
+			if (next.length === current.length) return current;
+			setActiveId((active) =>
+				next.some((tab) => tab.id === active) ? active : "workspace",
+			);
+			return next;
+		});
+	}, []);
+
 	// Drop task tabs whose task is gone from the vault entirely — not
 	// conditioned on any particular screen being mounted, since a task can be
 	// deleted (from the Board, from another device via sync, by hand) while
@@ -232,6 +267,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			openScreen,
 			openView,
 			openLabel,
+			openProject,
 			activateWorkspace,
 			activate,
 			close,
@@ -240,6 +276,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			pruneTasks,
 			pruneViews,
 			pruneLabels,
+			pruneProjects,
 		}),
 		[
 			tabs,
@@ -249,6 +286,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			openScreen,
 			openView,
 			openLabel,
+			openProject,
 			activateWorkspace,
 			activate,
 			close,

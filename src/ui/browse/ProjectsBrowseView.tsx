@@ -8,7 +8,7 @@ import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { WorkspaceSnapshot } from "../../core/types";
 import { useCreateProject } from "../actions";
 import { TaxonomyChip } from "../components/TaskBits";
-import { usePlugin } from "../context";
+import { useTabs } from "../tabs-context";
 import {
 	BrowseCard,
 	BrowseEmpty,
@@ -27,8 +27,8 @@ export function ProjectsBrowseView({
 	snapshot: WorkspaceSnapshot;
 	taxonomies: WorkspaceTaxonomies;
 }) {
-	const plugin = usePlugin();
 	const createProject = useCreateProject();
+	const tabs = useTabs();
 	const scope = scopeOf(snapshot);
 
 	return (
@@ -54,7 +54,7 @@ export function ProjectsBrowseView({
 						return (
 							<BrowseCard
 								key={project.path}
-								onClick={() => void plugin.mutations.open(project.path)}
+								onClick={() => tabs.openProject(project.path)}
 							>
 								<div className="vf-browse-card-top">
 									<TaxonomyChip

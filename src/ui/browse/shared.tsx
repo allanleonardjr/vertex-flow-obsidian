@@ -1,11 +1,11 @@
 /**
  * Shared layout for the Projects browse screen.
  *
- * These three are deliberately *not* Saved Views (§8.3 is a Task-filtering
- * concept) — they're a plain manager list for the other three entity kinds,
- * each with its own rollup stats and a "New X" button. There's no in-plugin
- * editor for them (only Tasks get one, §4.1–4.4): clicking a row opens the
- * real Obsidian note, since these are meant to be written in by hand.
+ * Deliberately *not* a Saved View (§8.3 is a Task-filtering concept) — it's a
+ * plain manager list of every Project, with rollup stats and a "New project"
+ * button. Clicking a card opens the in-plugin Project Detail screen
+ * (`ProjectDetailView`); the project's note body is still hand-written prose,
+ * edited via "Open note" from there (§4.2).
  */
 
 import type { ReactNode } from "react";

@@ -119,6 +119,19 @@ function TabRow({
 		if (!task || !owner) return null;
 		icon = <StatusDot taxonomies={workspaceTaxonomies(owner.workspace)} status={task.status} />;
 		label = task.title;
+	} else if (tab.kind === "project") {
+		// Resolved fresh via the index, not the passed `snapshot` — right after a
+		// workspace switch this tab renders once more before App's prune effect
+		// drops it, and `snapshot` is already the new workspace by then.
+		const owner = plugin.index.workspaceFor(tab.path);
+		const project = owner?.projects.find((p) => p.path === tab.path);
+		if (!project) return null;
+		icon = (
+			<span className="vf-tab-icon">
+				<Icon id={project.icon} fallback="folder" size={13} />
+			</span>
+		);
+		label = project.title;
 	} else {
 		icon = <span className="vf-view-icon">{BROWSE_ICON[tab.kind]}</span>;
 		label =

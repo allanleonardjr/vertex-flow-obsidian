@@ -566,6 +566,7 @@ function ViewsSection({
 
 function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 	const plugin = usePlugin();
+	const tabs = useTabs();
 	const [menuPath, setMenuPath] = useState<string | null>(null);
 	const [editing, setEditing] = useState<Project | null>(null);
 	const [creating, setCreating] = useState(false);
@@ -592,7 +593,7 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 						label={project.title}
 						icon={project.icon}
 						iconFallback="folder"
-						onClick={() => void plugin.mutations.open(project.path)}
+						onClick={() => tabs.openProject(project.path)}
 						trailing={
 							<RowMenu
 								open={menuPath === project.path}
