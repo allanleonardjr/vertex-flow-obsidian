@@ -171,11 +171,40 @@ export interface Project {
 	icon?: string;
 	/** Reuses the Task status taxonomy (§5.1) — no separate system. */
 	status: string;
+	/** Reuses the Task priority taxonomy — no separate system. `null` is "None". */
+	priority: string | null;
+	/** Reuses the Task label taxonomy/engine, multi-select. */
+	labels: string[];
+	startDate: IsoDate | null;
+	dueDate: IsoDate | null;
+	/**
+	 * A `Person.id`. Deliberately `owner`, not `assignee`: a project isn't worked
+	 * by one person the way a task is — this is "who's accountable for it," not
+	 * "who's doing it." Same underlying control as Task's assignee (§7.4).
+	 */
+	owner: string | null;
+	/** Visibility flag, not a status and not a location (§7.7). */
 	archived: boolean;
 	archivedAt: IsoDate | null;
 	createdAt: IsoDate;
 	updatedAt: IsoDate;
 	path: LinkTarget;
+}
+
+/**
+ * A Project plus its note body. The index holds bare `Project` records — the
+ * full document is loaded only when a project is actually opened in the editor,
+ * exactly mirroring `TaskDocument`.
+ *
+ * Unlike a Task, a Project has no comments block, so `description` is simply the
+ * whole body, trimmed — there's nothing to split around. `description` is *not*
+ * a frontmatter field, and deliberately not part of the bare `Project` type:
+ * `Project` rides in every `WorkspaceSnapshot` and feeds filtering/grouping/
+ * Browse cards, so it stays lean.
+ */
+export interface ProjectDocument {
+	project: Project;
+	description: string;
 }
 
 // ---------------------------------------------------------------------------

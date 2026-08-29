@@ -24,7 +24,11 @@ import {
 	extractDescription,
 	withDescription,
 } from "../core/serialization/description";
-import { serializeProject } from "../core/serialization/entities";
+import {
+	extractProjectDescription,
+	serializeProject,
+	withProjectDescription,
+} from "../core/serialization/entities";
 import { serializeTask } from "../core/serialization/task";
 import { serializeViews } from "../core/serialization/views";
 import { serializeWorkspace } from "../core/serialization/workspace";
@@ -45,6 +49,7 @@ import {
 	emptyRelations,
 	type Comment,
 	type Project,
+	type ProjectDocument,
 	type SavedView,
 	type Task,
 	type WorkspaceConfig,
@@ -522,16 +527,58 @@ export class Mutations {
 				title,
 				icon,
 				status: snapshot.workspace.defaultNewTaskStatus,
+				priority: null,
+				labels: [],
+				startDate: null,
+				dueDate: null,
+				owner: null,
 				archived: false,
 				archivedAt: null,
 				createdAt: now,
 				updatedAt: now,
 				path,
 			}),
-			"## Overview\n",
+			// The body is the project's description, edited in the plugin's own
+			// Project editor — created empty, like a Task note.
+			"",
 		);
 		await this.index.rebuild();
 		return file;
+	}
+
+	// -- Project note body --------------------------------------------------
+
+	/** The project note's full text — frontmatter and body, exactly as on disk. */
+	async readProjectRaw(project: Project): Promise<string> {
+		const file = this.io.getFile(project.path);
+		return file ? this.io.read(file) : "";
+	}
+
+	/**
+	 * The part of a project that lives in the body rather than frontmatter — its
+	 * description. Read on demand, exactly like `readDocument` for a Task, so the
+	 * index never costs a file read per project.
+	 */
+	async readProjectDocument(project: Project): Promise<ProjectDocument> {
+		const file = this.io.getFile(project.path);
+		if (!file) return { project, description: "" };
+		const body = await this.io.readBody(file);
+		return { project, description: extractProjectDescription(body) };
+	}
+
+	/**
+	 * Write the description into the project note's body. A Project has no
+	 * comments block, so the body *is* the description — no section surgery.
+	 * `updatedAt` is re-stamped via frontmatter, matching Task's `setDescription`
+	 * (and, like it, without forcing a full index rebuild).
+	 */
+	async setProjectDescription(project: Project, text: string): Promise<void> {
+		const file = this.requireFile(project.path);
+		await this.io.processBody(file, () => withProjectDescription(text));
+		await this.io.replaceFrontmatter(
+			file,
+			serializeProject({ ...project, updatedAt: new Date().toISOString() }),
+		);
 	}
 
 	/**

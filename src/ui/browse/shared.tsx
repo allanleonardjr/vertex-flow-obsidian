@@ -3,9 +3,10 @@
  *
  * Deliberately *not* a Saved View (§8.3 is a Task-filtering concept) — it's a
  * plain manager list of every Project, with rollup stats and a "New project"
- * button. Clicking a card opens the in-plugin Project Detail screen
- * (`ProjectDetailView`); the project's note body is still hand-written prose,
- * edited via "Open note" from there (§4.2).
+ * button. Clicking a card opens the in-plugin Project editor
+ * (`ProjectDetailView`), where status, priority, labels, dates, owner and the
+ * description are all edited; "Open note" and the raw-source section there keep
+ * the escape hatch to the file (§4.2).
  */
 
 import type { ReactNode } from "react";

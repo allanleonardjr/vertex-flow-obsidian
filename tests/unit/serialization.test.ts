@@ -4,18 +4,22 @@ import {
 	COMMENTS_START,
 	extractMentionHandles,
 	mentionsInNote,
+	extractProjectDescription,
 	nextCommentId,
 	parseComments,
+	parseProject,
 	parseTask,
 	parseViews,
 	parseWorkspace,
 	resolveMentions,
 	serializeComments,
+	serializeProject,
 	serializeTask,
 	serializeViews,
 	serializeWorkspace,
 	splitBody,
 	withComments,
+	withProjectDescription,
 } from "../../src/core/serialization";
 import { MIDDLE_RANK } from "../../src/core/ranking/lexorank";
 import type { Person } from "../../src/core/types";
@@ -156,6 +160,109 @@ describe("serializeTask", () => {
 		const fm = serializeTask(parseTask(SPEC_TASK, opts).value);
 		expect(fm).not.toHaveProperty("path");
 		expect(fm).not.toHaveProperty("mentions");
+	});
+});
+
+const projectOpts = { path: "W/Projects/Core App Experience", defaultStatus: "queue" };
+
+// The documented Project frontmatter (vault-schema.md §4.2), with every
+// optional field populated — parallel to `SPEC_TASK`.
+const SPEC_PROJECT = {
+	type: "project",
+	title: "Core App Experience",
+	icon: "folder",
+	status: "in-progress",
+	priority: "high",
+	owner: "alice",
+	labels: ["performance", "mobile"],
+	startDate: "2026-01-10",
+	dueDate: "2026-06-30",
+	archived: false,
+	createdAt: "2026-01-10T09:00:00Z",
+	updatedAt: "2026-08-20T11:00:00Z",
+};
+
+describe("parseProject", () => {
+	it("parses the documented schema example without complaint", () => {
+		const { value, issues } = parseProject(SPEC_PROJECT, projectOpts);
+		expect(issues).toEqual([]);
+		expect(value).toMatchObject({
+			type: "project",
+			title: "Core App Experience",
+			icon: "folder",
+			status: "in-progress",
+			priority: "high",
+			owner: "alice",
+			labels: ["performance", "mobile"],
+			startDate: "2026-01-10",
+			dueDate: "2026-06-30",
+			archived: false,
+		});
+	});
+
+	it("leaves the new optional fields unset when the note omits them", () => {
+		const { value } = parseProject({ title: "x" }, projectOpts);
+		expect(value.priority).toBeNull();
+		expect(value.owner).toBeNull();
+		expect(value.labels).toEqual([]);
+		expect(value.startDate).toBeNull();
+		expect(value.dueDate).toBeNull();
+	});
+
+	it("accepts Date objects from the YAML parser for its dates", () => {
+		const { value } = parseProject(
+			{ title: "x", dueDate: new Date("2026-06-30T00:00:00Z") },
+			projectOpts,
+		);
+		expect(value.dueDate).toBe("2026-06-30");
+	});
+
+	it("never throws on garbage input", () => {
+		for (const junk of [null, undefined, "a string", 42, []]) {
+			expect(() => parseProject(junk, projectOpts)).not.toThrow();
+		}
+	});
+});
+
+describe("serializeProject", () => {
+	it("round-trips the documented example", () => {
+		const parsed = parseProject(SPEC_PROJECT, projectOpts).value;
+		const reparsed = parseProject(
+			serializeProject(parsed),
+			projectOpts,
+		).value;
+		expect(reparsed).toEqual(parsed);
+	});
+
+	it("omits empty fields but always writes `archived`", () => {
+		const fm = serializeProject(parseProject({ title: "x" }, projectOpts).value);
+		expect(fm).not.toHaveProperty("priority");
+		expect(fm).not.toHaveProperty("owner");
+		expect(fm).not.toHaveProperty("labels");
+		expect(fm).not.toHaveProperty("startDate");
+		expect(fm.archived).toBe(false);
+	});
+
+	it("never writes the derived path back to frontmatter", () => {
+		const fm = serializeProject(parseProject(SPEC_PROJECT, projectOpts).value);
+		expect(fm).not.toHaveProperty("path");
+	});
+});
+
+describe("project description (note body)", () => {
+	it("round-trips through the body helpers", () => {
+		const text = "## Goals\n\nShip the thing.";
+		expect(extractProjectDescription(withProjectDescription(text))).toBe(text);
+	});
+
+	it("drops a lone leading `## Overview` heading older notes carried", () => {
+		expect(extractProjectDescription("## Overview\n\nSome prose.")).toBe(
+			"Some prose.",
+		);
+	});
+
+	it("treats an empty description as an empty body", () => {
+		expect(withProjectDescription("   \n  ")).toBe("");
 	});
 });
 

@@ -37,6 +37,13 @@ export function makeProject(
 		type: "project",
 		title,
 		status: "in-progress",
+		// New optional fields default to unset so every existing template call
+		// site keeps working unchanged; pass them through `overrides` when wanted.
+		priority: null,
+		labels: [],
+		startDate: null,
+		dueDate: null,
+		owner: null,
 		archived: false,
 		archivedAt: null,
 		createdAt: ctx.iso(-30),

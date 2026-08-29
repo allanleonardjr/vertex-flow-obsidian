@@ -3,7 +3,7 @@
  */
 
 import { useCallback } from "react";
-import { Notice, type TFile } from "obsidian";
+import { Notice } from "obsidian";
 import { withoutExtension } from "../obsidian/note-io";
 import type { NewTaskInput } from "../obsidian/mutations";
 import type { WorkspaceSnapshot } from "../core/types";
@@ -52,43 +52,35 @@ export function useCreateTask(): (
 	);
 }
 
+/** Title given to a freshly created project, mirroring `NEW_TASK_TITLE`. */
+export const NEW_PROJECT_TITLE = "New project";
+
 /**
- * Create-then-open for Projects.
- *
- * A Project has no custom in-plugin editor — only Tasks get one (§4.2 is a
- * plain note meant to be written in by hand, prose and all). So "open" here
- * means the real Obsidian note editor, not a Vertex Flow panel. The
- * create-first-then-edit shape still applies: there's a real note the moment
- * you click "New", never a form that only becomes one on submit.
+ * Create a project and open it in its own internal tab — the Vertex Flow
+ * Project editor, not the raw Obsidian note (the same shift Tasks made). Same
+ * create-first-then-edit shape as `useCreateTask`: there's a real note the
+ * moment you click "New", never a form that only becomes one on submit.
  */
-function useCreateEntity(
-	create: (
-		plugin: ReturnType<typeof usePlugin>,
-		snapshot: WorkspaceSnapshot,
-	) => Promise<TFile>,
-	label: string,
-): (snapshot: WorkspaceSnapshot) => Promise<void> {
+export function useCreateProject(): (snapshot: WorkspaceSnapshot) => Promise<void> {
 	const plugin = usePlugin();
+	const tabs = useTabs();
+
 	return useCallback(
 		async (snapshot) => {
 			try {
-				const file = await create(plugin, snapshot);
-				await plugin.mutations.open(withoutExtension(file.path));
+				const file = await plugin.mutations.createProject(
+					snapshot,
+					NEW_PROJECT_TITLE,
+				);
+				tabs.openProject(withoutExtension(file.path));
 			} catch (cause) {
 				new Notice(
-					`Could not create ${label}: ${
+					`Could not create project: ${
 						cause instanceof Error ? cause.message : String(cause)
 					}`,
 				);
 			}
 		},
-		[plugin, create, label],
-	);
-}
-
-export function useCreateProject(): (snapshot: WorkspaceSnapshot) => Promise<void> {
-	return useCreateEntity(
-		(plugin, snapshot) => plugin.mutations.createProject(snapshot, "New project"),
-		"project",
+		[plugin, tabs],
 	);
 }
