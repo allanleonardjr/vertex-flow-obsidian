@@ -277,17 +277,20 @@ export function projectProgress(
 }
 
 /**
- * A project's own task count — its direct (non-sub-task) tasks, dropping
- * archived ones unless the caller is showing archived. A sub-task carries its
- * parent's `project` link but belongs to its parent, not the project, so it is
- * never counted here (only `task.parent == null` makes a task the project's).
+ * A project's task count — every task carrying its `project` link, sub-tasks
+ * included, dropping archived ones unless the caller is showing archived.
+ *
+ * This counts more than the project viewport lists (which hides sub-tasks via
+ * `topLevelOnly`): the header figure is the project's total scope of work.
+ * `projectProgress` still rolls up top-level tasks only, so its denominator can
+ * legitimately be smaller than this.
  */
 export function projectTaskCount(
   scope: HierarchyScope,
   project: LinkTarget,
   includeArchived: boolean,
 ): number {
-  const tasks = topLevelProjectTasks(scope, project);
+  const tasks = projectTasks(scope, project);
   return includeArchived
     ? tasks.length
     : tasks.filter((task) => !task.archived).length;

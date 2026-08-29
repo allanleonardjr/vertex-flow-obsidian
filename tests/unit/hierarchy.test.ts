@@ -333,17 +333,17 @@ describe("projectTaskCount", () => {
 		tasks: [
 			task({ path: T("1"), project: P("Projects/X") }),
 			task({ path: T("2"), project: P("Projects/X"), archived: true }),
-			// A sub-task that carries the project link belongs to its parent.
+			// A sub-task that carries the project link still counts for the project.
 			task({ path: T("3"), project: P("Projects/X"), parent: T("1") }),
 		],
 	};
 
-	it("counts direct tasks only, never sub-tasks", () => {
-		expect(projectTaskCount(local, P("Projects/X"), true)).toBe(2);
+	it("counts every project-linked task, sub-tasks included", () => {
+		expect(projectTaskCount(local, P("Projects/X"), true)).toBe(3);
 	});
 
 	it("drops archived tasks unless asked to include them", () => {
-		expect(projectTaskCount(local, P("Projects/X"), false)).toBe(1);
-		expect(projectTaskCount(local, P("Projects/X"), true)).toBe(2);
+		expect(projectTaskCount(local, P("Projects/X"), false)).toBe(2);
+		expect(projectTaskCount(local, P("Projects/X"), true)).toBe(3);
 	});
 });

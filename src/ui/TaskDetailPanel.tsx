@@ -70,8 +70,8 @@ export function TaskDetailPanel({
   };
 
   const scope = scopeOf(snapshot);
-  // Sub-tasks list in the shared global `rank` order (§6) so drag-reordering
-  // them here writes a rank that every other view honours too.
+  // Sub-tasks list in the shared global `rank` order (§6), so it reads the same
+  // here as in every other view.
   const children = sortTasksByRank(childTasks(scope, task.path));
   // Progress excludes archived sub-tasks (§7.7); the list below still shows
   // them.
@@ -149,12 +149,6 @@ export function TaskDetailPanel({
                 const child = children.find((c) => c.path === path);
                 if (child) {
                   void plugin.mutations.updateTask(child, { parent: null });
-                }
-              }}
-              onReorder={(path, toIndex) => {
-                const child = children.find((c) => c.path === path);
-                if (child) {
-                  void plugin.mutations.moveTask(child, children, toIndex);
                 }
               }}
               removeTitle={(title) => `Unlink sub-task ${title}`}
