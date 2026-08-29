@@ -126,6 +126,7 @@ function DashboardBody({
     dirty: draft.dirty,
     canSave: canOverwrite,
     what: "dashboard",
+    name: dashboard.name,
     guardKey: dashboard.id,
     save: () => draft.save(),
     reset: draft.reset,

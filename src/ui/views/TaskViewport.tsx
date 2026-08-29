@@ -82,6 +82,7 @@ export function TaskViewport({
     dirty: draft.dirty,
     canSave: canOverwriteView,
     what: "view",
+    name: view.name,
     guardKey: view.id,
     save: async () => {
       draft.save();

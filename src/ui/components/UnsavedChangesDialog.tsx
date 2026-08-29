@@ -13,6 +13,7 @@ import { createPortal } from "react-dom";
 
 export function UnsavedChangesDialog({
 	what,
+	name,
 	canSave,
 	onSave,
 	onDiscard,
@@ -20,6 +21,8 @@ export function UnsavedChangesDialog({
 }: {
 	/** What has unsaved changes, e.g. `"dashboard"` or `"view"`. */
 	what: string;
+	/** Its title, when known — disambiguates which view/dashboard this is about. */
+	name?: string;
 	/** False when there's nothing to overwrite (Save is hidden). */
 	canSave: boolean;
 	/** Persist the draft, then resolve the guard. May be async. */
@@ -30,6 +33,9 @@ export function UnsavedChangesDialog({
 	onCancel: () => void;
 }) {
 	const [busy, setBusy] = useState(false);
+
+	const label = name ? `the "${name}" ${what}` : `this ${what}`;
+	const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 	const save = async () => {
 		if (busy) return;
@@ -49,11 +55,13 @@ export function UnsavedChangesDialog({
 				aria-modal="true"
 				onClick={(event) => event.stopPropagation()}
 			>
-				<h3>Unsaved changes to this {what}</h3>
+				<h3>
+					Unsaved changes to {name ? `"${name}"` : `this ${what}`}
+				</h3>
 				<p className="vf-dialog-lead">
 					{canSave
-						? `Save your changes to this ${what} before leaving, or discard them?`
-						: `This ${what} can't be saved over. Use "Save as…" first to keep these changes, or discard them.`}
+						? `Save your changes to ${label} before leaving, or discard them?`
+						: `${cap(label)} can't be saved over. Use "Save as…" first to keep these changes, or discard them.`}
 				</p>
 				<div className="vf-dialog-actions">
 					<button disabled={busy} onClick={onCancel}>

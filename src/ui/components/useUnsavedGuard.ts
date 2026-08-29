@@ -21,6 +21,8 @@ export function useUnsavedGuard(opts: {
 	canSave: boolean;
 	/** Noun for the dialog copy, e.g. `"dashboard"` / `"view"`. */
 	what: string;
+	/** Its title, when known — disambiguates which one the prompt is about. */
+	name?: string;
 	/** Stable per tab — re-registers the guard when the tab identity changes. */
 	guardKey: string;
 	/** Persist the draft. Awaited before the navigation proceeds. */
@@ -56,6 +58,7 @@ export function useUnsavedGuard(opts: {
 
 	return createElement(UnsavedChangesDialog, {
 		what: opts.what,
+		name: opts.name,
 		canSave: opts.canSave,
 		onSave: async () => {
 			await optsRef.current.save();
