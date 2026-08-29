@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { instantiateTemplate } from "../../src/core/templates/instantiate";
+import { WORKSPACE_TEMPLATES } from "../../src/core/templates";
 import { gettingStartedTemplate } from "../../src/core/templates/getting-started";
 import { softwareSprintTemplate } from "../../src/core/templates/software-sprint";
+import { workspaceTaxonomies } from "../../src/core/taxonomy";
+import type { Task } from "../../src/core/types";
 
 const base = {
 	root: "Workspaces/Demo",
@@ -9,6 +12,98 @@ const base = {
 	includeExampleContent: false,
 	now: new Date("2026-01-01T00:00:00Z"),
 };
+
+describe("every template's example content is a full feature showcase", () => {
+	for (const template of WORKSPACE_TEMPLATES) {
+		describe(template.id, () => {
+			const { snapshot } = instantiateTemplate({
+				...base,
+				template,
+				includeExampleContent: true,
+				now: new Date("2026-08-26T12:00:00Z"),
+			});
+			const { tasks, projects } = snapshot;
+			const has = (predicate: (t: Task) => boolean) => tasks.some(predicate);
+
+			it("generates ~25 tasks", () => {
+				expect(tasks.length).toBeGreaterThanOrEqual(24);
+				expect(tasks.length).toBeLessThanOrEqual(26);
+			});
+
+			it("has at least three projects", () => {
+				expect(projects.length).toBeGreaterThanOrEqual(3);
+			});
+
+			it("has two parent/sub-task hierarchies at different ratios", () => {
+				const parents = tasks.filter((parent) =>
+					tasks.some((t) => t.parent === parent.path),
+				);
+				expect(parents.length).toBeGreaterThanOrEqual(2);
+			});
+
+			it("has at least three un-parented, project-less tasks", () => {
+				expect(
+					tasks.filter((t) => t.project === null && t.parent === null).length,
+				).toBeGreaterThanOrEqual(3);
+			});
+
+			it("has archived tasks in both the done and canceled categories", () => {
+				const { status } = workspaceTaxonomies(snapshot.workspace);
+				const cat = (id: string) =>
+					status.values.find((v) => v.id === id)?.category;
+				const archived = tasks.filter((t) => t.archived);
+				expect(archived.length).toBeGreaterThanOrEqual(3);
+				expect(archived.some((t) => cat(t.status) === "completed")).toBe(true);
+				expect(archived.some((t) => cat(t.status) === "canceled")).toBe(true);
+			});
+
+			it("has date variety: start+due, due-only, and a real unscheduled bucket", () => {
+				const undated = tasks.filter(
+					(t) => t.startDate === null && t.dueDate === null,
+				);
+				// content-pipeline is deliberately due-date-heavy (publish dates), so
+				// this is "a meaningful unscheduled bucket" rather than "a majority".
+				expect(undated.length).toBeGreaterThanOrEqual(5);
+				expect(has((t) => t.startDate !== null && t.dueDate !== null)).toBe(true);
+				expect(has((t) => t.startDate === null && t.dueDate !== null)).toBe(true);
+			});
+
+			it("uses every label value on at least two tasks", () => {
+				for (const label of snapshot.workspace.labels) {
+					const count = tasks.filter((t) =>
+						t.labels.includes(label.id),
+					).length;
+					expect(count, `label "${label.id}"`).toBeGreaterThanOrEqual(2);
+				}
+			});
+
+			it("has at least one blocks/blockedBy relation pair", () => {
+				expect(has((t) => t.relations.blockedBy.length > 0)).toBe(true);
+				expect(has((t) => t.relations.blocks.length > 0)).toBe(true);
+			});
+
+			it("ships exactly one dashboard with 2–3 widgets", () => {
+				expect(snapshot.dashboards).toHaveLength(1);
+				const widgets = snapshot.dashboards[0].widgets;
+				expect(widgets.length).toBeGreaterThanOrEqual(2);
+				expect(widgets.length).toBeLessThanOrEqual(3);
+			});
+
+			it("card-preview settings match the actual taxonomy", () => {
+				const names = (label: string) =>
+					template.settings
+						.find((s) => s.label === label)
+						?.values.map((v) => v.name) ?? [];
+				expect(names("Statuses")).toEqual(
+					snapshot.workspace.statuses.map((s) => s.name),
+				);
+				expect(names("Labels")).toEqual(
+					snapshot.workspace.labels.map((l) => l.name),
+				);
+			});
+		});
+	}
+});
 
 describe("instantiateTemplate — self person seeding", () => {
 	it("leaves the register untouched when no name is given", () => {
