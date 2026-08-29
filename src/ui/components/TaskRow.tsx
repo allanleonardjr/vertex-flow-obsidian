@@ -18,10 +18,14 @@ import {
 	type WorkspaceSnapshot,
 } from "../../core/types";
 import {
+	ArchivedBadge,
 	Assignee,
 	DueDate,
+	Estimate,
 	Labels,
+	ProjectChip,
 	RelationBadge,
+	StartDate,
 	SubtaskProgress,
 	StatusDot,
 	TaxonomyChip,
@@ -91,12 +95,23 @@ export function TaskRowContent({
 			</span>
 
 			<span className="vf-row-meta">
+				<ArchivedBadge task={task} />
+				{!off("project") && (
+					<ProjectChip task={task} projects={snapshot.projects} />
+				)}
 				{!off("relations") && <RelationBadge task={task} />}
 				{!off("progress") && <SubtaskProgress progress={progress} />}
 				{!off("labels") && <Labels taxonomies={taxonomies} labels={task.labels} />}
 				{!off("priority") && (
 					<TaxonomyChip taxonomies={taxonomies} kind="priority" id={task.priority} />
 				)}
+				{!off("estimate") && (
+					<Estimate
+						task={task}
+						unitLabel={snapshot.workspace.estimateUnitLabel}
+					/>
+				)}
+				{!off("startDate") && <StartDate task={task} />}
 				{!off("dueDate") && <DueDate task={task} />}
 				{!off("assignee") && (
 					<Assignee people={snapshot.workspace.people} assignee={task.assignee} />

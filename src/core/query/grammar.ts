@@ -147,9 +147,12 @@ export const EMPTY_VALUES: Record<EmptyColumnBehavior, EnumValueSpec> = {
 /** Task fields the `hide:` clause can name (§8.4). Keyed for exhaustiveness. */
 export const FIELD_VALUES: Record<TaskField, EnumValueSpec> = {
 	type: { token: "type", aliases: ["tasktype", "kind"] },
+	project: { token: "project", aliases: ["proj"] },
 	priority: { token: "priority", aliases: ["p"] },
 	assignee: { token: "assignee", aliases: ["owner", "assigned"] },
 	labels: { token: "labels", aliases: ["label", "tag", "tags"] },
+	estimate: { token: "estimate", aliases: ["est", "points"] },
+	startDate: { token: "start", aliases: ["startdate"] },
 	dueDate: { token: "due", aliases: ["duedate"] },
 	progress: { token: "progress", aliases: [] },
 	relations: { token: "relations", aliases: ["rel", "relation"] },

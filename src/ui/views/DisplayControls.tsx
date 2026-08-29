@@ -6,6 +6,7 @@
  */
 
 import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import type {
 	EmptyColumnBehavior,
 	GroupByField,
@@ -155,9 +156,14 @@ export function EmptyColumnsChip({
 
 /**
  * Which task fields this view's rows/cards show (§8.4). Stored as `hiddenFields`
- * but presented positively — a lit chip means "visible". Status icon, ID and
+ * but presented positively — a lit row means "visible". Status icon, ID and
  * title are mandatory and never listed. All fields are offered in both layouts;
- * one a layout can't render (e.g. Type on a list) is simply inert there.
+ * one a layout can't render (e.g. Type on a list) is simply inert there, which
+ * is what each option's `hint` is for.
+ *
+ * A vertical checklist rather than a chip cloud: the list is long enough now
+ * that a wrapped cloud has no scan order, and a row leaves space for the
+ * eye/eye-off icon that carries the state without relying on colour alone.
  */
 export function FieldsControl({
 	view,
@@ -192,7 +198,7 @@ export function FieldsControl({
 				<span className="vf-bar-value">
 					{hidden.length === 0
 						? "All"
-						: `${visibleCount}/${FIELD_OPTIONS.length}`}
+						: `${visibleCount} of ${FIELD_OPTIONS.length}`}
 				</span>
 				<span className="vf-bar-caret" aria-hidden>
 					⌄
@@ -200,22 +206,54 @@ export function FieldsControl({
 			</button>
 			{open && (
 				<Popover align="left" onClose={() => setOpen(false)}>
-					<div className="vf-chip-set">
+					<div className="vf-field-list">
 						{FIELD_OPTIONS.map((option) => {
 							const shown = !hidden.includes(option.value);
 							return (
 								<button
 									key={option.value}
 									type="button"
-									className={`vf-chip vf-chip-button${shown ? " is-on" : ""}`}
+									className={`vf-field-row${shown ? " is-on" : ""}`}
 									aria-pressed={shown}
+									title={shown ? `Hide ${option.label}` : `Show ${option.label}`}
 									onClick={() => toggle(option.value)}
 								>
-									{option.label}
+									<span className="vf-field-eye" aria-hidden>
+										{shown ? <Eye size={14} /> : <EyeOff size={14} />}
+									</span>
+									<span className="vf-field-label">{option.label}</span>
+									{option.hint && (
+										<span className="vf-field-hint">{option.hint}</span>
+									)}
 								</button>
 							);
 						})}
 					</div>
+
+					<div className="vf-field-list-footer">
+						<button
+							type="button"
+							className="vf-field-bulk"
+							disabled={hidden.length === 0}
+							onClick={() => onChange({ ...view, hiddenFields: [] })}
+						>
+							Show all
+						</button>
+						<button
+							type="button"
+							className="vf-field-bulk"
+							disabled={hidden.length === FIELD_OPTIONS.length}
+							onClick={() =>
+								onChange({
+									...view,
+									hiddenFields: FIELD_OPTIONS.map((o) => o.value),
+								})
+							}
+						>
+							Hide all
+						</button>
+					</div>
+
 					<p className="vf-fields-note">
 						Status, ID and title are always shown.
 					</p>

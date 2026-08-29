@@ -7,7 +7,11 @@ import {
   SignalZero,
   Link,
   ListTree,
+  Folder,
+  Archive,
+  Gauge,
 } from "lucide-react";
+import { basename } from "../../core/links";
 import { listValues, type WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { Task } from "../../core/types";
 
@@ -221,6 +225,95 @@ export function SubtaskProgress({
         progress.total === 1 ? "" : "s"
       } done`}
     />
+  );
+}
+
+/**
+ * The task's parent project (§2 — the one primary parent a project can be).
+ * Suppressed by `renderedHiddenFields` inside a view already scoped to a
+ * single project, where it would repeat on every row.
+ */
+export function ProjectChip({
+  task,
+  projects,
+}: {
+  task: Task;
+  projects: readonly { path: string; title: string }[];
+}) {
+  if (!task.project) return null;
+  const project = projects.find((p) => p.path === task.project);
+  // An unresolvable link still says more than nothing — the basename is what
+  // the user typed, and hiding it would make a broken link invisible.
+  const label = project?.title ?? basename(task.project);
+
+  return (
+    <span className="vf-chip vf-chip-project" title={`Project: ${label}`}>
+      <Folder size={11} /> {label}
+    </span>
+  );
+}
+
+/**
+ * A plain number with the workspace's cosmetic unit suffix (§5.4). The plugin
+ * never calculates on it, so this is display only — no rounding, no totals.
+ *
+ * The icon is a gauge, not a clock, on purpose: `estimateUnitLabel` defaults to
+ * null and the field carries no enforced meaning, so the most likely content is
+ * story points — which are explicitly *not* time. A gauge reads as magnitude
+ * and stays true whether someone puts points, hours, or anything else here.
+ */
+export function Estimate({
+  task,
+  unitLabel,
+}: {
+  task: Task;
+  unitLabel?: string | null;
+}) {
+  if (task.estimate == null) return null;
+  const suffix = unitLabel?.trim();
+
+  return (
+    <span
+      className="vf-estimate"
+      title={`Estimate: ${task.estimate}${suffix ? ` ${suffix}` : ""}`}
+    >
+      <Gauge size={11} aria-hidden />
+      <span>
+        {task.estimate}
+        {suffix ? ` ${suffix}` : ""}
+      </span>
+    </span>
+  );
+}
+
+/**
+ * Start date. Deliberately has none of `DueDate`'s today/overdue treatment —
+ * a start date that has passed is the normal case for work in progress, not a
+ * problem to flag.
+ */
+export function StartDate({ task }: { task: Task }) {
+  if (!task.startDate) return null;
+
+  return (
+    <span className="vf-start" title={`Starts ${task.startDate}`}>
+      → {task.startDate}
+    </span>
+  );
+}
+
+/**
+ * Archived marker (§7.7). Not a toggleable field — whether archived tasks
+ * appear at all is already the `showArchived` setting's job, and a second
+ * control over the same idea would just confuse. Rows and cards are dimmed
+ * via `.is-archived`; this says *why* they're dimmed.
+ */
+export function ArchivedBadge({ task }: { task: Task }) {
+  if (!task.archived) return null;
+
+  return (
+    <span className="vf-chip vf-chip-archived" title="Archived">
+      <Archive size={11} /> Archived
+    </span>
   );
 }
 

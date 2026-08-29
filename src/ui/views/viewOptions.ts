@@ -60,13 +60,28 @@ export const EMPTY_COLUMN_OPTIONS: {
  * The task fields a view can hide (§8.4), in `TASK_FIELDS` (canonical) order.
  * `type` only renders on Board cards but is always offered — see §8.4.
  */
-export const FIELD_OPTIONS: { value: TaskField; label: string }[] = [
-	{ value: "type", label: "Type" },
+/**
+ * The field checklist, in the order it reads best — not `TASK_FIELDS` order,
+ * which exists to keep `hide:` output stable.
+ *
+ * `hint` explains a field whose behaviour isn't obvious from its name: Type
+ * only renders on Board cards, so toggling it in a List does nothing visible,
+ * and someone who doesn't know that reasonably concludes the control is broken.
+ */
+export const FIELD_OPTIONS: {
+	value: TaskField;
+	label: string;
+	hint?: string;
+}[] = [
+	{ value: "type", label: "Type", hint: "Board only" },
+	{ value: "project", label: "Project", hint: "Hidden when filtered to one" },
 	{ value: "priority", label: "Priority" },
 	{ value: "assignee", label: "Assignee" },
 	{ value: "labels", label: "Labels" },
+	{ value: "estimate", label: "Estimate" },
+	{ value: "startDate", label: "Start date" },
 	{ value: "dueDate", label: "Due date" },
-	{ value: "progress", label: "Progress" },
+	{ value: "progress", label: "Progress", hint: "Sub-task rollup" },
 	{ value: "relations", label: "Relations" },
 ];
 

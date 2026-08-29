@@ -197,6 +197,28 @@ export function canonicalizeHiddenFields(
 	return TASK_FIELDS.filter((field) => set.has(field));
 }
 
+/**
+ * The hidden-field set a view's rows and cards should actually render with —
+ * the user's own choices plus anything the view's filters make redundant.
+ *
+ * Today that's the project chip inside a view already scoped to one project:
+ * repeating the same project name on every row is noise, and the alternative
+ * (seeding `project` into every existing view's `hiddenFields` on upgrade)
+ * would be a migration that also takes the choice away from the user. This
+ * suppression is presentation-only — it never touches the saved view, so
+ * toggling the filter off brings the chip straight back, and the Fields
+ * control still shows the field as "shown" because that's what's saved.
+ */
+export function renderedHiddenFields(
+	view: Pick<SavedView, "filters" | "hiddenFields">,
+): TaskField[] {
+	const projects = view.filters.project ?? [];
+	if (projects.length !== 1 || view.hiddenFields.includes("project")) {
+		return [...view.hiddenFields];
+	}
+	return [...view.hiddenFields, "project"];
+}
+
 /** Strip a view down to what it *is*, dropping identity and column furniture. */
 export function viewDefinition(view: SavedView): ViewDefinition {
 	return {

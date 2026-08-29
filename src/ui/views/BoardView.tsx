@@ -6,12 +6,12 @@
  * `useDropHandler`, shared with the List view.
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { scopeOf, subtaskProgress } from "../../core/hierarchy";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { EvaluatedView } from "../../core/views";
-import { toggleColumnCollapsed } from "../../core/views";
+import { renderedHiddenFields, toggleColumnCollapsed } from "../../core/views";
 import {
   emptyProgress,
   type SavedView,
@@ -25,7 +25,11 @@ import {
   Assignee,
   DueDate,
   Labels,
+  ArchivedBadge,
+  Estimate,
+  ProjectChip,
   RelationBadge,
+  StartDate,
   SubtaskProgress,
   TaxonomyChip,
 } from "../components/TaskBits";
@@ -55,6 +59,9 @@ export function BoardView({
   taxonomies,
   onColumnsChange,
 }: BoardViewProps) {
+  // Fields the view saved as hidden, plus any the filters make redundant.
+  const shownFields = useMemo(() => renderedHiddenFields(view), [view]);
+
   const drag = useTaskDrag(useTaskDropHandler(view, evaluated));
   const visible = evaluated.groups.filter((group) => !group.hidden);
 
@@ -74,7 +81,7 @@ export function BoardView({
           snapshot={snapshot}
           taxonomies={taxonomies}
           drag={drag}
-          hiddenFields={view.hiddenFields}
+          hiddenFields={shownFields}
           onToggleCollapse={() =>
             onColumnsChange(toggleColumnCollapsed(view, group.key).columns)
           }
@@ -87,7 +94,7 @@ export function BoardView({
           task={draggedTask}
           snapshot={snapshot}
           taxonomies={taxonomies}
-          hiddenFields={view.hiddenFields}
+          hiddenFields={shownFields}
         />
       )}
     </div>
@@ -306,6 +313,8 @@ function CardContent({
   const showPriority = !off("priority");
   const showDue = !off("dueDate");
   const showAssignee = !off("assignee");
+  const showStart = !off("startDate");
+  const showEstimate = !off("estimate");
 
   return (
     <>
@@ -320,7 +329,12 @@ function CardContent({
           />
         )}
         {!off("relations") && <RelationBadge task={task} />}
+        <ArchivedBadge task={task} />
       </div>
+
+      {!off("project") && (
+        <ProjectChip task={task} projects={snapshot.projects} />
+      )}
 
       {/* Prominent Task Title */}
       <div className="vf-card-title">{task.title}</div>
@@ -340,7 +354,7 @@ function CardContent({
       )}
 
       {/* Bottom Meta Row: Priority Icon + Due Date + Assignee Avatar */}
-      {(showPriority || showDue || showAssignee) && (
+      {(showPriority || showDue || showAssignee || showStart || showEstimate) && (
         <div className="vf-card-bottom">
           <div className="vf-card-meta-group">
             {showPriority && (
@@ -350,6 +364,13 @@ function CardContent({
                 id={task.priority}
               />
             )}
+            {showEstimate && (
+              <Estimate
+                task={task}
+                unitLabel={snapshot.workspace.estimateUnitLabel}
+              />
+            )}
+            {showStart && <StartDate task={task} />}
             {showDue && <DueDate task={task} />}
           </div>
           {showAssignee && (

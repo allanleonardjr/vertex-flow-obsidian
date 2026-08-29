@@ -322,6 +322,28 @@ describe("hide: clause", () => {
 		).toContain("hide:type,labels");
 	});
 
+	it("parses the fields added after the original seven", () => {
+		expect(
+			parseQuery("hide:project,estimate,start", ctx).definition.hiddenFields,
+		).toEqual(["project", "estimate", "startDate"]);
+	});
+
+	it("maps the new fields' aliases too", () => {
+		expect(
+			parseQuery("hide:proj,est,startdate", ctx).definition.hiddenFields,
+		).toEqual(["project", "estimate", "startDate"]);
+		expect(parseQuery("hide:points", ctx).definition.hiddenFields).toEqual([
+			"estimate",
+		]);
+	});
+
+	it("round-trips every field through print and parse", () => {
+		const printed = printQuery(def({ hiddenFields: [...TASK_FIELDS] }), ctx);
+		expect(parseQuery(printed, ctx).definition.hiddenFields).toEqual([
+			...TASK_FIELDS,
+		]);
+	});
+
 	it("errors on an unknown field", () => {
 		const parsed = parseQuery("hide:bogus", ctx);
 		expect(parsed.ok).toBe(false);

@@ -21,7 +21,7 @@ import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, ChevronsUpDown } from "lucide-react";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { EvaluatedView } from "../../core/views";
-import { layoutIcon } from "../../core/views";
+import { layoutIcon, renderedHiddenFields } from "../../core/views";
 import {
   bucketByDay,
   calendarAnchor,
@@ -100,6 +100,9 @@ export function CalendarView({
   onCalendarChange,
   onChange,
 }: CalendarViewProps) {
+  // Fields the view saved as hidden, plus any the filters make redundant.
+  const shownFields = useMemo(() => renderedHiddenFields(view), [view]);
+
   const plugin = usePlugin();
   const selection = useSelection();
   const tabs = useTabs();
@@ -200,7 +203,7 @@ export function CalendarView({
         task={task}
         snapshot={snapshot}
         taxonomies={taxonomies}
-        hiddenFields={view.hiddenFields}
+        hiddenFields={shownFields}
         dense
       />
     </button>
@@ -369,7 +372,7 @@ export function CalendarView({
                             task={task}
                             snapshot={snapshot}
                             taxonomies={taxonomies}
-                            hiddenFields={view.hiddenFields}
+                            hiddenFields={shownFields}
                             dense
                           />
                         </button>
@@ -428,7 +431,7 @@ export function CalendarView({
                     task={task}
                     snapshot={snapshot}
                     taxonomies={taxonomies}
-                    hiddenFields={view.hiddenFields}
+                    hiddenFields={shownFields}
                   />
                 </div>
               ))}

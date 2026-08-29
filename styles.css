@@ -879,6 +879,43 @@ body.vf-dragging {
   white-space: nowrap;
 }
 
+/* Start date and estimate read as quiet metadata, like the due date beside
+   them — neither carries a state the way an overdue date does. */
+.vf-start,
+.vf-estimate {
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  white-space: nowrap;
+}
+
+/* Icon-led, because the number alone is meaningless next to a priority chip
+   and a date — `estimateUnitLabel` is null by default, so there may be no
+   suffix to explain it. */
+.vf-estimate {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-variant-numeric: tabular-nums;
+}
+
+.vf-chip-project,
+.vf-chip-archived {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The archived marker says *why* an `.is-archived` row is dimmed — the dimming
+   alone reads as disabled or still-loading. */
+.vf-chip-archived {
+  border-color: transparent;
+  background: var(--background-modifier-hover);
+}
+
 .vf-due.is-today {
   color: var(--text-warning, orange);
 }
@@ -3269,6 +3306,92 @@ body.vf-dragging {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+}
+
+/* ---- Fields checklist (view bar → "Fields") ---- */
+
+.vf-field-list {
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+}
+
+/* One field per row: eye icon, name, and an optional hint pinned right. */
+.vf-field-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start !important;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 6px !important;
+  border: none !important;
+  border-radius: 4px;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-small);
+  text-align: left;
+  cursor: pointer;
+}
+
+.vf-field-row:hover {
+  background: var(--background-modifier-hover) !important;
+}
+
+/* Shown state is accent *text*, not a filled background — the fill is what the
+   hover uses, and reusing it here made the two indistinguishable. */
+.vf-field-row.is-on {
+  color: var(--text-accent);
+}
+
+.vf-field-eye {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.vf-field-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vf-field-hint {
+  flex-shrink: 0;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  opacity: 0.8;
+}
+
+.vf-field-list-footer {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--vf-border);
+}
+
+.vf-field-bulk {
+  padding: 2px 6px !important;
+  border: none !important;
+  border-radius: 4px;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+}
+
+.vf-field-bulk:hover:not(:disabled) {
+  background: var(--background-modifier-hover) !important;
+  color: var(--text-normal);
+}
+
+.vf-field-bulk:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .vf-fields-note {

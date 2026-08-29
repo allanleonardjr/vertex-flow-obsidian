@@ -8,6 +8,7 @@ import {
 	defaultViews,
 	definitionsEqual,
 	newView,
+	renderedHiddenFields,
 	evaluateView,
 	groupTasks,
 	seedFromFilters,
@@ -403,6 +404,38 @@ describe("hiddenFields", () => {
 			canonicalizeHiddenFields(["labels", "priority", "priority", "type"]),
 		).toEqual(["type", "priority", "labels"]);
 		expect(canonicalizeHiddenFields(undefined)).toEqual([]);
+	});
+
+	it("suppresses the project chip in a view scoped to one project", () => {
+		const scoped = view({ filters: { project: ["Projects/Core App"] } });
+		expect(renderedHiddenFields(scoped)).toEqual(["project"]);
+	});
+
+	it("keeps the project chip when the filter spans several projects", () => {
+		const multi = view({
+			filters: { project: ["Projects/A", "Projects/B"] },
+		});
+		expect(renderedHiddenFields(multi)).toEqual([]);
+	});
+
+	it("keeps the project chip when nothing filters by project", () => {
+		expect(renderedHiddenFields(view({ filters: { status: ["todo"] } }))).toEqual(
+			[],
+		);
+	});
+
+	it("never duplicates a project the user already hid", () => {
+		const both = view({
+			filters: { project: ["Projects/Core App"] },
+			hiddenFields: ["project"],
+		});
+		expect(renderedHiddenFields(both)).toEqual(["project"]);
+	});
+
+	it("leaves the saved view untouched — suppression is render-only", () => {
+		const scoped = view({ filters: { project: ["Projects/Core App"] } });
+		renderedHiddenFields(scoped);
+		expect(scoped.hiddenFields).toEqual([]);
 	});
 
 	it("makes view equality insensitive to hidden-field order", () => {

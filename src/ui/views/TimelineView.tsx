@@ -33,7 +33,7 @@ import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, ChevronsUpDown } from "lucide-react";
 import { getValue, type WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { EvaluatedView } from "../../core/views";
-import { layoutIcon } from "../../core/views";
+import { layoutIcon, renderedHiddenFields } from "../../core/views";
 import {
   barDates,
   dateRangeOf,
@@ -107,6 +107,9 @@ export function TimelineView({
   taxonomies,
   onTimelineChange,
 }: TimelineViewProps) {
+  // Fields the view saved as hidden, plus any the filters make redundant.
+  const shownFields = useMemo(() => renderedHiddenFields(view), [view]);
+
   const plugin = usePlugin();
   const selection = useSelection();
   const tabs = useTabs();
@@ -510,7 +513,7 @@ export function TimelineView({
                       task={task}
                       snapshot={snapshot}
                       taxonomies={taxonomies}
-                      hiddenFields={view.hiddenFields}
+                      hiddenFields={shownFields}
                     />
                   )}
                 </button>
@@ -674,7 +677,7 @@ export function TimelineView({
                       task={task}
                       snapshot={snapshot}
                       taxonomies={taxonomies}
-                      hiddenFields={view.hiddenFields}
+                      hiddenFields={shownFields}
                     />
                   </div>
                 ))}
@@ -702,7 +705,7 @@ export function TimelineView({
                 task={draggedScheduleTask}
                 snapshot={snapshot}
                 taxonomies={taxonomies}
-                hiddenFields={view.hiddenFields}
+                hiddenFields={shownFields}
               />
             </div>
           </div>,

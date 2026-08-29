@@ -8,12 +8,16 @@
  * a list you can't drag in would be the wrong half of the feature.
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Trash2 } from "lucide-react";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { EvaluatedView } from "../../core/views";
-import { layoutIcon, toggleColumnCollapsed } from "../../core/views";
+import {
+  layoutIcon,
+  renderedHiddenFields,
+  toggleColumnCollapsed,
+} from "../../core/views";
 import { planDeletion, scopeOf, type DeletionPlan } from "../../core/hierarchy";
 import type {
   SavedView,
@@ -54,6 +58,9 @@ export function ListView({
   onNewTask,
   onClearFilters,
 }: ListViewProps) {
+  // Fields the view saved as hidden, plus any the filters make redundant.
+  const shownFields = useMemo(() => renderedHiddenFields(view), [view]);
+
   const drag = useTaskDrag(useTaskDropHandler(view, evaluated));
   const selection = useSelection();
   const tabs = useTabs();
@@ -114,7 +121,7 @@ export function ListView({
         taxonomies={taxonomies}
         grouped={evaluated.view.groupBy !== "none"}
         interaction={interaction}
-        hiddenFields={view.hiddenFields}
+        hiddenFields={shownFields}
         emptyGroupLabel="Drop tasks here"
         containerRef={setList}
         rowAction={(task) => (
@@ -137,7 +144,7 @@ export function ListView({
             task={draggedTask}
             snapshot={snapshot}
             taxonomies={taxonomies}
-            hiddenFields={view.hiddenFields}
+            hiddenFields={shownFields}
           />
         )}
       </TaskList>
