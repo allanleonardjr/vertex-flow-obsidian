@@ -17,6 +17,7 @@ import { serializeComments } from "../serialization/comments";
 import { serializeProject } from "../serialization/entities";
 import { serializeTask } from "../serialization/task";
 import { serializeViews } from "../serialization/views";
+import { serializeDashboards } from "../serialization/dashboards";
 import {
 	createWorkspaceConfig,
 	serializeWorkspace,
@@ -24,6 +25,7 @@ import {
 import { defaultViews } from "../views/defaults";
 import type {
 	Comment,
+	DashboardConfig,
 	SavedView,
 	WorkspaceConfig,
 	WorkspaceSnapshot,
@@ -155,12 +157,24 @@ export function instantiateTemplate(
 		...(content?.views ?? []),
 	];
 
+	const dashboards: DashboardConfig[] = content?.dashboards ?? [];
+
 	// --- Notes ----------------------------------------------------------
 
 	const notes: GeneratedNote[] = [
 		{ path: joinPath(root, "_workspace"), frontmatter: serializeWorkspace(workspace), body: "" },
 		{ path: joinPath(root, "_views"), frontmatter: serializeViews(views), body: "" },
 	];
+
+	// `_dashboards` is written only when the template ships one — a workspace
+	// with no dashboards note simply has an empty list (same as `_views`).
+	if (dashboards.length > 0) {
+		notes.push({
+			path: joinPath(root, "_dashboards"),
+			frontmatter: serializeDashboards(dashboards),
+			body: "",
+		});
+	}
 
 	const projects = content?.projects ?? [];
 	const tasks = content?.tasks ?? [];
@@ -193,7 +207,7 @@ export function instantiateTemplate(
 		root,
 		workspace,
 		notes,
-		snapshot: { workspace, tasks, projects, views, dashboards: [] },
+		snapshot: { workspace, tasks, projects, views, dashboards },
 	};
 }
 

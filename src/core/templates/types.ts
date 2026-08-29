@@ -13,6 +13,7 @@
 
 import type {
 	Comment,
+	DashboardConfig,
 	Person,
 	Project,
 	SavedView,
@@ -65,6 +66,8 @@ export interface TemplateBuildContext {
 export interface TemplateContent {
 	workspace?: TemplateWorkspaceOverrides;
 	views?: SavedView[]; // appended after defaultViews()[0], never replacing it
+	/** Optional — written to `_dashboards` when present. Omitting it is fine. */
+	dashboards?: DashboardConfig[];
 	projects: Project[];
 	tasks: Task[];
 	comments?: Map<string, Comment[]>;

@@ -7,6 +7,11 @@ import { joinPath } from "../links";
 import { initialRanks } from "../ranking/lexorank";
 import {
 	emptyRelations,
+	type ChartType,
+	type DashboardConfig,
+	type DashboardFieldMapping,
+	type DashboardWidget,
+	type DashboardWidgetLayout,
 	type GroupByField,
 	type Project,
 	type SavedView,
@@ -112,6 +117,37 @@ export function makeView(
 		hiddenFields: [],
 		calendarDateField: "dueDate",
 	};
+}
+
+/**
+ * A dashboard widget, built declaratively. Templates can't call the runtime
+ * `newWidget()` / `widgetFromConfig()` helpers (those need a live `ViewContext`
+ * that doesn't exist at template-authoring time), so they pass an explicit
+ * `fieldMapping`, `layout`, and title here. `titleIsCustom` stays `false` — the
+ * title is the auto-generated default and the app is free to regenerate it if
+ * the user later re-maps the widget.
+ */
+export function makeWidget(
+	id: string,
+	chartType: ChartType,
+	title: string,
+	fieldMapping: DashboardFieldMapping,
+	layout: DashboardWidgetLayout,
+): DashboardWidget {
+	return { id, chartType, title, titleIsCustom: false, fieldMapping, layout };
+}
+
+/**
+ * A dashboard for a template's example content, mirroring `makeView`. Starts
+ * with an empty filter set — every widget aggregates over the whole workspace.
+ */
+export function makeDashboard(
+	id: string,
+	name: string,
+	widgets: DashboardWidget[],
+	icon = "layout-dashboard",
+): DashboardConfig {
+	return { id, name, icon, filters: {}, widgets };
 }
 
 /**
