@@ -16,6 +16,7 @@ import { ProgressBar } from "../components/TaskBits";
 export function BrowseHeader({
 	title,
 	noun,
+	plural,
 	count,
 	actionLabel,
 	onAction,
@@ -23,6 +24,8 @@ export function BrowseHeader({
 	title: string;
 	/** Singular noun, for the count line: "3 projects". */
 	noun: string;
+	/** Irregular plural, when `noun + "s"` is wrong ("people", not "persons"). */
+	plural?: string;
 	count: number;
 	/** Omitted — like the Trash hub — the header shows just the title + count. */
 	actionLabel?: string;
@@ -32,7 +35,9 @@ export function BrowseHeader({
 		<header className="vf-toolbar">
 			<div className="vf-toolbar-title">
 				<h2>{title}</h2>
-				<span className="vf-count">{pluralize(count, noun)}</span>
+				<span className="vf-count">
+					{count === 1 ? `1 ${noun}` : `${count} ${plural ?? `${noun}s`}`}
+				</span>
 			</div>
 			{actionLabel && onAction && (
 				<div className="vf-toolbar-actions">

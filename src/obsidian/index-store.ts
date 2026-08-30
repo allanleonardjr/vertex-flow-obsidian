@@ -13,7 +13,11 @@
  */
 
 import { App, TFile, debounce } from "obsidian";
-import { mentionsInNote } from "../core/serialization/comments";
+import {
+	commentCountsInBody,
+	mentionsInNote,
+} from "../core/serialization/comments";
+import { mergeCommentCounts } from "../core/people";
 import {
 	detectProjectTitleCollisions,
 	parseProject,
@@ -79,8 +83,11 @@ export class VaultIndex {
 	private listeners = new Set<IndexListener>();
 	private version = 0;
 
-	/** path → { mtime, mentions }, so unchanged notes are never re-read. */
-	private mentionCache = new Map<string, { mtime: number; mentions: string[] }>();
+	/** path → { mtime, mentions, commentCounts }, so unchanged notes are never re-read. */
+	private mentionCache = new Map<
+		string,
+		{ mtime: number; mentions: string[]; commentCounts: Record<string, number> }
+	>();
 
 	private readonly scheduleRebuild = debounce(
 		() => void this.rebuild(),
@@ -205,6 +212,30 @@ export class VaultIndex {
 		return null;
 	}
 
+	/** The workspace whose People register defines this person, if any. */
+	snapshotWithPerson(personId: string): WorkspaceSnapshot | null {
+		for (const s of this.snapshots.values())
+			if (s.workspace.people.some((p) => p.id === personId)) return s;
+		return null;
+	}
+
+	/**
+	 * Total comments authored by each Person, across every task in this
+	 * workspace. Derived from the same mtime-gated body-read pass that already
+	 * powers `@mention` resolution — no separate scan. Exactly like `mentions`,
+	 * a freshly-added task shows `0` until the async pass completes.
+	 */
+	commentCountsByPerson(root: string): Record<string, number> {
+		const snapshot = this.snapshots.get(root);
+		if (!snapshot) return {};
+		const tallies: Record<string, number>[] = [];
+		for (const task of snapshot.tasks) {
+			const cached = this.mentionCache.get(task.path);
+			if (cached) tallies.push(cached.commentCounts);
+		}
+		return mergeCommentCounts(tallies);
+	}
+
 	hasView(viewId: string): boolean {
 		return this.snapshotWithView(viewId) != null;
 	}
@@ -215,6 +246,10 @@ export class VaultIndex {
 
 	hasLabel(labelId: string): boolean {
 		return this.snapshotWithLabel(labelId) != null;
+	}
+
+	hasPerson(personId: string): boolean {
+		return this.snapshotWithPerson(personId) != null;
 	}
 
 	hasProject(path: string): boolean {
@@ -552,8 +587,15 @@ export class VaultIndex {
 					continue;
 				}
 
-				const mentions = mentionsInNote(await this.io.readBody(file), people);
-				this.mentionCache.set(task.path, { mtime: file.stat.mtime, mentions });
+				// One body read, two derived values — `@mention` resolution and
+				// the per-author comment tally both come out of the same string.
+				const body = await this.io.readBody(file);
+				const mentions = mentionsInNote(body, people);
+				this.mentionCache.set(task.path, {
+					mtime: file.stat.mtime,
+					mentions,
+					commentCounts: commentCountsInBody(body),
+				});
 				task.mentions = mentions;
 				changed = true;
 			}

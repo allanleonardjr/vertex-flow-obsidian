@@ -195,6 +195,22 @@ export function resolveMentions(text: string, people: Person[]): string[] {
 	return resolved;
 }
 
+/**
+ * Tally a note's comments by `author`. Parallel to `mentionsInNote` — both are
+ * derived from the same single body read the index already performs
+ * (`VaultIndex.refreshMentions`), so counting comments here costs nothing
+ * extra. Keys are the raw `author` strings (a `Person.id` in practice); an
+ * authorless comment is ignored.
+ */
+export function commentCountsInBody(body: string): Record<string, number> {
+	const counts: Record<string, number> = {};
+	for (const comment of parseComments(body)) {
+		if (!comment.author) continue;
+		counts[comment.author] = (counts[comment.author] ?? 0) + 1;
+	}
+	return counts;
+}
+
 /** All mentions across a note's description and its comments. */
 export function mentionsInNote(body: string, people: Person[]): string[] {
 	const comments = parseComments(body);

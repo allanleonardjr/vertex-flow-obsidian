@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	COMMENTS_END,
 	COMMENTS_START,
+	commentCountsInBody,
 	detectProjectTitleCollisions,
 	extractMentionHandles,
 	mentionsInNote,
@@ -477,6 +478,23 @@ ${COMMENTS_END}
 	it("issues sequential comment ids", () => {
 		expect(nextCommentId([])).toBe("cmt_01");
 		expect(nextCommentId(parseComments(BODY))).toBe("cmt_03");
+	});
+
+	it("tallies comments by author (the People-usage input)", () => {
+		expect(commentCountsInBody(BODY)).toEqual({ "jr-leonard": 1, alice: 1 });
+	});
+
+	it("counts multiple comments from one author and ignores authorless ones", () => {
+		const body = `${COMMENTS_START}
+<comment id="cmt_01" author="bob" date="d">one</comment>
+<comment id="cmt_02" author="bob" date="d">two</comment>
+<comment id="cmt_03" author="" date="d">three</comment>
+${COMMENTS_END}`;
+		expect(commentCountsInBody(body)).toEqual({ bob: 2 });
+	});
+
+	it("returns an empty tally for a note with no comment block", () => {
+		expect(commentCountsInBody("Just prose.")).toEqual({});
 	});
 });
 

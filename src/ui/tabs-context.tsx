@@ -40,7 +40,8 @@ export type BrowseKind =
 	| "dashboards"
 	| "views"
 	| "trash"
-	| "labels";
+	| "labels"
+	| "people";
 
 export type Tab =
 	| { id: BrowseKind; kind: BrowseKind }
@@ -59,6 +60,8 @@ export type Tab =
 	| { id: string; kind: "dashboard"; dashboardId: string }
 	/** A label's tasks — a synthesised, never-persisted view. Closable. */
 	| { id: string; kind: "label"; labelId: string }
+	/** One person: a detail header above their assigned tasks. Closable. */
+	| { id: string; kind: "person"; personId: string }
 	/** One project: a detail header above its tasks (synthesised view). Closable. */
 	| { id: string; kind: "project"; path: string };
 
@@ -79,6 +82,10 @@ function viewTabId(viewId: string, root?: string): string {
 
 function labelTabId(labelId: string): string {
 	return `label:${labelId}`;
+}
+
+function personTabId(personId: string): string {
+	return `person:${personId}`;
 }
 
 function dashboardTabId(dashboardId: string): string {
@@ -124,6 +131,11 @@ export function tabWorkspaceRoot(
 				plugin.index.snapshotWithLabel(tab.labelId)?.workspace.root ??
 				null
 			);
+		case "person":
+			return (
+				plugin.index.snapshotWithPerson(tab.personId)?.workspace.root ??
+				null
+			);
 		default:
 			return null;
 	}
@@ -150,11 +162,13 @@ export function tabAccentRoot(
 		case "view":
 		case "dashboard":
 		case "label":
+		case "person":
 			return tabWorkspaceRoot(plugin, tab);
 		case "projects":
 		case "dashboards":
 		case "views":
 		case "labels":
+		case "people":
 		case "trash":
 		case "settings":
 			return activeRoot;
@@ -182,6 +196,8 @@ export interface TabsApi {
 	openView: (viewId: string, root?: string) => void;
 	/** Open (or reveal) a label's tasks as its own transient tab. */
 	openLabel: (labelId: string) => void;
+	/** Open (or reveal) a person's detail screen as its own transient tab. */
+	openPerson: (personId: string) => void;
 	/** Open (or reveal) a dashboard as its own tab. */
 	openDashboard: (dashboardId: string) => void;
 	/** Open (or reveal) a project's detail screen as its own transient tab. */
@@ -213,6 +229,8 @@ export interface TabsApi {
 	pruneViews: (existing: (viewId: string) => boolean) => void;
 	/** Drop label tabs whose label no longer exists. */
 	pruneLabels: (existing: (labelId: string) => boolean) => void;
+	/** Drop person tabs whose person no longer exists. */
+	prunePeople: (existing: (personId: string) => boolean) => void;
 	/** Drop dashboard tabs whose dashboard no longer exists. */
 	pruneDashboards: (existing: (dashboardId: string) => boolean) => void;
 	/** Drop project tabs whose project no longer exists (deleted, or a workspace switch). */
@@ -448,6 +466,20 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 		[mayLeaveActive],
 	);
 
+	const openPerson = useCallback(
+		async (personId: string) => {
+			const id = personTabId(personId);
+			if (!(await mayLeaveActive("navigate", id))) return;
+			setTabs((current) =>
+				current.some((tab) => tab.id === id)
+					? current
+					: [...current, { id, kind: "person", personId }],
+			);
+			setActiveId(id);
+		},
+		[mayLeaveActive],
+	);
+
 	const openProject = useCallback(
 		async (path: string) => {
 			// No cross-workspace switch (unlike `openTask`): a project is only ever
@@ -630,6 +662,11 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			makePrune("label", (tab) => existing(tab.labelId)),
 		[makePrune],
 	);
+	const prunePeople = useCallback(
+		(existing: (personId: string) => boolean) =>
+			makePrune("person", (tab) => existing(tab.personId)),
+		[makePrune],
+	);
 	const pruneDashboards = useCallback(
 		(existing: (dashboardId: string) => boolean) =>
 			// Same dirty-tab protection as `pruneViews`.
@@ -706,6 +743,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			openScreen,
 			openView,
 			openLabel,
+			openPerson,
 			openDashboard,
 			openProject,
 			activate,
@@ -717,6 +755,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			pruneTasks,
 			pruneViews,
 			pruneLabels,
+			prunePeople,
 			pruneDashboards,
 			pruneProjects,
 			setUnsavedGuard,
@@ -738,6 +777,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			openScreen,
 			openView,
 			openLabel,
+			openPerson,
 			openDashboard,
 			openProject,
 			activate,
@@ -749,6 +789,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			pruneTasks,
 			pruneViews,
 			pruneLabels,
+			prunePeople,
 			pruneDashboards,
 			pruneProjects,
 			setUnsavedGuard,

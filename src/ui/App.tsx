@@ -15,11 +15,13 @@ import type { Project, SavedView, WorkspaceSnapshot } from "../core/types";
 import { EmptyState } from "./EmptyState";
 import { EmptyTabsPane } from "./EmptyTabsPane";
 import { ProjectDetailView } from "./ProjectDetailView";
+import { PersonDetailView } from "./PersonDetailView";
 import { TemplateGallery } from "./TemplateGallery";
 import { SelectionProvider } from "./selection";
 import { ProjectsBrowseView } from "./browse/ProjectsBrowseView";
 import { ViewsBrowseView } from "./browse/ViewsBrowseView";
 import { LabelsBrowseView } from "./browse/LabelsBrowseView";
+import { PeopleBrowseView } from "./browse/PeopleBrowseView";
 import { DashboardsBrowseView } from "./browse/DashboardsBrowseView";
 import { TrashBrowseView } from "./browse/TrashBrowseView";
 import { DashboardView } from "./dashboards/DashboardView";
@@ -115,6 +117,9 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
     tabs.pruneLabels((id) => plugin.index.hasLabel(id));
   }, [tabs, plugin, snapshot.workspace.labels]);
   useEffect(() => {
+    tabs.prunePeople((id) => plugin.index.hasPerson(id));
+  }, [tabs, plugin, snapshot.workspace.people]);
+  useEffect(() => {
     tabs.pruneProjects((path) => plugin.index.hasProject(path));
   }, [tabs, plugin, snapshot.projects]);
   useEffect(() => {
@@ -193,6 +198,18 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
           <ViewsBrowseView snapshot={snapshot} />
         ) : activeTab.kind === "labels" ? (
           <LabelsBrowseView snapshot={snapshot} />
+        ) : activeTab.kind === "people" ? (
+          <PeopleBrowseView snapshot={snapshot} />
+        ) : activeTab.kind === "person" ? (
+          <PersonDetailView
+            personId={activeTab.personId}
+            snapshot={snapshot}
+            taxonomies={active.taxonomies}
+            context={active.context}
+            containerRef={container}
+            active
+            onSelectView={selectView}
+          />
         ) : activeTab.kind === "trash" ? (
           <TrashBrowseView snapshot={snapshot} taxonomies={active.taxonomies} />
         ) : activeTab.kind === "dashboard" ? (
@@ -242,6 +259,30 @@ function labelView(snapshot: WorkspaceSnapshot, labelId: string): SavedView {
     name: label?.name ?? labelId,
     viewType: "list",
     filters: { labels: [labelId] },
+    groupBy: "status",
+    sortBy: "rank",
+    sortDirection: "asc",
+    columns: { collapsed: [], hidden: [] },
+    emptyColumnBehavior: "show-normal",
+    hiddenFields: [],
+    subtaskDisplay: "flat",
+    calendarDateField: "dueDate",
+  };
+}
+
+/** A synthesised, never-persisted view showing only tasks assigned to `personId`. */
+export function personView(
+  snapshot: WorkspaceSnapshot,
+  personId: string,
+): SavedView {
+  const person = snapshot.workspace.people.find((p) => p.id === personId);
+  return {
+    type: "view",
+    path: "",
+    id: `person:${personId}`,
+    name: person?.name ?? personId,
+    viewType: "list",
+    filters: { assignee: [personId] },
     groupBy: "status",
     sortBy: "rank",
     sortDirection: "asc",

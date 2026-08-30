@@ -8,7 +8,12 @@
  */
 
 import { App, Notice, TFile } from "obsidian";
-import { disambiguatePrefix, nextTaskId, suggestPrefix } from "../core/ids";
+import {
+  disambiguatePrefix,
+  nextTaskId,
+  slugify,
+  suggestPrefix,
+} from "../core/ids";
 import { formatLink, joinPath, sanitizeFileName } from "../core/links";
 import { planReorder, rankForNewTask } from "../core/ranking";
 import { instantiateTemplate, type WorkspaceTemplate } from "../core/templates";
@@ -591,6 +596,74 @@ export class Mutations {
     const labels = workspaceTaxonomies(snapshot.workspace).label;
     const next = updateValue(labels, id, patch);
     await this.saveWorkspaceConfig(withTaxonomy(snapshot.workspace, next));
+  }
+
+  // -- People — created and edited outside Settings ----------------
+
+  /**
+   * Delete a person, reassigning (or, with `replacementId: null`, clearing)
+   * every `assignee`/`owner` that referenced them before removing them from the
+   * register. `reassignValue` is the same generic single-select rewrite the
+   * taxonomy engine uses — no taxonomy coupling in its body. `isSelf` stays
+   * edited only from Settings' `PeopleSection`, so it never needs handling here.
+   */
+  async deletePerson(
+    snapshot: WorkspaceSnapshot,
+    personId: string,
+    replacementId: string | null,
+  ): Promise<void> {
+    for (const task of snapshot.tasks) {
+      const next = reassignValue(task.assignee, personId, replacementId);
+      if (next !== task.assignee) await this.updateTask(task, { assignee: next });
+    }
+
+    for (const project of snapshot.projects) {
+      const next = reassignValue(project.owner, personId, replacementId);
+      if (next === project.owner) continue;
+      const file = this.io.getFile(project.path);
+      if (!file) continue;
+      await this.io.updateFrontmatter(file, (frontmatter) => {
+        if (next == null) delete frontmatter.owner;
+        else frontmatter.owner = next;
+      });
+    }
+
+    await this.saveWorkspaceConfig({
+      ...snapshot.workspace,
+      people: snapshot.workspace.people.filter((p) => p.id !== personId),
+    });
+  }
+
+  async createPerson(
+    snapshot: WorkspaceSnapshot,
+    name: string,
+    aliases: string[],
+  ): Promise<string> {
+    const id = slugify(
+      name,
+      snapshot.workspace.people.map((p) => p.id),
+    );
+    await this.saveWorkspaceConfig({
+      ...snapshot.workspace,
+      people: [
+        ...snapshot.workspace.people,
+        { id, name, aliases, isSelf: false },
+      ],
+    });
+    return id;
+  }
+
+  async updatePerson(
+    snapshot: WorkspaceSnapshot,
+    id: string,
+    patch: { name?: string; aliases?: string[] },
+  ): Promise<void> {
+    await this.saveWorkspaceConfig({
+      ...snapshot.workspace,
+      people: snapshot.workspace.people.map((p) =>
+        p.id === id ? { ...p, ...patch } : p,
+      ),
+    });
   }
 
   // -- Config notes ---------------------------------------------------------

@@ -9,6 +9,7 @@ export * from "./links";
 export * from "./ids";
 export * from "./ranking";
 export * from "./taxonomy";
+export * from "./people";
 export * from "./hierarchy";
 export * from "./views";
 export * from "./query";

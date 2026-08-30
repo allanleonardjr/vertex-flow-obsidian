@@ -24,6 +24,7 @@ workspaces' lists open side by side.
 | `g` `d` | Dashboards |
 | `g` `v` | Views |
 | `g` `l` | Labels |
+| `g` `m` | People |
 | `g` `t` | Trash |
 | `g` `h` | Help |
 | `g` `s` | Settings |

@@ -36,8 +36,14 @@ import {
   type TaxonomyDeletionPlan,
   type TaxonomyUsage,
 } from "../core/taxonomy";
+import {
+  findPersonUsage,
+  planPersonDeletion,
+  type PersonDeletionPlan,
+} from "../core/people";
 import type {
   DashboardConfig,
+  Person,
   Project,
   SavedView,
   WorkspaceSnapshot,
@@ -47,6 +53,8 @@ import { LabelChip } from "./components/TaskBits";
 import { DeleteWorkspaceDialog } from "./DeleteWorkspaceDialog";
 import { DeleteEntityDialog } from "./DeleteEntityDialog";
 import { LabelDialog } from "./modals/LabelDialog";
+import { PersonDialog } from "./modals/PersonDialog";
+import { ReplacePersonDialog } from "./modals/ReplacePersonDialog";
 import { ReplaceValueDialog } from "./settings/ReplaceValueDialog";
 import {
   usePlugin,
@@ -148,6 +156,8 @@ export function Sidebar({
           <ProjectsSection snapshot={snapshot} />
 
           <LabelsSection snapshot={snapshot} />
+
+          <PeopleSection snapshot={snapshot} />
 
           <div className="vf-sidebar-spacer" />
 
@@ -1210,6 +1220,139 @@ function LabelsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
               replacementId,
             );
             setDeletion(null);
+          }}
+        />
+      )}
+    </Section>
+  );
+}
+
+/* ----------------------------------------------------------------- people -- */
+
+function PeopleSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
+  const plugin = usePlugin();
+  const { activeTab, openPerson, openScreen } = useTabs();
+  const people = [...snapshot.workspace.people].sort((a, b) =>
+    a.name.localeCompare(b.name),
+  );
+
+  const [menuId, setMenuId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
+  // Person deletion is never simply "blocked" — reassign-or-clear is always the
+  // one dialog, so there's no separate confirm step the way Labels has.
+  const [deleting, setDeleting] = useState<PersonDeletionPlan | null>(null);
+
+  const editPerson = people.find((p) => p.id === editing);
+  const activePersonId =
+    activeTab?.kind === "person" ? activeTab.personId : null;
+
+  const requestDelete = (person: Person) => {
+    const usage = findPersonUsage(person.id, {
+      tasks: snapshot.tasks,
+      projects: snapshot.projects,
+      commentCount:
+        plugin.index.commentCountsByPerson(snapshot.workspace.root)[
+          person.id
+        ] ?? 0,
+    });
+    if (usage.count === 0) {
+      void plugin.mutations.deletePerson(snapshot, person.id, null);
+      return;
+    }
+    setDeleting(planPersonDeletion(person, snapshot.workspace.people, usage));
+  };
+
+  return (
+    <Section
+      id="people"
+      title="People"
+      count={people.length}
+      action={<AddButton title="New person" onClick={() => setCreating(true)} />}
+      onOpenHub={() => openScreen("people")}
+    >
+      {people.length === 0 ? (
+        <p className="vf-section-empty">No people yet</p>
+      ) : (
+        people.map((person) => (
+          <NavRow
+            key={person.id}
+            label={person.name}
+            iconFallback="user"
+            active={activePersonId === person.id}
+            variant="view"
+            onClick={() => openPerson(person.id)}
+            trailing={
+              <RowMenu
+                open={menuId === person.id}
+                onToggle={() =>
+                  setMenuId((m) => (m === person.id ? null : person.id))
+                }
+                onClose={() => setMenuId(null)}
+              >
+                <button
+                  className="vf-menu-item"
+                  onClick={() => {
+                    setMenuId(null);
+                    setEditing(person.id);
+                  }}
+                >
+                  Edit
+                </button>
+                <button
+                  className="vf-menu-item vf-menu-item-danger"
+                  onClick={() => {
+                    setMenuId(null);
+                    requestDelete(person);
+                  }}
+                >
+                  Delete
+                </button>
+              </RowMenu>
+            }
+          />
+        ))
+      )}
+
+      {creating && (
+        <PersonDialog
+          title="New person"
+          initialName=""
+          confirmLabel="Create"
+          onConfirm={(name, aliases) =>
+            plugin.mutations.createPerson(snapshot, name, aliases).then(() => {})
+          }
+          onClose={() => setCreating(false)}
+        />
+      )}
+
+      {editPerson && (
+        <PersonDialog
+          title="Edit person"
+          initialName={editPerson.name}
+          initialAliases={editPerson.aliases}
+          confirmLabel="Save"
+          onConfirm={(name, aliases) =>
+            plugin.mutations.updatePerson(snapshot, editPerson.id, {
+              name,
+              aliases,
+            })
+          }
+          onClose={() => setEditing(null)}
+        />
+      )}
+
+      {deleting && (
+        <ReplacePersonDialog
+          plan={deleting}
+          onCancel={() => setDeleting(null)}
+          onConfirm={(replacementId) => {
+            void plugin.mutations.deletePerson(
+              snapshot,
+              deleting.personId,
+              replacementId,
+            );
+            setDeleting(null);
           }}
         />
       )}

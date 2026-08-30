@@ -388,12 +388,15 @@ export function applyTaxonomyDeletion<V extends TaxonomyValue>(
 /**
  * Rewrite a single-select field. Returns `current` unchanged when it doesn't
  * reference the removed value, so callers can map over every task and only
- * write the ones that actually changed.
+ * write the ones that actually changed. `toId` may be `null` — clearing the
+ * field rather than reassigning it (People deletion relies on this; a nullable
+ * field like `assignee`/`owner` has that fallback where a required taxonomy
+ * doesn't).
  */
 export function reassignValue(
 	current: string | null,
 	fromId: string,
-	toId: string,
+	toId: string | null,
 ): string | null {
 	return current === fromId ? toId : current;
 }

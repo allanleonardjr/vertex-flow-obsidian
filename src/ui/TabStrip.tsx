@@ -31,6 +31,7 @@ const BROWSE_ICON: Record<BrowseKind, string> = {
 	views: "▤",
 	trash: "🗑",
 	labels: "🏷",
+	people: "👤",
 };
 
 const BROWSE_LABEL: Record<BrowseKind, string> = {
@@ -42,6 +43,7 @@ const BROWSE_LABEL: Record<BrowseKind, string> = {
 	views: "Views",
 	trash: "Trash",
 	labels: "Labels",
+	people: "People",
 };
 
 function browseLabel(kind: BrowseKind): string {
@@ -276,6 +278,17 @@ function tabContent(
 			/>
 		);
 		label = `${labelValue.name} - Label`;
+	} else if (tab.kind === "person") {
+		const owner = plugin.index.snapshotWithPerson(tab.personId) ?? snapshot;
+		const person = owner.workspace.people.find((p) => p.id === tab.personId);
+		if (!person) return null;
+		ownerName = owner.workspace.name;
+		icon = (
+			<span className="vf-tab-icon">
+				<Icon id="user" fallback="user" size={13} />
+			</span>
+		);
+		label = `${person.name} - Person`;
 	} else if (tab.kind === "task") {
 		// Resolved fresh via the index, not the currently-active `snapshot` —
 		// a task tab can outlive a workspace switch, so it has to find its own
