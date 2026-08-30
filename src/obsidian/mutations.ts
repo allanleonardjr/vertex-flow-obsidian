@@ -28,8 +28,8 @@ import {
   withProjectDescription,
 } from "../core/serialization/entities";
 import { serializeTask } from "../core/serialization/task";
-import { serializeViews } from "../core/serialization/views";
-import { serializeDashboards } from "../core/serialization/dashboards";
+import { serializeView } from "../core/serialization/views";
+import { serializeDashboard } from "../core/serialization/dashboards";
 import { duplicateWidget as cloneWidget } from "../core/dashboards";
 import { serializeWorkspace } from "../core/serialization/workspace";
 import {
@@ -68,13 +68,7 @@ import {
   type DeletionOutcome,
   type DeletionPlan,
 } from "../core/hierarchy";
-import {
-  DASHBOARDS_NOTE,
-  FOLDERS,
-  VaultIndex,
-  VIEWS_NOTE,
-  WORKSPACE_NOTE,
-} from "./index-store";
+import { FOLDERS, VaultIndex, WORKSPACE_NOTE } from "./index-store";
 import { NoteIO } from "./note-io";
 
 export interface NewTaskInput {
@@ -529,73 +523,79 @@ export class Mutations {
     await this.index.rebuild();
   }
 
-  async saveViews(
+  /** The vault path of a view's backing note, `<root>/Views/<id>`. */
+  private viewPath(snapshot: WorkspaceSnapshot, id: string): string {
+    return joinPath(snapshot.workspace.root, FOLDERS.views, id);
+  }
+
+  /** The one live Saved View by id, read fresh so a stale render can't clobber. */
+  private liveView(
     snapshot: WorkspaceSnapshot,
-    views: SavedView[],
-  ): Promise<void> {
-    const path = joinPath(snapshot.workspace.root, VIEWS_NOTE);
-    await this.io.writeConfigNote(path, serializeViews(views));
+    id: string,
+  ): SavedView | undefined {
+    return (this.index.get(snapshot.workspace.root) ?? snapshot).views.find(
+      (v) => v.id === id,
+    );
+  }
+
+  /** Create a new Saved View — one `Views/<id>.md` note. */
+  async addView(snapshot: WorkspaceSnapshot, view: SavedView): Promise<void> {
+    await this.io.writeConfigNote(
+      this.viewPath(snapshot, view.id),
+      serializeView(view),
+    );
     await this.index.rebuild();
   }
 
-  /** Read the live view list for a workspace, so concurrent edits don't clobber. */
-  private liveViews(snapshot: WorkspaceSnapshot): SavedView[] {
-    return (this.index.get(snapshot.workspace.root) ?? snapshot).views;
-  }
-
-  /** Append a new Saved View. */
-  async addView(snapshot: WorkspaceSnapshot, view: SavedView): Promise<void> {
-    await this.saveViews(snapshot, [...this.liveViews(snapshot), view]);
-  }
-
-  /** Replace one Saved View by id (used for rename, duplicate-then-edit, etc). */
+  /**
+   * Persist an edit to one Saved View — rename, filter/group/sort tweak,
+   * column state — straight to that view's own file, never touching any other
+   * view. Writes the file even for a System View (its tweaks persist just like
+   * a user view's); migration is the only path that must never create one.
+   */
   async updateView(
     snapshot: WorkspaceSnapshot,
     view: SavedView,
   ): Promise<void> {
-    await this.saveViews(
-      snapshot,
-      this.liveViews(snapshot).map((v) => (v.id === view.id ? view : v)),
-    );
+    const path = this.liveView(snapshot, view.id)?.path || this.viewPath(snapshot, view.id);
+    await this.io.writeConfigNote(path, serializeView(view));
+    await this.index.rebuild();
   }
 
-  /** Remove a Saved View. The built-in "Tasks" view is protected by the UI. */
+  /** Remove a Saved View — trash its one file. System Views are protected by the UI. */
   async deleteView(snapshot: WorkspaceSnapshot, id: string): Promise<void> {
-    await this.saveViews(
-      snapshot,
-      this.liveViews(snapshot).filter((v) => v.id !== id),
-    );
+    const path = this.liveView(snapshot, id)?.path || this.viewPath(snapshot, id);
+    const file = this.io.getFile(path);
+    if (file) await this.io.trash(file);
+    await this.index.rebuild();
   }
 
   // -- Dashboards (§Dashboards Phase 1) ------------------------------------
 
-  /**
-   * Write the whole dashboard list back to `_dashboards`, creating the note on
-   * first use. Mirrors `saveViews` — the UI holds an in-memory draft and calls
-   * this only on an explicit Save / Save As.
-   */
-  async saveDashboards(
-    snapshot: WorkspaceSnapshot,
-    dashboards: DashboardConfig[],
-  ): Promise<void> {
-    const path = joinPath(snapshot.workspace.root, DASHBOARDS_NOTE);
-    await this.io.writeConfigNote(path, serializeDashboards(dashboards));
-    await this.index.rebuild();
+  /** The vault path of a dashboard's backing note, `<root>/Dashboards/<id>`. */
+  private dashboardPath(snapshot: WorkspaceSnapshot, id: string): string {
+    return joinPath(snapshot.workspace.root, FOLDERS.dashboards, id);
   }
 
-  /** Read the live dashboard list, so concurrent edits don't clobber. */
-  private liveDashboards(snapshot: WorkspaceSnapshot): DashboardConfig[] {
-    return (this.index.get(snapshot.workspace.root) ?? snapshot).dashboards;
+  /** The one live dashboard by id, read fresh so a stale render can't clobber. */
+  private liveDashboard(
+    snapshot: WorkspaceSnapshot,
+    id: string,
+  ): DashboardConfig | undefined {
+    return (
+      this.index.get(snapshot.workspace.root) ?? snapshot
+    ).dashboards.find((d) => d.id === id);
   }
 
   async addDashboard(
     snapshot: WorkspaceSnapshot,
     dashboard: DashboardConfig,
   ): Promise<void> {
-    await this.saveDashboards(snapshot, [
-      ...this.liveDashboards(snapshot),
-      dashboard,
-    ]);
+    await this.io.writeConfigNote(
+      this.dashboardPath(snapshot, dashboard.id),
+      serializeDashboard(dashboard),
+    );
+    await this.index.rebuild();
   }
 
   /** Replace one dashboard by id — the Save from the dashboard view. */
@@ -603,34 +603,36 @@ export class Mutations {
     snapshot: WorkspaceSnapshot,
     dashboard: DashboardConfig,
   ): Promise<void> {
-    await this.saveDashboards(
-      snapshot,
-      this.liveDashboards(snapshot).map((d) =>
-        d.id === dashboard.id ? dashboard : d,
-      ),
-    );
+    const path =
+      this.liveDashboard(snapshot, dashboard.id)?.path ||
+      this.dashboardPath(snapshot, dashboard.id);
+    await this.io.writeConfigNote(path, serializeDashboard(dashboard));
+    await this.index.rebuild();
   }
 
   async deleteDashboard(
     snapshot: WorkspaceSnapshot,
     id: string,
   ): Promise<void> {
-    await this.saveDashboards(
-      snapshot,
-      this.liveDashboards(snapshot).filter((d) => d.id !== id),
-    );
+    const path =
+      this.liveDashboard(snapshot, id)?.path || this.dashboardPath(snapshot, id);
+    const file = this.io.getFile(path);
+    if (file) await this.io.trash(file);
+    await this.index.rebuild();
   }
 
-  /** Apply a widget-list transform to one dashboard and persist. */
+  /** Apply a widget-list transform to one live dashboard and write only that file. */
   private async mutateDashboardWidgets(
     snapshot: WorkspaceSnapshot,
     dashboardId: string,
     transform: (widgets: DashboardWidget[]) => DashboardWidget[],
   ): Promise<void> {
-    const dashboards = this.liveDashboards(snapshot).map((d) =>
-      d.id === dashboardId ? { ...d, widgets: transform(d.widgets) } : d,
-    );
-    await this.saveDashboards(snapshot, dashboards);
+    const live = this.liveDashboard(snapshot, dashboardId);
+    if (!live) return;
+    await this.updateDashboard(snapshot, {
+      ...live,
+      widgets: transform(live.widgets),
+    });
   }
 
   async addWidget(

@@ -3,7 +3,7 @@
  * every open task all live as tabs in this single strip, none of them able to
  * block access to the others.
  *
- * There is no longer a pinned, unclosable tab. Every tab — All Tasks and Inbox
+ * There is no longer a pinned, unclosable tab. Every tab — All Tasks and Untriaged
  * included — is freely closable and freely reorderable; closing the last one
  * leaves `activeId === null` and the shell renders its empty-tabs pane. A
  * brand-new workspace explicitly opens All Tasks (see `plugin.pendingOpenView`),
@@ -22,7 +22,7 @@ import {
 	type ReactNode,
 } from "react";
 import type VertexFlowPlugin from "../main";
-import { BUILT_IN_VIEW_ID, INBOX_VIEW_ID } from "../core/views";
+import { SYSTEM_VIEW_ALL_TASKS_ID, isSystemViewId } from "../core/views";
 import type { DashboardConfig, SavedView } from "../core/types";
 import { useActiveWorkspace, usePlugin, useSetActiveWorkspace } from "./context";
 import {
@@ -77,7 +77,7 @@ function projectTabId(path: string): string {
 
 /**
  * The workspace a tab is bound to, or `null` when it renders fine against any
- * workspace (the browse screens, and the two permanent views All Tasks / Inbox,
+ * workspace (the browse screens, and the two permanent System Views All Tasks / Untriaged,
  * whose ids every workspace shares).
  *
  * View/Dashboard/Label/Project tabs survive a workspace switch (their drafts are
@@ -96,7 +96,7 @@ export function tabWorkspaceRoot(
 		case "project":
 			return plugin.index.workspaceFor(tab.path)?.workspace.root ?? null;
 		case "view":
-			if (tab.viewId === BUILT_IN_VIEW_ID || tab.viewId === INBOX_VIEW_ID)
+			if (isSystemViewId(tab.viewId))
 				return null;
 			return (
 				plugin.index.snapshotWithView(tab.viewId)?.workspace.root ?? null
@@ -469,7 +469,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			if (!active) return;
 			const owner = tabWorkspaceRoot(plugin, active);
 			if (!owner || owner === root) return;
-			const allTasksId = viewTabId(BUILT_IN_VIEW_ID);
+			const allTasksId = viewTabId(SYSTEM_VIEW_ALL_TASKS_ID);
 			setTabs((current) =>
 				current.some((tab) => tab.id === allTasksId)
 					? current
@@ -478,7 +478,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 							{
 								id: allTasksId,
 								kind: "view",
-								viewId: BUILT_IN_VIEW_ID,
+								viewId: SYSTEM_VIEW_ALL_TASKS_ID,
 							},
 						],
 			);
@@ -598,7 +598,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			return;
 		}
 		if (tabCountRef.current === 0) {
-			void openView(BUILT_IN_VIEW_ID);
+			void openView(SYSTEM_VIEW_ALL_TASKS_ID);
 		}
 	}, [plugin, activeWorkspaceRoot, openView]);
 
@@ -617,7 +617,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 		if (!active) return;
 		const owner = tabWorkspaceRoot(plugin, active);
 		if (owner && owner !== activeWorkspaceRoot) {
-			void openView(BUILT_IN_VIEW_ID);
+			void openView(SYSTEM_VIEW_ALL_TASKS_ID);
 		}
 	}, [plugin, activeWorkspaceRoot, openView]);
 

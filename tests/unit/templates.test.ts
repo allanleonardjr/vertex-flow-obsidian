@@ -164,7 +164,7 @@ describe("instantiateTemplate — self person seeding", () => {
 		);
 	});
 
-	it("emits a populated dashboard note and a full task set", () => {
+	it("emits a per-file dashboard note and a full task set", () => {
 		const generated = instantiateTemplate({
 			...base,
 			template: softwareSprintTemplate,
@@ -173,9 +173,16 @@ describe("instantiateTemplate — self person seeding", () => {
 		expect(generated.snapshot.tasks).toHaveLength(25);
 		expect(generated.snapshot.dashboards).toHaveLength(1);
 		expect(generated.snapshot.dashboards[0].widgets).toHaveLength(3);
+		const dashboardId = generated.snapshot.dashboards[0].id;
 		expect(
-			generated.notes.some((n) => n.path.endsWith("/_dashboards")),
+			generated.notes.some((n) => n.path.endsWith(`/Dashboards/${dashboardId}`)),
 		).toBe(true);
+		// The retired shared config notes are never emitted.
+		expect(
+			generated.notes.some(
+				(n) => n.path.endsWith("/_dashboards") || n.path.endsWith("/_views"),
+			),
+		).toBe(false);
 	});
 
 	it("reuses a matching entry by name instead of duplicating it", () => {

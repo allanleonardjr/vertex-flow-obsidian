@@ -7,7 +7,7 @@
 import { Fragment, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { getValue, workspaceTaxonomies } from "../core/taxonomy";
-import { BUILT_IN_VIEW_ID, INBOX_VIEW_ID, layoutIcon } from "../core/views";
+import { isSystemViewId, layoutIcon } from "../core/views";
 import type { WorkspaceSnapshot } from "../core/types";
 import { Icon } from "./components/Icon";
 import { StatusDot } from "./components/TaskBits";
@@ -44,9 +44,9 @@ function browseLabel(kind: BrowseKind): string {
 	return BROWSE_LABEL[kind];
 }
 
-/** The two permanent views read as their bare name — "All Tasks - View" is noise. */
+/** The two System Views read as their bare name — "All Tasks - View" is noise. */
 function isPermanentView(viewId: string): boolean {
-	return viewId === BUILT_IN_VIEW_ID || viewId === INBOX_VIEW_ID;
+	return isSystemViewId(viewId);
 }
 
 export function TabStrip({ snapshot }: { snapshot: WorkspaceSnapshot }) {
@@ -83,7 +83,7 @@ export function TabStrip({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 	}, [tabs, plugin]);
 
 	// Each tab's owning workspace root (null for the ones that render fine
-	// against any workspace — browse screens, All Tasks, Inbox). Resolved fresh
+	// against any workspace — browse screens, All Tasks, Untriaged). Resolved fresh
 	// off the live index, same convention as `duplicateTaskTitles`.
 	const tabRoots = useMemo(() => {
 		const map = new Map<string, string | null>();

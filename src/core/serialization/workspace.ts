@@ -1,7 +1,7 @@
 /**
  * `_workspace.md` — workspace identity plus all taxonomy definitions.
  *
- * A frontmatter-only config note. Kept separate from `_views.md` because the
+ * A frontmatter-only config note. Kept separate from the Saved View notes because they
  * two change at wildly different rates: taxonomy config is near-static, saved
  * views churn constantly. Splitting them keeps git history meaningful.
  */

@@ -75,7 +75,7 @@ export interface TemplateBuildContext {
 export interface TemplateContent {
 	workspace?: TemplateWorkspaceOverrides;
 	views?: SavedView[]; // appended after defaultViews()[0], never replacing it
-	/** Optional — written to `_dashboards` when present. Omitting it is fine. */
+	/** Optional — written as a `Dashboards/<id>.md` note when present. Omitting it is fine. */
 	dashboards?: DashboardConfig[];
 	projects: Project[];
 	tasks: Task[];

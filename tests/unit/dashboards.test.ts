@@ -3,9 +3,11 @@ import { sampleSnapshot } from "../../src/core/templates/instantiate";
 import { snapshotContext } from "../../src/core/views";
 import { applyFilters } from "../../src/core/views/filter";
 import {
+	detectDashboardIdCollisions,
 	parseDashboards,
 	serializeDashboards,
 	parseDashboard,
+	serializeDashboard,
 } from "../../src/core/serialization/dashboards";
 import {
 	CHART_META,
@@ -83,6 +85,9 @@ describe("compatibility matrix", () => {
 
 describe("parse / serialize round-trip", () => {
 	const source: DashboardConfig = {
+		type: "dashboard",
+		// `serializeDashboard` never emits `path`; `parseDashboards` (plural) leaves it blank.
+		path: "",
 		id: "overview",
 		name: "Overview",
 		icon: "gauge",
@@ -154,7 +159,7 @@ describe("forgiving parsing", () => {
 					{ id: "ok", chartType: "pie", fieldMapping: { groupBy: "label" } },
 				],
 			},
-			0,
+			{ path: "Dashboards/d" },
 		);
 		expect(parsed.value.widgets.map((w) => w.id)).toEqual(["ok"]);
 		expect(parsed.issues.join(" ")).toMatch(/unknown chart type/i);
@@ -169,7 +174,7 @@ describe("forgiving parsing", () => {
 					{ id: "w", chartType: "bar", fieldMapping: { groupBy: "dueDate" } },
 				],
 			},
-			0,
+			{ path: "Dashboards/d" },
 		);
 		expect(parsed.value.widgets[0].fieldMapping).toEqual(
 			defaultFieldMapping("bar"),
@@ -186,7 +191,7 @@ describe("forgiving parsing", () => {
 					{ id: "dup", chartType: "pie", fieldMapping: { groupBy: "label" } },
 				],
 			},
-			0,
+			{ path: "Dashboards/d" },
 		);
 		expect(parsed.value.widgets).toHaveLength(1);
 		expect(parsed.value.widgets[0].chartType).toBe("bar");
@@ -208,9 +213,51 @@ describe("forgiving parsing", () => {
 	it("defaults a missing layout to the standard widget size", () => {
 		const parsed = parseDashboard(
 			{ id: "d", name: "D", widgets: [{ id: "w", chartType: "kpi", fieldMapping: {} }] },
-			0,
+			{ path: "Dashboards/d" },
 		);
 		expect(parsed.value.widgets[0].layout).toEqual({ x: 0, y: 0, w: 6, h: 4 });
+	});
+});
+
+describe("parseDashboard (per-file)", () => {
+	it("tags the note path + type and takes its id from frontmatter", () => {
+		const { value } = parseDashboard(
+			{ id: "health", name: "Health", widgets: [] },
+			{ path: "W/Dashboards/health" },
+		);
+		expect(value.type).toBe("dashboard");
+		expect(value.path).toBe("W/Dashboards/health");
+		expect(value.id).toBe("health");
+	});
+
+	it("falls back to the filename when frontmatter omits the id", () => {
+		const { value } = parseDashboard({ name: "X" }, { path: "W/Dashboards/team-health" });
+		expect(value.id).toBe("team-health");
+	});
+
+	it("round-trips through serializeDashboard, which emits type: dashboard", () => {
+		const { value } = parseDashboard(
+			{
+				id: "d",
+				name: "D",
+				filters: { status: ["todo"] },
+				widgets: [{ id: "w", chartType: "pie", fieldMapping: { groupBy: "label" } }],
+			},
+			{ path: "W/Dashboards/d" },
+		);
+		const frontmatter = serializeDashboard(value);
+		expect(frontmatter.type).toBe("dashboard");
+		expect(parseDashboard(frontmatter, { path: "W/Dashboards/d" }).value).toEqual(value);
+	});
+
+	it("detectDashboardIdCollisions flags every file in a colliding pair", () => {
+		const a = parseDashboard({ id: "dup" }, { path: "W/Dashboards/a" }).value;
+		const b = parseDashboard({ id: "dup" }, { path: "W/Dashboards/b" }).value;
+		const c = parseDashboard({ id: "ok" }, { path: "W/Dashboards/c" }).value;
+		expect(
+			detectDashboardIdCollisions([a, b, c]).map((x) => x.path).sort(),
+		).toEqual(["W/Dashboards/a", "W/Dashboards/b"]);
+		expect(detectDashboardIdCollisions([a, c])).toEqual([]);
 	});
 });
 

@@ -19,22 +19,43 @@ import {
 	parseProject,
 } from "../core/serialization/entities";
 import { parseTask } from "../core/serialization/task";
-import { parseViews } from "../core/serialization/views";
-import { parseDashboards } from "../core/serialization/dashboards";
+import {
+	detectViewIdCollisions,
+	parseView,
+	parseViews,
+	serializeView,
+} from "../core/serialization/views";
+import {
+	detectDashboardIdCollisions,
+	parseDashboard,
+	parseDashboards,
+	serializeDashboard,
+} from "../core/serialization/dashboards";
 import { parseWorkspace } from "../core/serialization/workspace";
 import { detectPrefixCollisions } from "../core/ids";
 import {
-	BUILT_IN_VIEW_ID,
-	BUILT_IN_VIEW_NAME,
-	INBOX_VIEW_ID,
-	LEGACY_BUILT_IN_VIEW_NAME,
+	LEGACY_SYSTEM_VIEW_ALL_TASKS_NAME,
+	LEGACY_SYSTEM_VIEW_UNTRIAGED_ID,
+	LEGACY_SYSTEM_VIEW_UNTRIAGED_NAME,
+	SYSTEM_VIEW_ALL_TASKS_ID,
+	SYSTEM_VIEW_ALL_TASKS_NAME,
+	SYSTEM_VIEW_UNTRIAGED_ID,
+	SYSTEM_VIEW_UNTRIAGED_NAME,
 	defaultViews,
+	isSystemViewId,
 } from "../core/views/defaults";
-import { isWithin } from "../core/links";
-import type { Project, Task, WorkspaceSnapshot } from "../core/types";
+import { isWithin, joinPath } from "../core/links";
+import type {
+	EntityKind,
+	Project,
+	SavedView,
+	Task,
+	WorkspaceSnapshot,
+} from "../core/types";
 import { NoteIO, withoutExtension } from "./note-io";
 
 export const WORKSPACE_NOTE = "_workspace";
+/** Retired shared config notes — only referenced by the one-time migration. */
 export const VIEWS_NOTE = "_views";
 export const DASHBOARDS_NOTE = "_dashboards";
 
@@ -42,6 +63,8 @@ export const DASHBOARDS_NOTE = "_dashboards";
 export const FOLDERS = {
 	projects: "Projects",
 	tasks: "Tasks",
+	views: "Views",
+	dashboards: "Dashboards",
 } as const;
 
 export type IndexListener = () => void;
@@ -153,14 +176,14 @@ export class VaultIndex {
 	 * boundary), so pruning must check every workspace — not just the active
 	 * snapshot — or it silently closes other workspaces' tabs on every switch.
 	 */
-	/** The workspace whose `_views.md` holds this Saved View, if any. */
+	/** The workspace holding this Saved View's `Views/<id>.md`, if any. */
 	snapshotWithView(viewId: string): WorkspaceSnapshot | null {
 		for (const s of this.snapshots.values())
 			if (s.views.some((v) => v.id === viewId)) return s;
 		return null;
 	}
 
-	/** The workspace whose `_dashboards` holds this dashboard, if any. */
+	/** The workspace holding this dashboard's `Dashboards/<id>.md`, if any. */
 	snapshotWithDashboard(dashboardId: string): WorkspaceSnapshot | null {
 		for (const s of this.snapshots.values())
 			if (s.dashboards.some((d) => d.id === dashboardId)) return s;
@@ -211,7 +234,7 @@ export class VaultIndex {
 	// -- Building -------------------------------------------------------------
 
 	async rebuild(): Promise<void> {
-		const files = this.app.vault.getMarkdownFiles();
+		let files = this.app.vault.getMarkdownFiles();
 		const issues = new Map<string, string[]>();
 		const addIssue = (path: string, message: string) => {
 			const list = issues.get(path);
@@ -260,6 +283,26 @@ export class VaultIndex {
 			);
 		}
 
+		// One-time migration off the retired shared `_views.md` / `_dashboards`
+		// config notes: each non-System-View entry becomes its own file under
+		// `Views/` / `Dashboards/`, then the old note is retired to `*.legacy`
+		// (no `.md`, so `getMarkdownFiles()` never returns it again). The
+		// existence check inside makes repeated `rebuild()` calls a no-op once a
+		// workspace has migrated. Runs before Pass 2 so the freshly-written
+		// files are classified in the same rebuild — hence the re-list.
+		let migrated = false;
+		for (const root of configs.keys()) {
+			try {
+				if (await this.migrateSharedConfigNotes(root)) migrated = true;
+			} catch (err) {
+				// A failed migration must not take the whole index down. The
+				// per-file notes it did write are already valid; the old note
+				// lingers and the next rebuild retries (writing nothing new).
+				console.error(`[vertex-flow] config-note migration failed for "${root}"`, err);
+			}
+		}
+		if (migrated) files = this.app.vault.getMarkdownFiles();
+
 		// Pass 2: sort every other note into its workspace.
 		for (const file of files) {
 			const path = withoutExtension(file.path);
@@ -268,23 +311,6 @@ export class VaultIndex {
 
 			const snapshot = deepestMatch(configs, path);
 			if (!snapshot) continue;
-
-			if (base === VIEWS_NOTE) {
-				// Read from disk, not the metadata cache: this note may have been
-				// written milliseconds ago (a "New view" the user is watching
-				// for) and the cache would still hold its previous contents.
-				const parsed = parseViews(await this.io.readConfigFrontmatter(file));
-				if (parsed.issues.length > 0) issues.set(path, parsed.issues);
-				snapshot.views = parsed.value;
-				continue;
-			}
-
-			if (base === DASHBOARDS_NOTE) {
-				const parsed = parseDashboards(await this.io.readConfigFrontmatter(file));
-				if (parsed.issues.length > 0) issues.set(path, parsed.issues);
-				snapshot.dashboards = parsed.value;
-				continue;
-			}
 
 			const frontmatter = this.io.readFrontmatter(file);
 			const kind = entityKindOf(frontmatter, path, snapshot.workspace.root);
@@ -308,6 +334,46 @@ export class VaultIndex {
 				case "project":
 					snapshot.projects.push(parseProject(frontmatter, options).value as Project);
 					break;
+				case "view": {
+					// Read from disk, not the metadata cache: a "New view" the user
+					// is watching for may have been written milliseconds ago and the
+					// cache would still hold its previous (or no) contents.
+					const parsed = parseView(
+						await this.io.readConfigFrontmatter(file),
+						{ path },
+					);
+					if (parsed.issues.length > 0) issues.set(path, parsed.issues);
+					snapshot.views.push(parsed.value);
+					break;
+				}
+				case "dashboard": {
+					const parsed = parseDashboard(
+						await this.io.readConfigFrontmatter(file),
+						{ path },
+					);
+					if (parsed.issues.length > 0) issues.set(path, parsed.issues);
+					snapshot.dashboards.push(parsed.value);
+					break;
+				}
+			}
+		}
+
+		// Two `Views/*.md` (or `Dashboards/*.md`) notes resolving to the same id
+		// make lookups ambiguous — flagged per file like a project-title clash.
+		for (const snapshot of configs.values()) {
+			for (const collision of detectViewIdCollisions(snapshot.views)) {
+				addIssue(
+					collision.path,
+					`Another view in this workspace also has the id "${collision.id}" — ` +
+						`rename one so it can be opened and saved reliably.`,
+				);
+			}
+			for (const collision of detectDashboardIdCollisions(snapshot.dashboards)) {
+				addIssue(
+					collision.path,
+					`Another dashboard in this workspace also has the id "${collision.id}" — ` +
+						`rename one so it can be opened and saved reliably.`,
+				);
 			}
 		}
 
@@ -324,33 +390,14 @@ export class VaultIndex {
 			}
 		}
 
-		// A workspace with no `_views.md` still gets the built-in views, so the
-		// sidebar is never empty on a fresh install. An older workspace whose
-		// built-in view still carries the previous default name is renamed in
-		// memory — a user who deliberately renamed it keeps their own name, and
-		// the new one persists on their next edit to the view.
+		// The two permanent System Views are synthetic — never files — so they're
+		// injected into every workspace here, ahead of the user's own views, so
+		// the sidebar is never empty on a fresh install. Legacy data is remapped
+		// in memory (a user who deliberately renamed "All Tasks" keeps their
+		// name; it persists on their next edit); a real per-file view colliding
+		// with a System View id would already have been dropped during migration.
 		for (const snapshot of configs.values()) {
-			if (snapshot.views.length === 0) {
-				snapshot.views = defaultViews();
-				continue;
-			}
-			const builtIn = snapshot.views.find((v) => v.id === BUILT_IN_VIEW_ID);
-			if (builtIn?.name === LEGACY_BUILT_IN_VIEW_NAME) {
-				builtIn.name = BUILT_IN_VIEW_NAME;
-			}
-			// The Inbox view was added after the built-in view: an older workspace
-			// with a saved `_views.md` predates it, so inject the default one (it's
-			// permanent, like the built-in). Placed right after the built-in view
-			// so it keeps its slot ahead of user-created views.
-			if (!snapshot.views.some((v) => v.id === INBOX_VIEW_ID)) {
-				const inbox = defaultViews().find((v) => v.id === INBOX_VIEW_ID);
-				if (inbox) {
-					const at = snapshot.views.findIndex(
-						(v) => v.id === BUILT_IN_VIEW_ID,
-					);
-					snapshot.views.splice(at === -1 ? 0 : at + 1, 0, inbox);
-				}
-			}
+			injectSystemViews(snapshot.views, snapshot.workspace.root);
 		}
 
 		this.snapshots = configs;
@@ -359,6 +406,68 @@ export class VaultIndex {
 
 		// Pass 3 (lazy): resolve @mentions from note bodies.
 		void this.refreshMentions();
+	}
+
+	/**
+	 * Split a workspace's retired `_views.md` / `_dashboards` array notes into
+	 * one file per item, then retire the old note to `<name>.legacy`. Idempotent
+	 * and safe on every `rebuild()`: the plain existence check up front makes a
+	 * second invocation a no-op. Returns whether it wrote anything.
+	 */
+	private async migrateSharedConfigNotes(root: string): Promise<boolean> {
+		let did = false;
+		// System View entries (current + legacy ids) must never become files.
+		if (
+			await this.migrateSharedConfigNote(
+				root,
+				VIEWS_NOTE,
+				FOLDERS.views,
+				(raw) => parseViews(raw),
+				serializeView,
+				(id) => !isSystemViewId(id) && id !== LEGACY_SYSTEM_VIEW_UNTRIAGED_ID,
+			)
+		) {
+			did = true;
+		}
+		// Dashboards have no System-Item equivalent — migrate every entry.
+		if (
+			await this.migrateSharedConfigNote(
+				root,
+				DASHBOARDS_NOTE,
+				FOLDERS.dashboards,
+				(raw) => parseDashboards(raw),
+				serializeDashboard,
+				() => true,
+			)
+		) {
+			did = true;
+		}
+		return did;
+	}
+
+	private async migrateSharedConfigNote<T extends { id: string }>(
+		root: string,
+		noteName: string,
+		folder: string,
+		parseAll: (raw: Record<string, unknown> | null) => { value: T[] },
+		serializeOne: (item: T) => Record<string, unknown>,
+		keep: (id: string) => boolean,
+	): Promise<boolean> {
+		const notePath = joinPath(root, noteName);
+		const file = this.io.getFile(notePath);
+		if (!file) return false;
+
+		const { value: items } = parseAll(await this.io.readConfigFrontmatter(file));
+		for (const item of items) {
+			if (!keep(item.id)) continue;
+			const target = joinPath(root, folder, item.id);
+			if (this.io.getFile(target)) continue;
+			await this.io.create(target, serializeOne(item));
+		}
+		// No `.md` — `getMarkdownFiles()` will never surface it again, and it
+		// reads as obviously inert to anyone browsing the vault.
+		await this.io.rename(file, `${notePath}.legacy`);
+		return true;
 	}
 
 	/**
@@ -409,6 +518,40 @@ function basenameOf(path: string): string {
 	return path.slice(path.lastIndexOf("/") + 1);
 }
 
+/**
+ * Guarantee both permanent System Views exist in `views` (in memory only),
+ * remapping any pre-rename data first. Mutates the array in place.
+ */
+function injectSystemViews(views: SavedView[], root: string): void {
+	// "Inbox" → "Untriaged": the id changed (name too, if it's still the old
+	// default). Persisted on the view's next edit; migration also drops it, so
+	// this only bites during the transitional rebuild or on hand-placed files.
+	for (const view of views) {
+		if (view.id === LEGACY_SYSTEM_VIEW_UNTRIAGED_ID) {
+			view.id = SYSTEM_VIEW_UNTRIAGED_ID;
+			if (view.name === LEGACY_SYSTEM_VIEW_UNTRIAGED_NAME) {
+				view.name = SYSTEM_VIEW_UNTRIAGED_NAME;
+			}
+		}
+	}
+
+	const allTasks = views.find((v) => v.id === SYSTEM_VIEW_ALL_TASKS_ID);
+	if (allTasks && allTasks.name === LEGACY_SYSTEM_VIEW_ALL_TASKS_NAME) {
+		allTasks.name = SYSTEM_VIEW_ALL_TASKS_NAME;
+	}
+
+	const defaults = defaultViews().map((v) => ({
+		...v,
+		path: joinPath(root, FOLDERS.views, v.id),
+	}));
+	if (!views.some((v) => v.id === SYSTEM_VIEW_UNTRIAGED_ID)) {
+		views.unshift(defaults[1]);
+	}
+	if (!views.some((v) => v.id === SYSTEM_VIEW_ALL_TASKS_ID)) {
+		views.unshift(defaults[0]);
+	}
+}
+
 function deepestMatch(
 	configs: Map<string, WorkspaceSnapshot>,
 	path: string,
@@ -422,11 +565,11 @@ function deepestMatch(
 	return best;
 }
 
-type EntityKind = "task" | "project";
-
 const FOLDER_KINDS: Record<string, EntityKind> = {
 	[FOLDERS.tasks]: "task",
 	[FOLDERS.projects]: "project",
+	[FOLDERS.views]: "view",
+	[FOLDERS.dashboards]: "dashboard",
 };
 
 /**
@@ -452,4 +595,6 @@ function entityKindOf(
 const FOLDER_KINDS_BY_TYPE: Record<string, EntityKind> = {
 	task: "task",
 	project: "project",
+	view: "view",
+	dashboard: "dashboard",
 };

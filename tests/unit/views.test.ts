@@ -14,6 +14,7 @@ import {
 	seedFromFilters,
 	hiddenGroups,
 	isEmptyFilterSet,
+	isSystemViewId,
 	matchesFilters,
 	snapshotContext,
 	sortTasks,
@@ -404,13 +405,13 @@ describe("evaluateView", () => {
 		expect(hiddenGroups(result).map((g) => g.key)).toEqual(["canceled"]);
 	});
 
-	it("ships the two permanent views: All Tasks and Inbox", () => {
+	it("ships the two System Views: All Tasks and Untriaged", () => {
 		const views = defaultViews();
-		expect(views.map((v) => v.id)).toEqual(["tasks", "inbox"]);
+		expect(views.map((v) => v.id)).toEqual(["tasks", "untriaged"]);
 		expect(views[0].viewType).toBe("list");
 		expect(views[0].subtaskDisplay).toBe("flat");
 		expect(views[0].filters).toEqual({});
-		// Inbox is "untriaged": no project, top-level, open, and unscheduled.
+		// Untriaged: no project, top-level, open, and unscheduled.
 		expect(views[1].filters).toEqual({
 			project: [NONE],
 			parent: [NONE],
@@ -418,6 +419,19 @@ describe("evaluateView", () => {
 			unscheduled: true,
 		});
 		expect(views[1].viewType).toBe("list");
+	});
+
+	it("isSystemViewId recognises both System View ids and nothing else", () => {
+		expect(isSystemViewId("tasks")).toBe(true);
+		expect(isSystemViewId("untriaged")).toBe(true);
+		// The pre-rename id is deliberately not treated as a System View id here —
+		// migration recognises it separately so it can be dropped.
+		expect(isSystemViewId("inbox")).toBe(false);
+		expect(isSystemViewId("my-custom-view")).toBe(false);
+	});
+
+	it("defaultViews carry the view discriminant", () => {
+		for (const v of defaultViews()) expect(v.type).toBe("view");
 	});
 });
 

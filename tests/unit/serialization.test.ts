@@ -7,16 +7,19 @@ import {
 	mentionsInNote,
 	extractProjectDescription,
 	isProjectTitleTaken,
+	detectViewIdCollisions,
 	nextCommentId,
 	parseComments,
 	parseProject,
 	parseTask,
+	parseView,
 	parseViews,
 	parseWorkspace,
 	resolveMentions,
 	serializeComments,
 	serializeProject,
 	serializeTask,
+	serializeView,
 	serializeViews,
 	serializeWorkspace,
 	splitBody,
@@ -813,5 +816,46 @@ describe("parseViews", () => {
 			],
 		}).value;
 		expect(parseViews(serializeViews(first)).value).toEqual(first);
+	});
+});
+
+describe("parseView (per-file)", () => {
+	it("takes its id from frontmatter and tags the note path + type", () => {
+		const { value, issues } = parseView(
+			{ id: "my-bugs", name: "My Bugs", viewType: "board" },
+			{ path: "Team/Views/my-bugs" },
+		);
+		expect(issues).toEqual([]);
+		expect(value.type).toBe("view");
+		expect(value.path).toBe("Team/Views/my-bugs");
+		expect(value.id).toBe("my-bugs");
+		expect(value.viewType).toBe("board");
+	});
+
+	it("falls back to the filename when frontmatter omits the id", () => {
+		const { value } = parseView({ name: "Nameless" }, { path: "Team/Views/roadmap" });
+		expect(value.id).toBe("roadmap");
+		expect(value.name).toBe("Nameless");
+	});
+
+	it("round-trips through serializeView, and serializeView emits type: view", () => {
+		const { value } = parseView(
+			{ id: "v", name: "V", viewType: "timeline", filters: { status: ["todo"] } },
+			{ path: "W/Views/v" },
+		);
+		const frontmatter = serializeView(value);
+		expect(frontmatter.type).toBe("view");
+		expect(parseView(frontmatter, { path: "W/Views/v" }).value).toEqual(value);
+	});
+
+	it("detectViewIdCollisions flags every file in a colliding pair", () => {
+		const a = parseView({ id: "dup" }, { path: "W/Views/a" }).value;
+		const b = parseView({ id: "dup" }, { path: "W/Views/b" }).value;
+		const c = parseView({ id: "unique" }, { path: "W/Views/c" }).value;
+		expect(detectViewIdCollisions([a, b, c]).map((x) => x.path).sort()).toEqual([
+			"W/Views/a",
+			"W/Views/b",
+		]);
+		expect(detectViewIdCollisions([a, c])).toEqual([]);
 	});
 });

@@ -73,7 +73,7 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
         ? labelView(snapshot, activeLabelId)
         : null;
 
-  // Opening a Saved View: every view — All Tasks and Inbox included — gets its
+  // Opening a Saved View: every view — All Tasks and Untriaged included — gets its
   // own tab. Shared by the sidebar and the viewport's "Save as…".
   const selectView = (id: string) => {
     tabs.openView(id);
@@ -227,6 +227,8 @@ function labelView(snapshot: WorkspaceSnapshot, labelId: string): SavedView {
     (v) => v.id === labelId,
   );
   return {
+    type: "view",
+    path: "",
     id: `label:${labelId}`,
     name: label?.name ?? labelId,
     viewType: "list",
@@ -249,6 +251,8 @@ function labelView(snapshot: WorkspaceSnapshot, labelId: string): SavedView {
  */
 export function projectView(project: Project): SavedView {
   return {
+    type: "view",
+    path: "",
     id: `project:${project.path}`,
     name: project.title,
     viewType: "list",

@@ -1,7 +1,7 @@
 /**
  * The icon set for Workspaces, Views, and Projects.
  *
- * A stored icon is one of these string ids (persisted in `_views.md`, a project
+ * A stored icon is one of these string ids (persisted in a view note, a project
  * note's frontmatter, or `_workspace.md`). `<Icon>` renders one by id;
  * `<IconField>` is the trigger-plus-searchable-grid used in the create/edit
  * dialogs. The ids are the kebab-case Lucide names, so they read sensibly in

@@ -13,6 +13,27 @@
 export type EntityType = "task" | "project" | "workspace";
 
 /**
+ * Every file-backed thing the vault index classifies into a `WorkspaceSnapshot`.
+ *
+ * Lives here rather than in `src/obsidian/index-store.ts` because it's a domain
+ * concept, not a glue-layer detail — the index importing it from core is the
+ * correct dependency direction. Views and Dashboards became file-backed (one
+ * Markdown note each, under `Views/` / `Dashboards/`) alongside Tasks and
+ * Projects; before that they were array entries inside shared config notes.
+ */
+export type EntityKind = "task" | "project" | "view" | "dashboard";
+
+/**
+ * The two synthetic, non-file items that still behave as first-class parts of
+ * the model — the permanent "All Tasks" and "Untriaged" System Views. They're
+ * injected into every workspace and never written to disk.
+ */
+export type SystemItemKind = "all-tasks" | "untriaged";
+
+/** Every first-class thing in Vertex Flow's model, file-backed or synthetic. */
+export type ItemKind = EntityKind | SystemItemKind;
+
+/**
  * A vault-relative path to a note, e.g. `Product Team/Tasks/PRD-0104`.
  * Stored in frontmatter as a wikilink; normalized to a bare target internally.
  * See `links.ts`.
@@ -325,7 +346,7 @@ export interface ViewColumnState {
 /**
  * Per-session Timeline chrome: current zoom and horizontal scroll position.
  *
- * Persisted to `_views.md` but deliberately **not** part of `ViewDefinition` —
+ * Persisted to the view's note but deliberately **not** part of `ViewDefinition` —
  * same treatment as `columns`. Panning or zooming the timeline writes
  * straight through and never marks the view unsaved.
  *
@@ -342,7 +363,7 @@ export interface ViewTimelineState {
 /**
  * Per-session Calendar chrome: which month the grid is showing.
  *
- * Persisted to `_views.md` but, like `ViewTimelineState`, deliberately **not**
+ * Persisted to the view's note but, like `ViewTimelineState`, deliberately **not**
  * part of `ViewDefinition` — paging between months writes straight
  * through and never marks the view unsaved. Always normalised to the 1st of the
  * month (`startOfMonth`) whenever it's written, so `visibleMonth` has one
@@ -384,6 +405,10 @@ export const TASK_FIELDS = [
 export type TaskField = (typeof TASK_FIELDS)[number];
 
 export interface SavedView {
+	/** Discriminant — this is a `Views/<id>.md` note. */
+	type: "view";
+	/** Vault path of the backing note (`<root>/Views/<id>`), extension-less. */
+	path: string;
 	id: string;
 	name: string;
 	/** Curated icon id (see `ui/components/Icon.tsx`); optional, falls back at render. */
@@ -391,7 +416,7 @@ export interface SavedView {
 	/**
 	 * Free-text note about what this view is for. Metadata, not part of
 	 * `ViewDefinition` — editing it never marks the view unsaved, same as `name`
-	 * and `icon`. Stored as a plain frontmatter string in `_views.md`.
+	 * and `icon`. Stored as a plain frontmatter string in the view's note.
 	 */
 	description?: string;
 	viewType: ViewType;
@@ -590,6 +615,10 @@ export interface DashboardWidget {
 }
 
 export interface DashboardConfig {
+	/** Discriminant — this is a `Dashboards/<id>.md` note. */
+	type: "dashboard";
+	/** Vault path of the backing note (`<root>/Dashboards/<id>`), extension-less. */
+	path: string;
 	id: string;
 	name: string;
 	/** Curated icon id (see `ui/components/Icon.tsx`); optional, falls back at render. */

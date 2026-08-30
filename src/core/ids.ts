@@ -159,7 +159,7 @@ export function nextTaskId(prefix: string, existingIds: Iterable<string>): strin
 
 /**
  * A short, collision-resistant id for objects that live inside a config
- * store (Saved Views in `_views.md`, Dashboards/Widgets in dashboard config)
+ * store (Saved Views, Dashboards, and dashboard Widgets)
  * rather than being their own vault file. Contrast with `nextTaskId`, which
  * is for things that ARE files: vault-wide unique, sequential, filename-safe.
  * `newConfigId` only needs to avoid colliding with its siblings in the same

@@ -1,11 +1,13 @@
 /**
- * `_dashboards` — dashboard definitions (§Dashboards Phase 1).
+ * `Dashboards/<id>.md` — one dashboard definition per note (§Dashboards Phase 1).
  *
- * A frontmatter-only config note, sibling to `_workspace` and `_views`. Parsing
- * follows the same forgiving contract as `serialization/views`: an unknown
- * chart type, a malformed field mapping, or a duplicate id logs an issue via
- * `IssueLog` and is dropped or repaired — it never throws and never corrupts
- * the rest of the file.
+ * Parsing follows the same forgiving contract as `serialization/views`: an
+ * unknown chart type, a malformed field mapping, or a duplicate id logs an issue
+ * via `IssueLog` and is dropped or repaired — it never throws and never
+ * corrupts the rest of the file.
+ *
+ * `parseDashboards`/`serializeDashboards` (plural) survive only for the one-time
+ * migration off the retired shared `_dashboards` array.
  */
 
 import {
@@ -37,6 +39,7 @@ import {
 	type ParseResult,
 } from "./coerce";
 import { parseFilters } from "./views";
+import { basename } from "../links";
 import type { ViewFilters } from "../types";
 
 function pickEnum<T extends string>(
@@ -170,13 +173,17 @@ function parseWidget(
 	};
 }
 
-export function parseDashboard(
-	raw: unknown,
-	index: number,
-): ParseResult<DashboardConfig> {
-	const record = asRecord(raw);
-	const log = new IssueLog();
-	const id = asString(record.id) ?? `dashboard-${index + 1}`;
+export interface DashboardParseOptions {
+	/** Vault path of the note. Its basename is the id fallback when frontmatter omits one. */
+	path: string;
+}
+
+/** The definitional half of a dashboard — everything but the `type`/`path` discriminants. */
+function parseDashboardValue(
+	record: Record<string, unknown>,
+	id: string,
+	log: IssueLog,
+): Omit<DashboardConfig, "type" | "path"> {
 	const name = asString(record.name) ?? id;
 	const icon = asString(record.icon) ?? undefined;
 
@@ -193,17 +200,40 @@ export function parseDashboard(
 	});
 
 	return {
+		id,
+		name,
+		icon,
+		widgets,
+		filters: parseFilters(record.filters),
+	};
+}
+
+/**
+ * Parse one `Dashboards/<id>.md` note. The id comes from frontmatter; a note
+ * that omits it falls back to its filename (like `parseTask`).
+ */
+export function parseDashboard(
+	raw: unknown,
+	options: DashboardParseOptions,
+): ParseResult<DashboardConfig> {
+	const record = asRecord(raw);
+	const log = new IssueLog();
+	const id = asString(record.id) ?? basename(options.path);
+
+	return {
 		value: {
-			id,
-			name,
-			icon,
-			widgets,
-			filters: parseFilters(record.filters),
+			type: "dashboard",
+			path: options.path,
+			...parseDashboardValue(record, id, log),
 		},
 		issues: log.issues.map((issue) => `Dashboard "${id}": ${issue}`),
 	};
 }
 
+/**
+ * Parse the retired shared `_dashboards` array. Migration-only. `path` is left
+ * blank — these objects are read once to be re-written as individual files.
+ */
 export function parseDashboards(raw: unknown): ParseResult<DashboardConfig[]> {
 	const record = asRecord(raw);
 	const list = Array.isArray(record.dashboards) ? record.dashboards : [];
@@ -211,18 +241,50 @@ export function parseDashboards(raw: unknown): ParseResult<DashboardConfig[]> {
 	const issues: string[] = [];
 
 	list.forEach((entry, index) => {
-		const parsed = parseDashboard(entry, index);
-		if (dashboards.some((d) => d.id === parsed.value.id)) {
-			issues.push(
-				`Duplicate dashboard id "${parsed.value.id}"; keeping the first.`,
-			);
+		const entryRecord = asRecord(entry);
+		const log = new IssueLog();
+		const id = asString(entryRecord.id) ?? `dashboard-${index + 1}`;
+		if (dashboards.some((d) => d.id === id)) {
+			issues.push(`Duplicate dashboard id "${id}"; keeping the first.`);
 			return;
 		}
-		dashboards.push(parsed.value);
-		issues.push(...parsed.issues);
+		dashboards.push({
+			type: "dashboard",
+			path: "",
+			...parseDashboardValue(entryRecord, id, log),
+		});
+		issues.push(...log.issues.map((issue) => `Dashboard "${id}": ${issue}`));
 	});
 
 	return { value: dashboards, issues };
+}
+
+/**
+ * Per-workspace duplicate-id detector, mirroring `detectViewIdCollisions`.
+ */
+export interface DashboardIdCollision {
+	path: string;
+	id: string;
+}
+
+export function detectDashboardIdCollisions(
+	dashboards: readonly DashboardConfig[],
+): DashboardIdCollision[] {
+	const groups = new Map<string, DashboardConfig[]>();
+	for (const dashboard of dashboards) {
+		const group = groups.get(dashboard.id) ?? [];
+		group.push(dashboard);
+		groups.set(dashboard.id, group);
+	}
+
+	const out: DashboardIdCollision[] = [];
+	for (const group of groups.values()) {
+		if (group.length < 2) continue;
+		for (const dashboard of group) {
+			out.push({ path: dashboard.path, id: dashboard.id });
+		}
+	}
+	return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -273,6 +335,7 @@ export function serializeDashboard(
 	dashboard: DashboardConfig,
 ): Record<string, unknown> {
 	return compact({
+		type: "dashboard",
 		id: dashboard.id,
 		name: dashboard.name,
 		icon: dashboard.icon,

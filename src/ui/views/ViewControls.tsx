@@ -9,8 +9,7 @@
 import { useState } from "react";
 import type { EvaluatedView } from "../../core/views";
 import {
-	BUILT_IN_VIEW_ID,
-	INBOX_VIEW_ID,
+	isSystemViewId,
 	layoutIcon,
 	newView,
 	setColumnsCollapsed,
@@ -22,9 +21,7 @@ import type {
 	WorkspaceSnapshot,
 } from "../../core/types";
 import { newConfigId } from "../../core/ids";
-import { joinPath } from "../../core/links";
 import { withExtension } from "../../obsidian/note-io";
-import { VIEWS_NOTE } from "../../obsidian/index-store";
 import { usePlugin, useSettingsWriter } from "../context";
 import { DescriptionSection } from "../components/DescriptionSection";
 import { EditableTitle } from "../components/EditableTitle";
@@ -97,18 +94,18 @@ export function ViewControls({
 
 	const selectedCount = selection.selectedPaths.length;
 
-	// The two permanent views (All Tasks, Inbox) are fixed fixtures: their
+	// The two System Views (All Tasks, Untriaged) are fixed fixtures: their
 	// name/icon and their purpose are not the user's to change, so no inline
 	// title editing and no description section. A synthesised label/project
-	// view isn't in `_views.md` at all.
-	const permanentView =
-		savedView.id === BUILT_IN_VIEW_ID || savedView.id === INBOX_VIEW_ID;
+	// view has no backing file at all.
+	const permanentView = isSystemViewId(savedView.id);
 	const inSavedViews = snapshot.views.some((v) => v.id === savedView.id);
 
-	// "Save" (overwrite in place) works for any view backed by `_views.md` —
-	// the two permanent views included (filter/group/sort tweaks persist just
-	// like a user view). A synthesised label view isn't backed, so an ad-hoc
-	// filter there becomes a *new* view or nothing at all.
+	// "Save" (overwrite in place) works for any view backed by a `Views/*.md`
+	// file — the two System Views included (filter/group/sort tweaks persist
+	// just like a user view, writing their own file on first save). A
+	// synthesised label view isn't backed, so an ad-hoc filter there becomes a
+	// *new* view or nothing at all.
 	const canOverwrite = inSavedViews;
 
 	// Name/icon and the description section: real user views only.
@@ -324,9 +321,7 @@ export function ViewControls({
 						}
 						value={savedView.description ?? ""}
 						editorKey={savedView.id}
-						sourcePath={withExtension(
-							joinPath(snapshot.workspace.root, VIEWS_NOTE),
-						)}
+						sourcePath={withExtension(savedView.path)}
 						onSave={(text) =>
 							void plugin.mutations.updateView(snapshot, {
 								...savedView,

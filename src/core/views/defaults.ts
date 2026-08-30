@@ -1,11 +1,13 @@
 /**
- * Built-in Saved Views.
+ * System Views.
  *
- * V1 ships exactly one built-in view — "All Tasks". Everything else is user-created
- * from the sidebar: layout (list/board), grouping, sorting, and filters are all
- * live-editable per view and persisted to `_views.md`. The `self` filter value
- * is still available in the filter editor, so "Assigned to Me" / "Mentions Me"
- * are a two-click view the user builds themselves rather than something baked in.
+ * V1 ships two permanent System Views — "All Tasks" and "Untriaged". Neither is
+ * a file: they're injected into every workspace by the index. Everything else is
+ * a user-created `Views/<id>.md` note: layout (list/board), grouping, sorting,
+ * and filters are all live-editable per view and persisted to that one file. The
+ * `self` filter value is still available in the filter editor, so "Assigned to
+ * Me" / "Mentions Me" are a two-click view the user builds themselves rather
+ * than something baked in.
  */
 
 import { NONE, type SavedView, type ViewDefinition, type ViewType } from "../types";
@@ -41,6 +43,12 @@ export const DEFAULT_DEFINITION: ViewDefinition = {
 
 function view(partial: Partial<SavedView> & Pick<SavedView, "id" | "name">): SavedView {
 	return {
+		type: "view",
+		// A real vault path is assigned by the glue layer — on write for a user
+		// view, or on injection for a System View. Core constructors don't know
+		// the workspace root, exactly as a brand-new Project's path is filled in
+		// by `createProject`.
+		path: "",
 		...DEFAULT_DEFINITION,
 		// Fresh mutable copies, not the shared `DEFAULT_DEFINITION` references.
 		columns: { collapsed: [], hidden: [] },
@@ -49,23 +57,23 @@ function view(partial: Partial<SavedView> & Pick<SavedView, "id" | "name">): Sav
 	};
 }
 
-/** The one built-in view id — protected from deletion in the sidebar. */
-export const BUILT_IN_VIEW_ID = "tasks";
+/** The "All Tasks" System View id — protected from deletion in the sidebar. */
+export const SYSTEM_VIEW_ALL_TASKS_ID = "tasks";
 
-/** The built-in view's name. Everything hangs off Tasks, so it reads as the "all" view. */
-export const BUILT_IN_VIEW_NAME = "All Tasks";
+/** Its name. Everything hangs off Tasks, so it reads as the "all" view. */
+export const SYSTEM_VIEW_ALL_TASKS_NAME = "All Tasks";
 
 /**
- * The name the built-in view shipped with before it became "All Tasks".
- * Workspaces created back then have it written into their `_views.md`, so an
- * untouched one is renamed on read (see `index-store`).
+ * The name this System View shipped with before it became "All Tasks".
+ * Workspaces created back then still carry it, so an untouched one is renamed in
+ * memory on read (see `index-store`).
  */
-export const LEGACY_BUILT_IN_VIEW_NAME = "Tasks";
+export const LEGACY_SYSTEM_VIEW_ALL_TASKS_NAME = "Tasks";
 
 /**
- * The second permanent view: a queue of genuinely untriaged captures. Like the
- * built-in "All Tasks" it can't be deleted from the sidebar and doesn't appear
- * in the Views section — it renders as its own bare row.
+ * The second permanent System View: a queue of genuinely untriaged captures.
+ * Like "All Tasks" it can't be deleted from the sidebar and doesn't appear in
+ * the Views section — it renders as its own bare row.
  *
  * "Untriaged" means all four of: no Project (`project: [NONE]`), top-level
  * (`parent: [NONE]` — a project-less sub-task is still anchored to its parent),
@@ -74,14 +82,29 @@ export const LEGACY_BUILT_IN_VIEW_NAME = "Tasks";
  * on the existing filter-engine `matchesLink` handling; `openOnly`/`unscheduled`
  * are plain `ViewFilters` flags, also typeable as `is:open` / `is:unscheduled`.
  */
-export const INBOX_VIEW_ID = "inbox";
-export const INBOX_VIEW_NAME = "Inbox";
+export const SYSTEM_VIEW_UNTRIAGED_ID = "untriaged";
+export const SYSTEM_VIEW_UNTRIAGED_NAME = "Untriaged";
+
+/**
+ * This View was called "Inbox" until "Inbox" was reserved for a future,
+ * unrelated feature. Only for recognizing pre-rename data during migration —
+ * not used elsewhere.
+ */
+export const LEGACY_SYSTEM_VIEW_UNTRIAGED_ID = "inbox";
+export const LEGACY_SYSTEM_VIEW_UNTRIAGED_NAME = "Inbox";
+
+/** Whether `id` is one of the two permanent, undeletable System Views. */
+export function isSystemViewId(id: string): boolean {
+	return (
+		id === SYSTEM_VIEW_ALL_TASKS_ID || id === SYSTEM_VIEW_UNTRIAGED_ID
+	);
+}
 
 export function defaultViews(): SavedView[] {
 	return [
 		view({
-			id: BUILT_IN_VIEW_ID,
-			name: BUILT_IN_VIEW_NAME,
+			id: SYSTEM_VIEW_ALL_TASKS_ID,
+			name: SYSTEM_VIEW_ALL_TASKS_NAME,
 			icon: "list",
 			viewType: "list",
 			groupBy: "status",
@@ -90,8 +113,8 @@ export function defaultViews(): SavedView[] {
 			subtaskDisplay: "flat",
 		}),
 		view({
-			id: INBOX_VIEW_ID,
-			name: INBOX_VIEW_NAME,
+			id: SYSTEM_VIEW_UNTRIAGED_ID,
+			name: SYSTEM_VIEW_UNTRIAGED_NAME,
 			icon: "inbox",
 			viewType: "list",
 			groupBy: "status",

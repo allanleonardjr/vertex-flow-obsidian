@@ -10,8 +10,8 @@
  * which passes a new snapshot down here.
  *
  * Editing the filter bar or moving/resizing/adding/removing widgets produces an
- * in-memory draft (`useDashboardDraft`); Save / Save As write it to
- * `_dashboards`.
+ * in-memory draft (`useDashboardDraft`); Save / Save As write it to the
+ * dashboard's own `Dashboards/<id>.md` note.
  */
 
 import { useEffect, useMemo, useState } from "react";

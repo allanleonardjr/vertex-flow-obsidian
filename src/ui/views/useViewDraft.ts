@@ -2,9 +2,9 @@
  * Unsaved edits to the Saved View you're looking at.
  *
  * Changing a filter, grouping, or layout applies **immediately** to what's on
- * screen but is held here rather than written to `_views.md`. `_views.md` is
- * shared across a synced vault, so an exploratory filter shouldn't silently
- * rewrite the view everyone else opens — the save is explicit.
+ * screen but is held here rather than written to the view's `Views/<id>.md`
+ * note. That note is shared across a synced vault, so an exploratory filter
+ * shouldn't silently rewrite the view everyone else opens — the save is explicit.
  *
  * Column collapse/hide, the timeline's zoom/scroll, and the calendar's visible
  * month are the deliberate exceptions: transient view chrome rather than part

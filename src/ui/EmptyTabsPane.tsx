@@ -1,7 +1,7 @@
 /**
  * What the shell shows when *no tab is open at all* (A4) — distinct from "a view
  * is open but has zero tasks", which `EmptyView` still handles. Reachable now
- * that every tab, All Tasks and Inbox included, is closable.
+ * that every tab, All Tasks and Untriaged included, is closable.
  *
  * `BrowseHubPane` (B3) reuses the same visual for the Dashboards / Views hub
  * placeholders — real, reachable singleton tabs, just with nothing built behind
@@ -18,7 +18,7 @@ export function EmptyTabsPane() {
 			</span>
 			<p className="vf-view-empty-title">No tabs open</p>
 			<p className="vf-empty-note vf-empty-tabs-hints">
-				<kbd>g</kbd> <kbd>i</kbd> Inbox
+				<kbd>g</kbd> <kbd>i</kbd> Untriaged
 				<span aria-hidden> · </span>
 				<kbd>g</kbd> <kbd>a</kbd> All Tasks
 				<span aria-hidden> · </span>

@@ -5,7 +5,7 @@
  * lists from — invalid combinations are unrepresentable *by construction*, not
  * merely rejected at the UI layer. The serializer (`serialization/dashboards`)
  * runs the same `isFieldMappingValid` check and falls back gracefully when a
- * hand-edited `_dashboards` names something impossible.
+ * hand-edited dashboard note names something impossible.
  */
 
 import {

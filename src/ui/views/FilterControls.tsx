@@ -29,7 +29,7 @@ import {
 	type ReadonlyFilterKey,
 } from "./viewOptions";
 
-/** Drop a key when its value goes empty, so `_views.md` stays tidy. */
+/** Drop a key when its value goes empty, so the view's note stays tidy. */
 function withFilter(
 	filters: ViewFilters,
 	key: FilterKey | ReadonlyFilterKey,

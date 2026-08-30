@@ -96,8 +96,8 @@ export class NoteIO {
 	}
 
 	/**
-	 * Write a frontmatter-only config note (`_workspace` / `_views` /
-	 * `_dashboards`), creating it if absent.
+	 * Write a frontmatter-only config note (`_workspace`, or one per-file
+	 * `Views/<id>` / `Dashboards/<id>`), creating it if absent.
 	 */
 	async writeConfigNote(
 		path: string,
@@ -112,15 +112,17 @@ export class NoteIO {
 	}
 
 	/**
-	 * Frontmatter of a config note (`_views` / `_dashboards`), read straight
+	 * Frontmatter of a per-file config note (`Views/<id>` / `Dashboards/<id>`,
+	 * and the retired `_views` / `_dashboards` during migration), read straight
 	 * from disk rather than the metadata cache.
 	 *
-	 * These notes are the source of truth the whole index is built from, and
-	 * every `save*` writes one and then rebuilds immediately — before Obsidian's
+	 * These notes are the source of truth the index is built from, and a
+	 * mutation writes one and then rebuilds immediately — before Obsidian's
 	 * metadata cache has processed the change. The cache would hand back the
 	 * *pre-write* contents for a beat, long enough for the UI to close a tab
-	 * that was just opened for a freshly created view/dashboard. A direct read
-	 * of one or two tiny files per rebuild is cheap and always current.
+	 * that was just opened for a freshly created view/dashboard. These notes are
+	 * tiny and few next to Tasks, so a direct read of each one per rebuild stays
+	 * cheap while always being current.
 	 */
 	async readConfigFrontmatter(
 		file: TFile,
@@ -183,12 +185,13 @@ export class NoteIO {
 	}
 
 	/**
-	 * Rename/move a note, letting Obsidian rewrite every wikilink that points at
-	 * it. Only used for Projects — Task files are named by ID and never renamed,
-	 * which is the entire point of that decision.
+	 * Rename/move a note to an exact path, letting Obsidian rewrite every
+	 * wikilink that points at it. The path is used verbatim (no `.md` coercion)
+	 * — the one caller retires a shared config note to `<name>.legacy`, which
+	 * must not carry a `.md` extension.
 	 */
 	async rename(file: TFile, newPath: string): Promise<void> {
-		await this.app.fileManager.renameFile(file, withExtension(normalizePath(newPath)));
+		await this.app.fileManager.renameFile(file, normalizePath(newPath));
 	}
 
 	/** An unused variant of `path`, appending ` 2`, ` 3`… on collision. */

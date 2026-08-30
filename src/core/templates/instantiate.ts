@@ -16,13 +16,13 @@ import { formatTaskId, slugify } from "../ids";
 import { serializeComments } from "../serialization/comments";
 import { serializeProject } from "../serialization/entities";
 import { serializeTask } from "../serialization/task";
-import { serializeViews } from "../serialization/views";
-import { serializeDashboards } from "../serialization/dashboards";
+import { serializeView } from "../serialization/views";
+import { serializeDashboard } from "../serialization/dashboards";
 import {
 	createWorkspaceConfig,
 	serializeWorkspace,
 } from "../serialization/workspace";
-import { defaultViews } from "../views/defaults";
+import { defaultViews, isSystemViewId } from "../views/defaults";
 import type {
 	Comment,
 	DashboardConfig,
@@ -151,27 +151,48 @@ export function instantiateTemplate(
 
 	// --- Views ------------------------------------------------------------
 
+	// The "All Tasks" System View is injected by the index, never a file — so
+	// it rides in the returned snapshot but isn't emitted as a note.
 	const views: SavedView[] = [
 		defaultViews()[0],
 		...(template.views ?? []),
 		...(content?.views ?? []),
-	];
+	].map((view) =>
+		isSystemViewId(view.id)
+			? view
+			: { ...view, path: joinPath(root, "Views", view.id) },
+	);
 
-	const dashboards: DashboardConfig[] = content?.dashboards ?? [];
+	const dashboards: DashboardConfig[] = (content?.dashboards ?? []).map(
+		(dashboard) => ({
+			...dashboard,
+			path: joinPath(root, "Dashboards", dashboard.id),
+		}),
+	);
 
 	// --- Notes ----------------------------------------------------------
+	//
+	// One file per Saved View / Dashboard, under `Views/` / `Dashboards/` —
+	// same per-file storage the live app uses. A workspace with no user views
+	// or dashboards simply has empty folders.
 
 	const notes: GeneratedNote[] = [
 		{ path: joinPath(root, "_workspace"), frontmatter: serializeWorkspace(workspace), body: "" },
-		{ path: joinPath(root, "_views"), frontmatter: serializeViews(views), body: "" },
 	];
 
-	// `_dashboards` is written only when the template ships one — a workspace
-	// with no dashboards note simply has an empty list (same as `_views`).
-	if (dashboards.length > 0) {
+	for (const view of views) {
+		if (isSystemViewId(view.id)) continue;
 		notes.push({
-			path: joinPath(root, "_dashboards"),
-			frontmatter: serializeDashboards(dashboards),
+			path: view.path,
+			frontmatter: serializeView(view),
+			body: "",
+		});
+	}
+
+	for (const dashboard of dashboards) {
+		notes.push({
+			path: dashboard.path,
+			frontmatter: serializeDashboard(dashboard),
 			body: "",
 		});
 	}

@@ -27,7 +27,8 @@ export function newDashboard(
 	name: string,
 	icon = "layout-dashboard",
 ): DashboardConfig {
-	return { id, name, icon, widgets: [], filters: {} };
+	// `path` is filled in by the glue layer on write, like a new view's.
+	return { type: "dashboard", path: "", id, name, icon, widgets: [], filters: {} };
 }
 
 /**

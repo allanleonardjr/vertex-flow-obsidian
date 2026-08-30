@@ -106,6 +106,9 @@ export function makeView(
 ): SavedView {
 	const viewType = partial.viewType ?? "list";
 	return {
+		type: "view",
+		// Real path assigned when `instantiateTemplate` emits the note.
+		path: "",
 		id,
 		name,
 		icon: partial.icon ?? (viewType === "board" ? "columns-3" : "list"),
@@ -150,7 +153,7 @@ export function makeDashboard(
 	widgets: DashboardWidget[],
 	icon = "layout-dashboard",
 ): DashboardConfig {
-	return { id, name, icon, filters: {}, widgets };
+	return { type: "dashboard", path: "", id, name, icon, filters: {}, widgets };
 }
 
 /**

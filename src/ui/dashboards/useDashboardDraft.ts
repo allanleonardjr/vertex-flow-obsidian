@@ -3,11 +3,11 @@
  * `useViewDraft` for Saved Views.
  *
  * Editing the filter bar or moving / resizing / adding / removing widgets
- * applies immediately to what's on screen but is held here, not written to
- * `_dashboards`. `_dashboards` is shared across a synced vault, so the write is
- * explicit (Save / Save As). The dashboard's *name and icon* are identity, not
- * part of the draft — editing them (sidebar or the header title) writes
- * straight through, and Save preserves whatever is currently on disk.
+ * applies immediately to what's on screen but is held here, not written to the
+ * dashboard's `Dashboards/<id>.md` note. That note is shared across a synced
+ * vault, so the write is explicit (Save / Save As). The dashboard's *name and
+ * icon* are identity, not part of the draft — editing them (sidebar or the
+ * header title) writes straight through, and Save preserves what's on disk.
  */
 
 import { useCallback, useMemo } from "react";

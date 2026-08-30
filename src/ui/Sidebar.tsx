@@ -11,10 +11,11 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import {
-  BUILT_IN_VIEW_ID,
-  BUILT_IN_VIEW_NAME,
-  INBOX_VIEW_ID,
-  INBOX_VIEW_NAME,
+  SYSTEM_VIEW_ALL_TASKS_ID,
+  SYSTEM_VIEW_ALL_TASKS_NAME,
+  SYSTEM_VIEW_UNTRIAGED_ID,
+  SYSTEM_VIEW_UNTRIAGED_NAME,
+  isSystemViewId,
   layoutIcon,
   newView,
 } from "../core/views";
@@ -104,7 +105,7 @@ export function Sidebar({
         <>
           <WorkspacesSection snapshot={snapshot} />
 
-          {/* All Tasks + Inbox are permanent view definitions — they can't be
+          {/* All Tasks + Untriaged are permanent System Views — they can't be
               deleted and don't belong in the Views section list. Rendered as
               bare rows (like Help/Settings), fenced off with a divider top and
               bottom so they read as their own band between Workspaces and
@@ -113,16 +114,16 @@ export function Sidebar({
           <div className="vf-permanent-views">
             <PermanentViewRow
               snapshot={snapshot}
-              viewId={INBOX_VIEW_ID}
-              name={INBOX_VIEW_NAME}
+              viewId={SYSTEM_VIEW_UNTRIAGED_ID}
+              name={SYSTEM_VIEW_UNTRIAGED_NAME}
               fallbackIcon="inbox"
               activeViewId={activeViewId}
               onSelectView={onSelectView}
             />
             <PermanentViewRow
               snapshot={snapshot}
-              viewId={BUILT_IN_VIEW_ID}
-              name={BUILT_IN_VIEW_NAME}
+              viewId={SYSTEM_VIEW_ALL_TASKS_ID}
+              name={SYSTEM_VIEW_ALL_TASKS_NAME}
               fallbackIcon="list"
               activeViewId={activeViewId}
               onSelectView={onSelectView}
@@ -462,7 +463,7 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
             // including a click on the workspace that's already active, which
             // doesn't change the root and so wouldn't trip TabsProvider's
             // auto-open effect on its own.
-            if (tabs.tabs.length === 0) tabs.openView(BUILT_IN_VIEW_ID);
+            if (tabs.tabs.length === 0) tabs.openView(SYSTEM_VIEW_ALL_TASKS_ID);
           }}
           trailing={
             <RowMenu
@@ -588,10 +589,10 @@ function ViewsSection({
   const [dialog, setDialog] = useState<ViewDialogState>(null);
   const [deleting, setDeleting] = useState<SavedView | null>(null);
 
-  // The two permanent views (All Tasks, Inbox) render as their own bare rows
+  // The two System Views (All Tasks, Untriaged) render as their own bare rows
   // above this section — never in the list, never in the count.
   const userViews = snapshot.views.filter(
-    (v) => v.id !== BUILT_IN_VIEW_ID && v.id !== INBOX_VIEW_ID,
+    (v) => !isSystemViewId(v.id),
   );
 
   const create = () => {
@@ -614,7 +615,7 @@ function ViewsSection({
   };
 
   const remove = (view: SavedView) => {
-    if (view.id === BUILT_IN_VIEW_ID || view.id === INBOX_VIEW_ID) return;
+    if (isSystemViewId(view.id)) return;
     // The view's tab (if open) is closed by App's `pruneViews` once the view
     // leaves `snapshot.views`.
     void plugin.mutations.deleteView(snapshot, view.id);
@@ -667,7 +668,7 @@ function ViewsSection({
               >
                 Duplicate
               </button>
-              {view.id !== BUILT_IN_VIEW_ID && (
+              {!isSystemViewId(view.id) && (
                 <button
                   className="vf-menu-item vf-menu-item-danger"
                   onClick={() => {

@@ -487,8 +487,8 @@ describe("resolution", () => {
 		);
 	});
 
-	it("prints the Inbox definition as its documented query", () => {
-		const inbox = defaultViews().find((v) => v.id === "inbox")!;
+	it("prints the Untriaged definition as its documented query", () => {
+		const inbox = defaultViews().find((v) => v.id === "untriaged")!;
 		expect(printQuery(viewDefinition(inbox), ctx)).toBe(
 			"project:unset parent:unset is:open is:unscheduled group:status sort:rank",
 		);

@@ -199,7 +199,7 @@ export function filtersEqual(a: ViewFilters, b: ViewFilters): boolean {
  *
  * Filter values stay unsorted (the query bar re-prints them under the user's
  * cursor), but a field checklist has no such concern — a fixed order also keeps
- * `_views.md` diffs stable when the same set is toggled in a different sequence.
+ * a view's note diff stable when the same set is toggled in a different sequence.
  */
 export function canonicalizeHiddenFields(
 	fields: readonly TaskField[] | undefined,

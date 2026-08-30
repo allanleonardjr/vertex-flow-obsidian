@@ -15,7 +15,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { WorkspaceSnapshot } from "../../core/types";
-import { BUILT_IN_VIEW_ID, INBOX_VIEW_ID } from "../../core/views";
+import { SYSTEM_VIEW_ALL_TASKS_ID, SYSTEM_VIEW_UNTRIAGED_ID } from "../../core/views";
 import {
 	useCreateDashboard,
 	useCreateProject,
@@ -72,10 +72,10 @@ export function PrefixEngine({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 			if (prefix === "g") {
 				switch (key) {
 					case "a":
-						void tabs.openView(BUILT_IN_VIEW_ID);
+						void tabs.openView(SYSTEM_VIEW_ALL_TASKS_ID);
 						return true;
 					case "i":
-						void tabs.openView(INBOX_VIEW_ID);
+						void tabs.openView(SYSTEM_VIEW_UNTRIAGED_ID);
 						return true;
 					case "p":
 						void tabs.openScreen("projects");

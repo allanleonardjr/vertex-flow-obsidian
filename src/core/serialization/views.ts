@@ -1,12 +1,16 @@
 /**
- * `_views.md` — Saved View definitions.
+ * `Views/<id>.md` — one Saved View definition per note.
  *
  * Filter values are written the way a human would write them (`assignee: self`,
  * `taskType: [bug]`, `project: "Projects/Kanban UI Engine"`), so parsing
  * normalizes every scalar into an array and every wikilink into a bare target.
+ *
+ * `parseViews`/`serializeViews` (plural) survive only for the one-time migration
+ * off the retired shared `_views.md` array — the live scan path is per-file
+ * `parseView`/`serializeView`.
  */
 
-import { parseLink } from "../links";
+import { basename, parseLink } from "../links";
 import { canonicalizeHiddenFields } from "../views/filter";
 import {
 	SUBTASK_DISPLAYS,
@@ -147,7 +151,7 @@ function listFilter(raw: unknown): string[] | undefined {
 
 /**
  * The `archived` tri-state, tolerating the legacy `includeArchived: true`
- * boolean that older `_views.md` files carry — it reads as `"included"`.
+ * boolean that older view files carry — it reads as `"included"`.
  */
 function parseArchived(record: Record<string, unknown>): ViewFilters["archived"] {
 	const value = asString(record.archived);
@@ -173,11 +177,17 @@ export function parseFilters(raw: unknown): ViewFilters {
 	}) as ViewFilters;
 }
 
-export function parseView(raw: unknown, index: number): ParseResult<SavedView> {
-	const record = asRecord(raw);
-	const log = new IssueLog();
+export interface ViewParseOptions {
+	/** Vault path of the note. Its basename is the id fallback when frontmatter omits one. */
+	path: string;
+}
 
-	const id = asString(record.id) ?? `view-${index + 1}`;
+/** The definitional half of a view — everything but the `type`/`path` discriminants. */
+function parseViewValue(
+	record: Record<string, unknown>,
+	id: string,
+	log: IssueLog,
+): Omit<SavedView, "type" | "path"> {
 	const viewType = pick(record.viewType, VIEW_TYPES, "list", log, "viewType");
 	const columns = asRecord(record.columns);
 
@@ -197,7 +207,6 @@ export function parseView(raw: unknown, index: number): ParseResult<SavedView> {
 				: "flat";
 
 	return {
-		value: {
 			id,
 			name: asString(record.name) ?? id,
 			icon: asString(record.icon) ?? undefined,
@@ -240,11 +249,37 @@ export function parseView(raw: unknown, index: number): ParseResult<SavedView> {
 			),
 			timeline: parseTimeline(record.timeline),
 			calendar: parseCalendar(record.calendar),
+	};
+}
+
+/**
+ * Parse one `Views/<id>.md` note. The id comes from frontmatter; a note that
+ * genuinely omits it falls back to its filename, the way a Task without an `id`
+ * does (`parseTask`).
+ */
+export function parseView(
+	raw: unknown,
+	options: ViewParseOptions,
+): ParseResult<SavedView> {
+	const record = asRecord(raw);
+	const log = new IssueLog();
+	const id = asString(record.id) ?? basename(options.path);
+
+	return {
+		value: {
+			type: "view",
+			path: options.path,
+			...parseViewValue(record, id, log),
 		},
 		issues: log.issues.map((issue) => `View "${id}": ${issue}`),
 	};
 }
 
+/**
+ * Parse the retired shared `_views.md` array. Migration-only — see the module
+ * header. The `path` is left blank: these objects are transient, read once to be
+ * re-written as individual files (and `serializeView` never emits `path`).
+ */
 export function parseViews(raw: unknown): ParseResult<SavedView[]> {
 	const record = asRecord(raw);
 	const list = Array.isArray(record.views) ? record.views : [];
@@ -252,20 +287,55 @@ export function parseViews(raw: unknown): ParseResult<SavedView[]> {
 	const issues: string[] = [];
 
 	list.forEach((entry, index) => {
-		const parsed = parseView(entry, index);
-		if (views.some((view) => view.id === parsed.value.id)) {
-			issues.push(`Duplicate view id "${parsed.value.id}"; keeping the first.`);
+		const entryRecord = asRecord(entry);
+		const log = new IssueLog();
+		const id = asString(entryRecord.id) ?? `view-${index + 1}`;
+		if (views.some((view) => view.id === id)) {
+			issues.push(`Duplicate view id "${id}"; keeping the first.`);
 			return;
 		}
-		views.push(parsed.value);
-		issues.push(...parsed.issues);
+		views.push({
+			type: "view",
+			path: "",
+			...parseViewValue(entryRecord, id, log),
+		});
+		issues.push(...log.issues.map((issue) => `View "${id}": ${issue}`));
 	});
 
 	return { value: views, issues };
 }
 
+/**
+ * Per-workspace duplicate-id detector. Two `Views/*.md` notes resolving to the
+ * same id (hand-edited frontmatter) make `viewById` lookups ambiguous. Non-fatal
+ * and surfaced per file, exactly like `detectProjectTitleCollisions`.
+ */
+export interface ViewIdCollision {
+	path: string;
+	id: string;
+}
+
+export function detectViewIdCollisions(
+	views: readonly SavedView[],
+): ViewIdCollision[] {
+	const groups = new Map<string, SavedView[]>();
+	for (const view of views) {
+		const group = groups.get(view.id) ?? [];
+		group.push(view);
+		groups.set(view.id, group);
+	}
+
+	const out: ViewIdCollision[] = [];
+	for (const group of groups.values()) {
+		if (group.length < 2) continue;
+		for (const view of group) out.push({ path: view.path, id: view.id });
+	}
+	return out;
+}
+
 export function serializeView(view: SavedView): Record<string, unknown> {
 	return compact({
+		type: "view",
 		id: view.id,
 		name: view.name,
 		icon: view.icon,
@@ -281,8 +351,7 @@ export function serializeView(view: SavedView): Record<string, unknown> {
 		},
 		emptyColumnBehavior: view.emptyColumnBehavior,
 		hiddenFields: view.hiddenFields,
-		// Omitted at the default, like `hiddenFields: []` — keeps `_views.md`
-		// diffs quiet for the common case.
+		// Omitted at the default, like `hiddenFields: []` — keeps a view's note diff quiet for the common case.
 		subtaskDisplay:
 			view.subtaskDisplay === "flat" ? undefined : view.subtaskDisplay,
 		calendarDateField:

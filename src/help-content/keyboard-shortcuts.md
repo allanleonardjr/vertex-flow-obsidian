@@ -17,7 +17,7 @@ than opening a second one.
 | Chord | Destination |
 | --- | --- |
 | `g` `a` | All Tasks |
-| `g` `i` | Inbox (untriaged tasks) |
+| `g` `i` | Untriaged tasks |
 | `g` `p` | Projects |
 | `g` `d` | Dashboards |
 | `g` `v` | Views |
