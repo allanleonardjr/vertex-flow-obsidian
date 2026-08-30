@@ -141,12 +141,31 @@ body.vf-text-comfortable {
   flex: 1;
 }
 
-/* Divider above the pinned Help / Settings rows at the bottom of the sidebar. */
+/* Divider above the pinned Help / Settings rows at the bottom of the sidebar,
+   and fencing the All Tasks / Inbox band near the top. */
 .vf-sidebar-sep {
   flex: 0 0 auto;
   height: 1px;
   margin: 6px 10px;
   background: var(--vf-border);
+}
+
+/* The All Tasks / Inbox band: bare rows between two dividers. The dividers
+   already supply the breathing room, so the band itself sits flush and the
+   section that follows drops its usual top gap. */
+.vf-permanent-views {
+  display: flex;
+  flex-direction: column;
+  padding: 2px 0;
+}
+
+.vf-permanent-views + .vf-sidebar-sep {
+  margin-bottom: 8px;
+}
+
+/* The Workspaces body already pads its bottom — don't double it at the sep. */
+.vf-section + .vf-sidebar-sep {
+  margin-top: 2px;
 }
 
 /* -- Collapsible section: header toggles, "+" creates ---------------------- */

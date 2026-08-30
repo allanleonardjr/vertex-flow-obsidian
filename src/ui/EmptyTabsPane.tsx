@@ -18,9 +18,9 @@ export function EmptyTabsPane() {
 			</span>
 			<p className="vf-view-empty-title">No tabs open</p>
 			<p className="vf-empty-note vf-empty-tabs-hints">
-				<kbd>g</kbd> <kbd>a</kbd> All Tasks
-				<span aria-hidden> · </span>
 				<kbd>g</kbd> <kbd>i</kbd> Inbox
+				<span aria-hidden> · </span>
+				<kbd>g</kbd> <kbd>a</kbd> All Tasks
 				<span aria-hidden> · </span>
 				<kbd>c</kbd> <kbd>t</kbd> New task
 				<span aria-hidden> · </span>

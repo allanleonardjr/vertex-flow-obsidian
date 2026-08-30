@@ -105,23 +105,29 @@ export function Sidebar({
 
           {/* All Tasks + Inbox are permanent view definitions — they can't be
               deleted and don't belong in the Views section list. Rendered as
-              bare rows (like Help/Settings), above Views. */}
-          <PermanentViewRow
-            snapshot={snapshot}
-            viewId={BUILT_IN_VIEW_ID}
-            name={BUILT_IN_VIEW_NAME}
-            fallbackIcon="list"
-            activeViewId={activeViewId}
-            onSelectView={onSelectView}
-          />
-          <PermanentViewRow
-            snapshot={snapshot}
-            viewId={INBOX_VIEW_ID}
-            name={INBOX_VIEW_NAME}
-            fallbackIcon="inbox"
-            activeViewId={activeViewId}
-            onSelectView={onSelectView}
-          />
+              bare rows (like Help/Settings), fenced off with a divider top and
+              bottom so they read as their own band between Workspaces and
+              Views. */}
+          <div className="vf-sidebar-sep" aria-hidden />
+          <div className="vf-permanent-views">
+            <PermanentViewRow
+              snapshot={snapshot}
+              viewId={INBOX_VIEW_ID}
+              name={INBOX_VIEW_NAME}
+              fallbackIcon="inbox"
+              activeViewId={activeViewId}
+              onSelectView={onSelectView}
+            />
+            <PermanentViewRow
+              snapshot={snapshot}
+              viewId={BUILT_IN_VIEW_ID}
+              name={BUILT_IN_VIEW_NAME}
+              fallbackIcon="list"
+              activeViewId={activeViewId}
+              onSelectView={onSelectView}
+            />
+          </div>
+          <div className="vf-sidebar-sep" aria-hidden />
 
           <ViewsSection
             snapshot={snapshot}
