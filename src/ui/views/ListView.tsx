@@ -109,7 +109,7 @@ export function ListView({
         note={
           filtered ? undefined : (
             <>
-              Press <kbd>c</kbd> to create a task.
+              Press <kbd>c</kbd> <kbd>t</kbd> to create a task.
             </>
           )
         }

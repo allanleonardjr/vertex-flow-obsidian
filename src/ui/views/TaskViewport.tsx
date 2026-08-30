@@ -33,6 +33,10 @@ import {
   type FocusLayout,
 } from "../selection";
 import { useTabs } from "../tabs-context";
+import {
+  QuickTaxonomyPicker,
+  type QuickPickerKind,
+} from "../shortcuts/QuickTaxonomyPicker";
 import { BoardView } from "./BoardView";
 import { CalendarView } from "./CalendarView";
 import { ListView } from "./ListView";
@@ -140,6 +144,22 @@ export function TaskViewport({
     () => new Set(),
   );
   useEffect(() => setCollapsedSubtrees(new Set()), [view.id]);
+
+  // The keyboard taxonomy picker (`s`/`p`/`l`/`t`), or null. Bound to the
+  // focused task at the moment the key is pressed.
+  const [quickPicker, setQuickPicker] = useState<{
+    kind: QuickPickerKind;
+    path: string;
+  } | null>(null);
+  useEffect(() => setQuickPicker(null), [view.id]);
+  const openQuickPicker = useCallback(
+    (kind: QuickPickerKind) => {
+      if (selection.focusedPath) {
+        setQuickPicker({ kind, path: selection.focusedPath });
+      }
+    },
+    [selection.focusedPath],
+  );
   const toggleSubtree = useCallback((path: string) => {
     setCollapsedSubtrees((prev) => {
       const next = new Set(prev);
@@ -240,16 +260,61 @@ export function TaskViewport({
   useShortcuts(
     containerRef,
     [
-      // Vim-style and arrow keys, both walking the visual layout: j/k within
-      // a column, h/l across columns.
+      // j/k and the arrow keys walk the visual layout: up/down within a
+      // column, left/right across board columns. The vim h/l aliases for
+      // column movement were dropped (Linear does the same) — that frees `l`
+      // for the Label picker below.
       { key: "ArrowDown", run: () => selection.moveFocus(1) },
       { key: "ArrowUp", run: () => selection.moveFocus(-1) },
       { key: "j", run: () => selection.moveFocus(1) },
       { key: "k", run: () => selection.moveFocus(-1) },
       { key: "ArrowLeft", run: () => selection.moveColumn(-1) },
       { key: "ArrowRight", run: () => selection.moveColumn(1) },
-      { key: "h", run: () => selection.moveColumn(-1) },
-      { key: "l", run: () => selection.moveColumn(1) },
+
+      // Taxonomy pickers for the focused task (Linear's convention).
+      { key: "s", run: () => openQuickPicker("status") },
+      { key: "p", run: () => openQuickPicker("priority") },
+      { key: "l", run: () => openQuickPicker("label") },
+      { key: "t", run: () => openQuickPicker("taskType") },
+
+      // Hierarchy navigation — ⌘/Ctrl+Shift+↑ to the parent, ↓ to the first
+      // sub-task (Linear's convention; `p`/`s` now open pickers).
+      {
+        key: "ArrowUp",
+        mod: true,
+        shift: true,
+        run: () => {
+          const focused = evaluated.tasks.find(
+            (t) => t.path === selection.focusedPath,
+          );
+          if (!focused) return;
+          const parent = primaryParent(focused);
+          if (parent.kind === "task") tabs.openTask(parent.path);
+          else if (parent.kind === "project") tabs.openProject(parent.path);
+        },
+      },
+      {
+        key: "ArrowDown",
+        mod: true,
+        shift: true,
+        run: () => {
+          const focused = evaluated.tasks.find(
+            (t) => t.path === selection.focusedPath,
+          );
+          if (!focused) return;
+          const kids = sortTasksByRank(
+            childTasks(scopeOf(snapshot), focused.path),
+          );
+          const first = kids.find((kid) =>
+            evaluated.tasks.some((t) => t.path === kid.path),
+          );
+          if (!first) return;
+          if (nestedGroups && collapsedSubtrees.has(focused.path)) {
+            toggleSubtree(focused.path);
+          }
+          selection.focus(first.path);
+        },
+      },
 
       { key: "a", mod: true, run: () => selection.selectAll() },
       {
@@ -274,41 +339,6 @@ export function TaskViewport({
         run: () => {
           if (selection.focusedPath)
             void plugin.mutations.open(selection.focusedPath);
-        },
-      },
-      { key: "c", run: () => newTask() },
-      // Walk the hierarchy from the focused task: `p` to its parent (task, or
-      // else its project), `s` into its first sub-task.
-      {
-        key: "p",
-        run: () => {
-          const focused = evaluated.tasks.find(
-            (t) => t.path === selection.focusedPath,
-          );
-          if (!focused) return;
-          const parent = primaryParent(focused);
-          if (parent.kind === "task") tabs.openTask(parent.path);
-          else if (parent.kind === "project") tabs.openProject(parent.path);
-        },
-      },
-      {
-        key: "s",
-        run: () => {
-          const focused = evaluated.tasks.find(
-            (t) => t.path === selection.focusedPath,
-          );
-          if (!focused) return;
-          const kids = sortTasksByRank(
-            childTasks(scopeOf(snapshot), focused.path),
-          );
-          const first = kids.find((kid) =>
-            evaluated.tasks.some((t) => t.path === kid.path),
-          );
-          if (!first) return;
-          if (nestedGroups && collapsedSubtrees.has(focused.path)) {
-            toggleSubtree(focused.path);
-          }
-          selection.focus(first.path);
         },
       },
       {
@@ -383,6 +413,21 @@ export function TaskViewport({
           onClearFilters={clearFilters}
         />
       )}
+
+      {quickPicker &&
+        (() => {
+          const target = evaluated.tasks.find(
+            (t) => t.path === quickPicker.path,
+          );
+          return target ? (
+            <QuickTaxonomyPicker
+              task={target}
+              kind={quickPicker.kind}
+              taxonomies={taxonomies}
+              onClose={() => setQuickPicker(null)}
+            />
+          ) : null;
+        })()}
     </>
   );
 }

@@ -19,6 +19,7 @@ import {
 } from "../core/templates";
 import { joinPath, sanitizeFileName } from "../core/links";
 import { suggestPrefix } from "../core/ids";
+import { BUILT_IN_VIEW_ID } from "../core/views";
 import { Icon } from "./components/Icon";
 import { usePlugin, useSetActiveWorkspace } from "./context";
 import { FolderSuggestModal } from "./modals/FolderSuggestModal";
@@ -205,6 +206,10 @@ function ConfigStep({
 				includeExampleContent: populate,
 				selfPersonName: selfName.trim() || undefined,
 			});
+			// Nothing keeps a tab open on a new workspace's behalf — open All
+			// Tasks explicitly (it always has the most to show). The tab strip
+			// picks this up on its next mount / workspace switch.
+			plugin.pendingOpenView = BUILT_IN_VIEW_ID;
 			setActiveWorkspace(root);
 			onDone();
 		} catch (cause) {

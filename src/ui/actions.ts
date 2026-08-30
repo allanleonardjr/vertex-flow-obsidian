@@ -7,6 +7,9 @@ import { Notice } from "obsidian";
 import { withoutExtension } from "../obsidian/note-io";
 import type { NewTaskInput } from "../obsidian/mutations";
 import type { WorkspaceSnapshot } from "../core/types";
+import { newDashboard } from "../core/dashboards";
+import { newConfigId } from "../core/ids";
+import { newView } from "../core/views";
 import { usePlugin } from "./context";
 import { useTabs } from "./tabs-context";
 
@@ -98,6 +101,46 @@ export function useCreateProject(): (snapshot: WorkspaceSnapshot) => Promise<voi
 					}`,
 				);
 			}
+		},
+		[plugin, tabs],
+	);
+}
+
+/**
+ * Create a dashboard and open it — the keyboard-shortcut entry point (`c d`).
+ * Mirrors the sidebar's "New dashboard" flow minus the name/icon dialog; the
+ * name is editable in place afterwards.
+ */
+export function useCreateDashboard(): (
+	snapshot: WorkspaceSnapshot,
+) => Promise<void> {
+	const plugin = usePlugin();
+	const tabs = useTabs();
+
+	return useCallback(
+		async (snapshot) => {
+			const dashboard = newDashboard(newConfigId("dashboard"), "New dashboard");
+			await plugin.mutations.addDashboard(snapshot, dashboard);
+			tabs.openDashboard(dashboard.id);
+		},
+		[plugin, tabs],
+	);
+}
+
+/**
+ * Create a blank Saved View and open it (`c v`) — a fresh, empty
+ * filter/group/sort editor, *not* a snapshot of whatever list is on screen.
+ * Mirrors the sidebar's "New view" flow minus the name/icon dialog.
+ */
+export function useCreateView(): (snapshot: WorkspaceSnapshot) => Promise<void> {
+	const plugin = usePlugin();
+	const tabs = useTabs();
+
+	return useCallback(
+		async (snapshot) => {
+			const view = newView(newConfigId("view"), "New view", "list");
+			await plugin.mutations.addView(snapshot, view);
+			tabs.openView(view.id);
 		},
 		[plugin, tabs],
 	);

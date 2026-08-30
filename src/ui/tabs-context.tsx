@@ -1,14 +1,13 @@
 /**
- * One tab strip for everything: the Board/List, Projects, Settings, and every
- * open task all live as tabs in this single strip, none of them able to block
- * access to the others.
+ * One tab strip for everything: the List/Board views, Projects, Settings, and
+ * every open task all live as tabs in this single strip, none of them able to
+ * block access to the others.
  *
- * This replaces an earlier design where opening a task took over the whole
- * content area — closing every task tab was the only way back to the board.
- * The fix is structural, not cosmetic: there is always a pinned "workspace"
- * tab (the Board/List, following whatever Saved View is selected) that can
- * never be closed, so the board is never more than one click away regardless
- * of how many other tabs are open.
+ * There is no longer a pinned, unclosable tab. Every tab — All Tasks and Inbox
+ * included — is freely closable and freely reorderable; closing the last one
+ * leaves `activeId === null` and the shell renders its empty-tabs pane. A
+ * brand-new workspace explicitly opens All Tasks (see `plugin.pendingOpenView`),
+ * since nothing keeps a tab open on its behalf anymore.
  */
 
 import {
@@ -29,11 +28,15 @@ import {
 } from "./tabs-guard";
 
 /** The non-task screens, each a single reusable tab (never duplicated). */
-export type BrowseKind = "projects" | "settings" | "help" | "new-workspace";
+export type BrowseKind =
+	| "projects"
+	| "settings"
+	| "help"
+	| "new-workspace"
+	| "dashboards"
+	| "views";
 
 export type Tab =
-	/** The built-in "Tasks" view — pinned, always present, always first, never closed. */
-	| { id: "workspace"; kind: "workspace" }
 	| { id: BrowseKind; kind: BrowseKind }
 	| { id: string; kind: "task"; path: string }
 	/** A user Saved View, opened from the sidebar. Closable. */
@@ -45,11 +48,9 @@ export type Tab =
 	/** One project: a detail header above its tasks (synthesised view). Closable. */
 	| { id: string; kind: "project"; path: string };
 
-const WORKSPACE_TAB: Tab = { id: "workspace", kind: "workspace" };
-
 function taskTabId(path: string): string {
 	// Paths always contain a slash (they're vault-relative), so this can never
-	// collide with the fixed "workspace"/"projects"/… ids above.
+	// collide with the fixed "projects"/"settings"/… ids above.
 	return path;
 }
 
@@ -71,10 +72,11 @@ function projectTabId(path: string): string {
 }
 
 export interface TabsApi {
-	/** Always starts with the pinned workspace tab. */
 	tabs: Tab[];
-	activeId: string;
-	activeTab: Tab;
+	/** Null when no tab is open — the shell shows its empty-tabs pane. */
+	activeId: string | null;
+	/** Null when no tab is open. */
+	activeTab: Tab | null;
 	/** Open a task, adding a tab if it isn't already open, and focus it. */
 	openTask: (path: string) => void;
 	/** Open (or reveal) one of the singleton browse/settings tabs. */
@@ -87,19 +89,17 @@ export interface TabsApi {
 	openDashboard: (dashboardId: string) => void;
 	/** Open (or reveal) a project's detail screen as its own transient tab. */
 	openProject: (path: string) => void;
-	/** Switch to the pinned Board/List tab without opening anything new. */
-	activateWorkspace: () => void;
 	activate: (id: string) => void;
 	/**
 	 * Move a tab to a new position in the strip. `toIndex` is an insertion gap
-	 * in the current list; the pinned workspace tab stays at index 0 and nothing
-	 * lands to its left. Never changes which tab is active.
+	 * in the current list. Every tab is freely reorderable. Never changes which
+	 * tab is active.
 	 */
 	reorder: (tabId: string, toIndex: number) => void;
-	/** Close a tab. A no-op on the pinned workspace tab — there's nothing to fall back to if it closed. */
+	/** Close a tab. Closing the last one leaves `activeId === null`. */
 	close: (id: string) => void;
 	closeActive: () => void;
-	/** Bulk-close every open task tab, keeping the workspace and any browse tabs. */
+	/** Bulk-close every open task tab, keeping the browse/view tabs. */
 	closeAllTasks: () => void;
 	/** Drop task tabs whose task no longer exists. Browse/settings tabs are never pruned. */
 	pruneTasks: (existing: (path: string) => boolean) => void;
@@ -133,8 +133,8 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 	// against to decide whether following a link needs a cross-workspace switch.
 	const activeWorkspaceRoot =
 		useActiveWorkspace()?.snapshot.workspace.root ?? null;
-	const [tabs, setTabs] = useState<Tab[]>([WORKSPACE_TAB]);
-	const [activeId, setActiveId] = useState<string>("workspace");
+	const [tabs, setTabs] = useState<Tab[]>([]);
+	const [activeId, setActiveId] = useState<string | null>(null);
 
 	// A ref mirror so the (now async) navigation callbacks can read the current
 	// active tab without taking it as a dependency — keeps their identity stable.
@@ -162,7 +162,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 					hasGuard: guard != null,
 					action,
 					targetId,
-					activeId: activeIdRef.current,
+					activeId: activeIdRef.current ?? "",
 				})
 			) {
 				return true;
@@ -269,11 +269,6 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 		[mayLeaveActive],
 	);
 
-	const activateWorkspace = useCallback(async () => {
-		if (!(await mayLeaveActive("navigate", "workspace"))) return;
-		setActiveId("workspace");
-	}, [mayLeaveActive]);
-
 	const activate = useCallback(
 		async (id: string) => {
 			if (!(await mayLeaveActive("navigate", id))) return;
@@ -290,8 +285,6 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 
 	const close = useCallback(
 		async (id: string) => {
-			if (id === "workspace") return;
-
 			// The guard only fires for a close of the *active* tab (see
 			// `shouldPromptUnsavedGuard`) — a background tab holds no live draft.
 			if (!(await mayLeaveActive("close", id))) return;
@@ -303,8 +296,9 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 
 				setActiveId((active) => {
 					if (active !== id) return active;
-					// Prefer the neighbour to the right, like a browser; the pinned
-					// workspace tab at index 0 is always there as the final fallback.
+					// Prefer the neighbour to the right, like a browser. Closing the
+					// last tab leaves nothing active — the empty-tabs pane renders.
+					if (next.length === 0) return null;
 					return next[Math.min(index, next.length - 1)].id;
 				});
 
@@ -314,10 +308,10 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 		[mayLeaveActive],
 	);
 
-	const closeActive = useCallback(
-		() => close(activeIdRef.current),
-		[close],
-	);
+	const closeActive = useCallback(() => {
+		const active = activeIdRef.current;
+		if (active) void close(active);
+	}, [close]);
 
 	const closeAllTasks = useCallback(() => {
 		setTabs((current) => current.filter((tab) => tab.kind !== "task"));
@@ -327,56 +321,29 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			// decides whether the active tab is one of the ones about to be
 			// removed.
 			const activeTab = tabs.find((tab) => tab.id === active);
-			return activeTab && activeTab.kind !== "task" ? active : "workspace";
+			if (activeTab && activeTab.kind !== "task") return active;
+			const survivor = tabs.find((tab) => tab.kind !== "task");
+			return survivor ? survivor.id : null;
 		});
 	}, [tabs]);
 
-	const pruneTasks = useCallback((existing: (path: string) => boolean) => {
-		setTabs((current) => {
-			const next = current.filter((tab) => tab.kind !== "task" || existing(tab.path));
-			if (next.length === current.length) return current;
-			setActiveId((active) =>
-				next.some((tab) => tab.id === active) ? active : "workspace",
-			);
-			return next;
-		});
-	}, []);
-
-	const pruneViews = useCallback((existing: (viewId: string) => boolean) => {
-		setTabs((current) => {
-			const next = current.filter(
-				(tab) => tab.kind !== "view" || existing(tab.viewId),
-			);
-			if (next.length === current.length) return current;
-			setActiveId((active) =>
-				next.some((tab) => tab.id === active) ? active : "workspace",
-			);
-			return next;
-		});
-	}, []);
-
-	const pruneLabels = useCallback((existing: (labelId: string) => boolean) => {
-		setTabs((current) => {
-			const next = current.filter(
-				(tab) => tab.kind !== "label" || existing(tab.labelId),
-			);
-			if (next.length === current.length) return current;
-			setActiveId((active) =>
-				next.some((tab) => tab.id === active) ? active : "workspace",
-			);
-			return next;
-		});
-	}, []);
-
-	const pruneDashboards = useCallback(
-		(existing: (dashboardId: string) => boolean) => {
+	/** Shared prune body: drop non-matching tabs of `kind`, keep `activeId` sane. */
+	const makePrune = useCallback(
+		<T extends Tab["kind"]>(
+			kind: T,
+			keep: (tab: Extract<Tab, { kind: T }>) => boolean,
+		) => {
 			setTabs((current) => {
 				const next = current.filter(
-					(tab) => tab.kind !== "dashboard" || existing(tab.dashboardId),
+					(tab) =>
+						tab.kind !== kind ||
+						keep(tab as Extract<Tab, { kind: T }>),
 				);
 				if (next.length === current.length) return current;
 				setActiveId((active) =>
-					next.some((tab) => tab.id === active) ? active : "workspace",
+					next.some((tab) => tab.id === active)
+						? active
+						: (next[0]?.id ?? null),
 				);
 				return next;
 			});
@@ -384,29 +351,57 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 		[],
 	);
 
-	const pruneProjects = useCallback((existing: (path: string) => boolean) => {
-		setTabs((current) => {
-			const next = current.filter(
-				(tab) => tab.kind !== "project" || existing(tab.path),
-			);
-			if (next.length === current.length) return current;
-			setActiveId((active) =>
-				next.some((tab) => tab.id === active) ? active : "workspace",
-			);
-			return next;
-		});
-	}, []);
+	const pruneTasks = useCallback(
+		(existing: (path: string) => boolean) =>
+			makePrune("task", (tab) => existing(tab.path)),
+		[makePrune],
+	);
+	const pruneViews = useCallback(
+		(existing: (viewId: string) => boolean) =>
+			makePrune("view", (tab) => existing(tab.viewId)),
+		[makePrune],
+	);
+	const pruneLabels = useCallback(
+		(existing: (labelId: string) => boolean) =>
+			makePrune("label", (tab) => existing(tab.labelId)),
+		[makePrune],
+	);
+	const pruneDashboards = useCallback(
+		(existing: (dashboardId: string) => boolean) =>
+			makePrune("dashboard", (tab) => existing(tab.dashboardId)),
+		[makePrune],
+	);
+	const pruneProjects = useCallback(
+		(existing: (path: string) => boolean) =>
+			makePrune("project", (tab) => existing(tab.path)),
+		[makePrune],
+	);
 
 	// Drop task tabs whose task is gone from the vault entirely — not
 	// conditioned on any particular screen being mounted, since a task can be
 	// deleted (from the Board, from another device via sync, by hand) while
 	// its tab is sitting in the background.
 	useEffect(
-		() => plugin.index.subscribe(() => pruneTasks((path) => plugin.index.taskAt(path) != null)),
+		() =>
+			plugin.index.subscribe(() =>
+				pruneTasks((path) => plugin.index.taskAt(path) != null),
+			),
 		[plugin, pruneTasks],
 	);
 
-	const activeTab = tabs.find((tab) => tab.id === activeId) ?? WORKSPACE_TAB;
+	// A brand-new workspace has nothing keeping a tab open, so the shell would
+	// land on the empty-tabs pane. Workspace creation leaves the view to open
+	// here (mirrors `plugin.pendingEditPath`); consume it once, on the mount
+	// that follows creation and on the workspace switch that follows a create
+	// from the sidebar.
+	useEffect(() => {
+		const pending = plugin.pendingOpenView;
+		if (!pending) return;
+		plugin.pendingOpenView = null;
+		void openView(pending);
+	}, [plugin, activeWorkspaceRoot, openView]);
+
+	const activeTab = tabs.find((tab) => tab.id === activeId) ?? null;
 
 	const api = useMemo<TabsApi>(
 		() => ({
@@ -419,7 +414,6 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			openLabel,
 			openDashboard,
 			openProject,
-			activateWorkspace,
 			activate,
 			reorder,
 			close,
@@ -442,7 +436,6 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			openLabel,
 			openDashboard,
 			openProject,
-			activateWorkspace,
 			activate,
 			reorder,
 			close,

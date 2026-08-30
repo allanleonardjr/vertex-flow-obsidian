@@ -10,7 +10,14 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { BUILT_IN_VIEW_ID, layoutIcon, newView } from "../core/views";
+import {
+  BUILT_IN_VIEW_ID,
+  BUILT_IN_VIEW_NAME,
+  INBOX_VIEW_ID,
+  INBOX_VIEW_NAME,
+  layoutIcon,
+  newView,
+} from "../core/views";
 import { newDashboard } from "../core/dashboards";
 import { newConfigId } from "../core/ids";
 import { isProjectTitleTaken } from "../core/serialization";
@@ -95,6 +102,26 @@ export function Sidebar({
       {!minimized && (
         <>
           <WorkspacesSection snapshot={snapshot} />
+
+          {/* All Tasks + Inbox are permanent view definitions — they can't be
+              deleted and don't belong in the Views section list. Rendered as
+              bare rows (like Help/Settings), above Views. */}
+          <PermanentViewRow
+            snapshot={snapshot}
+            viewId={BUILT_IN_VIEW_ID}
+            name={BUILT_IN_VIEW_NAME}
+            fallbackIcon="list"
+            activeViewId={activeViewId}
+            onSelectView={onSelectView}
+          />
+          <PermanentViewRow
+            snapshot={snapshot}
+            viewId={INBOX_VIEW_ID}
+            name={INBOX_VIEW_NAME}
+            fallbackIcon="inbox"
+            activeViewId={activeViewId}
+            onSelectView={onSelectView}
+          />
 
           <ViewsSection
             snapshot={snapshot}
@@ -457,6 +484,36 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   );
 }
 
+/* -------------------------------------------------------- permanent views -- */
+
+function PermanentViewRow({
+  snapshot,
+  viewId,
+  name,
+  fallbackIcon,
+  activeViewId,
+  onSelectView,
+}: {
+  snapshot: WorkspaceSnapshot;
+  viewId: string;
+  name: string;
+  fallbackIcon: string;
+  activeViewId: string;
+  onSelectView: (id: string) => void;
+}) {
+  const view = snapshot.views.find((v) => v.id === viewId);
+  return (
+    <NavRow
+      icon={view?.icon ?? fallbackIcon}
+      iconFallback={fallbackIcon}
+      label={view?.name ?? name}
+      variant="view"
+      active={activeViewId === viewId}
+      onClick={() => onSelectView(viewId)}
+    />
+  );
+}
+
 /* ------------------------------------------------------------------ views -- */
 
 type ViewDialogState =
@@ -478,6 +535,12 @@ function ViewsSection({
   const [dialog, setDialog] = useState<ViewDialogState>(null);
   const [deleting, setDeleting] = useState<SavedView | null>(null);
 
+  // The two permanent views (All Tasks, Inbox) render as their own bare rows
+  // above this section — never in the list, never in the count.
+  const userViews = snapshot.views.filter(
+    (v) => v.id !== BUILT_IN_VIEW_ID && v.id !== INBOX_VIEW_ID,
+  );
+
   const create = () => {
     const view = newView(newConfigId("view"), "New view", "list");
     void plugin.mutations.addView(snapshot, view).then(() => {
@@ -498,9 +561,9 @@ function ViewsSection({
   };
 
   const remove = (view: SavedView) => {
-    if (view.id === BUILT_IN_VIEW_ID) return;
+    if (view.id === BUILT_IN_VIEW_ID || view.id === INBOX_VIEW_ID) return;
     // The view's tab (if open) is closed by App's `pruneViews` once the view
-    // leaves `snapshot.views` — which also drops you back to the pinned tab.
+    // leaves `snapshot.views`.
     void plugin.mutations.deleteView(snapshot, view.id);
   };
 
@@ -508,10 +571,13 @@ function ViewsSection({
     <Section
       id="views"
       title="Views"
-      count={snapshot.views.length}
+      count={userViews.length}
       action={<AddButton title="New view" onClick={create} />}
     >
-      {snapshot.views.map((view) => (
+      {userViews.length === 0 && (
+        <p className="vf-section-empty">No custom views yet</p>
+      )}
+      {userViews.map((view) => (
         <NavRow
           key={view.id}
           label={view.name}
@@ -622,7 +688,7 @@ function DashboardsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
     a.name.localeCompare(b.name),
   );
   const activeDashboardId =
-    activeTab.kind === "dashboard" ? activeTab.dashboardId : null;
+    activeTab?.kind === "dashboard" ? activeTab.dashboardId : null;
 
   // Mirror the "new view" flow: create with a default name, then open the
   // name + icon modal to finish it.
@@ -769,7 +835,7 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   );
 
   const activeProjectPath =
-    tabs.activeTab.kind === "project" ? tabs.activeTab.path : null;
+    tabs.activeTab?.kind === "project" ? tabs.activeTab.path : null;
 
   return (
     <Section
@@ -884,7 +950,7 @@ function LabelsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   } | null>(null);
 
   const editLabel = ordered.find((l) => l.id === editing);
-  const activeLabelId = activeTab.kind === "label" ? activeTab.labelId : null;
+  const activeLabelId = activeTab?.kind === "label" ? activeTab.labelId : null;
 
   const requestDelete = (id: string) => {
     const usage = findTaxonomyUsage("label", id, {

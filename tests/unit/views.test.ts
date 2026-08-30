@@ -366,11 +366,15 @@ describe("evaluateView", () => {
 		expect(hiddenGroups(result).map((g) => g.key)).toEqual(["canceled"]);
 	});
 
-	it("ships a single built-in view", () => {
+	it("ships the two permanent views: All Tasks and Inbox", () => {
 		const views = defaultViews();
-		expect(views.map((v) => v.id)).toEqual(["tasks"]);
+		expect(views.map((v) => v.id)).toEqual(["tasks", "inbox"]);
 		expect(views[0].viewType).toBe("list");
 		expect(views[0].subtaskDisplay).toBe("flat");
+		expect(views[0].filters).toEqual({});
+		// Inbox is "no project assigned" — nothing more.
+		expect(views[1].filters).toEqual({ project: [NONE] });
+		expect(views[1].viewType).toBe("list");
 	});
 });
 

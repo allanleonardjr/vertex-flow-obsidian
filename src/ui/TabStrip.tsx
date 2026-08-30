@@ -1,14 +1,14 @@
 /**
- * The one tab strip — always visible, holding the pinned "Tasks" tab plus
- * whatever Saved View / Projects / Settings / task tabs are open. Nothing
- * closable can ever leave you without a way back to it.
+ * The one tab strip — holding whatever Saved View / Projects / Settings / task
+ * tabs are open. Every tab is closable and freely reorderable; when the strip
+ * empties the shell shows its empty-tabs pane instead.
  */
 
 import { Fragment, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { getValue, workspaceTaxonomies } from "../core/taxonomy";
-import { layoutIcon } from "../core/views";
-import type { SavedView, WorkspaceSnapshot } from "../core/types";
+import { BUILT_IN_VIEW_ID, INBOX_VIEW_ID, layoutIcon } from "../core/views";
+import type { WorkspaceSnapshot } from "../core/types";
 import { Icon } from "./components/Icon";
 import { StatusDot } from "./components/TaskBits";
 import { usePlugin } from "./context";
@@ -21,6 +21,8 @@ const BROWSE_ICON: Record<BrowseKind, string> = {
 	settings: "⚙",
 	help: "?",
 	"new-workspace": "＋",
+	dashboards: "▦",
+	views: "▤",
 };
 
 const BROWSE_LABEL: Record<BrowseKind, string> = {
@@ -28,19 +30,20 @@ const BROWSE_LABEL: Record<BrowseKind, string> = {
 	settings: "Settings",
 	help: "Help",
 	"new-workspace": "New workspace",
+	dashboards: "Dashboards",
+	views: "Views",
 };
 
 function browseLabel(kind: BrowseKind): string {
 	return BROWSE_LABEL[kind];
 }
 
-export function TabStrip({
-	snapshot,
-	builtInView,
-}: {
-	snapshot: WorkspaceSnapshot;
-	builtInView: SavedView;
-}) {
+/** The two permanent views read as their bare name — "All Tasks - View" is noise. */
+function isPermanentView(viewId: string): boolean {
+	return viewId === BUILT_IN_VIEW_ID || viewId === INBOX_VIEW_ID;
+}
+
+export function TabStrip({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 	const plugin = usePlugin();
 	const { tabs, activeId, activate, close, reorder } = useTabs();
 	const drag = useTabDrag(reorder);
@@ -68,7 +71,7 @@ export function TabStrip({
 		? tabs.find((tab) => tab.id === drag.drag?.tabId)
 		: undefined;
 	const draggedContent = draggedTab
-		? tabContent(draggedTab, snapshot, builtInView, duplicateTaskTitles, plugin)
+		? tabContent(draggedTab, snapshot, duplicateTaskTitles, plugin)
 		: null;
 
 	return (
@@ -83,22 +86,15 @@ export function TabStrip({
 						active={tab.id === activeId}
 						dragging={drag.isDragging(tab.id)}
 						snapshot={snapshot}
-						builtInView={builtInView}
 						duplicateTaskTitles={duplicateTaskTitles}
-						onPointerDown={
-							tab.id === "workspace"
-								? undefined
-								: (event) => drag.onPointerDown(event, tab.id)
-						}
+						onPointerDown={(event) => drag.onPointerDown(event, tab.id)}
 						onActivate={() => {
 							// A drag ends with a trailing click — don't let it also
 							// switch tabs.
 							if (drag.consumeDragClick()) return;
 							void activate(tab.id);
 						}}
-						onClose={
-							tab.id === "workspace" ? null : () => void close(tab.id)
-						}
+						onClose={() => void close(tab.id)}
 						plugin={plugin}
 					/>
 				</Fragment>
@@ -139,21 +135,13 @@ export function TabStrip({
 function tabContent(
 	tab: Tab,
 	snapshot: WorkspaceSnapshot,
-	builtInView: SavedView,
 	duplicateTaskTitles: Set<string>,
 	plugin: ReturnType<typeof usePlugin>,
 ): { icon: React.ReactNode; label: React.ReactNode } | null {
 	let icon: React.ReactNode;
 	let label: React.ReactNode;
 
-	if (tab.kind === "workspace") {
-		icon = (
-			<span className="vf-tab-icon">
-				<Icon id={builtInView.icon} fallback="list" size={13} />
-			</span>
-		);
-		label = builtInView.name;
-	} else if (tab.kind === "view") {
+	if (tab.kind === "view") {
 		const view = snapshot.views.find((v) => v.id === tab.viewId);
 		if (!view) return null;
 		icon = (
@@ -165,7 +153,7 @@ function tabContent(
 				/>
 			</span>
 		);
-		label = `${view.name} - View`;
+		label = isPermanentView(view.id) ? view.name : `${view.name} - View`;
 	} else if (tab.kind === "dashboard") {
 		const dashboard = snapshot.dashboards.find((d) => d.id === tab.dashboardId);
 		if (!dashboard) return null;
@@ -232,7 +220,6 @@ function TabRow({
 	active,
 	dragging,
 	snapshot,
-	builtInView,
 	duplicateTaskTitles,
 	onPointerDown,
 	onActivate,
@@ -244,21 +231,13 @@ function TabRow({
 	/** This tab is the one currently being dragged. */
 	dragging: boolean;
 	snapshot: WorkspaceSnapshot;
-	builtInView: SavedView;
 	duplicateTaskTitles: Set<string>;
-	/** Absent for the pinned workspace tab, which can't be dragged. */
-	onPointerDown?: (event: React.PointerEvent) => void;
+	onPointerDown: (event: React.PointerEvent) => void;
 	onActivate: () => void;
-	onClose: (() => void) | null;
+	onClose: () => void;
 	plugin: ReturnType<typeof usePlugin>;
 }) {
-	const content = tabContent(
-		tab,
-		snapshot,
-		builtInView,
-		duplicateTaskTitles,
-		plugin,
-	);
+	const content = tabContent(tab, snapshot, duplicateTaskTitles, plugin);
 	if (!content) return null;
 
 	return (
@@ -267,25 +246,23 @@ function TabRow({
 			aria-selected={active}
 			data-tab-id={tab.id}
 			className={`vf-tab${active ? " is-active" : ""}${
-				tab.id === "workspace" ? " is-pinned" : ""
-			}${dragging ? " is-dragging" : ""}`}
+				dragging ? " is-dragging" : ""
+			}`}
 			onPointerDown={onPointerDown}
 			onClick={onActivate}
 		>
 			{content.icon}
 			<span className="vf-tab-title">{content.label}</span>
-			{onClose && (
-				<button
-					className="vf-tab-close"
-					title="Close tab"
-					onClick={(event) => {
-						event.stopPropagation();
-						onClose();
-					}}
-				>
-					✕
-				</button>
-			)}
+			<button
+				className="vf-tab-close"
+				title="Close tab"
+				onClick={(event) => {
+					event.stopPropagation();
+					onClose();
+				}}
+			>
+				✕
+			</button>
 		</div>
 	);
 }

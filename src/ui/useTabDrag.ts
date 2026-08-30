@@ -12,15 +12,12 @@
  * strip can float a preview copy of the dragged tab next to the cursor — the
  * same pattern as List/Board — alongside the insertion-line indicator.
  *
- * The pinned "workspace" tab (id `"workspace"`, always index 0) can't be
- * dragged, and nothing can be dropped to its left — the minimum insertion
- * index is 1.
+ * Every tab is draggable and every gap is a valid drop target — there is no
+ * pinned tab.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LONG_PRESS_MS, liftVerdict } from "./views/pointerGesture";
-
-const PINNED_TAB_ID = "workspace";
 
 export interface TabDragState {
 	tabId: string;
@@ -36,7 +33,7 @@ export interface TabDragApi {
 	drag: TabDragState | null;
 	/** The gap the drop indicator sits in (index into the rendered strip), or null. */
 	dropIndex: number | null;
-	/** Attach to each non-pinned tab's `onPointerDown`. */
+	/** Attach to each tab's `onPointerDown`. */
 	onPointerDown: (event: React.PointerEvent, tabId: string) => void;
 	isDragging: (tabId: string) => boolean;
 	/**
@@ -97,8 +94,8 @@ export function useTabDrag(
 
 	const onPointerDown = useCallback(
 		(event: React.PointerEvent, tabId: string) => {
-			// The pinned tab never moves; ignore secondary buttons and the close ✕.
-			if (event.button !== 0 || tabId === PINNED_TAB_ID) return;
+			// Ignore secondary buttons and the close ✕.
+			if (event.button !== 0) return;
 			if ((event.target as HTMLElement).closest("button, input, a")) return;
 
 			// Measure now, while the tab is still in its resting position.
@@ -198,14 +195,13 @@ export function useTabDrag(
 
 /**
  * The gap the pointer is over, as an index into the strip's rendered tab list
- * (`0` = before the first tab). Clamped to a minimum of `1` so nothing can land
- * to the left of the pinned workspace tab. Read from the live DOM — the strip
- * scrolls horizontally and tabs are different widths, so cached geometry would
- * be stale within a frame.
+ * (`0` = before the first tab). Read from the live DOM — the strip scrolls
+ * horizontally and tabs are different widths, so cached geometry would be stale
+ * within a frame.
  */
 function resolveDropIndex(clientX: number): number {
 	const strip = document.querySelector(".vf-tabs");
-	if (!strip) return 1;
+	if (!strip) return 0;
 	const tabEls = [...strip.querySelectorAll<HTMLElement>("[data-tab-id]")];
 
 	let index = tabEls.length;
@@ -216,5 +212,5 @@ function resolveDropIndex(clientX: number): number {
 			break;
 		}
 	}
-	return Math.max(1, index);
+	return index;
 }

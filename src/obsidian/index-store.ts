@@ -26,6 +26,7 @@ import { detectPrefixCollisions } from "../core/ids";
 import {
 	BUILT_IN_VIEW_ID,
 	BUILT_IN_VIEW_NAME,
+	INBOX_VIEW_ID,
 	LEGACY_BUILT_IN_VIEW_NAME,
 	defaultViews,
 } from "../core/views/defaults";
@@ -292,6 +293,19 @@ export class VaultIndex {
 			const builtIn = snapshot.views.find((v) => v.id === BUILT_IN_VIEW_ID);
 			if (builtIn?.name === LEGACY_BUILT_IN_VIEW_NAME) {
 				builtIn.name = BUILT_IN_VIEW_NAME;
+			}
+			// The Inbox view was added after the built-in view: an older workspace
+			// with a saved `_views.md` predates it, so inject the default one (it's
+			// permanent, like the built-in). Placed right after the built-in view
+			// so it keeps its slot ahead of user-created views.
+			if (!snapshot.views.some((v) => v.id === INBOX_VIEW_ID)) {
+				const inbox = defaultViews().find((v) => v.id === INBOX_VIEW_ID);
+				if (inbox) {
+					const at = snapshot.views.findIndex(
+						(v) => v.id === BUILT_IN_VIEW_ID,
+					);
+					snapshot.views.splice(at === -1 ? 0 : at + 1, 0, inbox);
+				}
 			}
 		}
 

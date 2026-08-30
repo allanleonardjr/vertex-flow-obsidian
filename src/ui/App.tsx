@@ -5,7 +5,6 @@
 
 import { useEffect, useState } from "react";
 import {
-  useBuiltInView,
   viewById,
   useActiveWorkspace,
   usePlugin,
@@ -14,9 +13,10 @@ import {
 import { workspaceTaxonomies } from "../core/taxonomy";
 import type { Project, SavedView, WorkspaceSnapshot } from "../core/types";
 import { EmptyState } from "./EmptyState";
+import { EmptyTabsPane, BrowseHubPane } from "./EmptyTabsPane";
 import { ProjectDetailView } from "./ProjectDetailView";
 import { TemplateGallery } from "./TemplateGallery";
-import { SelectionProvider, useSelection } from "./selection";
+import { SelectionProvider } from "./selection";
 import { ProjectsBrowseView } from "./browse/ProjectsBrowseView";
 import { DashboardView } from "./dashboards/DashboardView";
 import { Sidebar } from "./Sidebar";
@@ -26,6 +26,7 @@ import { HelpView } from "./help/HelpView";
 import { TabStrip } from "./TabStrip";
 import { TaskPane } from "./TaskPane";
 import { TaskViewport } from "./views/TaskViewport";
+import { PrefixEngine } from "./shortcuts/prefix-engine";
 
 export function App() {
   const active = useActiveWorkspace();
@@ -49,7 +50,6 @@ export function App() {
 
 function Workspace({ active }: { active: ActiveWorkspace }) {
   const plugin = usePlugin();
-  const selection = useSelection();
   const tabs = useTabs();
   // A state-backed ref, not `useRef`: attaching a plain ref doesn't re-render,
   // so the shortcut effect below would keep seeing `null` and bind nothing
@@ -57,35 +57,26 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
 
   const { snapshot } = active;
-  const builtInView = useBuiltInView(snapshot);
   const activeTab = tabs.activeTab;
-  const onWorkspaceTab = activeTab.kind === "workspace";
 
-  // The view the sidebar should highlight: the built-in on the pinned tab, or
-  // whichever view tab is in front.
-  const activeViewId =
-    activeTab.kind === "view"
-      ? activeTab.viewId
-      : activeTab.kind === "workspace"
-        ? builtInView.id
-        : "";
+  // The view the sidebar should highlight: whichever view tab is in front.
+  const activeViewId = activeTab?.kind === "view" ? activeTab.viewId : "";
 
   // The view a TaskViewport renders. A view tab renders its own Saved View; a
   // label tab renders a synthesised, never-persisted view filtered to that
-  // label; everything else falls back to the built-in "Tasks" view.
-  const activeLabelId = activeTab.kind === "label" ? activeTab.labelId : null;
-  const viewportView: SavedView =
-    activeTab.kind === "view"
+  // label.
+  const activeLabelId = activeTab?.kind === "label" ? activeTab.labelId : null;
+  const viewportView: SavedView | null =
+    activeTab?.kind === "view"
       ? viewById(snapshot, activeTab.viewId)
       : activeLabelId
         ? labelView(snapshot, activeLabelId)
-        : builtInView;
+        : null;
 
-  // Opening a Saved View: the built-in lives on the pinned tab, everything
-  // else gets its own. Shared by the sidebar and the viewport's "Save as…".
+  // Opening a Saved View: every view — All Tasks and Inbox included — gets its
+  // own tab. Shared by the sidebar and the viewport's "Save as…".
   const selectView = (id: string) => {
-    if (id === builtInView.id) tabs.activateWorkspace();
-    else tabs.openView(id);
+    tabs.openView(id);
   };
 
   // Drop tabs whose target isn't in this workspace — after a delete, or after
@@ -122,9 +113,10 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
     tabs.pruneDashboards((id) => snapshot.dashboards.some((d) => d.id === id));
   }, [tabs, snapshot.dashboards]);
 
-  // Escape closes whatever tab you're on (falling back to the pinned
-  // Board/List tab, which can never itself be closed); on that pinned tab,
-  // Escape does its ordinary job of clearing the selection instead.
+  // Escape closes whatever tab you're on; Shift+Escape closes every task tab.
+  // Closing the last tab empties the strip and the empty-tabs pane renders —
+  // there's no fallback tab to reason about anymore (A1).
+  //
   // Bound with `capture: true` on `window` — Obsidian registers its own
   // global Escape handling (closing suggest popups, blurring the active
   // editor) on `document`, and capture-phase listeners fire top-down
@@ -140,10 +132,17 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
       // its own bubble-phase handler closes it once this steps aside.
       if (document.querySelector(".vf-autocomplete")) return;
 
-      if (tabs.activeTab.kind === "workspace") {
-        selection.clearSelection();
+      // The `?` shortcuts overlay and the taxonomy quick-picker own Escape
+      // while they're up — closing them, not the tab behind them.
+      if (
+        document.querySelector(".vf-shortcuts-dialog") ||
+        document.querySelector(".vf-quick-picker")
+      ) {
         return;
       }
+
+      // Nothing open — let Escape fall through to Obsidian.
+      if (!tabs.activeTab) return;
 
       event.stopPropagation();
       if (event.shiftKey) tabs.closeAllTasks();
@@ -151,10 +150,11 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [tabs, selection]);
+  }, [tabs]);
 
   return (
     <div className="vf-shell" ref={setContainer} tabIndex={-1}>
+      <PrefixEngine snapshot={snapshot} />
       <Sidebar
         snapshot={snapshot}
         activeViewId={activeViewId}
@@ -162,31 +162,37 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
       />
 
       <main className="vf-main">
-        <TabStrip snapshot={snapshot} builtInView={builtInView} />
+        {activeTab && <TabStrip snapshot={snapshot} />}
 
-        {tabs.activeTab.kind === "task" ? (
-          <TaskPane path={tabs.activeTab.path} />
-        ) : tabs.activeTab.kind === "projects" ? (
+        {!activeTab ? (
+          <EmptyTabsPane />
+        ) : activeTab.kind === "task" ? (
+          <TaskPane path={activeTab.path} />
+        ) : activeTab.kind === "projects" ? (
           <ProjectsBrowseView
             snapshot={snapshot}
             taxonomies={active.taxonomies}
           />
-        ) : tabs.activeTab.kind === "settings" ? (
+        ) : activeTab.kind === "settings" ? (
           <WorkspaceSettingsView snapshot={snapshot} />
-        ) : tabs.activeTab.kind === "help" ? (
+        ) : activeTab.kind === "help" ? (
           <HelpView />
-        ) : tabs.activeTab.kind === "new-workspace" ? (
+        ) : activeTab.kind === "new-workspace" ? (
           <TemplateGallery onClose={() => tabs.close("new-workspace")} />
-        ) : tabs.activeTab.kind === "dashboard" ? (
+        ) : activeTab.kind === "dashboards" ? (
+          <BrowseHubPane kind="dashboards" />
+        ) : activeTab.kind === "views" ? (
+          <BrowseHubPane kind="views" />
+        ) : activeTab.kind === "dashboard" ? (
           <DashboardView
-            key={tabs.activeTab.dashboardId}
-            dashboardId={tabs.activeTab.dashboardId}
+            key={activeTab.dashboardId}
+            dashboardId={activeTab.dashboardId}
             snapshot={snapshot}
             context={active.context}
           />
-        ) : tabs.activeTab.kind === "project" ? (
+        ) : activeTab.kind === "project" ? (
           <ProjectDetailView
-            path={tabs.activeTab.path}
+            path={activeTab.path}
             snapshot={snapshot}
             taxonomies={active.taxonomies}
             context={active.context}
@@ -194,20 +200,18 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
             active
             onSelectView={selectView}
           />
-        ) : (
+        ) : viewportView ? (
           <TaskViewport
             snapshot={snapshot}
             view={viewportView}
             taxonomies={active.taxonomies}
             context={active.context}
             containerRef={container}
-            active={
-              onWorkspaceTab ||
-              activeTab.kind === "view" ||
-              activeTab.kind === "label"
-            }
+            active={activeTab.kind === "view" || activeTab.kind === "label"}
             onSelectView={selectView}
           />
+        ) : (
+          <EmptyTabsPane />
         )}
       </main>
     </div>

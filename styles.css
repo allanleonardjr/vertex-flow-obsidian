@@ -1905,10 +1905,6 @@ body.vf-dragging {
   border-bottom: 1px solid var(--vf-border);
 }
 
-.vf-tab.is-pinned .vf-tab-title {
-  font-weight: 600;
-}
-
 .vf-tab {
   display: flex;
   align-items: center;
@@ -3359,6 +3355,53 @@ button.vf-crumb:hover {
 
 .vf-option-list-scroll:focus-visible {
   outline: none;
+}
+
+/* -- Keyboard taxonomy picker (s / p / l / t on the focused task) --------- */
+
+.vf-quick-picker {
+  position: fixed;
+  z-index: 60;
+}
+
+.vf-quick-picker-title {
+  padding: 4px 8px 2px;
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* -- The `?` shortcuts overlay ------------------------------------------- */
+
+.vf-shortcuts-dialog {
+  width: min(560px, 100%);
+  max-height: min(80vh, 720px);
+}
+
+.vf-shortcuts-dialog-body {
+  overflow-y: auto;
+  font-size: var(--font-ui-smaller);
+}
+
+.vf-shortcuts-dialog-body h1 {
+  margin-top: 0;
+  font-size: var(--font-ui-medium);
+}
+
+.vf-shortcuts-dialog-body h2 {
+  font-size: var(--font-ui-small);
+}
+
+.vf-shortcuts-dialog-body table {
+  width: 100%;
+}
+
+.vf-empty-tabs-hints {
+  line-height: 2;
+}
+
+.vf-empty-tabs-hints kbd {
+  margin: 0 1px;
 }
 
 /* -- Task picker (Parent, relations): rows are the List-view row itself --- */

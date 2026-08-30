@@ -8,7 +8,7 @@
  * are a two-click view the user builds themselves rather than something baked in.
  */
 
-import type { SavedView, ViewDefinition, ViewType } from "../types";
+import { NONE, type SavedView, type ViewDefinition, type ViewType } from "../types";
 
 /** The default curated icon for a view of each layout. */
 export function layoutIcon(viewType: ViewType): string {
@@ -62,6 +62,17 @@ export const BUILT_IN_VIEW_NAME = "All Tasks";
  */
 export const LEGACY_BUILT_IN_VIEW_NAME = "Tasks";
 
+/**
+ * The second permanent view: every task with no Project attached. Like the
+ * built-in "All Tasks" it can't be deleted from the sidebar and doesn't appear
+ * in the Views section — it renders as its own bare row. `project: [NONE]` leans
+ * on the existing filter-engine sentinel (`matchesLink`), so no filter change is
+ * needed. It is *not* also filtered by date presence — Inbox is purely
+ * "unassigned to a project".
+ */
+export const INBOX_VIEW_ID = "inbox";
+export const INBOX_VIEW_NAME = "Inbox";
+
 export function defaultViews(): SavedView[] {
 	return [
 		view({
@@ -73,6 +84,15 @@ export function defaultViews(): SavedView[] {
 			// Ships as `flat` (the default): sub-tasks visible as loose rows, and
 			// drag-to-reorder still works. `nested` is one click away on the bar.
 			subtaskDisplay: "flat",
+		}),
+		view({
+			id: INBOX_VIEW_ID,
+			name: INBOX_VIEW_NAME,
+			icon: "inbox",
+			viewType: "list",
+			groupBy: "status",
+			subtaskDisplay: "flat",
+			filters: { project: [NONE] },
 		}),
 	];
 }

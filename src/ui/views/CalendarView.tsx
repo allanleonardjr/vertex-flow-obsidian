@@ -230,7 +230,7 @@ export function CalendarView({
         title="Nothing here yet."
         note={
           <>
-            Press <kbd>c</kbd> to create a task.
+            Press <kbd>c</kbd> <kbd>t</kbd> to create a task.
           </>
         }
         onNewTask={() => void createTask(snapshot, {})}

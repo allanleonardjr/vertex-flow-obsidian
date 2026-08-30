@@ -168,6 +168,15 @@ export default class VertexFlowPlugin extends Plugin {
 	 */
 	pendingEditPath: string | null = null;
 
+	/**
+	 * A Saved View id the tab strip should open as soon as it next mounts (or
+	 * the active workspace next changes). Set right after a workspace is
+	 * created — nothing keeps a tab open automatically anymore, so without this
+	 * a fresh workspace would land on the empty-tabs pane. Consumed once by
+	 * `TabsProvider`.
+	 */
+	pendingOpenView: string | null = null;
+
 	/** Ask the view to open a task's tab, opening the view first if needed. */
 	async requestEdit(path: string): Promise<void> {
 		// The task may belong to a workspace other than the one the target pane

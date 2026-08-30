@@ -36,10 +36,9 @@ export function shouldPromptUnsavedGuard(input: {
 
 /**
  * Move the tab `tabId` to sit at gap `toIndex` (an insertion point in the
- * *current* array, `0` = before the first tab). Rules:
+ * *current* array, `0` = before the first tab). Every tab is freely
+ * reorderable — there is no pinned tab. Rules:
  *
- *   - The pinned tab at index 0 never moves, and nothing lands to its left
- *     (target is clamped to a minimum of 1).
  *   - Dropping a tab back where it already sits is a no-op — the same array is
  *     returned so React doesn't re-render the strip.
  */
@@ -49,7 +48,7 @@ export function reorderTabs<T extends { id: string }>(
 	toIndex: number,
 ): T[] {
 	const from = tabs.findIndex((tab) => tab.id === tabId);
-	if (from <= 0) return tabs; // not found, or the pinned tab
+	if (from === -1) return tabs;
 
 	// Gap right before or right after the tab's current slot → nothing moves.
 	if (toIndex === from || toIndex === from + 1) return tabs;
@@ -59,7 +58,7 @@ export function reorderTabs<T extends { id: string }>(
 	// `toIndex` indexes the original array; shift left when the removed tab sat
 	// before the gap.
 	const target = Math.max(
-		1,
+		0,
 		Math.min(from < toIndex ? toIndex - 1 : toIndex, without.length),
 	);
 
