@@ -1935,6 +1935,9 @@ body.vf-dragging {
   padding: 6px 8px;
   border-radius: 6px 6px 0 0;
   background: transparent;
+  /* Reserve the workspace-accent underline's space so it appearing/disappearing
+     never nudges the strip's height — see `.vf-tab-has-accent`. */
+  border-bottom: 2px solid transparent;
   color: var(--vf-muted);
   white-space: nowrap;
   cursor: pointer;
@@ -1942,6 +1945,21 @@ body.vf-dragging {
 
 .vf-tab:hover {
   background: var(--background-modifier-hover);
+}
+
+/* Owning-workspace accent — only while tabs from more than one workspace are
+   open at once (see TabStrip's `showWorkspaceAccents`). The border-bottom sits
+   outside the .is-active background box, so it stays visible on the active tab. */
+.vf-tab.vf-tab-has-accent {
+  border-bottom: 2px solid var(--vf-tab-accent);
+}
+
+.vf-workspace-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  margin-right: 4px;
 }
 
 /* -- Drag-to-reorder ---------------------------------------------------- */

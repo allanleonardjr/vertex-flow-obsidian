@@ -8,7 +8,7 @@
  * the workspace is the primary selection.
  */
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import {
   BUILT_IN_VIEW_ID,
@@ -49,7 +49,8 @@ import {
 } from "./context";
 import { NamedIconDialog } from "./modals/NamedIconDialog";
 import { ConfirmDeleteDialog } from "./components/ConfirmDeleteDialog";
-import { useTabs } from "./tabs-context";
+import { tabWorkspaceRoot, useTabs } from "./tabs-context";
+import { workspaceAccentColor } from "../core/workspace-color";
 
 const MIN_WIDTH = 170;
 const SLIVER_WIDTH = 44;
@@ -293,6 +294,7 @@ function NavRow({
   icon,
   iconFallback,
   chipColor,
+  accentColor,
   active,
   variant,
   onClick,
@@ -304,6 +306,11 @@ function NavRow({
   iconFallback?: string;
   /** Render the label text as a tinted pill in this colour — labels use this. */
   chipColor?: string;
+  /**
+   * Owning-workspace accent dot, shown before the icon. Only passed for
+   * `variant="workspace"` rows while tabs from more than one workspace are open.
+   */
+  accentColor?: string;
   active?: boolean;
   variant?: "view" | "workspace";
   onClick: () => void;
@@ -328,6 +335,13 @@ function NavRow({
           <LabelChip name={label} color={chipColor} className="vf-nav-chip" />
         ) : (
           <>
+            {accentColor && (
+              <span
+                className="vf-workspace-dot"
+                style={{ backgroundColor: accentColor }}
+                aria-hidden
+              />
+            )}
             <span className="vf-nav-icon" aria-hidden>
               {icon === "settings-glyph" ? (
                 "⚙"
@@ -397,6 +411,20 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   const editing = workspaces.find((w) => w.workspace.root === editRoot);
   const deleting = workspaces.find((w) => w.workspace.root === deleteRoot);
 
+  // Distinct owning-workspace roots among all currently open tabs. When more
+  // than one workspace is represented, every workspace row with ≥ 1 open tab
+  // gets an accent dot — pure derived state, disappears when tabs close.
+  const openWorkspaceRoots = useMemo(() => {
+    const roots = new Set<string>();
+    for (const tab of tabs.tabs) {
+      const root = tabWorkspaceRoot(plugin, tab);
+      if (root) roots.add(root);
+    }
+    return roots;
+  }, [tabs.tabs, plugin]);
+
+  const showWorkspaceAccents = openWorkspaceRoots.size > 1;
+
   return (
     <Section
       id="workspaces"
@@ -416,6 +444,12 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
           icon={entry.workspace.icon}
           iconFallback="layers"
           variant="workspace"
+          accentColor={
+            showWorkspaceAccents &&
+            openWorkspaceRoots.has(entry.workspace.root)
+              ? workspaceAccentColor(entry.workspace.root)
+              : undefined
+          }
           active={entry.workspace.root === snapshot.workspace.root}
           onClick={() => {
             setActiveWorkspace(entry.workspace.root);

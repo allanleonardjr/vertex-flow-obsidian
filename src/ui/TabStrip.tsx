@@ -12,7 +12,13 @@ import type { WorkspaceSnapshot } from "../core/types";
 import { Icon } from "./components/Icon";
 import { StatusDot } from "./components/TaskBits";
 import { usePlugin } from "./context";
-import { useTabs, type BrowseKind, type Tab } from "./tabs-context";
+import {
+	tabWorkspaceRoot,
+	useTabs,
+	type BrowseKind,
+	type Tab,
+} from "./tabs-context";
+import { workspaceAccentColor } from "../core/workspace-color";
 import { useTabDrag } from "./useTabDrag";
 import { PREVIEW_OFFSET_PX } from "./views/useTaskDrag";
 
@@ -76,6 +82,23 @@ export function TabStrip({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 		return duplicates;
 	}, [tabs, plugin]);
 
+	// Each tab's owning workspace root (null for the ones that render fine
+	// against any workspace — browse screens, All Tasks, Inbox). Resolved fresh
+	// off the live index, same convention as `duplicateTaskTitles`.
+	const tabRoots = useMemo(() => {
+		const map = new Map<string, string | null>();
+		for (const tab of tabs) map.set(tab.id, tabWorkspaceRoot(plugin, tab));
+		return map;
+	}, [tabs, plugin]);
+
+	// Accents only appear once tabs from more than one workspace are open at
+	// once — pure derived state, never toggled or dismissed.
+	const showWorkspaceAccents = useMemo(() => {
+		const roots = new Set<string>();
+		for (const root of tabRoots.values()) if (root) roots.add(root);
+		return roots.size > 1;
+	}, [tabRoots]);
+
 	const dragging = drag.drag != null;
 	const draggedTab = drag.drag
 		? tabs.find((tab) => tab.id === drag.drag?.tabId)
@@ -86,30 +109,41 @@ export function TabStrip({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 
 	return (
 		<div className="vf-tabs" role="tablist">
-			{tabs.map((tab, index) => (
-				<Fragment key={tab.id}>
-					{dragging && drag.dropIndex === index && (
-						<span className="vf-tab-drop-line" aria-hidden />
-					)}
-					<TabRow
-						tab={tab}
-						active={tab.id === activeId}
-						dirty={isTabDirty(tab)}
-						dragging={drag.isDragging(tab.id)}
-						snapshot={snapshot}
-						duplicateTaskTitles={duplicateTaskTitles}
-						onPointerDown={(event) => drag.onPointerDown(event, tab.id)}
-						onActivate={() => {
-							// A drag ends with a trailing click — don't let it also
-							// switch tabs.
-							if (drag.consumeDragClick()) return;
-							void activate(tab.id);
-						}}
-						onClose={() => void close(tab.id)}
-						plugin={plugin}
-					/>
-				</Fragment>
-			))}
+			{tabs.map((tab, index) => {
+				const root = tabRoots.get(tab.id) ?? null;
+				const accentColor =
+					showWorkspaceAccents && root
+						? workspaceAccentColor(root)
+						: undefined;
+				return (
+					<Fragment key={tab.id}>
+						{dragging && drag.dropIndex === index && (
+							<span className="vf-tab-drop-line" aria-hidden />
+						)}
+						<TabRow
+							tab={tab}
+							active={tab.id === activeId}
+							dirty={isTabDirty(tab)}
+							dragging={drag.isDragging(tab.id)}
+							snapshot={snapshot}
+							duplicateTaskTitles={duplicateTaskTitles}
+							accentColor={accentColor}
+							showWorkspaceAccents={showWorkspaceAccents}
+							onPointerDown={(event) =>
+								drag.onPointerDown(event, tab.id)
+							}
+							onActivate={() => {
+								// A drag ends with a trailing click — don't let it also
+								// switch tabs.
+								if (drag.consumeDragClick()) return;
+								void activate(tab.id);
+							}}
+							onClose={() => void close(tab.id)}
+							plugin={plugin}
+						/>
+					</Fragment>
+				);
+			})}
 			{dragging && drag.dropIndex === tabs.length && (
 				<span className="vf-tab-drop-line" aria-hidden />
 			)}
@@ -148,9 +182,14 @@ function tabContent(
 	snapshot: WorkspaceSnapshot,
 	duplicateTaskTitles: Set<string>,
 	plugin: ReturnType<typeof usePlugin>,
-): { icon: React.ReactNode; label: React.ReactNode } | null {
+): {
+	icon: React.ReactNode;
+	label: React.ReactNode;
+	ownerName?: string;
+} | null {
 	let icon: React.ReactNode;
 	let label: React.ReactNode;
+	let ownerName: string | undefined;
 
 	if (tab.kind === "view") {
 		// Resolved via the index, not the active `snapshot` — a view tab can
@@ -159,6 +198,7 @@ function tabContent(
 		const owner = plugin.index.snapshotWithView(tab.viewId) ?? snapshot;
 		const view = owner.views.find((v) => v.id === tab.viewId);
 		if (!view) return null;
+		ownerName = owner.workspace.name;
 		icon = (
 			<span className="vf-tab-icon">
 				<Icon
@@ -174,6 +214,7 @@ function tabContent(
 			plugin.index.snapshotWithDashboard(tab.dashboardId) ?? snapshot;
 		const dashboard = owner.dashboards.find((d) => d.id === tab.dashboardId);
 		if (!dashboard) return null;
+		ownerName = owner.workspace.name;
 		icon = (
 			<span className="vf-tab-icon">
 				<Icon id={dashboard.icon} fallback="layout-dashboard" size={13} />
@@ -187,6 +228,7 @@ function tabContent(
 			tab.labelId,
 		);
 		if (!labelValue) return null;
+		ownerName = owner.workspace.name;
 		icon = (
 			<span
 				className="vf-label-dot vf-tab-icon"
@@ -201,6 +243,7 @@ function tabContent(
 		const owner = plugin.index.workspaceFor(tab.path);
 		const task = plugin.index.taskAt(tab.path);
 		if (!task || !owner) return null;
+		ownerName = owner.workspace.name;
 		icon = <StatusDot taxonomies={workspaceTaxonomies(owner.workspace)} status={task.status} />;
 		label = duplicateTaskTitles.has(task.title) ? (
 			<>
@@ -216,6 +259,7 @@ function tabContent(
 		const owner = plugin.index.workspaceFor(tab.path);
 		const project = owner?.projects.find((p) => p.path === tab.path);
 		if (!project) return null;
+		ownerName = owner?.workspace.name;
 		icon = (
 			<span className="vf-tab-icon">
 				<Icon id={project.icon} fallback="folder" size={13} />
@@ -230,7 +274,7 @@ function tabContent(
 				: browseLabel(tab.kind);
 	}
 
-	return { icon, label };
+	return { icon, label, ownerName };
 }
 
 function TabRow({
@@ -240,6 +284,8 @@ function TabRow({
 	dragging,
 	snapshot,
 	duplicateTaskTitles,
+	accentColor,
+	showWorkspaceAccents,
 	onPointerDown,
 	onActivate,
 	onClose,
@@ -253,6 +299,10 @@ function TabRow({
 	dragging: boolean;
 	snapshot: WorkspaceSnapshot;
 	duplicateTaskTitles: Set<string>;
+	/** Owning-workspace accent, set only while tabs from >1 workspace are open. */
+	accentColor?: string;
+	/** True while tabs from more than one workspace are open — gates the tooltip. */
+	showWorkspaceAccents: boolean;
 	onPointerDown: (event: React.PointerEvent) => void;
 	onActivate: () => void;
 	onClose: () => void;
@@ -268,7 +318,17 @@ function TabRow({
 			data-tab-id={tab.id}
 			className={`vf-tab${active ? " is-active" : ""}${
 				dragging ? " is-dragging" : ""
-			}`}
+			}${accentColor ? " vf-tab-has-accent" : ""}`}
+			style={
+				accentColor
+					? ({ "--vf-tab-accent": accentColor } as React.CSSProperties)
+					: undefined
+			}
+			title={
+				showWorkspaceAccents && accentColor
+					? content.ownerName
+					: undefined
+			}
 			onPointerDown={onPointerDown}
 			onClick={onActivate}
 		>

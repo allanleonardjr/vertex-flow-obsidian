@@ -87,7 +87,7 @@ function projectTabId(path: string): string {
  * view. `activate` enforces that on click; a layout effect re-homes the active
  * tab after a sidebar workspace switch.
  */
-function tabWorkspaceRoot(
+export function tabWorkspaceRoot(
 	plugin: VertexFlowPlugin,
 	tab: Tab,
 ): string | null {
