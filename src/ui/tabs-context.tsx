@@ -20,6 +20,7 @@ import {
 	useState,
 	type ReactNode,
 } from "react";
+import { BUILT_IN_VIEW_ID } from "../core/views";
 import { useActiveWorkspace, usePlugin, useSetActiveWorkspace } from "./context";
 import {
 	reorderTabs,
@@ -389,16 +390,28 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 		[plugin, pruneTasks],
 	);
 
-	// A brand-new workspace has nothing keeping a tab open, so the shell would
-	// land on the empty-tabs pane. Workspace creation leaves the view to open
-	// here (mirrors `plugin.pendingEditPath`); consume it once, on the mount
-	// that follows creation and on the workspace switch that follows a create
-	// from the sidebar.
+	// Opening or switching to a workspace with nothing showing lands on All
+	// Tasks — the pane should never open onto the empty-tabs state. Runs on
+	// mount and on every workspace change; the current tab count is read from a
+	// ref so this *doesn't* re-fire when the user closes their last tab
+	// (that's the one case the empty-tabs pane is for).
+	//
+	// A freshly created workspace routes an explicit `plugin.pendingOpenView`
+	// through here too (mirrors `plugin.pendingEditPath`) — same destination,
+	// but set before the tab list is observable.
+	const tabCountRef = useRef(tabs.length);
+	tabCountRef.current = tabs.length;
 	useEffect(() => {
+		if (!activeWorkspaceRoot) return;
 		const pending = plugin.pendingOpenView;
-		if (!pending) return;
-		plugin.pendingOpenView = null;
-		void openView(pending);
+		if (pending) {
+			plugin.pendingOpenView = null;
+			void openView(pending);
+			return;
+		}
+		if (tabCountRef.current === 0) {
+			void openView(BUILT_IN_VIEW_ID);
+		}
 	}, [plugin, activeWorkspaceRoot, openView]);
 
 	const activeTab = tabs.find((tab) => tab.id === activeId) ?? null;
