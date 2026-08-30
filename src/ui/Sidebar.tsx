@@ -441,9 +441,11 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   const editing = workspaces.find((w) => w.workspace.root === editRoot);
   const deleting = workspaces.find((w) => w.workspace.root === deleteRoot);
 
-  // Distinct owning-workspace roots among all currently open tabs. When more
-  // than one workspace is represented, every workspace row with ≥ 1 open tab
-  // gets an accent dot — pure derived state, disappears when tabs close.
+  // Distinct owning-workspace roots among all currently open tabs. Accents turn
+  // on the moment an open tab points somewhere other than the active workspace
+  // (a second workspace's tab alongside this one's, or the tab left stranded
+  // after switching workspace) — then every row with ≥ 1 open tab gets a dot in
+  // its colour. Pure derived state, disappears when tabs close.
   const openWorkspaceRoots = useMemo(() => {
     const roots = new Set<string>();
     for (const tab of tabs.tabs) {
@@ -453,7 +455,9 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
     return roots;
   }, [tabs.tabs, plugin]);
 
-  const showWorkspaceAccents = openWorkspaceRoots.size > 1;
+  const showWorkspaceAccents = [...openWorkspaceRoots].some(
+    (root) => root !== snapshot.workspace.root,
+  );
 
   return (
     <Section
@@ -483,16 +487,17 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
           active={entry.workspace.root === snapshot.workspace.root}
           onClick={() => {
             setActiveWorkspace(entry.workspace.root);
-            // If the active tab belongs to the workspace being left (a
-            // View/Dashboard/Label/Project tab that survives the switch),
-            // re-home to All Tasks in the same batch so its content pane never
-            // renders against the wrong snapshot. The foreign tab stays open.
+            // If the front tab belongs to the workspace being left, move to an
+            // already-open tab that renders against the new one (see
+            // `syncToWorkspace`) — only opening its All Tasks as a last resort.
+            // The foreign tab stays open, accent-coloured.
             tabs.syncToWorkspace(entry.workspace.root);
-            // Clicking a workspace row with nothing open lands on All Tasks —
+            // Clicking a workspace row with nothing open lands on its All Tasks —
             // including a click on the workspace that's already active, which
             // doesn't change the root and so wouldn't trip TabsProvider's
             // auto-open effect on its own.
-            if (tabs.tabs.length === 0) tabs.openView(SYSTEM_VIEW_ALL_TASKS_ID);
+            if (tabs.tabs.length === 0)
+              tabs.openView(SYSTEM_VIEW_ALL_TASKS_ID, entry.workspace.root);
           }}
           trailing={
             <RowMenu

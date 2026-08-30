@@ -12,7 +12,9 @@ you're doing.
 ## Go to — `g` then a key
 
 Reveal or open a destination. If it's already open, `g` jumps to its tab rather
-than opening a second one.
+than opening a second one. `g` `a` / `g` `i` act on the **active workspace** —
+each workspace has its own All Tasks and Untriaged tab, so you can keep both
+workspaces' lists open side by side.
 
 | Chord | Destination |
 | --- | --- |

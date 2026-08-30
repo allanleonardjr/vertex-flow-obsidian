@@ -72,10 +72,16 @@ export function PrefixEngine({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 			if (prefix === "g") {
 				switch (key) {
 					case "a":
-						void tabs.openView(SYSTEM_VIEW_ALL_TASKS_ID);
+						void tabs.openView(
+							SYSTEM_VIEW_ALL_TASKS_ID,
+							snap.workspace.root,
+						);
 						return true;
 					case "i":
-						void tabs.openView(SYSTEM_VIEW_UNTRIAGED_ID);
+						void tabs.openView(
+							SYSTEM_VIEW_UNTRIAGED_ID,
+							snap.workspace.root,
+						);
 						return true;
 					case "p":
 						void tabs.openScreen("projects");

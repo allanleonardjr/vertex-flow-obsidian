@@ -76,10 +76,11 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
         ? labelView(snapshot, activeLabelId)
         : null;
 
-  // Opening a Saved View: every view — All Tasks and Untriaged included — gets its
-  // own tab. Shared by the sidebar and the viewport's "Save as…".
+  // Opening a Saved View: every view — All Tasks and Untriaged included — gets
+  // its own tab, and System Views bind to this workspace (so A's All Tasks and
+  // B's All Tasks coexist). Shared by the sidebar and the viewport's "Save as…".
   const selectView = (id: string) => {
-    tabs.openView(id);
+    tabs.openView(id, snapshot.workspace.root);
   };
 
   // Drop tabs whose target isn't in this workspace — after a delete, or after

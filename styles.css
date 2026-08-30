@@ -1960,9 +1960,10 @@ body.vf-dragging {
   background: var(--background-modifier-hover);
 }
 
-/* Owning-workspace accent — only while tabs from more than one workspace are
-   open at once (see TabStrip's `showWorkspaceAccents`). The border-bottom sits
-   outside the .is-active background box, so it stays visible on the active tab. */
+/* Owning-workspace accent — shown while an open tab points at a workspace other
+   than the active one (see TabStrip's `showWorkspaceAccents`). The border-bottom
+   sits outside the .is-active background box, so it stays visible on the active
+   tab. */
 .vf-tab.vf-tab-has-accent {
   border-bottom: 2px solid var(--vf-tab-accent);
 }

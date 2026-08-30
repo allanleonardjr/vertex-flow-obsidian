@@ -44,8 +44,16 @@ export type BrowseKind =
 export type Tab =
 	| { id: BrowseKind; kind: BrowseKind }
 	| { id: string; kind: "task"; path: string }
-	/** A user Saved View, opened from the sidebar. Closable. */
-	| { id: string; kind: "view"; viewId: string }
+	/**
+	 * A Saved View, opened from the sidebar. Closable.
+	 *
+	 * `root` is set only for the two System Views (All Tasks / Untriaged), whose
+	 * ids every workspace shares — it binds the tab to one workspace so several
+	 * can be open at once (`All Tasks - Product` beside `All Tasks - Marketing`).
+	 * User Saved Views have a vault-unique id, so they leave `root` undefined and
+	 * resolve their owner through the index like Dashboard/Label/Project tabs.
+	 */
+	| { id: string; kind: "view"; viewId: string; root?: string }
 	/** A dashboard, opened from the sidebar. Closable. */
 	| { id: string; kind: "dashboard"; dashboardId: string }
 	/** A label's tasks — a synthesised, never-persisted view. Closable. */
@@ -59,9 +67,13 @@ function taskTabId(path: string): string {
 	return path;
 }
 
-/** Prefixed so a view id like "tasks" can't collide with a fixed tab id. */
-function viewTabId(viewId: string): string {
-	return `view:${viewId}`;
+/**
+ * Prefixed so a view id like "tasks" can't collide with a fixed tab id. System
+ * Views additionally fold in the owning workspace `root`, so each workspace's
+ * All Tasks / Untriaged is its own tab; user views (vault-unique id) don't.
+ */
+function viewTabId(viewId: string, root?: string): string {
+	return isSystemViewId(viewId) ? `view:${root ?? ""}:${viewId}` : `view:${viewId}`;
 }
 
 function labelTabId(labelId: string): string {
@@ -78,8 +90,8 @@ function projectTabId(path: string): string {
 
 /**
  * The workspace a tab is bound to, or `null` when it renders fine against any
- * workspace (the browse screens, and the two permanent System Views All Tasks / Untriaged,
- * whose ids every workspace shares).
+ * workspace (the browse screens only — the two System Views All Tasks /
+ * Untriaged are now bound too, via the tab's `root`).
  *
  * View/Dashboard/Label/Project tabs survive a workspace switch (their drafts are
  * safe in the store), but their content pane resolves against the *active*
@@ -97,8 +109,7 @@ export function tabWorkspaceRoot(
 		case "project":
 			return plugin.index.workspaceFor(tab.path)?.workspace.root ?? null;
 		case "view":
-			if (isSystemViewId(tab.viewId))
-				return null;
+			if (isSystemViewId(tab.viewId)) return tab.root ?? null;
 			return (
 				plugin.index.snapshotWithView(tab.viewId)?.workspace.root ?? null
 			);
@@ -127,8 +138,12 @@ export interface TabsApi {
 	openTask: (path: string) => void;
 	/** Open (or reveal) one of the singleton browse/settings tabs. */
 	openScreen: (kind: BrowseKind) => void;
-	/** Open (or reveal) a Saved View as its own tab. */
-	openView: (viewId: string) => void;
+	/**
+	 * Open (or reveal) a Saved View as its own tab. For a System View (All
+	 * Tasks / Untriaged) pass `root` to bind the tab to a specific workspace;
+	 * omitted, it binds to the active one. User views ignore `root`.
+	 */
+	openView: (viewId: string, root?: string) => void;
 	/** Open (or reveal) a label's tasks as its own transient tab. */
 	openLabel: (labelId: string) => void;
 	/** Open (or reveal) a dashboard as its own tab. */
@@ -147,11 +162,11 @@ export interface TabsApi {
 	closeActive: () => void;
 	/**
 	 * Call right after switching this pane's active workspace from the sidebar,
-	 * in the same event handler. If the active tab belongs to the workspace
-	 * just left (a View/Dashboard/Label/Project tab that survived the switch),
-	 * its content pane can't render against the new snapshot — re-home to All
-	 * Tasks synchronously so the two state changes land in one render. The
-	 * foreign tab stays open; clicking it switches back to its workspace.
+	 * in the same event handler. If the front tab belongs to the workspace just
+	 * left, switch to an already-open tab that renders against the new one (a
+	 * tab bound to it, else a browse tab); only open the new workspace's All
+	 * Tasks when nothing showable is open. The foreign tab stays in the strip
+	 * (accent-coloured); clicking it switches back to its workspace.
 	 */
 	syncToWorkspace: (root: string) => void;
 	/** Bulk-close every open task tab, keeping the browse/view tabs. */
@@ -349,17 +364,38 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 	);
 
 	const openView = useCallback(
-		async (viewId: string) => {
-			const id = viewTabId(viewId);
+		async (viewId: string, explicitRoot?: string) => {
+			const system = isSystemViewId(viewId);
+			// A System View tab is pinned to one workspace: the caller's, or the
+			// active one. A user view carries no root.
+			const root = system
+				? (explicitRoot ?? activeWorkspaceRootRef.current ?? undefined)
+				: undefined;
+			if (system && !root) return; // no workspace to bind to yet
+
+			const id = viewTabId(viewId, root);
 			if (!(await mayLeaveActive("navigate", id))) return;
+
+			// Opening another workspace's System View switches the active
+			// workspace to match — same move `activate` / `openTask` make so the
+			// content pane resolves against the right snapshot.
+			if (root && root !== activeWorkspaceRootRef.current) {
+				setActiveWorkspace(root);
+			}
+
 			setTabs((current) =>
 				current.some((tab) => tab.id === id)
 					? current
-					: [...current, { id, kind: "view", viewId }],
+					: [
+							...current,
+							root
+								? { id, kind: "view", viewId, root }
+								: { id, kind: "view", viewId },
+						],
 			);
 			setActiveId(id);
 		},
-		[mayLeaveActive],
+		[mayLeaveActive, setActiveWorkspace],
 	);
 
 	const openLabel = useCallback(
@@ -462,30 +498,35 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 		if (active) void close(active);
 	}, [close]);
 
+	// After the active workspace changes, the front tab may belong to the one
+	// just left — its content pane would resolve against the wrong snapshot.
+	// Switch to something already open that renders against `root` (a tab bound
+	// to it, else a browse tab, which is workspace-agnostic), and only open
+	// `root`'s All Tasks when the strip has nothing showable. Never stacks up a
+	// System View per workspace merely visited.
 	const syncToWorkspace = useCallback(
 		(root: string) => {
 			const active = tabsRef.current.find(
 				(tab) => tab.id === activeIdRef.current,
 			);
-			if (!active) return;
+			if (!active) return; // empty strip — the count-0 effect lands it
 			const owner = tabWorkspaceRoot(plugin, active);
-			if (!owner || owner === root) return;
-			const allTasksId = viewTabId(SYSTEM_VIEW_ALL_TASKS_ID);
-			setTabs((current) =>
-				current.some((tab) => tab.id === allTasksId)
-					? current
-					: [
-							...current,
-							{
-								id: allTasksId,
-								kind: "view",
-								viewId: SYSTEM_VIEW_ALL_TASKS_ID,
-							},
-						],
-			);
-			setActiveId(allTasksId);
+			if (owner == null || owner === root) return; // front tab is fine
+
+			const fallback =
+				tabsRef.current.find(
+					(tab) => tabWorkspaceRoot(plugin, tab) === root,
+				) ??
+				tabsRef.current.find(
+					(tab) => tabWorkspaceRoot(plugin, tab) == null,
+				);
+			if (fallback) {
+				setActiveId(fallback.id);
+				return;
+			}
+			void openView(SYSTEM_VIEW_ALL_TASKS_ID, root);
 		},
-		[plugin],
+		[plugin, openView],
 	);
 
 	const closeAllTasks = useCallback(() => {
@@ -536,14 +577,17 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			// Never drop a tab that holds a real pending draft — even if its
 			// underlying Saved View was genuinely deleted, keep the tab so the
 			// edits aren't silently lost. A clean tab whose target is gone still
-			// closes.
-			makePrune(
-				"view",
-				(tab) =>
-					existing(tab.viewId) ||
-					viewDraftsRef.current[tab.viewId] != null,
+			// closes. A System View tab is kept only while its bound workspace is
+			// still live (`list()` excludes soft-deleted ones).
+			makePrune("view", (tab) =>
+				tab.root != null && isSystemViewId(tab.viewId)
+					? plugin.index
+							.list()
+							.some((s) => s.workspace.root === tab.root)
+					: existing(tab.viewId) ||
+						viewDraftsRef.current[tab.viewId] != null,
 			),
-		[makePrune],
+		[makePrune, plugin],
 	);
 	const pruneLabels = useCallback(
 		(existing: (labelId: string) => boolean) =>
@@ -595,32 +639,25 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 		const pending = plugin.pendingOpenView;
 		if (pending) {
 			plugin.pendingOpenView = null;
-			void openView(pending);
+			void openView(pending, activeWorkspaceRoot);
 			return;
 		}
 		if (tabCountRef.current === 0) {
-			void openView(SYSTEM_VIEW_ALL_TASKS_ID);
+			void openView(SYSTEM_VIEW_ALL_TASKS_ID, activeWorkspaceRoot);
 		}
 	}, [plugin, activeWorkspaceRoot, openView]);
 
-	// A sidebar workspace switch leaves `activeId` untouched — but the active
-	// tab may belong to the workspace just left. Its content pane resolves
-	// against the new snapshot, so it would render "this dashboard no longer
-	// exists" / fall back to the wrong view. Re-home to All Tasks (every
-	// workspace has it); the foreign tab stays in the strip, its draft safe,
-	// and clicking it switches back to its own workspace (see `activate`).
-	// LayoutEffect so the mismatched frame never paints.
+	// A sidebar workspace switch leaves `activeId` untouched — but the front tab
+	// may belong to the workspace just left, so its content pane would resolve
+	// against the new snapshot ("this dashboard no longer exists" / the wrong
+	// view). The sidebar calls `syncToWorkspace` synchronously for this; this
+	// LayoutEffect is the net for any other `setActiveWorkspace` path, applying
+	// the same rule (switch to an already-open showable tab; only open All Tasks
+	// when nothing is). The foreign tab stays in the strip, its draft safe.
 	useLayoutEffect(() => {
 		if (!activeWorkspaceRoot || plugin.pendingOpenView) return;
-		const active = tabsRef.current.find(
-			(tab) => tab.id === activeIdRef.current,
-		);
-		if (!active) return;
-		const owner = tabWorkspaceRoot(plugin, active);
-		if (owner && owner !== activeWorkspaceRoot) {
-			void openView(SYSTEM_VIEW_ALL_TASKS_ID);
-		}
-	}, [plugin, activeWorkspaceRoot, openView]);
+		syncToWorkspace(activeWorkspaceRoot);
+	}, [plugin, activeWorkspaceRoot, syncToWorkspace]);
 
 	const activeTab = tabs.find((tab) => tab.id === activeId) ?? null;
 

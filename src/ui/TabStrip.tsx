@@ -84,29 +84,52 @@ export function TabStrip({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 		return duplicates;
 	}, [tabs, plugin]);
 
-	// Each tab's owning workspace root (null for the ones that render fine
-	// against any workspace — browse screens, All Tasks, Untriaged). Resolved fresh
-	// off the live index, same convention as `duplicateTaskTitles`.
+	// Each tab's owning workspace root (null only for the browse screens now —
+	// System View tabs carry their own root). Resolved fresh off the live index,
+	// same convention as `duplicateTaskTitles`.
 	const tabRoots = useMemo(() => {
 		const map = new Map<string, string | null>();
 		for (const tab of tabs) map.set(tab.id, tabWorkspaceRoot(plugin, tab));
 		return map;
 	}, [tabs, plugin]);
 
-	// Accents only appear once tabs from more than one workspace are open at
-	// once — pure derived state, never toggled or dismissed.
+	// A System View (All Tasks / Untriaged) open for more than one workspace at
+	// once — both tabs would otherwise read the same bare name, so each gets its
+	// workspace appended. Same self-disambiguating pattern as `duplicateTaskTitles`.
+	const duplicateSystemViews = useMemo(() => {
+		const seen = new Set<string>();
+		const duplicates = new Set<string>();
+		for (const tab of tabs) {
+			if (tab.kind !== "view" || !isSystemViewId(tab.viewId)) continue;
+			if (seen.has(tab.viewId)) duplicates.add(tab.viewId);
+			seen.add(tab.viewId);
+		}
+		return duplicates;
+	}, [tabs]);
+
+	// Accents appear the moment an open tab points at a workspace *other than*
+	// the one on screen — whether that's a second workspace's tab sitting
+	// alongside this one's, or the lone tab left behind after switching the
+	// active workspace out from under it. Pure derived state, never toggled.
+	const activeRoot = snapshot.workspace.root;
 	const showWorkspaceAccents = useMemo(() => {
-		const roots = new Set<string>();
-		for (const root of tabRoots.values()) if (root) roots.add(root);
-		return roots.size > 1;
-	}, [tabRoots]);
+		for (const root of tabRoots.values())
+			if (root && root !== activeRoot) return true;
+		return false;
+	}, [tabRoots, activeRoot]);
 
 	const dragging = drag.drag != null;
 	const draggedTab = drag.drag
 		? tabs.find((tab) => tab.id === drag.drag?.tabId)
 		: undefined;
 	const draggedContent = draggedTab
-		? tabContent(draggedTab, snapshot, duplicateTaskTitles, plugin)
+		? tabContent(
+				draggedTab,
+				snapshot,
+				duplicateTaskTitles,
+				duplicateSystemViews,
+				plugin,
+			)
 		: null;
 
 	return (
@@ -129,6 +152,7 @@ export function TabStrip({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 							dragging={drag.isDragging(tab.id)}
 							snapshot={snapshot}
 							duplicateTaskTitles={duplicateTaskTitles}
+							duplicateSystemViews={duplicateSystemViews}
 							accentColor={accentColor}
 							showWorkspaceAccents={showWorkspaceAccents}
 							onPointerDown={(event) =>
@@ -183,6 +207,7 @@ function tabContent(
 	tab: Tab,
 	snapshot: WorkspaceSnapshot,
 	duplicateTaskTitles: Set<string>,
+	duplicateSystemViews: Set<string>,
 	plugin: ReturnType<typeof usePlugin>,
 ): {
 	icon: React.ReactNode;
@@ -194,10 +219,14 @@ function tabContent(
 	let ownerName: string | undefined;
 
 	if (tab.kind === "view") {
-		// Resolved via the index, not the active `snapshot` — a view tab can
-		// outlive a workspace switch (Tabs live above that boundary), so it has
-		// to find its own owning workspace regardless of which one is on screen.
-		const owner = plugin.index.snapshotWithView(tab.viewId) ?? snapshot;
+		// Resolved to the tab's own workspace, not the active `snapshot` — a view
+		// tab can outlive a workspace switch (Tabs live above that boundary). A
+		// System View tab carries its `root`; a user view is found by its
+		// vault-unique id.
+		const owner =
+			(tab.root
+				? plugin.index.get(tab.root)
+				: plugin.index.snapshotWithView(tab.viewId)) ?? snapshot;
 		const view = owner.views.find((v) => v.id === tab.viewId);
 		if (!view) return null;
 		ownerName = owner.workspace.name;
@@ -210,7 +239,11 @@ function tabContent(
 				/>
 			</span>
 		);
-		label = isPermanentView(view.id) ? view.name : `${view.name} - View`;
+		label = !isPermanentView(view.id)
+			? `${view.name} - View`
+			: duplicateSystemViews.has(view.id)
+				? `${view.name} - ${owner.workspace.name}`
+				: view.name;
 	} else if (tab.kind === "dashboard") {
 		const owner =
 			plugin.index.snapshotWithDashboard(tab.dashboardId) ?? snapshot;
@@ -286,6 +319,7 @@ function TabRow({
 	dragging,
 	snapshot,
 	duplicateTaskTitles,
+	duplicateSystemViews,
 	accentColor,
 	showWorkspaceAccents,
 	onPointerDown,
@@ -301,6 +335,8 @@ function TabRow({
 	dragging: boolean;
 	snapshot: WorkspaceSnapshot;
 	duplicateTaskTitles: Set<string>;
+	/** System View ids open for >1 workspace — those tabs get their workspace appended. */
+	duplicateSystemViews: Set<string>;
 	/** Owning-workspace accent, set only while tabs from >1 workspace are open. */
 	accentColor?: string;
 	/** True while tabs from more than one workspace are open — gates the tooltip. */
@@ -310,7 +346,13 @@ function TabRow({
 	onClose: () => void;
 	plugin: ReturnType<typeof usePlugin>;
 }) {
-	const content = tabContent(tab, snapshot, duplicateTaskTitles, plugin);
+	const content = tabContent(
+		tab,
+		snapshot,
+		duplicateTaskTitles,
+		duplicateSystemViews,
+		plugin,
+	);
 	if (!content) return null;
 
 	return (
