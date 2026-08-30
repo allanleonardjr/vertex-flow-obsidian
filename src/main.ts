@@ -26,6 +26,14 @@ export default class VertexFlowPlugin extends Plugin {
 	/** One-shot: consumed by the next `file-open`, then cleared. See `suppressNextRedirect`. */
 	private redirectSuppressed = false;
 
+	/**
+	 * The workspace most recently active in *any* pane this session. Used to
+	 * seed newly opened panes and to pick a workspace for Quick Capture, which
+	 * isn't tied to any specific pane. Deliberately not persisted: writing
+	 * this to settings is exactly the global-state bug we're removing.
+	 */
+	lastActiveWorkspaceRoot: string | null = null;
+
 	override async onload(): Promise<void> {
 		await this.loadSettings();
 		applyUiTextSize(this.settings.uiTextSize);
@@ -66,6 +74,15 @@ export default class VertexFlowPlugin extends Plugin {
 			id: "open-view",
 			name: "Open Vertex Flow",
 			callback: () => void this.activateView(),
+		});
+
+		// A second, independent instance — its own tab, its own per-pane active
+		// workspace. Unlike "Open Vertex Flow" this never reveals an existing
+		// pane; it always adds a new one.
+		this.addCommand({
+			id: "open-view-new-tab",
+			name: "Open Vertex Flow in new tab",
+			callback: () => void this.activateView(true),
 		});
 
 		// §9.4: quick capture must work from anywhere in Obsidian, not just from
@@ -149,19 +166,9 @@ export default class VertexFlowPlugin extends Plugin {
 
 	/** Ask the view to open a task's tab, opening the view first if needed. */
 	async requestEdit(path: string): Promise<void> {
-		// Switch to the task's own workspace *before* the view even mounts —
-		// resolved and applied directly here rather than left to the tab
-		// system's own cross-workspace check (`TabsProvider.openTask`, which
-		// still runs afterwards as a harmless no-op in this case). That check
-		// only fires once React processes `pendingEditPath` below, which is one
-		// more hop of timing to depend on than this needs when the answer is
-		// already known right here.
-		const owner = this.index.workspaceFor(path);
-		if (owner && owner.workspace.root !== this.settings.activeWorkspaceRoot) {
-			this.settings.activeWorkspaceRoot = owner.workspace.root;
-			await this.saveSettings();
-		}
-
+		// The task may belong to a workspace other than the one the target pane
+		// is showing; `TabsProvider.openTask` performs that per-pane switch once
+		// it picks up `pendingEditPath` below.
 		this.pendingEditPath = path;
 		await this.activateView();
 		this.index.touch();
@@ -193,17 +200,25 @@ export default class VertexFlowPlugin extends Plugin {
 
 	/** The workspace the main view is currently showing, if any. */
 	activeWorkspace() {
-		const root = this.settings.activeWorkspaceRoot;
+		const root = this.lastActiveWorkspaceRoot;
 		return (root ? this.index.get(root) : null) ?? this.index.list()[0] ?? null;
 	}
 
-	async activateView(): Promise<void> {
+	/**
+	 * Reveal a Vertex Flow pane, opening one if none exists. With `forceNew`,
+	 * always add a fresh pane instead of revealing an existing one — used by the
+	 * "Open Vertex Flow in new tab" command so a second, independent instance
+	 * (its own per-pane active workspace) can sit alongside the first.
+	 */
+	async activateView(forceNew = false): Promise<void> {
 		const { workspace } = this.app;
 
-		const existing = workspace.getLeavesOfType(VERTEX_VIEW_TYPE);
-		if (existing.length > 0) {
-			await workspace.revealLeaf(existing[0]);
-			return;
+		if (!forceNew) {
+			const existing = workspace.getLeavesOfType(VERTEX_VIEW_TYPE);
+			if (existing.length > 0) {
+				await workspace.revealLeaf(existing[0]);
+				return;
+			}
 		}
 
 		const leaf = workspace.getLeaf("tab");

@@ -12,6 +12,7 @@ import {
 	useCallback,
 	useContext,
 	useMemo,
+	useState,
 	useSyncExternalStore,
 	type ReactNode,
 } from "react";
@@ -65,15 +66,74 @@ export interface ActiveWorkspace {
 	context: ViewContext;
 }
 
+interface ActiveWorkspaceCtxValue {
+	root: string | null;
+	setRoot: (root: string) => void;
+}
+
+const ActiveWorkspaceRootCtx = createContext<ActiveWorkspaceCtxValue | null>(
+	null,
+);
+
+/**
+ * Owns the active workspace pointer for one pane, in memory only. Mounted
+ * once per VertexFlowView instance (see view.tsx), so splitting a pane gives
+ * each side its own independent value — nothing here is written to plugin
+ * settings or disk, so it can't leak across panes or across synced devices.
+ */
+export function ActiveWorkspaceProvider({
+	plugin,
+	children,
+}: {
+	plugin: VertexFlowPlugin;
+	children: ReactNode;
+}) {
+	const [root, setRootState] = useState<string | null>(
+		plugin.lastActiveWorkspaceRoot,
+	);
+	const setRoot = useCallback(
+		(next: string) => {
+			setRootState(next);
+			// Runtime-only "last touched" pointer — read by main.ts quickCapture()
+			// and used to seed newly opened panes. Never persisted.
+			plugin.lastActiveWorkspaceRoot = next;
+		},
+		[plugin],
+	);
+	const value = useMemo(() => ({ root, setRoot }), [root, setRoot]);
+	return (
+		<ActiveWorkspaceRootCtx.Provider value={value}>
+			{children}
+		</ActiveWorkspaceRootCtx.Provider>
+	);
+}
+
+/** The setter for this pane's active workspace root. */
+export function useSetActiveWorkspace(): (root: string) => void {
+	const ctx = useContext(ActiveWorkspaceRootCtx);
+	if (!ctx) {
+		throw new Error(
+			"useSetActiveWorkspace must be used inside <ActiveWorkspaceProvider>",
+		);
+	}
+	return ctx.setRoot;
+}
+
 /** The workspace currently selected in the switcher, fully resolved. */
 export function useActiveWorkspace(): ActiveWorkspace | null {
-	const plugin = usePlugin();
 	const workspaces = useWorkspaces();
+	const ctx = useContext(ActiveWorkspaceRootCtx);
+	if (!ctx) {
+		throw new Error(
+			"useActiveWorkspace must be used inside <ActiveWorkspaceProvider>",
+		);
+	}
 
 	return useMemo(() => {
-		const root = plugin.settings.activeWorkspaceRoot;
 		const snapshot =
-			workspaces.find((w) => w.workspace.root === root) ?? workspaces[0] ?? null;
+			workspaces.find((w) => w.workspace.root === ctx.root) ??
+			workspaces[0] ??
+			null;
 		if (!snapshot) return null;
 
 		return {
@@ -81,7 +141,7 @@ export function useActiveWorkspace(): ActiveWorkspace | null {
 			taxonomies: workspaceTaxonomies(snapshot.workspace),
 			context: snapshotContext(snapshot),
 		};
-	}, [plugin, workspaces]);
+	}, [workspaces, ctx.root]);
 }
 
 /**

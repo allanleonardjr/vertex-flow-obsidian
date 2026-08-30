@@ -20,7 +20,7 @@ import {
 import { joinPath, sanitizeFileName } from "../core/links";
 import { suggestPrefix } from "../core/ids";
 import { Icon } from "./components/Icon";
-import { usePlugin, useSettingsWriter } from "./context";
+import { usePlugin, useSetActiveWorkspace } from "./context";
 import { FolderSuggestModal } from "./modals/FolderSuggestModal";
 
 export function TemplateGallery({ onClose }: { onClose?: () => void }) {
@@ -133,7 +133,7 @@ function ConfigStep({
 	onDone: () => void;
 }) {
 	const plugin = usePlugin();
-	const writeSettings = useSettingsWriter();
+	const setActiveWorkspace = useSetActiveWorkspace();
 
 	const [name, setName] = useState(template.name);
 	const [location, setLocation] = useState(plugin.settings.defaultWorkspaceFolder);
@@ -205,7 +205,7 @@ function ConfigStep({
 				includeExampleContent: populate,
 				selfPersonName: selfName.trim() || undefined,
 			});
-			writeSettings({ activeWorkspaceRoot: root });
+			setActiveWorkspace(root);
 			onDone();
 		} catch (cause) {
 			setError(cause instanceof Error ? cause.message : String(cause));

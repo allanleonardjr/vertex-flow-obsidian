@@ -34,7 +34,12 @@ import { LabelChip } from "./components/TaskBits";
 import { DeleteWorkspaceDialog } from "./DeleteWorkspaceDialog";
 import { LabelDialog } from "./modals/LabelDialog";
 import { ReplaceValueDialog } from "./settings/ReplaceValueDialog";
-import { usePlugin, useSettingsWriter, useWorkspaces } from "./context";
+import {
+  usePlugin,
+  useSetActiveWorkspace,
+  useSettingsWriter,
+  useWorkspaces,
+} from "./context";
 import { NamedIconDialog } from "./modals/NamedIconDialog";
 import { ConfirmDeleteDialog } from "./components/ConfirmDeleteDialog";
 import { useTabs } from "./tabs-context";
@@ -350,7 +355,7 @@ function RowMenu({
 function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   const plugin = usePlugin();
   const workspaces = useWorkspaces();
-  const writeSettings = useSettingsWriter();
+  const setActiveWorkspace = useSetActiveWorkspace();
   const tabs = useTabs();
   const [menuRoot, setMenuRoot] = useState<string | null>(null);
   const [editRoot, setEditRoot] = useState<string | null>(null);
@@ -379,9 +384,7 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
           iconFallback="layers"
           variant="workspace"
           active={entry.workspace.root === snapshot.workspace.root}
-          onClick={() =>
-            writeSettings({ activeWorkspaceRoot: entry.workspace.root })
-          }
+          onClick={() => setActiveWorkspace(entry.workspace.root)}
           trailing={
             <RowMenu
               open={menuRoot === entry.workspace.root}
@@ -405,9 +408,7 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
                 className="vf-menu-item"
                 onClick={() => {
                   setMenuRoot(null);
-                  writeSettings({
-                    activeWorkspaceRoot: entry.workspace.root,
-                  });
+                  setActiveWorkspace(entry.workspace.root);
                   tabs.openScreen("settings");
                 }}
               >

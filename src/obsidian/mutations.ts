@@ -856,9 +856,10 @@ export class Mutations {
    * The folder goes to Obsidian's trash (honouring the user's "deleted files"
    * setting), so a mistaken delete is recoverable.
    *
-   * `activeWorkspaceRoot` isn't reset here: both `useActiveWorkspace()` and
-   * `main.activeWorkspace()` fall back to `index.list()[0]` (and the UI to the
-   * onboarding empty state) when the stored root no longer resolves.
+   * The active-workspace pointer isn't reset here: both `useActiveWorkspace()`
+   * (per-pane, in memory) and `main.activeWorkspace()` fall back to
+   * `index.list()[0]` (and the UI to the onboarding empty state) when the
+   * current root no longer resolves.
    */
   async deleteWorkspace(snapshot: WorkspaceSnapshot): Promise<void> {
     const root = snapshot.workspace.root;

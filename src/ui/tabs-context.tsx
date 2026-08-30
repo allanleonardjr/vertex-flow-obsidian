@@ -21,7 +21,7 @@ import {
 	useState,
 	type ReactNode,
 } from "react";
-import { usePlugin, useSettingsWriter } from "./context";
+import { useActiveWorkspace, usePlugin, useSetActiveWorkspace } from "./context";
 import {
 	reorderTabs,
 	shouldPromptUnsavedGuard,
@@ -128,7 +128,11 @@ const TabsCtx = createContext<TabsApi | null>(null);
 
 export function TabsProvider({ children }: { children: ReactNode }) {
 	const plugin = usePlugin();
-	const writeSettings = useSettingsWriter();
+	const setActiveWorkspace = useSetActiveWorkspace();
+	// This pane's currently-displayed workspace root — what `openTask` compares
+	// against to decide whether following a link needs a cross-workspace switch.
+	const activeWorkspaceRoot =
+		useActiveWorkspace()?.snapshot.workspace.root ?? null;
 	const [tabs, setTabs] = useState<Tab[]>([WORKSPACE_TAB]);
 	const [activeId, setActiveId] = useState<string>("workspace");
 
@@ -173,14 +177,15 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			const id = taskTabId(path);
 			if (!(await mayLeaveActive("navigate", id))) return;
 
-			// A task can belong to a workspace other than whichever one is
-			// currently active — e.g. following a `[[wikilink]]` from another
+			// A task can belong to a workspace other than whichever one this pane
+			// is currently showing — e.g. following a `[[wikilink]]` from another
 			// workspace's task, or a cross-workspace relation. Without switching
 			// first, the panel would look the task up in the wrong snapshot and
-			// find nothing.
+			// find nothing. The switch is per-pane (in-memory), so the other
+			// split panes are unaffected.
 			const owner = plugin.index.workspaceFor(path);
-			if (owner && owner.workspace.root !== plugin.settings.activeWorkspaceRoot) {
-				writeSettings({ activeWorkspaceRoot: owner.workspace.root });
+			if (owner && owner.workspace.root !== activeWorkspaceRoot) {
+				setActiveWorkspace(owner.workspace.root);
 			}
 
 			setTabs((current) =>
@@ -190,7 +195,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			);
 			setActiveId(id);
 		},
-		[plugin, writeSettings, mayLeaveActive],
+		[plugin, activeWorkspaceRoot, setActiveWorkspace, mayLeaveActive],
 	);
 
 	const openScreen = useCallback(

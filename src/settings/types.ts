@@ -14,8 +14,6 @@
 export type UiTextSize = "compact" | "cozy" | "comfortable";
 
 export interface VertexFlowSettings {
-	/** Root of the workspace currently open in the main view. */
-	activeWorkspaceRoot: string | null;
 	/** Interface text size — scales the whole plugin UI, not per-workspace. */
 	uiTextSize: UiTextSize;
 	/** The "Show archived" toggle (§7.7) — a session preference, not a filter. */
@@ -75,7 +73,6 @@ export interface VertexFlowSettings {
 }
 
 export const DEFAULT_SETTINGS: VertexFlowSettings = {
-	activeWorkspaceRoot: null,
 	uiTextSize: "compact",
 	showArchived: false,
 	defaultWorkspaceFolder: "Vertex Flow",
