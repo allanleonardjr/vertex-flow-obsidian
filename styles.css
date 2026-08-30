@@ -1540,7 +1540,7 @@ body.vf-dragging {
   font-weight: 600;
 }
 
-.vf-field input {
+.vf-field input:not([type="radio"]):not([type="checkbox"]) {
   width: 100%;
 }
 
