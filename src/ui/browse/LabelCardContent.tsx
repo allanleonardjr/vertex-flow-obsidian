@@ -29,7 +29,9 @@ export function LabelCardContent({
 				<span>{pluralize(usage.count, "task")}</span>
 			</BrowseMeta>
 			{label.description && (
-				<p className="vf-browse-card-description">{label.description}</p>
+				<p className="vf-browse-card-description" title={label.description}>
+					{label.description}
+				</p>
 			)}
 		</>
 	);
