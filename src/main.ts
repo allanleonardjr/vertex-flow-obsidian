@@ -49,8 +49,12 @@ export default class VertexFlowPlugin extends Plugin {
 
 		this.addSettingTab(new VertexFlowSettingTab(this.app, this));
 
-		this.addRibbonIcon("kanban-square", "Open Vertex Flow", () => {
-			void this.activateView();
+		// Always opens a fresh instance — each click adds another Vertex Flow
+		// pane (its own per-pane active workspace) rather than revealing an
+		// existing one. Use the "Open Vertex Flow" command to jump back to an
+		// open pane instead.
+		this.addRibbonIcon("kanban-square", "Open Vertex Flow in new tab", () => {
+			void this.activateView(true);
 		});
 
 		this.registerCommands();
