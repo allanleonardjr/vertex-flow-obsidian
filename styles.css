@@ -2776,6 +2776,47 @@ button.vf-crumb:hover {
   max-width: 240px;
 }
 
+/* A browse card with no `onClick` (the Trash hub) — the body isn't a button,
+   so drop the interactive affordances but keep the layout identical. */
+.vf-browse-card-body-static {
+  cursor: default;
+}
+
+.vf-browse-card:has(.vf-browse-card-body-static):hover {
+  border-color: var(--vf-border);
+  background: var(--background-primary);
+}
+
+/* Trash hub: one group per Item Kind, each a `BrowseGroupHeader` + its cards. */
+.vf-trash-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vf-gap);
+}
+
+.vf-trash-group + .vf-trash-group {
+  margin-top: 10px;
+}
+
+/* `TaskRowContent` expects to sit in a flex row (like the List view). */
+.vf-trash-task-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  /* Keep the trailing meta clear of the card's top-right ⋯ menu. */
+  padding-right: 20px;
+}
+
+.vf-trash-task-row .vf-row-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.vf-trashed-meta {
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+}
+
 /* =========================================================================
    Project editor
 

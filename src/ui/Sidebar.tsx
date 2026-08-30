@@ -22,6 +22,11 @@ import {
 import { newDashboard } from "../core/dashboards";
 import { newConfigId } from "../core/ids";
 import { isProjectTitleTaken } from "../core/serialization";
+import {
+  planDeletion,
+  scopeOf,
+  type DeletionPlan,
+} from "../core/hierarchy";
 import { withoutExtension } from "../obsidian/note-io";
 import {
   describeUsage,
@@ -40,6 +45,7 @@ import type {
 import { Icon } from "./components/Icon";
 import { LabelChip } from "./components/TaskBits";
 import { DeleteWorkspaceDialog } from "./DeleteWorkspaceDialog";
+import { DeleteEntityDialog } from "./DeleteEntityDialog";
 import { LabelDialog } from "./modals/LabelDialog";
 import { ReplaceValueDialog } from "./settings/ReplaceValueDialog";
 import {
@@ -146,6 +152,13 @@ export function Sidebar({
           <div className="vf-sidebar-spacer" />
 
           <div className="vf-sidebar-sep" aria-hidden />
+
+          <NavRow
+            icon="trash-2"
+            label="Trash"
+            active={activeId === "trash"}
+            onClick={() => openScreen("trash")}
+          />
 
           <NavRow
             icon="circle-help"
@@ -902,6 +915,7 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   const [menuPath, setMenuPath] = useState<string | null>(null);
   const [editing, setEditing] = useState<Project | null>(null);
   const [creating, setCreating] = useState(false);
+  const [deletePlan, setDeletePlan] = useState<DeletionPlan | null>(null);
 
   const projects = [...snapshot.projects].sort((a, b) =>
     a.title.localeCompare(b.title),
@@ -964,10 +978,27 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
                 >
                   Duplicate
                 </button>
+                <button
+                  className="vf-menu-item vf-menu-item-danger"
+                  onClick={() => {
+                    setMenuPath(null);
+                    setDeletePlan(planDeletion(scopeOf(snapshot), project));
+                  }}
+                >
+                  Delete
+                </button>
               </RowMenu>
             }
           />
         ))
+      )}
+
+      {deletePlan && (
+        <DeleteEntityDialog
+          snapshot={snapshot}
+          plan={deletePlan}
+          onClose={() => setDeletePlan(null)}
+        />
       )}
 
       {creating && (

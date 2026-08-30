@@ -4,17 +4,23 @@
  * menu, matching what `ProjectsSection` offers in the sidebar.
  *
  * Deliberately *not* a Saved View (those filter Tasks, not Projects) — it's a
- * plain manager list. There is no Delete here: project deletion is explicitly
- * deferred, from both this hub and the sidebar.
+ * plain manager list. Each card's menu mirrors `ProjectsSection` in the
+ * sidebar: Edit / Duplicate / Delete.
  */
 
 import { useState } from "react";
+import {
+	planDeletion,
+	scopeOf,
+	type DeletionPlan,
+} from "../../core/hierarchy";
 import { isProjectTitleTaken } from "../../core/serialization";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { Project, WorkspaceSnapshot } from "../../core/types";
 import { withoutExtension } from "../../obsidian/note-io";
 import { useCreateProject } from "../actions";
 import { usePlugin } from "../context";
+import { DeleteEntityDialog } from "../DeleteEntityDialog";
 import { NamedIconDialog } from "../modals/NamedIconDialog";
 import { useTabs } from "../tabs-context";
 import { ProjectCardContent } from "./ProjectCardContent";
@@ -39,6 +45,7 @@ export function ProjectsBrowseView({
 
 	const [menuPath, setMenuPath] = useState<string | null>(null);
 	const [editing, setEditing] = useState<Project | null>(null);
+	const [deletePlan, setDeletePlan] = useState<DeletionPlan | null>(null);
 
 	const duplicate = (project: Project) => {
 		void plugin.mutations
@@ -92,6 +99,17 @@ export function ProjectsBrowseView({
 									>
 										Duplicate
 									</button>
+									<button
+										className="vf-menu-item vf-menu-item-danger"
+										onClick={() => {
+											setMenuPath(null);
+											setDeletePlan(
+												planDeletion(scopeOf(snapshot), project),
+											);
+										}}
+									>
+										Delete
+									</button>
 								</BrowseCardMenu>
 							}
 						>
@@ -103,6 +121,14 @@ export function ProjectsBrowseView({
 						</BrowseCard>
 					))}
 				</BrowseList>
+			)}
+
+			{deletePlan && (
+				<DeleteEntityDialog
+					snapshot={snapshot}
+					plan={deletePlan}
+					onClose={() => setDeletePlan(null)}
+				/>
 			)}
 
 			{editing && (

@@ -525,6 +525,7 @@ export function resolveTemplateContent(
 		projects,
 		views: [],
 		dashboards: [],
+		trash: [],
 	});
 
 	const views = resolveViews(parsed.views, context);

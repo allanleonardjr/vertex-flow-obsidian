@@ -27,6 +27,7 @@ import {
 import {
 	IssueLog,
 	asBoolean,
+	asDateTime,
 	asNumber,
 	asString,
 	asStringArray,
@@ -198,6 +199,7 @@ export function parseWorkspace(
 		},
 		defaultNewTaskStatus,
 		estimateUnitLabel: asString(fm.estimateUnitLabel),
+		deletedAt: asDateTime(fm.deletedAt),
 		statuses: resolvedStatuses,
 		priorities: priorities.length > 0 ? priorities : DEFAULT_PRIORITIES,
 		taskTypes: taskTypes.length > 0 ? taskTypes : DEFAULT_TASK_TYPES,
@@ -223,6 +225,7 @@ export function serializeWorkspace(
 		},
 		defaultNewTaskStatus: workspace.defaultNewTaskStatus,
 		estimateUnitLabel: workspace.estimateUnitLabel,
+		deletedAt: workspace.deletedAt,
 		statuses: workspace.statuses.map((value) => ({
 			id: value.id,
 			name: value.name,
@@ -272,6 +275,7 @@ export function createWorkspaceConfig(
 		archiving: { autoArchiveEnabled: false, autoArchiveDays: 30 },
 		defaultNewTaskStatus: DEFAULT_NEW_TASK_STATUS,
 		estimateUnitLabel: null,
+		deletedAt: null,
 		statuses: DEFAULT_STATUSES.map((value) => ({ ...value })),
 		priorities: DEFAULT_PRIORITIES.map((value) => ({ ...value })),
 		taskTypes: DEFAULT_TASK_TYPES.map((value) => ({ ...value })),

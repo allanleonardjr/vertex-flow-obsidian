@@ -29,6 +29,7 @@ const BROWSE_ICON: Record<BrowseKind, string> = {
 	"new-workspace": "＋",
 	dashboards: "▦",
 	views: "▤",
+	trash: "🗑",
 };
 
 const BROWSE_LABEL: Record<BrowseKind, string> = {
@@ -38,6 +39,7 @@ const BROWSE_LABEL: Record<BrowseKind, string> = {
 	"new-workspace": "New workspace",
 	dashboards: "Dashboards",
 	views: "Views",
+	trash: "Trash",
 };
 
 function browseLabel(kind: BrowseKind): string {

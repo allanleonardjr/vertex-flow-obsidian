@@ -50,9 +50,13 @@ import type {
 	Project,
 	SavedView,
 	Task,
+	TrashedItem,
 	WorkspaceSnapshot,
 } from "../core/types";
 import { NoteIO, withoutExtension } from "./note-io";
+import { trashedItemKind } from "./trash-paths";
+
+export { TRASH_FOLDER } from "./trash-paths";
 
 export const WORKSPACE_NOTE = "_workspace";
 /** Retired shared config notes — only referenced by the one-time migration. */
@@ -138,11 +142,15 @@ export class VaultIndex {
 
 	// -- Reading --------------------------------------------------------------
 
-	/** Every workspace in the vault, ordered by name. */
-	list(): WorkspaceSnapshot[] {
-		return [...this.snapshots.values()].sort((a, b) =>
-			a.workspace.name.localeCompare(b.workspace.name),
-		);
+	/**
+	 * Every workspace in the vault, ordered by name. Soft-deleted workspaces
+	 * (`_workspace.md` carrying `deletedAt`) are hidden by default — they stay
+	 * indexed and reachable through `get()` so `restoreWorkspace` can find them.
+	 */
+	list(options?: { includeDeleted?: boolean }): WorkspaceSnapshot[] {
+		return [...this.snapshots.values()]
+			.filter((s) => options?.includeDeleted || s.workspace.deletedAt == null)
+			.sort((a, b) => a.workspace.name.localeCompare(b.workspace.name));
 	}
 
 	get(root: string): WorkspaceSnapshot | null {
@@ -228,7 +236,7 @@ export class VaultIndex {
 	}
 
 	isEmpty(): boolean {
-		return this.snapshots.size === 0;
+		return this.list().length === 0;
 	}
 
 	// -- Building -------------------------------------------------------------
@@ -263,6 +271,7 @@ export class VaultIndex {
 				projects: [],
 				views: [],
 				dashboards: [],
+				trash: [],
 			});
 			prefixEntries.push({
 				notePath: path,
@@ -311,6 +320,17 @@ export class VaultIndex {
 
 			const snapshot = deepestMatch(configs, path);
 			if (!snapshot) continue;
+
+			// A file under `<root>/Trash/` is handled entirely separately — it
+			// must never reach `entityKindOf`, which classifies by `type:`
+			// frontmatter and would resurface a trashed task as a live one.
+			const trashedKind = trashedItemKind(snapshot.workspace.root, path);
+			if (trashedKind) {
+				snapshot.trash.push(
+					await this.parseTrashedFile(snapshot, file, path, trashedKind),
+				);
+				continue;
+			}
 
 			const frontmatter = this.io.readFrontmatter(file);
 			const kind = entityKindOf(frontmatter, path, snapshot.workspace.root);
@@ -406,6 +426,44 @@ export class VaultIndex {
 
 		// Pass 3 (lazy): resolve @mentions from note bodies.
 		void this.refreshMentions();
+	}
+
+	/**
+	 * Parse one note sitting under `<root>/Trash/<Kind>/` into a `TrashedItem`.
+	 * Runs it through the same parser the live path uses — the extra
+	 * `vf-trashedAt` key is harmless there (forgiving-parse contract) and is
+	 * pulled out separately here. Views/dashboards read from disk, not the
+	 * metadata cache, for the same freshness reason the live path does.
+	 */
+	private async parseTrashedFile(
+		snapshot: WorkspaceSnapshot,
+		file: TFile,
+		path: string,
+		kind: EntityKind,
+	): Promise<TrashedItem> {
+		const readConfig = kind === "view" || kind === "dashboard";
+		const frontmatter = readConfig
+			? await this.io.readConfigFrontmatter(file)
+			: this.io.readFrontmatter(file);
+
+		const stamp = frontmatter?.["vf-trashedAt"];
+		const trashedAt = typeof stamp === "string" ? stamp : "";
+
+		const options = {
+			path,
+			defaultStatus: snapshot.workspace.defaultNewTaskStatus,
+		};
+
+		const entity: TrashedItem["entity"] =
+			kind === "task"
+				? (parseTask(frontmatter, { ...options, mentions: [] }).value as Task)
+				: kind === "project"
+					? (parseProject(frontmatter, options).value as Project)
+					: kind === "view"
+						? parseView(frontmatter, { path }).value
+						: parseDashboard(frontmatter, { path }).value;
+
+		return { kind, trashedAt, entity };
 	}
 
 	/**

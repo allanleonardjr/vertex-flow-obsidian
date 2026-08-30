@@ -1,14 +1,17 @@
 /**
  * The confirmation for deleting an entire workspace.
  *
- * Heavier than the taxonomy/entity dialogs on purpose — this trashes a whole
- * folder tree, so it summarises what's inside, warns when links elsewhere in
- * the vault will be rewritten, and gates the action behind typing the
- * workspace's name (the `mod-warning` destructive-button pattern used by
+ * Heavier than the taxonomy/entity dialogs on purpose — this hides a whole
+ * workspace, so it summarises what's inside, warns when links elsewhere in the
+ * vault will be rewritten, and gates the action behind typing the workspace's
+ * name (the `mod-warning` destructive-button pattern used by
  * `DeleteEntityDialog` / `ReplaceValueDialog`, plus a name match).
  *
- * The folder goes to Obsidian's trash, not a permanent delete — `NoteIO.trash`
- * honours the user's "deleted files" preference.
+ * It's a **soft delete**: `_workspace.md` is stamped with `deletedAt`, the
+ * workspace drops out of the switcher, and its folder stays on disk untouched
+ * (it can't be trashed — its own `Trash/` folder lives inside it). A restore
+ * path exists as a mutation; a browse-and-restore UI for deleted workspaces is
+ * separate follow-up work.
  */
 
 import { useMemo, useState } from "react";
@@ -72,9 +75,9 @@ export function DeleteWorkspaceDialog({
 				<h3>Delete workspace "{name}"?</h3>
 
 				<p className="vf-dialog-lead">
-					This moves the entire <code>{root}</code> folder — {inside} — to
-					Obsidian's trash. It's recoverable from there; nothing is permanently
-					deleted.
+					This hides the workspace — {inside} — from the switcher. The{" "}
+					<code>{root}</code> folder stays on disk untouched, so nothing is
+					lost and it can be restored later.
 				</p>
 
 				{crossLinks.length > 0 && (

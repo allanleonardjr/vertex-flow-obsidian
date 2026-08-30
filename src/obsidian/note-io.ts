@@ -187,8 +187,15 @@ export class NoteIO {
 	/**
 	 * Rename/move a note to an exact path, letting Obsidian rewrite every
 	 * wikilink that points at it. The path is used verbatim (no `.md` coercion)
-	 * — the one caller retires a shared config note to `<name>.legacy`, which
-	 * must not carry a `.md` extension.
+	 * — one caller retires a shared config note to `<name>.legacy`, which must
+	 * not carry a `.md` extension.
+	 *
+	 * Note this is a *relocation*, not an identity change. A **title-driven**
+	 * rename still never happens for a Task — its filename is its id, which is
+	 * the whole point of that decision. But a **Trash move** (a reversible
+	 * delete relocating the file into `Workspace/Trash/`, and the restore back
+	 * out) does change a Task's path, and goes through here so the wikilinks
+	 * pointing at it keep resolving.
 	 */
 	async rename(file: TFile, newPath: string): Promise<void> {
 		await this.app.fileManager.renameFile(file, normalizePath(newPath));

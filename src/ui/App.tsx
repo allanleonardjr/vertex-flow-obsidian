@@ -20,6 +20,7 @@ import { SelectionProvider } from "./selection";
 import { ProjectsBrowseView } from "./browse/ProjectsBrowseView";
 import { ViewsBrowseView } from "./browse/ViewsBrowseView";
 import { DashboardsBrowseView } from "./browse/DashboardsBrowseView";
+import { TrashBrowseView } from "./browse/TrashBrowseView";
 import { DashboardView } from "./dashboards/DashboardView";
 import { Sidebar } from "./Sidebar";
 import { WorkspaceSettingsView } from "./settings/WorkspaceSettingsView";
@@ -188,6 +189,8 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
           <DashboardsBrowseView snapshot={snapshot} />
         ) : activeTab.kind === "views" ? (
           <ViewsBrowseView snapshot={snapshot} />
+        ) : activeTab.kind === "trash" ? (
+          <TrashBrowseView snapshot={snapshot} taxonomies={active.taxonomies} />
         ) : activeTab.kind === "dashboard" ? (
           <DashboardView
             key={activeTab.dashboardId}

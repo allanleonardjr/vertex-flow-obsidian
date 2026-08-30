@@ -52,10 +52,12 @@ import {
   type Comment,
   type DashboardConfig,
   type DashboardWidget,
+  type EntityKind,
   type Project,
   type ProjectDocument,
   type SavedView,
   type Task,
+  type TrashedItem,
   type WorkspaceConfig,
   type WorkspaceSnapshot,
 } from "../core/types";
@@ -71,7 +73,8 @@ import {
   type DeletionPlan,
 } from "../core/hierarchy";
 import { FOLDERS, VaultIndex, WORKSPACE_NOTE } from "./index-store";
-import { NoteIO, withoutExtension } from "./note-io";
+import { NoteIO, withExtension, withoutExtension } from "./note-io";
+import { liveFolder, trashFolder } from "./trash-paths";
 
 export interface NewTaskInput {
   title: string;
@@ -331,6 +334,75 @@ export class Mutations {
     });
   }
 
+  // -- Trash --------------------------------------------------------------
+
+  /**
+   * Move a file into `Workspace/Trash/<Kind>/`, mirroring its live folder, and
+   * stamp `vf-trashedAt`. Uses `io.rename` (fileManager.renameFile), not
+   * `io.trash` — this is Vertex Flow's own trash, not Obsidian's, so it never
+   * depends on the user's "Deleted files" preference, and a rename (rather than
+   * a raw move) keeps every wikilink pointing at this file resolving into Trash
+   * instead of breaking.
+   */
+  private async moveToTrash(
+    snapshot: WorkspaceSnapshot,
+    file: TFile,
+    kind: EntityKind,
+  ): Promise<void> {
+    const folder = trashFolder(snapshot.workspace.root, kind);
+    await this.io.ensureFolder(folder);
+    const target = this.io.availablePath(joinPath(folder, file.basename));
+    await this.io.updateFrontmatter(file, (frontmatter) => {
+      frontmatter["vf-trashedAt"] = new Date().toISOString();
+    });
+    await this.io.rename(file, withExtension(target));
+  }
+
+  /**
+   * The reverse of `moveToTrash` — back to the live folder, clearing the stamp.
+   * `availablePath` handles the one real collision risk: a Project created with
+   * the same title while the old one sat in Trash. The restored file's `title:`
+   * frontmatter is untouched, so it still displays correctly even if its
+   * filename picked up a numeric suffix.
+   */
+  private async restoreFromTrash(
+    snapshot: WorkspaceSnapshot,
+    file: TFile,
+    kind: EntityKind,
+  ): Promise<void> {
+    const folder = liveFolder(snapshot.workspace.root, kind);
+    await this.io.ensureFolder(folder);
+    const target = this.io.availablePath(joinPath(folder, file.basename));
+    await this.io.updateFrontmatter(file, (frontmatter) => {
+      delete frontmatter["vf-trashedAt"];
+    });
+    await this.io.rename(file, withExtension(target));
+  }
+
+  /** Restore one trashed item to its live folder. */
+  async restoreItem(
+    snapshot: WorkspaceSnapshot,
+    item: TrashedItem,
+  ): Promise<void> {
+    const file = this.io.getFile(item.entity.path);
+    if (file) await this.restoreFromTrash(snapshot, file, item.kind);
+    await this.index.rebuild();
+  }
+
+  /**
+   * Permanently remove a trashed item. Reuses `io.trash()` — the same call
+   * every other delete in the codebase uses — rather than a Vertex-Flow
+   * override: once a human has confirmed "Delete Forever" there's no
+   * cross-machine recoverable state left to keep consistent, and both of
+   * `trashFile()`'s destinations are hidden folders the Vault API never
+   * surfaces through `getMarkdownFiles()`.
+   */
+  async permanentlyDeleteItem(item: TrashedItem): Promise<void> {
+    const file = this.io.getFile(item.entity.path);
+    if (file) await this.io.trash(file);
+    await this.index.rebuild();
+  }
+
   // -- Deletion ------------------------------------------------------
 
   /**
@@ -373,9 +445,14 @@ export class Mutations {
       });
     }
 
+    // The file(s) go into this workspace's own `Trash/` folder, not Obsidian's
+    // trash. `plan.path` keeps the plan's kind (task or project); every other
+    // entry in `deletePaths` is a cascaded child task.
     for (const path of outcome.deletePaths) {
       const file = this.io.getFile(path);
-      if (file) await this.io.trash(file);
+      if (!file) continue;
+      const kind: EntityKind = path === plan.path ? plan.kind : "task";
+      await this.moveToTrash(snapshot, file, kind);
     }
 
     await this.index.rebuild();
@@ -564,11 +641,14 @@ export class Mutations {
     await this.index.rebuild();
   }
 
-  /** Remove a Saved View — trash its one file. System Views are protected by the UI. */
+  /**
+   * Remove a Saved View — move its one file into `Trash/Views/`, restorable
+   * from the Trash hub. System Views are protected by the UI.
+   */
   async deleteView(snapshot: WorkspaceSnapshot, id: string): Promise<void> {
     const path = this.liveView(snapshot, id)?.path || this.viewPath(snapshot, id);
     const file = this.io.getFile(path);
-    if (file) await this.io.trash(file);
+    if (file) await this.moveToTrash(snapshot, file, "view");
     await this.index.rebuild();
   }
 
@@ -612,6 +692,7 @@ export class Mutations {
     await this.index.rebuild();
   }
 
+  /** Remove a dashboard — move its one file into `Trash/Dashboards/`. */
   async deleteDashboard(
     snapshot: WorkspaceSnapshot,
     id: string,
@@ -619,7 +700,7 @@ export class Mutations {
     const path =
       this.liveDashboard(snapshot, id)?.path || this.dashboardPath(snapshot, id);
     const file = this.io.getFile(path);
-    if (file) await this.io.trash(file);
+    if (file) await this.moveToTrash(snapshot, file, "dashboard");
     await this.index.rebuild();
   }
 
@@ -881,18 +962,19 @@ export class Mutations {
   }
 
   /**
-   * Delete an entire workspace: trash its root folder — every note, not just
-   * `_workspace.md` — and tidy up any relation links pointing into it from
-   * other workspaces.
+   * Soft-delete an entire workspace: stamp `deletedAt` on its `_workspace.md`
+   * and tidy up any relation links pointing into it from other workspaces. The
+   * folder is **not** moved — the workspace's own `Trash/` folder lives inside
+   * it, so it can't be relocated into itself — it just disappears from the
+   * switcher (`VaultIndex.list()` filters it out) and comes back with
+   * `restoreWorkspace`.
    *
    * The relation sweep runs **vault-wide** (unlike `applyDeletionPlan`, which
    * stays inside one `HierarchyScope`): the doomed workspace's tasks vanish
-   * all at once, so a `blocks`/`blockedBy`/`related`/`duplicateOf` link in a
-   * *surviving* workspace would be left dangling. Relations aren't hierarchy,
-   * so this is silent — no prompt.
-   *
-   * The folder goes to Obsidian's trash (honouring the user's "deleted files"
-   * setting), so a mistaken delete is recoverable.
+   * from the switcher all at once, so a `blocks`/`blockedBy`/`related`/
+   * `duplicateOf` link in a *surviving* workspace would be left dangling.
+   * Relations aren't hierarchy, so this is silent — no prompt, and it runs
+   * immediately (the "clean up now, not deferred" precedent).
    *
    * The active-workspace pointer isn't reset here: both `useActiveWorkspace()`
    * (per-pane, in memory) and `main.activeWorkspace()` fall back to
@@ -906,11 +988,28 @@ export class Mutations {
       danglingRelationEditsForWorkspaceDeletion(this.index.list(), root),
     );
 
-    const folder = this.io.getFolder(root);
-    if (folder) await this.io.trash(folder);
+    const file = this.io.getFile(joinPath(root, WORKSPACE_NOTE));
+    if (file) {
+      await this.io.updateFrontmatter(file, (frontmatter) => {
+        frontmatter.deletedAt = new Date().toISOString();
+      });
+    }
 
     await this.index.rebuild();
     new Notice(`Deleted workspace "${snapshot.workspace.name}"`);
+  }
+
+  /** Undo a `deleteWorkspace` — clear the `deletedAt` stamp. */
+  async restoreWorkspace(snapshot: WorkspaceSnapshot): Promise<void> {
+    const file = this.io.getFile(
+      joinPath(snapshot.workspace.root, WORKSPACE_NOTE),
+    );
+    if (file) {
+      await this.io.updateFrontmatter(file, (frontmatter) => {
+        delete frontmatter.deletedAt;
+      });
+    }
+    await this.index.rebuild();
   }
 
   // -- Helpers --------------------------------------------------------------

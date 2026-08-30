@@ -34,6 +34,25 @@ export type SystemItemKind = "all-tasks" | "untriaged";
 export type ItemKind = EntityKind | SystemItemKind;
 
 /**
+ * One item sitting in a workspace's `Trash/` folder — a Task/Project/View/
+ * Dashboard whose deletion moved its file into `Workspace/Trash/<Kind>/` (with a
+ * `vf-trashedAt` stamp) rather than into Obsidian's own trash. Lives here beside
+ * `EntityKind` for the same reason: it's a domain concept the index populates,
+ * not a glue-layer detail.
+ */
+export interface TrashedItem {
+	kind: EntityKind;
+	/** ISO datetime the item was moved into Trash (`vf-trashedAt`). */
+	trashedAt: IsoDate;
+	/**
+	 * The fully parsed entity — the same `Task` / `Project` / `SavedView` /
+	 * `DashboardConfig` shape it had while live, so the Trash hub can hand it
+	 * straight to the card components the other hubs use.
+	 */
+	entity: Task | Project | SavedView | DashboardConfig;
+}
+
+/**
  * A vault-relative path to a note, e.g. `Product Team/Tasks/PRD-0104`.
  * Stored in frontmatter as a wikilink; normalized to a bare target internally.
  * See `links.ts`.
@@ -250,6 +269,14 @@ export interface WorkspaceConfig {
 	defaultNewTaskStatus: string;
 	/** Cosmetic suffix only — the plugin never calculates on estimates. */
 	estimateUnitLabel: string | null;
+
+	/**
+	 * Set when the workspace has been soft-deleted: it stays on disk (its own
+	 * `Trash/` folder can't be moved into itself) but is hidden from the
+	 * switcher. Deliberately *not* named `archived`/`archivedAt` — `archiving`
+	 * above is an unrelated task-auto-archive concept. `null` when live.
+	 */
+	deletedAt: IsoDate | null;
 
 	statuses: StatusValue[];
 	priorities: PriorityValue[];
@@ -655,6 +682,8 @@ export interface WorkspaceSnapshot {
 	projects: Project[];
 	views: SavedView[];
 	dashboards: DashboardConfig[];
+	/** Items sitting in this workspace's `Trash/` folder (see `TrashedItem`). */
+	trash: TrashedItem[];
 }
 
 // ---------------------------------------------------------------------------

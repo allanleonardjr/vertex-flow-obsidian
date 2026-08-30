@@ -24,8 +24,9 @@ export function BrowseHeader({
 	/** Singular noun, for the count line: "3 projects". */
 	noun: string;
 	count: number;
-	actionLabel: string;
-	onAction: () => void;
+	/** Omitted — like the Trash hub — the header shows just the title + count. */
+	actionLabel?: string;
+	onAction?: () => void;
 }) {
 	return (
 		<header className="vf-toolbar">
@@ -33,11 +34,13 @@ export function BrowseHeader({
 				<h2>{title}</h2>
 				<span className="vf-count">{pluralize(count, noun)}</span>
 			</div>
-			<div className="vf-toolbar-actions">
-				<button className="mod-cta" onClick={onAction}>
-					{actionLabel}
-				</button>
-			</div>
+			{actionLabel && onAction && (
+				<div className="vf-toolbar-actions">
+					<button className="mod-cta" onClick={onAction}>
+						{actionLabel}
+					</button>
+				</div>
+			)}
 		</header>
 	);
 }
@@ -53,11 +56,20 @@ export function BrowseList({ children }: { children: ReactNode }) {
  * whole screen look off relative to List's normal flush-top-left layout the
  * moment a workspace had no projects.
  */
-export function BrowseEmpty({ label, actionLabel }: { label: string; actionLabel: string }) {
+export function BrowseEmpty({
+	label,
+	actionLabel,
+}: {
+	label: string;
+	/** Omitted — like the Trash hub — drops the "click … to create one" line. */
+	actionLabel?: string;
+}) {
 	return (
 		<div className="vf-browse-empty">
 			<p>No {label} yet.</p>
-			<p className="vf-empty-note">Click "{actionLabel}" to create one.</p>
+			{actionLabel && (
+				<p className="vf-empty-note">Click "{actionLabel}" to create one.</p>
+			)}
 		</div>
 	);
 }
@@ -76,15 +88,26 @@ export function BrowseCard({
 	trailing,
 	children,
 }: {
-	onClick: () => void;
+	/**
+	 * Omitted — like a Trash card, where the item isn't live and there's
+	 * nothing to open — the body renders as a plain `<div>` rather than a
+	 * `<button>`. The `trailing` slot works either way.
+	 */
+	onClick?: () => void;
 	trailing?: ReactNode;
 	children: ReactNode;
 }) {
 	return (
 		<div className="vf-browse-card">
-			<button className="vf-browse-card-body" onClick={onClick}>
-				{children}
-			</button>
+			{onClick ? (
+				<button className="vf-browse-card-body" onClick={onClick}>
+					{children}
+				</button>
+			) : (
+				<div className="vf-browse-card-body vf-browse-card-body-static">
+					{children}
+				</div>
+			)}
 			{trailing && <div className="vf-browse-card-trailing">{trailing}</div>}
 		</div>
 	);
@@ -164,4 +187,48 @@ export function formatFullDate(iso: string): string {
 
 export function pluralize(count: number, noun: string): string {
 	return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
+
+/**
+ * A generic label + count header for a browse group — the Trash hub stacks one
+ * per Item Kind. Reuses the Task List view's `GroupHeader` classes for visual
+ * consistency, but stays a separate component so `BrowseList` never has to know
+ * about grouping.
+ */
+export function BrowseGroupHeader({
+	label,
+	count,
+}: {
+	label: string;
+	count: number;
+}) {
+	return (
+		<div className="vf-list-group">
+			<span>{label}</span>
+			<span className="vf-count">{count}</span>
+		</div>
+	);
+}
+
+/**
+ * `"3h ago"`, `"2d ago"`, `"just now"` — a compact past-relative time for the
+ * Trash hub's "Trashed …" line. Returns `"recently"` for a missing/unparseable
+ * stamp so the line still reads.
+ */
+export function formatRelativeTime(iso: string): string {
+	const then = new Date(iso).getTime();
+	if (Number.isNaN(then)) return "recently";
+
+	const minutes = Math.round((Date.now() - then) / 60_000);
+	if (minutes < 1) return "just now";
+	if (minutes < 60) return `${minutes}m ago`;
+
+	const hours = Math.round(minutes / 60);
+	if (hours < 24) return `${hours}h ago`;
+
+	const days = Math.round(hours / 24);
+	if (days < 7) return `${days}d ago`;
+	if (days < 30) return `${Math.round(days / 7)}w ago`;
+	if (days < 365) return `${Math.round(days / 30)}mo ago`;
+	return `${Math.round(days / 365)}y ago`;
 }

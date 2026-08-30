@@ -21,6 +21,7 @@ than opening a second one.
 | `g` `p` | Projects |
 | `g` `d` | Dashboards |
 | `g` `v` | Views |
+| `g` `t` | Trash |
 | `g` `h` | Help |
 | `g` `s` | Settings |
 
