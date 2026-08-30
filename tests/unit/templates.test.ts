@@ -1,10 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { instantiateTemplate } from "../../src/core/templates/instantiate";
-import { WORKSPACE_TEMPLATES } from "../../src/core/templates";
-import { gettingStartedTemplate } from "../../src/core/templates/getting-started";
+import { WORKSPACE_TEMPLATES, templateById } from "../../src/core/templates";
 import { softwareSprintTemplate } from "../../src/core/templates/software-sprint";
 import { workspaceTaxonomies } from "../../src/core/taxonomy";
 import type { Task } from "../../src/core/types";
+
+/** Every gallery template is expected to exist; `templateById` returning
+ *  `undefined` here means the registry lost one, which is worth failing on. */
+function requireTemplate(id: string) {
+	const template = templateById(id);
+	if (!template) throw new Error(`Template "${id}" is missing from the registry`);
+	return template;
+}
+
+const gettingStartedTemplate = requireTemplate("getting-started");
 
 const base = {
 	root: "Workspaces/Demo",
@@ -41,10 +50,16 @@ describe("every template's example content is a full feature showcase", () => {
 				expect(parents.length).toBeGreaterThanOrEqual(2);
 			});
 
-			it("has at least three un-parented, project-less tasks", () => {
+			it("has a real un-parented, project-less bucket", () => {
+				// Most templates keep a handful of loose errands. The
+				// agency template deliberately keeps exactly one (everything else
+				// belongs to a client Project or to "Internal"), because a large
+				// loose bucket would misrepresent the one-Project-per-client
+				// workflow it exists to teach — so the floor is "at least one",
+				// not "at least three".
 				expect(
 					tasks.filter((t) => t.project === null && t.parent === null).length,
-				).toBeGreaterThanOrEqual(3);
+				).toBeGreaterThanOrEqual(1);
 			});
 
 			it("has archived tasks in both the done and canceled categories", () => {
@@ -82,11 +97,19 @@ describe("every template's example content is a full feature showcase", () => {
 				expect(has((t) => t.relations.blocks.length > 0)).toBe(true);
 			});
 
-			it("ships exactly one dashboard with 2–3 widgets", () => {
-				expect(snapshot.dashboards).toHaveLength(1);
-				const widgets = snapshot.dashboards[0].widgets;
-				expect(widgets.length).toBeGreaterThanOrEqual(2);
-				expect(widgets.length).toBeLessThanOrEqual(3);
+			it("ships at least one dashboard, each with at least two widgets", () => {
+				// The TS templates each ship a single 2–3 widget dashboard. The
+				// markdown format made multi-dashboard templates cheap to author,
+				// and agency-client-management uses two (a whole-business overview
+				// and a client-scoped one), so this asserts the quality floor —
+				// every dashboard is populated — rather than a fixed count.
+				expect(snapshot.dashboards.length).toBeGreaterThanOrEqual(1);
+				for (const dashboard of snapshot.dashboards) {
+					expect(
+						dashboard.widgets.length,
+						`dashboard "${dashboard.id}"`,
+					).toBeGreaterThanOrEqual(2);
+				}
 			});
 
 			it("card-preview settings match the actual taxonomy", () => {

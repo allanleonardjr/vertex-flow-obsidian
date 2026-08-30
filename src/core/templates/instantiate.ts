@@ -180,6 +180,8 @@ export function instantiateTemplate(
 	const tasks = content?.tasks ?? [];
 	const commentsByPath = content?.comments ?? new Map<string, Comment[]>();
 	const descriptions = content?.descriptions ?? new Map<string, string>();
+	const projectDescriptions =
+		content?.projectDescriptions ?? new Map<string, string>();
 
 	if (content) {
 		// Mentions are derived from comment bodies, exactly as the indexer does.
@@ -189,7 +191,10 @@ export function instantiateTemplate(
 			notes.push({
 				path: project.path,
 				frontmatter: serializeProject(project),
-				body: `## Overview\n${project.title}.\n`,
+				// No fallback copy: a template that doesn't describe a Project gets
+				// an empty body, not a restated title. `extractProjectDescription`
+				// already strips the `## Overview` heading older notes carried.
+				body: projectDescriptions.get(project.path) ?? "",
 			});
 		}
 		for (const task of tasks) {

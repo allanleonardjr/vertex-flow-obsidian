@@ -49,6 +49,8 @@ export function LayoutToggle({
 					type="button"
 					className={`vf-layout-opt${view.viewType === layout.value ? " is-on" : ""}`}
 					aria-pressed={view.viewType === layout.value}
+					aria-label={layout.label}
+					title={layout.label}
 					onClick={() =>
 						view.viewType !== layout.value &&
 						onChange({ ...view, viewType: layout.value })
@@ -57,7 +59,6 @@ export function LayoutToggle({
 					<span className="vf-bar-icon" aria-hidden>
 						<Icon id={layoutIcon(layout.value)} size={14} />
 					</span>
-					{layout.label}
 				</button>
 			))}
 		</div>

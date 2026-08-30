@@ -591,6 +591,11 @@ export interface DashboardConfig {
 	name: string;
 	/** Curated icon id (see `ui/components/Icon.tsx`); optional, falls back at render. */
 	icon?: string;
+	/**
+	 * Free-text note about what this dashboard is for. Metadata, exactly like
+	 * `SavedView.description` — not part of any definitional comparison.
+	 */
+	description?: string;
 	widgets: DashboardWidget[];
 	/**
 	 * Dashboard-wide filter, applied once at the top-level data fetch (Phase 1 —

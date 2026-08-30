@@ -68,9 +68,18 @@ describe("src/core purity", () => {
 		expect(offenders).toEqual([]);
 	});
 
-	it("pulls in no runtime dependencies at all", () => {
+	it("pulls in no runtime dependencies beyond the sanctioned allowlist", () => {
 		// Core is pure TypeScript over plain objects. A bare (non-relative)
 		// import here would mean a dependency has crept into the domain layer.
+		//
+		// One exception, deliberately narrow: the markdown template format's
+		// frontmatter is real YAML (nested maps, flow arrays, inline scalars),
+		// and hand-rolling a YAML subset for it would be a correctness liability
+		// in a code path that runs against user-authored files. `yaml` is a pure
+		// data library with no platform coupling, so it doesn't compromise what
+		// this rule actually protects: that core stays unit-testable without
+		// mocking Obsidian.
+		const ALLOWED = new Set(["yaml"]);
 		const offenders: { file: string; specifier: string }[] = [];
 
 		for (const file of files) {
@@ -79,7 +88,7 @@ describe("src/core purity", () => {
 			let match: RegExpExecArray | null;
 			while ((match = IMPORT_RE.exec(source)) !== null) {
 				const specifier = match[1] ?? match[2];
-				if (!specifier.startsWith(".")) {
+				if (!specifier.startsWith(".") && !ALLOWED.has(specifier)) {
 					offenders.push({ file: file.slice(file.indexOf("src/")), specifier });
 				}
 			}

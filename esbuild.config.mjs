@@ -28,7 +28,10 @@ const helpContentPlugin = {
 	name: "help-content",
 	setup(build) {
 		// Regenerate before every build, including the first one in watch mode.
-		build.onStart(() => execSync("node scripts/build-help.mjs", { stdio: "inherit" }));
+		build.onStart(() => {
+			execSync("node scripts/build-help.mjs", { stdio: "inherit" });
+			execSync("node scripts/build-templates.mjs", { stdio: "inherit" });
+		});
 		// Nothing in the graph imports the `.md` files, so register them as
 		// watch inputs against the generated module that stands in for them.
 		build.onLoad({ filter: /help-generated\.ts$/ }, () => ({

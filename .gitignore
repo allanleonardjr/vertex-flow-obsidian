@@ -5,6 +5,8 @@ main.js
 dist/
 *.js.map
 src/core/help-generated.ts
+src/core/templates/generated.ts
+.template-validate-*/
 
 # Obsidian plugin runtime state
 data.json

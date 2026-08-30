@@ -3195,6 +3195,10 @@ button.vf-crumb:hover {
 }
 
 .vf-layout-opt {
+  /* Icon-only: no label to space out from, so drop the gap and tighten the
+     box to roughly the icon plus a hair each side. */
+  gap: 0;
+  padding: 3px 6px;
   color: var(--vf-muted);
 }
 

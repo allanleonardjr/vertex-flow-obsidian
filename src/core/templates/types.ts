@@ -48,6 +48,15 @@ export interface TemplateMeta {
 	description: string; // one or two sentences, shown on the card
 	icon?: string; // Obsidian icon name
 	defaultIdPrefix: string;
+	/** Community-sharing attribution, carried through from a markdown template's
+	 *  frontmatter. Purely informational — nothing in parsing, resolution or
+	 *  instantiation reads these. */
+	author?: string;
+	authorUrl?: string;
+	/** The *template's own* version, unrelated to `templateSchema` (which
+	 *  versions the file grammar). */
+	templateVersion?: string;
+	source?: string;
 	/** Lightweight preview for the card — must NOT require calling
 	 *  buildExampleContent(). Derived from the same arrays the template feeds
 	 *  its taxonomy from, via settingsFromValues(). */
@@ -71,7 +80,12 @@ export interface TemplateContent {
 	projects: Project[];
 	tasks: Task[];
 	comments?: Map<string, Comment[]>;
+	/** Task path → note body. Task-only; Projects use `projectDescriptions`. */
 	descriptions?: Map<string, string>;
+	/** Project path → note body. Kept separate from `descriptions` rather than
+	 *  sharing one map: the two are written through different serializers and a
+	 *  single map would invite a Task body being handed to a Project note. */
+	projectDescriptions?: Map<string, string>;
 }
 
 export interface WorkspaceTemplate extends TemplateMeta {
