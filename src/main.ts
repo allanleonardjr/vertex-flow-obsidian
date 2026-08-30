@@ -13,7 +13,11 @@ import { VaultIndex } from "./obsidian/index-store";
 import { Mutations } from "./obsidian/mutations";
 import { NoteIO } from "./obsidian/note-io";
 import { VertexFlowSettingTab } from "./settings/SettingTab";
-import { DEFAULT_SETTINGS, type VertexFlowSettings } from "./settings/types";
+import {
+	DEFAULT_SETTINGS,
+	type SidebarChromeState,
+	type VertexFlowSettings,
+} from "./settings/types";
 import { applyUiTextSize, clearUiTextSize } from "./settings/ui-text-size";
 import { VERTEX_VIEW_TYPE, VertexFlowView } from "./ui/view";
 
@@ -33,6 +37,15 @@ export default class VertexFlowPlugin extends Plugin {
 	 * this to settings is exactly the global-state bug we're removing.
 	 */
 	lastActiveWorkspaceRoot: string | null = null;
+
+	/**
+	 * Sidebar chrome (minimize/width/section-collapse) most recently touched
+	 * in *any* pane this session. Used only to seed newly opened/split panes
+	 * so they don't jarringly reset. Deliberately not persisted: writing this
+	 * to settings is exactly the global-state (and cross-machine sync) bug
+	 * we're removing.
+	 */
+	lastSidebarChrome: SidebarChromeState | null = null;
 
 	override async onload(): Promise<void> {
 		await this.loadSettings();

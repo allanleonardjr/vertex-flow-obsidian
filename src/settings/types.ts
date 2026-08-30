@@ -22,12 +22,10 @@ export interface VertexFlowSettings {
 	editorRailWidth: number;
 	/** Whether that property rail is collapsed to a sliver (shared task/project). */
 	editorRailCollapsed: boolean;
-	/** Collapsed state of each sidebar section, keyed by section id. */
-	sidebarCollapsed: Record<string, boolean>;
-	/** Sidebar width in pixels (drag-resizable). */
-	sidebarWidth: number;
-	/** Sidebar collapsed to a sliver. */
-	sidebarMinimized: boolean;
+	// sidebarCollapsed, sidebarWidth, sidebarMinimized REMOVED — see
+	// SidebarChromeState / SidebarChromeProvider in ui/context.tsx. This was
+	// the source of the cross-pane (and cross-machine, via synced data.json)
+	// sidebar-state bleed; it's runtime-only and per-pane now.
 	/**
 	 * Whether the text query row under the view bar is expanded. Plugin-global
 	 * rather than per-view: someone who works this way wants it everywhere.
@@ -70,14 +68,28 @@ export interface VertexFlowSettings {
 	redirectTaskNotes: boolean;
 }
 
+/**
+ * Sidebar chrome (minimize, width, per-section collapse) for one pane.
+ * Deliberately not part of VertexFlowSettings — see SidebarChromeProvider.
+ */
+export interface SidebarChromeState {
+	minimized: boolean;
+	width: number;
+	collapsed: Record<string, boolean>;
+}
+
+export const DEFAULT_SIDEBAR_CHROME: SidebarChromeState = {
+	minimized: false,
+	width: 220,
+	collapsed: {},
+};
+
 export const DEFAULT_SETTINGS: VertexFlowSettings = {
 	uiTextSize: "compact",
 	defaultWorkspaceFolder: "Vertex Flow",
 	editorRailWidth: 264,
 	editorRailCollapsed: false,
-	sidebarCollapsed: {},
-	sidebarWidth: 220,
-	sidebarMinimized: false,
+	// sidebarCollapsed / sidebarWidth / sidebarMinimized REMOVED
 	queryBarOpen: false,
 	editorSourceOpen: false,
 	descriptionCollapsed: false,

@@ -59,7 +59,7 @@ import { ReplaceValueDialog } from "./settings/ReplaceValueDialog";
 import {
   usePlugin,
   useSetActiveWorkspace,
-  useSettingsWriter,
+  useSidebarChrome,
   useWorkspaces,
 } from "./context";
 import { NamedIconDialog } from "./modals/NamedIconDialog";
@@ -86,14 +86,13 @@ export function Sidebar({
   activeViewId: string;
   onSelectView: (id: string) => void;
 }) {
-  const plugin = usePlugin();
-  const writeSettings = useSettingsWriter();
   const { activeId, openScreen } = useTabs();
+  const { minimized, width: storedWidth, setMinimized, setWidth } =
+    useSidebarChrome();
 
-  const minimized = plugin.settings.sidebarMinimized;
   const width = minimized
     ? SLIVER_WIDTH
-    : clamp(plugin.settings.sidebarWidth, MIN_WIDTH, maxSidebarWidth());
+    : clamp(storedWidth, MIN_WIDTH, maxSidebarWidth());
 
   return (
     <aside
@@ -105,7 +104,7 @@ export function Sidebar({
           className="vf-sidebar-minimize"
           title={minimized ? "Expand sidebar" : "Minimize sidebar"}
           aria-label={minimized ? "Expand sidebar" : "Minimize sidebar"}
-          onClick={() => writeSettings({ sidebarMinimized: !minimized })}
+          onClick={() => setMinimized(!minimized)}
         >
           {minimized ? (
             <PanelLeftOpen size={16} />
@@ -186,7 +185,7 @@ export function Sidebar({
 
           <ResizeHandle
             width={width}
-            onResize={(w) => writeSettings({ sidebarWidth: w })}
+            onResize={(w) => setWidth(w)}
           />
         </>
       )}
@@ -260,17 +259,10 @@ function Section({
   onOpenHub?: () => void;
   children: ReactNode;
 }) {
-  const plugin = usePlugin();
-  const writeSettings = useSettingsWriter();
-  const collapsed = plugin.settings.sidebarCollapsed[id] === true;
+  const { collapsed: collapsedMap, toggleSection } = useSidebarChrome();
+  const collapsed = collapsedMap[id] === true;
 
-  const toggle = () =>
-    writeSettings({
-      sidebarCollapsed: {
-        ...plugin.settings.sidebarCollapsed,
-        [id]: !collapsed,
-      },
-    });
+  const toggle = () => toggleSection(id);
 
   return (
     <div className="vf-section">

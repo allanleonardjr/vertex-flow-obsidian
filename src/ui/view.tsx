@@ -10,7 +10,11 @@ import { StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type VertexFlowPlugin from "../main";
 import { App } from "./App";
-import { ActiveWorkspaceProvider, PluginProvider } from "./context";
+import {
+	ActiveWorkspaceProvider,
+	PluginProvider,
+	SidebarChromeProvider,
+} from "./context";
 
 export const VERTEX_VIEW_TYPE = "vertex-flow-view";
 
@@ -56,7 +60,9 @@ export class VertexFlowView extends ItemView {
 			<StrictMode>
 				<PluginProvider plugin={this.plugin}>
 					<ActiveWorkspaceProvider plugin={this.plugin}>
-						<App />
+						<SidebarChromeProvider plugin={this.plugin}>
+							<App />
+						</SidebarChromeProvider>
 					</ActiveWorkspaceProvider>
 				</PluginProvider>
 			</StrictMode>,

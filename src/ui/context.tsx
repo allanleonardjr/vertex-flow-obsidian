@@ -17,6 +17,10 @@ import {
 	type ReactNode,
 } from "react";
 import type VertexFlowPlugin from "../main";
+import {
+	DEFAULT_SIDEBAR_CHROME,
+	type SidebarChromeState,
+} from "../settings/types";
 import { snapshotContext, type ViewContext, SYSTEM_VIEW_ALL_TASKS_ID } from "../core/views";
 import { workspaceTaxonomies, type WorkspaceTaxonomies } from "../core/taxonomy";
 import type { SavedView, WorkspaceSnapshot } from "../core/types";
@@ -142,6 +146,95 @@ export function useActiveWorkspace(): ActiveWorkspace | null {
 			context: snapshotContext(snapshot),
 		};
 	}, [workspaces, ctx.root]);
+}
+
+interface SidebarChromeCtxValue extends SidebarChromeState {
+	setMinimized: (minimized: boolean) => void;
+	setWidth: (width: number) => void;
+	toggleSection: (id: string) => void;
+}
+
+const SidebarChromeCtx = createContext<SidebarChromeCtxValue | null>(null);
+
+/**
+ * Owns sidebar chrome (minimize, width, per-section collapse) for one pane,
+ * in memory only. Mounted once per VertexFlowView instance (see view.tsx),
+ * so splitting a pane gives each side its own independent value — nothing
+ * here is written to plugin settings or disk, so it can't leak across panes
+ * or across synced devices. A newly mounted pane seeds from
+ * `plugin.lastSidebarChrome` (whichever pane was touched most recently this
+ * session) so a fresh split doesn't visually reset.
+ */
+export function SidebarChromeProvider({
+	plugin,
+	children,
+}: {
+	plugin: VertexFlowPlugin;
+	children: ReactNode;
+}) {
+	const [state, setState] = useState<SidebarChromeState>(
+		plugin.lastSidebarChrome ?? DEFAULT_SIDEBAR_CHROME,
+	);
+
+	const setMinimized = useCallback(
+		(minimized: boolean) => {
+			setState((prev) => {
+				const next = { ...prev, minimized };
+				plugin.lastSidebarChrome = next;
+				return next;
+			});
+		},
+		[plugin],
+	);
+
+	const setWidth = useCallback(
+		(width: number) => {
+			setState((prev) => {
+				const next = { ...prev, width };
+				plugin.lastSidebarChrome = next;
+				return next;
+			});
+		},
+		[plugin],
+	);
+
+	const toggleSection = useCallback(
+		(id: string) => {
+			setState((prev) => {
+				const next = {
+					...prev,
+					collapsed: {
+						...prev.collapsed,
+						[id]: !(prev.collapsed[id] === true),
+					},
+				};
+				plugin.lastSidebarChrome = next;
+				return next;
+			});
+		},
+		[plugin],
+	);
+
+	const value = useMemo(
+		() => ({ ...state, setMinimized, setWidth, toggleSection }),
+		[state, setMinimized, setWidth, toggleSection],
+	);
+
+	return (
+		<SidebarChromeCtx.Provider value={value}>
+			{children}
+		</SidebarChromeCtx.Provider>
+	);
+}
+
+export function useSidebarChrome(): SidebarChromeCtxValue {
+	const ctx = useContext(SidebarChromeCtx);
+	if (!ctx) {
+		throw new Error(
+			"useSidebarChrome must be used inside <SidebarChromeProvider>",
+		);
+	}
+	return ctx;
 }
 
 /**
