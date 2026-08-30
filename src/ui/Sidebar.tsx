@@ -417,7 +417,14 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
           iconFallback="layers"
           variant="workspace"
           active={entry.workspace.root === snapshot.workspace.root}
-          onClick={() => setActiveWorkspace(entry.workspace.root)}
+          onClick={() => {
+            setActiveWorkspace(entry.workspace.root);
+            // Clicking a workspace row with nothing open lands on All Tasks —
+            // including a click on the workspace that's already active, which
+            // doesn't change the root and so wouldn't trip TabsProvider's
+            // auto-open effect on its own.
+            if (tabs.tabs.length === 0) tabs.openView(BUILT_IN_VIEW_ID);
+          }}
           trailing={
             <RowMenu
               open={menuRoot === entry.workspace.root}
