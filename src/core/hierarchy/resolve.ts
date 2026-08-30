@@ -1,5 +1,5 @@
 /**
- * Parent/child resolution and progress rollup (§7.1, §7.2, §4.2).
+ * Parent/child resolution and progress rollup.
  *
  * Hierarchy is read entirely from frontmatter links — there are no stored
  * `children` arrays anywhere, so a child is found by querying for its parent
@@ -232,18 +232,18 @@ export function computeProgress(tasks: Task[], statuses: Taxonomy): Progress {
 }
 
 /**
- * Archived tasks are parked, out-of-scope work (§7.7), so they never count
+ * Archived tasks are parked, out-of-scope work, so they never count
  * toward a progress rollup — a parked sub-task shouldn't hold a parent's bar
  * below 100%, nor should un-archiving one suddenly change the maths. This is
- * unconditional: unlike the "Show archived" list toggle, a progress figure has
- * one correct value.
+ * unconditional: unlike a view's `archived` filter, a progress figure has one
+ * correct value.
  */
 function forRollup(tasks: Task[]): Task[] {
   return tasks.filter((task) => !task.archived);
 }
 
 /**
- * Sub-task progress bar for a parent task (§7.2). Direct children only — a
+ * Sub-task progress bar for a parent task. Direct children only — a
  * progress bar that silently counted grandchildren would misrepresent what the
  * user sees listed underneath it. Archived children are excluded (see
  * `forRollup`).
@@ -261,18 +261,18 @@ export function subtaskProgress(
 }
 
 /**
- * Project progress (§4.2) — computed at render time, never written to
+ * Project progress — computed at render time, never written to
  * frontmatter, and intentionally not synced with the project's own `status`
- * in either direction (§7.1).
+ * in either direction.
  */
 export function projectProgress(
   scope: HierarchyScope,
   project: LinkTarget,
   statuses: Taxonomy,
 ): Progress {
-  // Top-level only: a sub-task is already counted in its own parent's rollup
-  // (§7.2), so counting it here too would double it. Archived tasks excluded,
-  // same as `subtaskProgress`.
+  // Top-level only: a sub-task is already counted in its own parent's rollup,
+  // so counting it here too would double it. Archived tasks excluded, same as
+  // `subtaskProgress`.
   return computeProgress(forRollup(topLevelProjectTasks(scope, project)), statuses);
 }
 
@@ -289,11 +289,12 @@ export interface ProjectTaskBreakdown {
 /**
  * The project's whole scope of work, counted from `project`-link membership
  * (the same rule the view filter and `projectTasks` use). Deliberately
- * independent of any viewport's "Show sub-tasks" / "Show archived" toggles —
+ * independent of any viewport's sub-task display mode or `archived` filter —
  * this is a stable fact about the project, not a reflection of what's on screen.
  *
  * `tasks` alone equals the default project viewport's row count;
- * `tasks + subtasks + archived` equals that viewport with both toggles on.
+ * `tasks + subtasks + archived` equals that viewport showing sub-tasks with
+ * archived tasks included.
  * (`projectProgress` still rolls up top-level tasks only, so its denominator
  * can be smaller than `tasks`.)
  */

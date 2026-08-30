@@ -208,7 +208,7 @@ export class Mutations {
   }
 
   /**
-   * Archiving is a visibility flag, not a location (§7.7) — the note never
+   * Archiving is a visibility flag, not a location — the note never
    * moves folders, which is what keeps wikilinks stable.
    */
   async setArchived(task: Task, archived: boolean): Promise<void> {
@@ -232,7 +232,7 @@ export class Mutations {
     await this.updateTask(task, { rank: assignment.rank, ...fieldEdit });
   }
 
-  /** Bulk edit across a multi-selection (§9.3). */
+  /** Bulk edit across a multi-selection. */
   async bulkUpdate(tasks: Task[], patch: Partial<Task>): Promise<void> {
     for (const task of tasks) {
       await this.updateTask(task, patch);
@@ -335,7 +335,7 @@ export class Mutations {
     });
   }
 
-  // -- Deletion (§7.8) ------------------------------------------------------
+  // -- Deletion ------------------------------------------------------
 
   /**
    * Apply one confirmed deletion dialog. Returns any follow-up plans, each of
@@ -361,7 +361,7 @@ export class Mutations {
     }
 
     // Relations aren't hierarchy, so they're tidied silently rather than
-    // prompted about (§7.3).
+    // prompted about.
     await this.applyRelationEdits(
       danglingRelationEdits(scope, outcome.deletePaths),
     );
@@ -388,7 +388,7 @@ export class Mutations {
 
   /**
    * Rewrite the `relations` frontmatter of each task named in `edits` — the
-   * silent §7.3 cleanup, shared by single-entity deletion and whole-workspace
+   * silent cleanup, shared by single-entity deletion and whole-workspace
    * deletion so the link-formatting only lives in one place.
    */
   private async applyRelationEdits(
@@ -408,7 +408,7 @@ export class Mutations {
     }
   }
 
-  // -- Taxonomy (§5.6) ------------------------------------------------------
+  // -- Taxonomy ------------------------------------------------------
 
   /**
    * Delete a taxonomy value, reassigning everything that used it. The guard
@@ -447,7 +447,7 @@ export class Mutations {
         }
       }
 
-      // Projects share the status taxonomy (§5.1).
+      // Projects share the status taxonomy.
       if (kind === "status") {
         for (const entity of snapshot.projects) {
           if (entity.status !== plan.valueId) continue;
@@ -465,7 +465,7 @@ export class Mutations {
     );
   }
 
-  // -- Labels (§5.4) — fluid: created and edited outside Settings ----------
+  // -- Labels — fluid: created and edited outside Settings ----------
 
   /** First palette colour not already used by a label, cycling if all are. */
   private nextLabelColor(snapshot: WorkspaceSnapshot): string {
@@ -480,7 +480,7 @@ export class Mutations {
 
   /**
    * Attach-or-create by name: returns the id of the matching label (any case)
-   * or a freshly created one. The "no two labels alike" rule (§5.4) lives in
+   * or a freshly created one. The "no two labels alike" rule lives in
    * `addValue`; this makes typing a dup a no-op rather than an error.
    */
   async addLabel(snapshot: WorkspaceSnapshot, name: string): Promise<string> {
@@ -683,7 +683,7 @@ export class Mutations {
     title: string,
     icon?: string,
   ): Promise<TFile> {
-    // Titles are unique per workspace (§4.2) — a collision would make
+    // Titles are unique per workspace — a collision would make
     // `project:` filters and links ambiguous. Block it here rather than let
     // `availablePath` quietly mint "<title> 2": that suffixing was papering
     // over exactly this bug.
@@ -794,10 +794,10 @@ export class Mutations {
     await this.index.rebuild();
   }
 
-  // -- Workspaces (§13) -----------------------------------------------------
+  // -- Workspaces -----------------------------------------------------
 
   /**
-   * The one workspace-creation path (§13). Every new workspace comes from a
+   * The one workspace-creation path. Every new workspace comes from a
    * template; "Getting Started" is just the plainest one. `includeExampleContent`
    * decides whether the template's Projects/Tasks are written too.
    */
@@ -851,7 +851,7 @@ export class Mutations {
    * stays inside one `HierarchyScope`): the doomed workspace's tasks vanish
    * all at once, so a `blocks`/`blockedBy`/`related`/`duplicateOf` link in a
    * *surviving* workspace would be left dangling. Relations aren't hierarchy,
-   * so this is silent — no prompt (§7.3).
+   * so this is silent — no prompt.
    *
    * The folder goes to Obsidian's trash (honouring the user's "deleted files"
    * setting), so a mistaken delete is recoverable.

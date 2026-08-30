@@ -1,10 +1,10 @@
 /**
- * List view (§8.1) — the Saved View rendered as dense, Linear-style rows.
+ * List view — the Saved View rendered as dense, Linear-style rows.
  *
  * The rows, groups, and sections all come from the shared `TaskList` module,
  * so this file is now only what makes it a *view*: turning an evaluated Saved
  * View into groups, and layering on drag-and-drop, selection, and keyboard
- * focus. Reordering is the whole point of a manually-ranked backlog (§6), so
+ * focus. Reordering is the whole point of a manually-ranked backlog, so
  * a list you can't drag in would be the wrong half of the feature.
  */
 
@@ -124,7 +124,7 @@ export function ListView({
   }
 
   // The nested forest is drag-free — a sub-task's order is a task-editor
-  // concern (§7.2). Flat/hidden rows keep full drag-to-reorder.
+  // concern. Flat/hidden rows keep full drag-to-reorder.
   const nested = nestedGroups != null;
 
   const interaction: TaskListInteraction = {

@@ -39,7 +39,13 @@ import {
 	SortChip,
 	SubtasksChip,
 } from "./DisplayControls";
-import { FilterControls } from "./FilterControls";
+import {
+	AddFilterTrigger,
+	FilterControls,
+	shownFilterKeys,
+	useFilterClauseState,
+} from "./FilterControls";
+import { activeReadonlyFilterKeys } from "./viewOptions";
 import { QueryBar } from "./QueryBar";
 import type { ViewDraft } from "./useViewDraft";
 
@@ -78,6 +84,16 @@ export function ViewControls({
 	const selection = useSelection();
 	const [savingAs, setSavingAs] = useState(false);
 	const queryOpen = plugin.settings.queryBarOpen;
+
+	// `pending`/`editing` are shared by the Row 1 "+ Filter" trigger and the
+	// Row 2 chip list — see `FilterControls`.
+	const filterClause = useFilterClauseState();
+	// The filters row is mounted only when it has something to show: a clause
+	// with a value, a query-only clause, or a just-added clause awaiting one.
+	const hasFilterRow =
+		shownFilterKeys(view.filters, filterClause.pending).length +
+			activeReadonlyFilterKeys(view.filters).length >
+		0;
 
 	const selectedCount = selection.selectedPaths.length;
 
@@ -188,7 +204,10 @@ export function ViewControls({
 				</div>
 			)}
 
-			<div className="vf-view-bar">
+			{/* Row 1 — always on screen: layout + every display control + the
+			    action triggers (+ Filter, Query) that must stay reachable even
+			    when Row 2 doesn't exist. */}
+			<div className="vf-view-bar vf-view-bar-display">
 				<LayoutToggle view={view} onChange={editView} />
 				{/* Timeline and Calendar ignore grouping entirely (a day grid has no
 				    columns to group), so the control is hidden for both. */}
@@ -219,12 +238,7 @@ export function ViewControls({
 				<span className="vf-bar-divider" />
 				<FieldsControl view={view} onChange={editView} />
 				<span className="vf-bar-divider" />
-				<FilterControls
-					snapshot={snapshot}
-					view={view}
-					taxonomies={taxonomies}
-					onChange={editView}
-				/>
+				<AddFilterTrigger view={view} clause={filterClause} />
 
 				<button
 					type="button"
@@ -243,9 +257,10 @@ export function ViewControls({
 					Query
 				</button>
 
+				<span className="vf-bar-spacer" />
+
 				{draft.dirty && (
 					<>
-						<span className="vf-bar-divider" />
 						<button
 							type="button"
 							className="vf-bar-item vf-bar-reset"
@@ -273,21 +288,23 @@ export function ViewControls({
 						</button>
 					</>
 				)}
-
-				<span className="vf-bar-spacer" />
-
-				<label className="vf-toggle">
-					<input
-						type="checkbox"
-						checked={plugin.settings.showArchived}
-						onChange={(event) =>
-							writeSettings({ showArchived: event.target.checked })
-						}
-					/>
-					<span>Show archived</span>
-				</label>
 			</div>
 
+			{/* Row 2 — the active filter chips. Not rendered at all when there
+			    are none, so an unfiltered view reserves no height for it. */}
+			{hasFilterRow && (
+				<div className="vf-view-bar vf-view-bar-filters">
+					<FilterControls
+						snapshot={snapshot}
+						view={view}
+						taxonomies={taxonomies}
+						onChange={editView}
+						clause={filterClause}
+					/>
+				</div>
+			)}
+
+			{/* Row 3 — the text query editor. */}
 			{queryOpen && (
 				<div id="vf-query-row">
 					<QueryBar snapshot={snapshot} view={view} onChange={editView} />
@@ -344,7 +361,7 @@ export function ViewControls({
 /**
  * List-view "collapse all" / "expand all" for grouped rows. Flips based on
  * current state: if every visible group is already collapsed it expands, else
- * it collapses. Writes straight to disk like the per-group toggle (§8.2).
+ * it collapses. Writes straight to disk like the per-group toggle.
  */
 function CollapseAllToggle({
 	view,
@@ -379,7 +396,7 @@ function CollapseAllToggle({
 	);
 }
 
-/** Bulk status edit across the multi-selection (§9.3). */
+/** Bulk status edit across the multi-selection. */
 function BulkStatus({
 	snapshot,
 	evaluated,

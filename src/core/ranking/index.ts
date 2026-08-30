@@ -1,5 +1,5 @@
 /**
- * Task-facing ranking helpers (§6).
+ * Task-facing ranking helpers.
  *
  * `rank` is global — one maintained order shared by the Backlog list and the
  * Board. Every view is just a different rendering of that one order; there are

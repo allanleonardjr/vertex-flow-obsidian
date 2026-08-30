@@ -1,5 +1,5 @@
 /**
- * Onboarding (§13).
+ * Onboarding.
  *
  * No workspaces yet → the template gallery, rendered straight into the main
  * content area. There's no "blank" shortcut and no wizard: the plainest

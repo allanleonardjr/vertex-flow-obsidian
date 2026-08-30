@@ -1,5 +1,5 @@
 /**
- * The task editor's label control (§5.4).
+ * The task editor's label control.
  *
  * Labels are fluid: you don't pre-define them in Settings. The box is a
  * combobox rather than a plain search field — clicking it lists every label

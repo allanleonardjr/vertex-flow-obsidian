@@ -1,5 +1,5 @@
 /**
- * Timeline (Gantt) view — pure geometry (§8.1, phase 3).
+ * Timeline (Gantt) view — pure geometry (phase 3).
  *
  * Two jobs, both free of the DOM:
  *

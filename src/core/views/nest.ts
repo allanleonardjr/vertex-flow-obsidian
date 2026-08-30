@@ -1,5 +1,5 @@
 /**
- * Nested sub-task rows for the List view (§7.2, `subtaskDisplay: "nested"`).
+ * Nested sub-task rows for the List view (`subtaskDisplay: "nested"`).
  *
  * The List view groups tasks exactly as always; this turns one group's flat list
  * into an indented forest. Nesting is *within the group* — a task sits under an
@@ -142,7 +142,7 @@ export function buildNestedRows(
 	return rows;
 }
 
-/** The visible, focusable rows in order — ghosts excluded (§9.1 layout). */
+/** The visible, focusable rows in order — ghosts excluded (they're not focusable). */
 export function focusableRowPaths(rows: NestedRow[]): string[] {
 	return rows.filter((row) => !row.ghost).map((row) => row.task.path);
 }

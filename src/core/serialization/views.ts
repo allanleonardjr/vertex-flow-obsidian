@@ -1,5 +1,5 @@
 /**
- * `_views.md` — Saved View definitions (§4.6).
+ * `_views.md` — Saved View definitions.
  *
  * Filter values are written the way a human would write them (`assignee: self`,
  * `taskType: [bug]`, `project: "Projects/Kanban UI Engine"`), so parsing
@@ -145,6 +145,18 @@ function listFilter(raw: unknown): string[] | undefined {
 	return values.length > 0 ? values : undefined;
 }
 
+/**
+ * The `archived` tri-state, tolerating the legacy `includeArchived: true`
+ * boolean that older `_views.md` files carry — it reads as `"included"`.
+ */
+function parseArchived(record: Record<string, unknown>): ViewFilters["archived"] {
+	const value = asString(record.archived);
+	if (value === "only") return "only";
+	if (value === "included") return "included";
+	if (asBoolean(record.includeArchived, false)) return "included";
+	return undefined;
+}
+
 export function parseFilters(raw: unknown): ViewFilters {
 	const record = asRecord(raw);
 	return compact({
@@ -157,9 +169,7 @@ export function parseFilters(raw: unknown): ViewFilters {
 		project: linkFilter(record.project),
 		parent: linkFilter(record.parent),
 		text: asString(record.text) ?? undefined,
-		includeArchived: record.includeArchived != null
-			? asBoolean(record.includeArchived, false)
-			: undefined,
+		archived: parseArchived(record),
 	}) as ViewFilters;
 }
 

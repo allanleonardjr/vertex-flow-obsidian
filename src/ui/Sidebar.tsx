@@ -1,5 +1,5 @@
 /**
- * Sidebar (§9.5): a minimizable, drag-resizable rail of three collapsible
+ * Sidebar: a minimizable, drag-resizable rail of three collapsible
  * sections — Workspaces, Views, Projects — each showing an item count and a
  * "new" button, plus Settings pinned at the bottom.
  *

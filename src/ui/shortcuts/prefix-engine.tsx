@@ -1,5 +1,5 @@
 /**
- * Linear-style `g` / `c` prefix chords (§9.1).
+ * Linear-style `g` / `c` prefix chords.
  *
  *   g <key>  — navigate: reveal-or-open a destination, never duplicating a tab
  *   c <key>  — create: always two keys, no instant bare-`c` action

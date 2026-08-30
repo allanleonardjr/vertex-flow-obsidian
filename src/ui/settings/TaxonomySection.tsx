@@ -2,7 +2,7 @@
  * The taxonomy settings section — one component for all four taxonomies
  * (Golden Rule: one generic engine, configured four ways, and that includes
  * whatever edits it). `kind` picks the configuration; everything else —
- * add, rename, recolor, reorder, and the uniform §5.6 deletion guard — is the
+ * add, rename, recolor, reorder, and the uniform deletion guard — is the
  * same code path regardless of which of the four you're looking at.
  */
 
@@ -78,7 +78,7 @@ export function TaxonomySection({
 	const requestDelete = (valueId: string) => {
 		// A UI-level guard on top of the engine: the engine's usage-based check
 		// would happily delete the last status if no task currently used it,
-		// but status is the one taxonomy that's never optional (§5.1) — a
+		// but status is the one taxonomy that's never optional — a
 		// workspace with zero statuses can't render a board or accept a new
 		// task. The other three taxonomies have no such floor.
 		if (kind === "status" && taxonomy.values.length <= 1) {

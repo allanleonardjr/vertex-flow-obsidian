@@ -1,5 +1,5 @@
 /**
- * Built-in Saved Views (§8.3).
+ * Built-in Saved Views.
  *
  * V1 ships exactly one built-in view — "All Tasks". Everything else is user-created
  * from the sidebar: layout (list/board), grouping, sorting, and filters are all

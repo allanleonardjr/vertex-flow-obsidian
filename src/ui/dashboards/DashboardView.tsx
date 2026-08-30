@@ -32,7 +32,11 @@ import type {
 } from "../../core/types";
 import { usePlugin } from "../context";
 import { useTabs } from "../tabs-context";
-import { FilterControls } from "../views/FilterControls";
+import {
+  AddFilterTrigger,
+  FilterControls,
+  useFilterClauseState,
+} from "../views/FilterControls";
 import { Icon } from "../components/Icon";
 import { EmptyView } from "../components/EmptyView";
 import { EditableTitle } from "../components/EditableTitle";
@@ -123,6 +127,7 @@ function DashboardBody({
   const draft = useDashboardDraft(snapshot, dashboard, newDashboardId);
   const effective = draft.effective;
   const [dialog, setDialog] = useState<DialogState>(null);
+  const filterClause = useFilterClauseState();
 
   const canOverwrite = snapshot.dashboards.some((d) => d.id === dashboard.id);
 
@@ -139,15 +144,8 @@ function DashboardBody({
 
   // The one unified fetch: dashboard-wide filter, applied once.
   const tasks = useMemo(
-    () =>
-      applyFilters(
-        snapshot.tasks,
-        plugin.settings.showArchived
-          ? { ...effective.filters, includeArchived: true }
-          : effective.filters,
-        context,
-      ),
-    [snapshot.tasks, effective.filters, context, plugin.settings.showArchived],
+    () => applyFilters(snapshot.tasks, effective.filters, context),
+    [snapshot.tasks, effective.filters, context],
   );
 
   const dataByWidget = useMemo(() => {
@@ -298,11 +296,13 @@ function DashboardBody({
         </div>
 
         <div className="vf-view-bar">
+          <AddFilterTrigger view={filterProxy} clause={filterClause} />
           <FilterControls
             snapshot={snapshot}
             view={filterProxy}
             taxonomies={context.taxonomies}
             onChange={onFilterChange}
+            clause={filterClause}
           />
         </div>
       </header>

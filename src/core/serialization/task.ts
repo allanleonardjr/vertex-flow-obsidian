@@ -1,5 +1,5 @@
 /**
- * Task frontmatter ↔ domain object (§4.1).
+ * Task frontmatter ↔ domain object.
  *
  * `parseTask` takes the *already-parsed* YAML object, never a string — that's
  * what keeps this module free of the Obsidian API (and of a YAML dependency)
@@ -26,7 +26,7 @@ import {
 export interface TaskParseOptions {
 	/** Vault path of the note, which is also its identity. */
 	path: string;
-	/** Workspace's configured default, used when `status` is missing (§5.1). */
+	/** Workspace's configured default, used when `status` is missing. */
 	defaultStatus: string;
 	/** `Person.id`s @mentioned in the body — computed by the caller. */
 	mentions?: string[];
@@ -90,8 +90,8 @@ export function parseTask(
 		labels: asStringArray(fm.labels),
 		startDate: asDate(fm.startDate),
 		dueDate: asDate(fm.dueDate),
-		// `archivedAt` alone is enough to mean archived — §7.7 allows either
-		// spelling, and a note carrying only the timestamp shouldn't reappear.
+		// `archivedAt` alone is enough to mean archived — either field alone
+		// counts, and a note carrying only the timestamp shouldn't reappear.
 		archived: archived || archivedAt != null,
 		archivedAt,
 		relations: parseRelations(fm.relations),

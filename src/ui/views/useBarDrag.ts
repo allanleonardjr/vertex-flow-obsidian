@@ -1,5 +1,5 @@
 /**
- * Dragging a Timeline bar (§8.1, phase 3).
+ * Dragging a Timeline bar (phase 3).
  *
  * Built on Pointer Events with the same mouse-vs-touch lift rules as
  * `useTaskDrag` (shared via `pointerGesture.ts`): a mouse lifts on a few

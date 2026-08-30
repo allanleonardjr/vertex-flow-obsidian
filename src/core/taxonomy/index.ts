@@ -1,5 +1,5 @@
 /**
- * Taxonomy engine public surface (§5).
+ * Taxonomy engine public surface.
  *
  * `workspaceTaxonomies()` is the intended entry point everywhere else in the
  * codebase: it turns a raw `WorkspaceConfig` into the four configured engine

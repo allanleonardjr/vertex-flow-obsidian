@@ -16,7 +16,7 @@ export interface ViewContext {
 	/**
 	 * The `Person.id` flagged `isSelf`, or null. Resolving `self` filters is the
 	 * whole mechanism behind "Assigned to Me" / "Mentions Me" — the substitute
-	 * for a dedicated notification panel in v1 (§7.6).
+	 * for a dedicated notification panel in v1.
 	 */
 	selfId: string | null;
 	people: Person[];

@@ -1,5 +1,5 @@
 /**
- * Timeline (Gantt) view (§8.1, phase 3).
+ * Timeline (Gantt) view (phase 3).
  *
  * Custom-built rather than library-backed: mobile-touch parity with the rest
  * of the plugin, Obsidian theming, and reuse of the shared task row all
@@ -61,7 +61,7 @@ import { useBarDrag, type BarDragZone } from "./useBarDrag";
 import { useScheduleDrag } from "./useScheduleDrag";
 import { PREVIEW_OFFSET_PX } from "./useTaskDrag";
 
-/** Named zoom presets — pixels per day (§4.6: the UI owns these values). */
+/** Named zoom presets — pixels per day (the UI owns these values). */
 const ZOOM_PRESETS: { id: string; label: string; scale: number }[] = [
   { id: "day", label: "Day", scale: 40 },
   { id: "week", label: "Week", scale: 18 },

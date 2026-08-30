@@ -1,12 +1,20 @@
 /**
- * The filter half of the view bar: one tag per active filter clause and a
- * "+ Filter" affordance. The clause *set* is always visible as flat text tags;
- * clicking a tag opens just its value picker. "Show archived" is a visibility
- * switch, not a clause, and the sub-task mode is a display choice — both live on
- * the bar in `ViewControls`, not here.
+ * The filter half of the view bar, split into two components that share state:
+ *
+ * - `AddFilterTrigger` — the "+ Filter" button and its field-picker popover.
+ *   Lives on the always-present display row, so the first filter can be added
+ *   even when the filters row doesn't exist yet.
+ * - `FilterControls` — one tag per active filter clause (plus any query-only
+ *   clause as a read-only tag). Lives on the filters row, which the parent
+ *   mounts only when there's at least one clause to show.
+ *
+ * The `pending` (a clause added this session with no value yet still needs a
+ * tag) and `editing` (a freshly-added clause opens its editor popover
+ * immediately) state is owned by the parent via `useFilterClauseState` and
+ * handed to both, so the Row 1 trigger and the Row 2 tag list stay in step.
  */
 
-import { useState } from "react";
+import { useState, type Dispatch, type SetStateAction } from "react";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { SavedView, ViewFilters, WorkspaceSnapshot } from "../../core/types";
 import { Popover } from "../components/Popover";
@@ -37,32 +45,101 @@ function withFilter(
 	return next;
 }
 
+export interface FilterClauseControl {
+	/** Clauses added this session that don't carry a value yet. */
+	pending: FilterKey[];
+	setPending: Dispatch<SetStateAction<FilterKey[]>>;
+	/** The clause whose editor popover is open, or null. */
+	editing: FilterKey | null;
+	setEditing: Dispatch<SetStateAction<FilterKey | null>>;
+}
+
+/** Owns the shared `pending`/`editing` state — call once in the parent. */
+export function useFilterClauseState(): FilterClauseControl {
+	const [pending, setPending] = useState<FilterKey[]>([]);
+	const [editing, setEditing] = useState<FilterKey | null>(null);
+	return { pending, setPending, editing, setEditing };
+}
+
+/** The clause keys the filters row shows: those with a value, plus valueless pending ones. */
+export function shownFilterKeys(
+	filters: ViewFilters,
+	pending: FilterKey[],
+): FilterKey[] {
+	const active = activeFilterKeys(filters);
+	return [...active, ...pending.filter((key) => !active.includes(key))];
+}
+
+export function AddFilterTrigger({
+	view,
+	clause,
+}: {
+	view: SavedView;
+	clause: FilterClauseControl;
+}) {
+	const [adding, setAdding] = useState(false);
+	const { pending, setPending, setEditing } = clause;
+
+	const shownKeys = shownFilterKeys(view.filters, pending);
+	const availableFields = FILTER_FIELDS.filter(
+		(f) => !shownKeys.includes(f.key),
+	);
+
+	return (
+		<span className="vf-control-anchor">
+			<button
+				type="button"
+				className={`vf-add-filter${adding ? " is-on" : ""}`}
+				onClick={(event) => {
+					event.stopPropagation();
+					setAdding((current) => !current);
+				}}
+			>
+				+ Filter
+			</button>
+			{adding && availableFields.length > 0 && (
+				<Popover align="left" onClose={() => setAdding(false)}>
+					<div className="vf-option-list">
+						{availableFields.map((field) => (
+							<button
+								key={field.key}
+								type="button"
+								className="vf-menu-item"
+								onClick={() => {
+									setAdding(false);
+									setPending((keys) => [...keys, field.key]);
+									setEditing(field.key);
+								}}
+							>
+								{field.label}
+							</button>
+						))}
+					</div>
+				</Popover>
+			)}
+		</span>
+	);
+}
+
 export function FilterControls({
 	snapshot,
 	view,
 	taxonomies,
 	onChange,
+	clause,
 }: {
 	snapshot: WorkspaceSnapshot;
 	view: SavedView;
 	taxonomies: WorkspaceTaxonomies;
 	onChange: (next: SavedView) => void;
+	clause: FilterClauseControl;
 }) {
 	const filters = view.filters;
 	const setFilters = (next: ViewFilters) => onChange({ ...view, filters: next });
+	const { pending, setPending, editing, setEditing } = clause;
 
-	// Clauses added this session that don't carry a value yet still need a tag.
-	const [pending, setPending] = useState<FilterKey[]>([]);
-	const [editing, setEditing] = useState<FilterKey | null>(null);
-	const [adding, setAdding] = useState(false);
-
-	const activeKeys = activeFilterKeys(filters);
-	const shownKeys = [
-		...activeKeys,
-		...pending.filter((key) => !activeKeys.includes(key)),
-	];
+	const shownKeys = shownFilterKeys(filters, pending);
 	const readonlyKeys = activeReadonlyFilterKeys(filters);
-	const availableFields = FILTER_FIELDS.filter((f) => !shownKeys.includes(f.key));
 
 	const removeClause = (key: FilterKey) => {
 		setPending((keys) => keys.filter((k) => k !== key));
@@ -143,39 +220,6 @@ export function FilterControls({
 					</span>
 				</span>
 			))}
-
-			<span className="vf-control-anchor">
-				<button
-					type="button"
-					className={`vf-add-filter${adding ? " is-on" : ""}`}
-					onClick={(event) => {
-						event.stopPropagation();
-						setAdding((current) => !current);
-					}}
-				>
-					+ Filter
-				</button>
-				{adding && availableFields.length > 0 && (
-					<Popover align="left" onClose={() => setAdding(false)}>
-						<div className="vf-option-list">
-							{availableFields.map((field) => (
-								<button
-									key={field.key}
-									type="button"
-									className="vf-menu-item"
-									onClick={() => {
-										setAdding(false);
-										setPending((keys) => [...keys, field.key]);
-										setEditing(field.key);
-									}}
-								>
-									{field.label}
-								</button>
-							))}
-						</div>
-					</Popover>
-				)}
-			</span>
 		</span>
 	);
 }
@@ -205,6 +249,33 @@ function ClauseEditor({
 					onChange(withFilter(filters, "text", event.target.value))
 				}
 			/>
+		);
+	}
+
+	if (fieldKey === "archived") {
+		// A single-select enum, not a multi-select taxonomy list — its own
+		// three-option menu rather than the generic chip toggle-set below.
+		const current = filters.archived;
+		const options: { value: ViewFilters["archived"]; label: string }[] = [
+			{ value: undefined, label: "Hidden" },
+			{ value: "included", label: "Included" },
+			{ value: "only", label: "Only" },
+		];
+		return (
+			<div className="vf-option-list">
+				{options.map((option) => (
+					<button
+						key={option.label}
+						type="button"
+						className={`vf-menu-item${current === option.value ? " is-active" : ""}`}
+						onClick={() =>
+							onChange(withFilter(filters, "archived", option.value))
+						}
+					>
+						{option.label}
+					</button>
+				))}
+			</div>
 		);
 	}
 

@@ -64,7 +64,8 @@ describe("round-trip (Invariant A)", () => {
 		["parent", withFilters({ parent: [taskPath] })],
 		["subtasks nested", def({ subtaskDisplay: "nested" })],
 		["subtasks hidden", def({ subtaskDisplay: "hidden" })],
-		["includeArchived", withFilters({ includeArchived: true })],
+		["archived included", withFilters({ archived: "included" })],
+		["archived only", withFilters({ archived: "only" })],
 		["openOnly", withFilters({ openOnly: true })],
 		["unscheduled", withFilters({ unscheduled: true })],
 		["both is: flags", withFilters({ openOnly: true, unscheduled: true })],
@@ -111,7 +112,7 @@ describe("round-trip (Invariant A)", () => {
 					project: [project],
 					parent: [taskPath],
 					text: "onboarding flow",
-					includeArchived: true,
+					archived: "included",
 					openOnly: true,
 					unscheduled: true,
 				},
@@ -183,7 +184,7 @@ describe("round-trip (generative)", () => {
 				}
 			}
 			if (next() < 0.3) filters.text = pick(pool);
-			if (next() < 0.2) filters.includeArchived = true;
+			if (next() < 0.2) filters.archived = pick(["included", "only"] as const);
 
 			const hiddenFields = TASK_FIELDS.filter(() => next() < 0.3);
 
@@ -232,7 +233,7 @@ describe("canonicalisation", () => {
 			canonicalizeFilters({
 				status: [],
 				text: "   ",
-				includeArchived: false,
+				archived: undefined,
 			}),
 		).toEqual({});
 	});
@@ -265,7 +266,7 @@ describe("canonicalisation", () => {
 		const filterSets: ViewFilters[] = [
 			{ status: ["todo", "todo"], text: " onboarding " },
 			{ labels: [], priority: ["high"] },
-			{ assignee: [SELF], includeArchived: false },
+			{ assignee: [SELF], archived: undefined },
 		];
 		for (const filters of filterSets) {
 			for (const task of snapshot.tasks) {
@@ -545,7 +546,7 @@ describe("diagnostics", () => {
 			const parsed = parseQuery(source, ctx);
 			expect(parsed.ok).toBe(false);
 			expect(parsed.issues[0].code).toBe("not-expressible");
-			expect(parsed.issues[0].suggestion).toBe("show:archived");
+			expect(parsed.issues[0].suggestion).toBe("show:archived-only");
 		}
 		const subtask = parseQuery("is:sub-task", ctx);
 		expect(subtask.issues[0].code).toBe("not-expressible");
@@ -555,6 +556,23 @@ describe("diagnostics", () => {
 	it("errors on an unknown grouping or sort field", () => {
 		expect(parseQuery("group:nonsense", ctx).ok).toBe(false);
 		expect(parseQuery("sort:nonsense", ctx).ok).toBe(false);
+	});
+
+	it("parses both archived flags and warns when they conflict", () => {
+		expect(parseQuery("show:archived", ctx).definition.filters.archived).toBe(
+			"included",
+		);
+		expect(
+			parseQuery("show:archived-only", ctx).definition.filters.archived,
+		).toBe("only");
+
+		const conflict = parseQuery("show:archived show:archived-only", ctx);
+		expect(conflict.issues.map((i) => i.code)).toContain("duplicate-field");
+		expect(conflict.definition.filters.archived).toBe("only");
+
+		const bad = parseQuery("show:nonsense", ctx);
+		expect(bad.ok).toBe(false);
+		expect(bad.issues[0].code).toBe("unknown-value");
 	});
 
 	it("warns rather than errors on a vacuous filter", () => {

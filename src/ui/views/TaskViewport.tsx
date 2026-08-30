@@ -1,7 +1,7 @@
 /**
  * The Task viewport — one Saved View, rendered as either a List or a Board and
  * switchable between them live, with Group / Sort / Filter controls in its
- * header (§8). Every Saved View (the built-in "Tasks" and every user-created
+ * header. Every Saved View (the built-in "Tasks" and every user-created
  * one) renders through this single component, so a view is only ever a filter +
  * a display config over the same machinery.
  *
@@ -83,8 +83,6 @@ export function TaskViewport({
   const createTask = useCreateTask();
   const tabs = useTabs();
 
-  const showArchived = plugin.settings.showArchived;
-
   // Bar edits are held as an unsaved draft (see `useViewDraft`) — everything
   // below renders `draft.effective`, never the on-disk view directly.
   const draft = useViewDraft(snapshot, view);
@@ -116,26 +114,22 @@ export function TaskViewport({
   );
 
   // "Clear filters" from a zero-match empty state. Drops every filter clause
-  // but keeps `includeArchived` — an archived-visibility switch, not what
-  // emptied the view. (`subtaskDisplay` isn't a filter at all any more.)
+  // but keeps `archived` — an archived-visibility switch, not what emptied the
+  // view. (`subtaskDisplay` isn't a filter at all any more.)
   const clearFilters = useCallback(() => {
-    const { includeArchived } = effective.filters;
+    const { archived } = effective.filters;
     draft.edit({
       ...effective,
       filters: {
-        ...(includeArchived ? { includeArchived } : {}),
+        ...(archived ? { archived } : {}),
       },
     });
   }, [draft, effective]);
 
-  const evaluated = useMemo(() => {
-    // "Show archived" is a session preference layered over the saved view,
-    // not an edit to it (§7.7).
-    const filters = showArchived
-      ? { ...effective.filters, includeArchived: true }
-      : effective.filters;
-    return evaluateView(snapshot, { ...effective, filters }, context);
-  }, [snapshot, context, effective, showArchived]);
+  const evaluated = useMemo(
+    () => evaluateView(snapshot, effective, context),
+    [snapshot, context, effective],
+  );
 
   // Which parent rows have their subtree collapsed in the nested List view.
   // Transient session state, like Board column collapse — never persisted, and
@@ -170,7 +164,7 @@ export function TaskViewport({
   }, []);
 
   /**
-   * The nested List view's rows — one forest per rendered group (§7.2). `null`
+   * The nested List view's rows — one forest per rendered group. `null`
    * for every other layout and for `flat`/`hidden`, which render plain rows.
    */
   const nestedGroups = useMemo(() => {
@@ -226,7 +220,7 @@ export function TaskViewport({
     }
 
     // Nested List: walk the flattened forest, groups concatenated, ghosts and
-    // collapsed subtrees excluded (they aren't focusable — §9.1).
+    // collapsed subtrees excluded (they aren't focusable).
     if (nestedGroups) {
       return [
         nestedGroups

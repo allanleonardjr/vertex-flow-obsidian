@@ -58,7 +58,7 @@ export function hiddenGroups(evaluated: EvaluatedView): TaskGroup[] {
 	return evaluated.groups.filter((group) => group.hidden);
 }
 
-/** Toggle a column's collapsed state, returning a new Saved View (§8.2). */
+/** Toggle a column's collapsed state, returning a new Saved View. */
 export function toggleColumnCollapsed(view: SavedView, key: string): SavedView {
 	const collapsed = view.columns.collapsed.includes(key)
 		? view.columns.collapsed.filter((k) => k !== key)

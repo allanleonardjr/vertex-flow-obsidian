@@ -1,5 +1,5 @@
 /**
- * Comments and @mentions (§4.1, §5.5).
+ * Comments and @mentions.
  *
  * Comments live in the note *body*, inside an HTML-comment-delimited block, not
  * in frontmatter. Two reasons: frontmatter is a bad place for prose (YAML
@@ -165,7 +165,7 @@ function handlesFor(person: Person): string[] {
 }
 
 /**
- * Resolve `@handle`s against the People register (§5.5).
+ * Resolve `@handle`s against the People register.
  *
  * Matching is deliberately loose — `@JR`, `@jr-leonard` and `@JRLeonard` should
  * all find the same person, because nobody typing a comment is going to check

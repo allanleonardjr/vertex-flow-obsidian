@@ -1,6 +1,6 @@
 /**
  * Workspace identity. Name is editable; the ID prefix and folder are shown
- * but not — the prefix is baked into every existing task filename (§3), and
+ * but not — the prefix is baked into every existing task filename, and
  * changing the folder is a file move the plugin doesn't perform from here.
  */
 

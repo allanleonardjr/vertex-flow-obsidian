@@ -66,14 +66,23 @@ function task(overrides: Partial<Task> & { path: string }): Task {
 }
 
 describe("filtering", () => {
-	it("hides archived tasks by default (§7.7)", () => {
+	it("hides archived tasks by default, mixes them in, or shows only them (§7.7)", () => {
 		const all = applyFilters(snapshot.tasks, {}, context);
 		expect(all.some((t) => t.archived)).toBe(false);
 
-		const withArchived = applyFilters(snapshot.tasks, { includeArchived: true }, context);
 		const archivedCount = snapshot.tasks.filter((t) => t.archived).length;
 		expect(archivedCount).toBe(3);
-		expect(withArchived.length).toBe(all.length + archivedCount);
+
+		const included = applyFilters(
+			snapshot.tasks,
+			{ archived: "included" },
+			context,
+		);
+		expect(included.length).toBe(all.length + archivedCount);
+
+		const only = applyFilters(snapshot.tasks, { archived: "only" }, context);
+		expect(only.length).toBe(archivedCount);
+		expect(only.every((t) => t.archived)).toBe(true);
 	});
 
 	it("openOnly drops completed and canceled tasks (per category)", () => {
@@ -85,8 +94,9 @@ describe("filtering", () => {
 		];
 		const open = applyFilters(tasks, { openOnly: true }, context);
 		expect(open.map((t) => t.id)).toEqual(["A", "B"]);
-		// Independent of includeArchived: an archived-but-open task still needs
-		// the archived flag to show, and openOnly never reveals finished work.
+		// Independent of the archived filter: an archived-but-open task still
+		// needs the archived flag to show, and openOnly never reveals finished
+		// work.
 		expect(applyFilters(tasks, {}, context).length).toBe(4);
 	});
 
@@ -213,7 +223,10 @@ describe("filtering", () => {
 
 	it("recognises an empty filter set", () => {
 		expect(isEmptyFilterSet({})).toBe(true);
-		expect(isEmptyFilterSet({ includeArchived: true })).toBe(true);
+		// "included" only widens, so a view carrying just that still shows all.
+		expect(isEmptyFilterSet({ archived: "included" })).toBe(true);
+		// "only" genuinely restricts the result set.
+		expect(isEmptyFilterSet({ archived: "only" })).toBe(false);
 		expect(isEmptyFilterSet({ status: ["todo"] })).toBe(false);
 	});
 
@@ -553,7 +566,7 @@ describe("seedFromFilters", () => {
 
 	it("ignores filters that don't map to a task field", () => {
 		expect(
-			seedFromFilters({ text: "abc", includeArchived: true }),
+			seedFromFilters({ text: "abc", archived: "included" }),
 		).toEqual({});
 	});
 });

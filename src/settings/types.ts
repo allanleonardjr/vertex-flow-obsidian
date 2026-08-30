@@ -2,7 +2,7 @@
  * Plugin-level settings (`data.json`).
  *
  * Deliberately tiny. Anything that describes *the work* — taxonomies, views,
- * hierarchy — lives in the vault as Markdown, not here (§3). This file only
+ * hierarchy — lives in the vault as Markdown, not here. This file only
  * holds per-install UI state that would be meaningless to sync or diff.
  */
 
@@ -16,8 +16,6 @@ export type UiTextSize = "compact" | "cozy" | "comfortable";
 export interface VertexFlowSettings {
 	/** Interface text size — scales the whole plugin UI, not per-workspace. */
 	uiTextSize: UiTextSize;
-	/** The "Show archived" toggle (§7.7) — a session preference, not a filter. */
-	showArchived: boolean;
 	/** Where new workspaces are offered by default. */
 	defaultWorkspaceFolder: string;
 	/** Width, in pixels, of the property rail in the task/project editor. */
@@ -74,7 +72,6 @@ export interface VertexFlowSettings {
 
 export const DEFAULT_SETTINGS: VertexFlowSettings = {
 	uiTextSize: "compact",
-	showArchived: false,
 	defaultWorkspaceFolder: "Vertex Flow",
 	editorRailWidth: 264,
 	editorRailCollapsed: false,

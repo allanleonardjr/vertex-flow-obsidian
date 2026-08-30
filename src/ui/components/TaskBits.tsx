@@ -208,7 +208,7 @@ export function ProgressBar({
 /**
  * The sub-task meter as it appears on a List row or Board card — icon-led, so
  * "has children" is legible at a glance next to `RelationBadge`. Gated by the
- * `progress` field (§8.4), same as the bare bar it wraps.
+ * `progress` field, same as the bare bar it wraps.
  */
 export function SubtaskProgress({
   progress,
@@ -229,7 +229,7 @@ export function SubtaskProgress({
 }
 
 /**
- * The task's parent project (§2 — the one primary parent a project can be).
+ * The task's parent project (the one primary parent a project can be).
  * Suppressed by `renderedHiddenFields` inside a view already scoped to a
  * single project, where it would repeat on every row.
  */
@@ -258,7 +258,7 @@ export function ProjectChip({
 }
 
 /**
- * A plain number with the workspace's cosmetic unit suffix (§5.4). The plugin
+ * A plain number with the workspace's cosmetic unit suffix. The plugin
  * never calculates on it, so this is display only — no rounding, no totals.
  *
  * The icon is a gauge, not a clock, on purpose: `estimateUnitLabel` defaults to
@@ -306,8 +306,8 @@ export function StartDate({ task }: { task: Task }) {
 }
 
 /**
- * Archived marker (§7.7). Not a toggleable field — whether archived tasks
- * appear at all is already the `showArchived` setting's job, and a second
+ * Archived marker. Not a toggleable field — whether archived tasks
+ * appear at all is already the per-view `archived` filter's job, and a second
  * control over the same idea would just confuse. Rows and cards are dimmed
  * via `.is-archived`; this says *why* they're dimmed.
  */
@@ -342,7 +342,7 @@ export function DueDate({ task }: { task: Task }) {
 /**
  * The initials disc a person renders as everywhere — rows, cards, and the
  * editor's Assignee/Owner picker. There are no uploaded avatars (the People
- * register is names, not accounts, §5.5), so initials are the whole identity.
+ * register is names, not accounts), so initials are the whole identity.
  */
 export function PersonAvatar({ name }: { name: string }) {
   const initials = name

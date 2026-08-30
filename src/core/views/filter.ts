@@ -1,5 +1,5 @@
 /**
- * Saved View filtering (§8.3).
+ * Saved View filtering.
  *
  * Semantics: values within one filter are OR'd, filters are AND'd together —
  * `status: [todo, in-progress], taskType: [bug]` means "a bug that is either
@@ -72,12 +72,16 @@ export function matchesFilters(
 	filters: ViewFilters,
 	context: ViewContext,
 ): boolean {
-	// Archived is a visibility flag, not a status (§7.7): hidden by default,
-	// revealed by the "Show archived" toggle rather than by a status filter.
-	if (task.archived && !filters.includeArchived) return false;
+	// Archived is a visibility flag, not a status: hidden by default, mixed in
+	// by `archived: "included"`, and shown exclusively by `archived: "only"`.
+	if (filters.archived === "only") {
+		if (!task.archived) return false;
+	} else if (!filters.archived && task.archived) {
+		return false;
+	}
 
 	// Triaged-out predicates: finished work and scheduled work have both left
-	// the "needs a decision" pool. Independent of `includeArchived` (§7.7).
+	// the "needs a decision" pool. Independent of the `archived` filter.
 	if (filters.openOnly && !isOpen(context.taxonomies.status, task.status)) {
 		return false;
 	}
@@ -134,7 +138,7 @@ export function applyFilters(
  */
 export type ArrayFilterKey = Exclude<
 	keyof ViewFilters,
-	"text" | "includeArchived" | "openOnly" | "unscheduled"
+	"text" | "archived" | "openOnly" | "unscheduled"
 >;
 
 export const FILTER_ARRAY_FIELDS: readonly ArrayFilterKey[] = [
@@ -175,7 +179,7 @@ export function canonicalizeFilters(filters: ViewFilters): ViewFilters {
 
 	const text = filters.text?.trim();
 	if (text) out.text = text;
-	if (filters.includeArchived) out.includeArchived = true;
+	if (filters.archived) out.archived = filters.archived;
 	if (filters.openOnly) out.openOnly = true;
 	if (filters.unscheduled) out.unscheduled = true;
 
@@ -275,6 +279,7 @@ export function isEmptyFilterSet(filters: ViewFilters): boolean {
 		!filters.project?.length &&
 		!filters.parent?.length &&
 		!filters.mentions?.length &&
-		!filters.text?.trim()
+		!filters.text?.trim() &&
+		filters.archived !== "only"
 	);
 }

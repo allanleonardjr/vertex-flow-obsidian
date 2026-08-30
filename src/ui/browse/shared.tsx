@@ -1,12 +1,12 @@
 /**
  * Shared layout for the Projects browse screen.
  *
- * Deliberately *not* a Saved View (§8.3 is a Task-filtering concept) — it's a
+ * Deliberately *not* a Saved View (those filter Tasks, not Projects) — it's a
  * plain manager list of every Project, with rollup stats and a "New project"
  * button. Clicking a card opens the in-plugin Project editor
  * (`ProjectDetailView`), where status, priority, labels, dates, owner and the
  * description are all edited; "Open note" and the raw-source section there keep
- * the escape hatch to the file (§4.2).
+ * the escape hatch to the file.
  */
 
 import type { ReactNode } from "react";
@@ -81,7 +81,7 @@ export function BrowseMeta({ children }: { children: ReactNode }) {
 }
 
 export function BrowseProgress({ progress }: { progress: Progress }) {
-	// `ProgressBar` already renders the "X/Y done" count (§7.1/§7.2) — this
+	// `ProgressBar` already renders the "X/Y done" count — this
 	// wrapper exists only to give it a little breathing room in a card.
 	if (progress.total === 0) return null;
 	return (

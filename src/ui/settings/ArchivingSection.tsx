@@ -1,5 +1,5 @@
 /**
- * Archiving (§7.7) — opt-in, off by default, and configured on the workspace
+ * Archiving — opt-in, off by default, and configured on the workspace
  * rather than anywhere per-task.
  */
 

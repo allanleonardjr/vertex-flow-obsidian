@@ -205,9 +205,13 @@ export function printQuery(
 
 	if (filters.text) parts.push(printText(filters.text));
 
-	if (filters.includeArchived) {
+	if (filters.archived === "included") {
 		parts.push(
-			`${FLAG_TOKENS.includeArchived.field}:${FLAG_TOKENS.includeArchived.value}`,
+			`${FLAG_TOKENS.archivedIncluded.field}:${FLAG_TOKENS.archivedIncluded.value}`,
+		);
+	} else if (filters.archived === "only") {
+		parts.push(
+			`${FLAG_TOKENS.archivedOnly.field}:${FLAG_TOKENS.archivedOnly.value}`,
 		);
 	}
 	if (filters.openOnly) {

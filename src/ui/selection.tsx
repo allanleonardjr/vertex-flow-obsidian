@@ -1,5 +1,5 @@
 /**
- * The focus + selection model (§9.1).
+ * The focus + selection model.
  *
  * This is deliberately one shared module rather than per-view hotkey handlers.
  * "Which task does this keystroke act on?" has to have a single answer that
@@ -8,7 +8,7 @@
  *
  * The model:
  *   - `focused` is the one task a keystroke acts on. Exactly one, or none.
- *   - `selected` is the multi-selection for bulk actions (§9.3). Acting on a
+ * - `selected` is the multi-selection for bulk actions. Acting on a
  *     selection acts on all of it; acting with no selection acts on `focused`.
  *   - Views register their layout as **columns of paths**, not a flat list.
  *
@@ -288,7 +288,7 @@ export interface Shortcut {
 /**
  * Bind view-scoped shortcuts.
  *
- * Anything global belongs in Obsidian's Command Palette instead (§9.1), so it
+ * Anything global belongs in Obsidian's Command Palette instead, so it
  * can be rebound in Obsidian's own hotkey settings. These are the keys that
  * only make sense while a task list has focus.
  */

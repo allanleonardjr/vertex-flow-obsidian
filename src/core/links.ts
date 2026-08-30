@@ -98,7 +98,7 @@ export function isWithin(target: LinkTarget, root: string): boolean {
  * Compare two link targets tolerantly. Obsidian permits short-form links
  * (`[[PRD-0104]]`) that resolve to a full path, so a stored short form must
  * still match the indexed full path. This is exactly why ID prefixes have to
- * be unique vault-wide (§3) — otherwise this comparison is ambiguous.
+ * be unique vault-wide — otherwise this comparison is ambiguous.
  */
 export function linksMatch(a: LinkTarget | null, b: LinkTarget | null): boolean {
 	if (!a || !b) return false;

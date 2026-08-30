@@ -65,7 +65,7 @@ export interface InstantiateOptions {
 	/** When set, ensures the `people` register has an entry for this name
 	 *  flagged `isSelf` (matching an existing entry by name if there is one,
 	 *  otherwise appending a new one and clearing `isSelf` elsewhere). This is
-	 *  what makes `self` filters — "Assigned to Me" / "Mentions Me" (§7.6) —
+	 * what makes `self` filters — "Assigned to Me" / "Mentions Me" —
 	 *  resolve in a freshly created workspace. */
 	selfPersonName?: string;
 	/** Injectable clock so generated fixtures are deterministic in tests. */

@@ -1,5 +1,5 @@
 /**
- * Task ID generation (§3).
+ * Task ID generation.
  *
  * Task filenames are IDs only, never titles (Golden Rule). Because the filename
  * *is* the ID, prefixes must be unique across the entire vault — two workspaces
@@ -8,7 +8,7 @@
  */
 
 const VOWELS = /[aeiou]/i;
-/** §3 allows 3–4; 3 is the default, matching the spec's own `Product Team` → `PRD`. */
+/** Allows 3–4; 3 is the default, matching the spec's own `Product Team` → `PRD`. */
 const DEFAULT_PREFIX_LEN = 3;
 const MAX_PREFIX_LEN = 4;
 
@@ -87,7 +87,7 @@ export interface PrefixCollision {
 }
 
 /**
- * Find workspaces that share an `idPrefix` (§3).
+ * Find workspaces that share an `idPrefix`.
  *
  * Creation-time disambiguation (`suggestPrefix`) only guards prefixes the plugin
  * mints itself — a workspace folder copied in from elsewhere, or restored from

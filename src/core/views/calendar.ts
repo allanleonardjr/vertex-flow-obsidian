@@ -1,10 +1,10 @@
 /**
- * Calendar view — pure day-bucketing (§8.1, phase 2).
+ * Calendar view — pure day-bucketing (phase 2).
  *
  * The Calendar is a *day-bucketing* view, not a range view: it drops each Task
  * onto the single day named by one chosen date field and paints a month grid.
  * That's the whole reason Projects stay out of it — a Project's authoritative
- * date *range* (§7.1) has nowhere to live on a day grid, and Timeline already
+ * date *range* has nowhere to live on a day grid, and Timeline already
  * covers ranges.
  *
  * Day and month arithmetic is shared, not re-rolled: `dayNumber` / `isoFromDay`

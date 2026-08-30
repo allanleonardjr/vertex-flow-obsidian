@@ -1,7 +1,7 @@
 /**
  * Whole-workspace deletion — the relation cleanup it triggers elsewhere.
  *
- * Deleting a single Task tidies the relations that pointed at it (§7.3, see
+ * Deleting a single Task tidies the relations that pointed at it (see
  * `danglingRelationEdits` in `./cascade`). Deleting an entire Workspace removes
  * every Task in it at once, so the same tidy-up has to run **vault-wide** —
  * a `blocks` / `blockedBy` / `related` / `duplicateOf` link living in *another*

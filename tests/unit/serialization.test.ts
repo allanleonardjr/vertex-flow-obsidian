@@ -610,6 +610,25 @@ describe("parseViews", () => {
 		expect(value[0].filters).toEqual({});
 	});
 
+	it("migrates the legacy filters.includeArchived boolean to archived: 'included'", () => {
+		const { value } = parseViews({
+			views: [{ id: "v", name: "V", filters: { includeArchived: true } }],
+		});
+		expect(value[0].filters.archived).toBe("included");
+		// The legacy boolean never survives the round-trip back to frontmatter.
+		expect(parseViews(serializeViews(value)).value).toEqual(value);
+	});
+
+	it("round-trips the archived tri-state", () => {
+		for (const archived of ["included", "only"] as const) {
+			const { value } = parseViews({
+				views: [{ id: "v", name: "V", filters: { archived } }],
+			});
+			expect(value[0].filters.archived).toBe(archived);
+			expect(parseViews(serializeViews(value)).value).toEqual(value);
+		}
+	});
+
 	it("keeps an explicit subtaskDisplay over the legacy flag", () => {
 		const { value } = parseViews({
 			views: [

@@ -1,5 +1,5 @@
 /**
- * Default taxonomy configurations for a new Workspace (§5.1–5.4).
+ * Default taxonomy configurations for a new Workspace (–5.4).
  *
  * Every default here is overridable per Workspace — that is the whole point of
  * the taxonomy engine. These values simply mean a brand-new workspace is
@@ -39,7 +39,7 @@ export const DEFAULT_STATUSES: StatusValue[] = [
 ];
 
 /**
- * Fully flexible and ordered — order carries meaning, count does not (§5.2).
+ * Fully flexible and ordered — order carries meaning, count does not.
  *
  * There is no "No Priority" rung: an un-prioritised task simply has `priority:
  * null`, rendered as "None". A dedicated value would be a second way to say the
@@ -63,7 +63,7 @@ export const DEFAULT_LABELS: LabelValue[] = [];
 
 /**
  * Default status for brand-new tasks. Configurable independently of category
- * (§5.1) — this is a status *id*, not "the first backlog status".
+ * — this is a status *id*, not "the first backlog status".
  */
 export const DEFAULT_NEW_TASK_STATUS = "queue";
 

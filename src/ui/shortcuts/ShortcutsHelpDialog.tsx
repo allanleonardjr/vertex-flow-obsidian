@@ -1,5 +1,5 @@
 /**
- * The `?` shortcuts overlay (§9.1 / B5).
+ * The `?` shortcuts overlay (B5).
  *
  * A dismissible modal over the current tab — deliberately *not* a jump to the
  * Help tab, so the user can glance at it and immediately resume what they were

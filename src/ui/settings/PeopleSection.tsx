@@ -1,7 +1,7 @@
 /**
- * The People register (§5.5) — no auth, just names for `assignee` and
+ * The People register — no auth, just names for `assignee` and
  * `@mentions`. At most one entry carries `isSelf`, which is what `self`
- * filters (Assigned to Me / Mentions Me, §7.6) resolve against.
+ * filters (Assigned to Me / Mentions Me) resolve against.
  */
 
 import { useState } from "react";

@@ -1,5 +1,5 @@
 /**
- * Calendar (month grid) view (§8.1, phase 2).
+ * Calendar (month grid) view (phase 2).
  *
  * A plain 7-column CSS grid — no calendar library, because FullCalendar and
  * react-big-calendar both assume time-of-day scheduling, which a day-bucketing

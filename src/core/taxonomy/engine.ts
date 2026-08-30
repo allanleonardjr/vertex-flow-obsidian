@@ -1,5 +1,5 @@
 /**
- * The generic taxonomy engine (§5).
+ * The generic taxonomy engine.
  *
  * Status, Priority, Task Type and Labels are four *configurations* of this one
  * engine, not four bespoke systems (Golden Rule). The differences between them
@@ -13,7 +13,7 @@
  *   | label     | multi  | no      | no          |
  *
  * The deletion guard in `planTaxonomyDeletion` is likewise written once and
- * applies identically to all four (§5.6).
+ * applies identically to all four.
  */
 
 import { slugify } from "../ids";
@@ -178,7 +178,7 @@ export function isOpen(statuses: Taxonomy, statusId: string | null): boolean {
 	return category !== "completed" && category !== "canceled";
 }
 
-/** Statuses in a category, in display order. A category may have zero (§5.1). */
+/** Statuses in a category, in display order. A category may have zero. */
 export function statusesInCategory<V extends TaxonomyValue>(
 	statuses: Taxonomy<V>,
 	category: StatusCategory,
@@ -291,7 +291,7 @@ export function reorderValues<V extends TaxonomyValue>(
 }
 
 // ---------------------------------------------------------------------------
-// Deletion — the uniform guard (§5.6)
+// Deletion — the uniform guard
 // ---------------------------------------------------------------------------
 
 export interface TaxonomyDeletionPlan {

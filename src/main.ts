@@ -3,7 +3,7 @@
  *
  * Responsibilities, in order: build the index, register the main view, and
  * register every action as a native Obsidian command. That last part matters —
- * §9.1 requires plugin actions to appear in the Command Palette so users can
+ * Requires plugin actions to appear in the Command Palette so users can
  * rebind them through Obsidian's own hotkey settings rather than a
  * plugin-private scheme.
  */
@@ -89,22 +89,12 @@ export default class VertexFlowPlugin extends Plugin {
 			callback: () => void this.activateView(true),
 		});
 
-		// §9.4: quick capture must work from anywhere in Obsidian, not just from
+		// Quick capture must work from anywhere in Obsidian, not just from
 		// inside the plugin's own views.
 		this.addCommand({
 			id: "quick-capture",
 			name: "Quick capture: new task",
 			callback: () => void this.quickCapture(),
-		});
-
-		this.addCommand({
-			id: "toggle-archived",
-			name: "Toggle showing archived tasks",
-			callback: () => {
-				this.settings.showArchived = !this.settings.showArchived;
-				void this.saveSettings();
-				this.index.touch();
-			},
 		});
 
 		this.addCommand({

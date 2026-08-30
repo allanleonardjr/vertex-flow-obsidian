@@ -3097,6 +3097,10 @@ button.vf-crumb:hover {
 
 /* -- The persistent bar: flat text, no button chrome ---------------------- */
 
+/* Shared by both stacked rows — the always-on display row
+   (`.vf-view-bar-display`) and the conditionally-mounted filter-chip row
+   (`.vf-view-bar-filters`). Each row's border-top separates it from whatever
+   sits above (title row, then Row 1). */
 .vf-view-bar {
   display: flex;
   align-items: center;
@@ -3116,13 +3120,6 @@ button.vf-crumb:hover {
 .vf-bar-spacer {
   flex: 1;
   min-width: 12px;
-}
-
-/* Visibility switches sit apart from each other and from the filters. */
-.vf-view-bar .vf-toggle {
-  gap: 5px;
-  margin-left: 16px;
-  white-space: nowrap;
 }
 
 .vf-control-anchor {

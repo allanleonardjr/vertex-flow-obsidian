@@ -50,7 +50,7 @@ export function ProjectsBrowseView({
 						// detail header breaks this down further.
 						const counts = projectTaskBreakdown(scope, project.path);
 						const taskCount = counts.tasks + counts.subtasks;
-						// §7.1: progress is computed independently of the project's
+						// Progress is computed independently of the project's
 						// own status, and never fed back into it.
 						const progress = projectProgress(scope, project.path, taxonomies.status);
 

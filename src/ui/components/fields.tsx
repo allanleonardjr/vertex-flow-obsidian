@@ -467,7 +467,7 @@ function personNode(person: Person, hint: boolean): ReactNode {
 }
 
 /**
- * Assignee (§7.4 — exactly one) and the Project's Owner: the same control under
+ * Assignee (exactly one) and the Project's Owner: the same control under
  * two names, differing only in what "nobody" is called.
  */
 export function PersonSelect({
@@ -504,7 +504,7 @@ export function PersonSelect({
 		...people.map((person) => ({
 			value: person.id,
 			node: personNode(person, true),
-			// Aliases (§5.5) match but don't show: they exist so `@mentions`
+			// Aliases match but don't show: they exist so `@mentions`
 			// resolve, not as a second display name.
 			search: [person.name, ...(person.aliases ?? [])].join(" "),
 		})),

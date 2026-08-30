@@ -1,5 +1,5 @@
 /**
- * Workspace creation (§13).
+ * Workspace creation.
  *
  * A template gallery is the *only* way to make a workspace — there is no
  * separate "blank" path, the plainest template ("Getting Started") is just the
@@ -166,7 +166,7 @@ function ConfigStep({
 	);
 
 	const suggestedPrefix = useMemo(() => {
-		// Derived live from the name (§3) until the user types their own prefix.
+		// Derived live from the name until the user types their own prefix.
 		if (!name.trim()) return template.defaultIdPrefix;
 		return suggestPrefix(name, plugin.index.takenPrefixes());
 	}, [name, plugin, template.defaultIdPrefix]);

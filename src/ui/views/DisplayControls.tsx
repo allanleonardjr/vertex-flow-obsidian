@@ -134,8 +134,8 @@ export function GroupChip({
 }
 
 /**
- * How the view treats sub-tasks (§7.2). Definitional, so it sits with Group and
- * Sort rather than beside the session-only "Show archived" toggle.
+ * How the view treats sub-tasks. Definitional, so it sits with Group and
+ * Sort as a display control.
  *
  * `Nested` only means something on the List view — every other layout renders a
  * tree as a flat set — so on Board/Timeline/Calendar the control drops to
@@ -169,7 +169,7 @@ export function SubtasksChip({
 }
 
 /**
- * Board-only: empty-column behavior (§8.2). Previously reachable only through
+ * Board-only: empty-column behavior. Previously reachable only through
  * the text query (`empty:auto-collapse`); this surfaces it on the bar like the
  * other display controls.
  */
@@ -193,7 +193,7 @@ export function EmptyColumnsChip({
 }
 
 /**
- * Which task fields this view's rows/cards show (§8.4). Stored as `hiddenFields`
+ * Which task fields this view's rows/cards show. Stored as `hiddenFields`
  * but presented positively — a lit row means "visible". Status icon, ID and
  * title are mandatory and never listed. All fields are offered in both layouts;
  * one a layout can't render (e.g. Type on a list) is simply inert there, which

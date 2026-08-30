@@ -23,11 +23,11 @@ export type LinkTarget = string;
 export type IsoDate = string;
 
 // ---------------------------------------------------------------------------
-// Taxonomy (§5) — one engine, four configurations
+// Taxonomy — one engine, four configurations
 // ---------------------------------------------------------------------------
 
 /**
- * The fixed Status category enum (§5.1). Invisible to users; drives all logic
+ * The fixed Status category enum. Invisible to users; drives all logic
  * (progress calculation, "is this active" filtering, board grouping). Users may
  * rename and recolor their statuses freely — the category underneath never
  * changes. A category may legitimately have zero statuses.
@@ -74,7 +74,7 @@ export type TaskTypeValue = TaxonomyValue;
 export type LabelValue = TaxonomyValue;
 
 /**
- * Lightweight register for `@mentions` and `assignee` (§5.5). No auth —
+ * Lightweight register for `@mentions` and `assignee`. No auth —
  * just names and aliases. At most one entry should carry `isSelf`.
  */
 export interface Person {
@@ -85,10 +85,10 @@ export interface Person {
 }
 
 // ---------------------------------------------------------------------------
-// Task (§4.1)
+// Task
 // ---------------------------------------------------------------------------
 
-/** Task relations (§7.3) — cross-cutting association without multiple parents. */
+/** Task relations — cross-cutting association without multiple parents. */
 export interface TaskRelations {
 	blocks: LinkTarget[];
 	blockedBy: LinkTarget[];
@@ -107,7 +107,7 @@ export interface Task {
 	taskType: string | null;
 	status: string;
 	priority: string | null;
-	/** LexoRank — global default order (§6). Always present. */
+	/** LexoRank — global default order. Always present. */
 	rank: string;
 
 	/**
@@ -118,14 +118,14 @@ export interface Task {
 	project: LinkTarget | null;
 	parent: LinkTarget | null;
 
-	/** Single assignee only (§7.4). A `Person.id`. */
+	/** Single assignee only. A `Person.id`. */
 	assignee: string | null;
-	/** Plain optional number, no enforced meaning (§5.4). */
+	/** Plain optional number, no enforced meaning. */
 	estimate: number | null;
 	labels: string[];
 	startDate: IsoDate | null;
 	dueDate: IsoDate | null;
-	/** Visibility flag, not a status and not a location (§7.7). */
+	/** Visibility flag, not a status and not a location. */
 	archived: boolean;
 	archivedAt: IsoDate | null;
 	relations: TaskRelations;
@@ -140,7 +140,7 @@ export interface Task {
 	mentions: string[];
 }
 
-/** A flat, unthreaded comment stored in the body's delimited block (§4.1). */
+/** A flat, unthreaded comment stored in the body's delimited block. */
 export interface Comment {
 	id: string;
 	author: string;
@@ -161,7 +161,7 @@ export interface TaskDocument {
 }
 
 // ---------------------------------------------------------------------------
-// Project (§4.2)
+// Project
 // ---------------------------------------------------------------------------
 
 export interface Project {
@@ -169,7 +169,7 @@ export interface Project {
 	title: string;
 	/** Curated icon id (see `ui/components/Icon.tsx`); optional, falls back at render. */
 	icon?: string;
-	/** Reuses the Task status taxonomy (§5.1) — no separate system. */
+	/** Reuses the Task status taxonomy — no separate system. */
 	status: string;
 	/** Reuses the Task priority taxonomy — no separate system. `null` is "None". */
 	priority: string | null;
@@ -180,10 +180,10 @@ export interface Project {
 	/**
 	 * A `Person.id`. Deliberately `owner`, not `assignee`: a project isn't worked
 	 * by one person the way a task is — this is "who's accountable for it," not
-	 * "who's doing it." Same underlying control as Task's assignee (§7.4).
+	 * "who's doing it." Same underlying control as Task's assignee.
 	 */
 	owner: string | null;
-	/** Visibility flag, not a status and not a location (§7.7). */
+	/** Visibility flag, not a status and not a location. */
 	archived: boolean;
 	archivedAt: IsoDate | null;
 	createdAt: IsoDate;
@@ -208,11 +208,11 @@ export interface ProjectDocument {
 }
 
 // ---------------------------------------------------------------------------
-// Workspace config (§4.5)
+// Workspace config
 // ---------------------------------------------------------------------------
 
 export interface ArchivingConfig {
-	/** Manual archiving is the real v1 feature; this defaults to off (§7.7). */
+	/** Manual archiving is the real v1 feature; this defaults to off. */
 	autoArchiveEnabled: boolean;
 	autoArchiveDays: number;
 }
@@ -222,12 +222,12 @@ export interface WorkspaceConfig {
 	name: string;
 	/** Curated icon id (see `ui/components/Icon.tsx`); optional, falls back at render. */
 	icon?: string;
-	/** Must be unique vault-wide, not just per-workspace (§3). */
+	/** Must be unique vault-wide, not just per-workspace. */
 	idPrefix: string;
 	archiving: ArchivingConfig;
-	/** Configurable independently of status category (§5.1). */
+	/** Configurable independently of status category. */
 	defaultNewTaskStatus: string;
-	/** Cosmetic suffix only — the plugin never calculates on estimates (§5.4). */
+	/** Cosmetic suffix only — the plugin never calculates on estimates. */
 	estimateUnitLabel: string | null;
 
 	statuses: StatusValue[];
@@ -241,11 +241,11 @@ export interface WorkspaceConfig {
 }
 
 // ---------------------------------------------------------------------------
-// Saved Views (§4.6, §8.3)
+// Saved Views
 // ---------------------------------------------------------------------------
 
 /**
- * List and Board are v1; Timeline (Gantt) and Calendar follow (§8.1). The graph
+ * List and Board are v1; Timeline (Gantt) and Calendar follow. The graph
  * view is still phased in later.
  */
 export type ViewType = "list" | "board" | "timeline" | "calendar";
@@ -273,7 +273,7 @@ export type SortField =
 export type SortDirection = "asc" | "desc";
 
 /**
- * How a view treats sub-tasks (§7.2):
+ * How a view treats sub-tasks:
  *   - `nested` — indented under their parent, with a disclosure toggle (List only;
  *      other layouts fall back to `flat`).
  *   - `flat`   — loose rows alongside top-level tasks, marked with `↳`.
@@ -299,19 +299,22 @@ export interface ViewFilters {
 	assignee?: string[];
 	project?: string[];
 	parent?: string[];
-	/** `[SELF]` powers the "Mentions Me" saved view (§7.6). */
+	/** `[SELF]` powers the "Mentions Me" saved view. */
 	mentions?: string[];
 	/** Free-text match against title. */
 	text?: string;
-	/** Defaults to hiding archived tasks (§7.7). */
-	includeArchived?: boolean;
+	/**
+	 * Archived-task visibility. Defaults to hidden. `"included"` mixes archived
+	 * tasks in with everything else; `"only"` filters to just them.
+	 */
+	archived?: "included" | "only";
 	/** Only tasks whose status isn't Completed or Canceled (per taxonomy category). */
 	openOnly?: boolean;
 	/** Only tasks with neither a dueDate nor a startDate set. */
 	unscheduled?: boolean;
 }
 
-/** Per-Saved-View, not global (§8.2). */
+/** Per-Saved-View, not global. */
 export type EmptyColumnBehavior = "show-normal" | "auto-collapse" | "auto-hide";
 
 export interface ViewColumnState {
@@ -323,7 +326,7 @@ export interface ViewColumnState {
  * Per-session Timeline chrome: current zoom and horizontal scroll position.
  *
  * Persisted to `_views.md` but deliberately **not** part of `ViewDefinition` —
- * same treatment as `columns` (§4.6). Panning or zooming the timeline writes
+ * same treatment as `columns`. Panning or zooming the timeline writes
  * straight through and never marks the view unsaved.
  *
  * `scale` is pixels-per-day. The named zoom presets (Day/Week/Month/Quarter/
@@ -340,7 +343,7 @@ export interface ViewTimelineState {
  * Per-session Calendar chrome: which month the grid is showing.
  *
  * Persisted to `_views.md` but, like `ViewTimelineState`, deliberately **not**
- * part of `ViewDefinition` (§4.6) — paging between months writes straight
+ * part of `ViewDefinition` — paging between months writes straight
  * through and never marks the view unsaved. Always normalised to the 1st of the
  * month (`startOfMonth`) whenever it's written, so `visibleMonth` has one
  * canonical representation. `null` means "not set" — the view falls back to the
@@ -355,7 +358,7 @@ export interface ViewCalendarState {
 }
 
 /**
- * Task fields a Saved View can hide from its rows/cards (§8.4).
+ * Task fields a Saved View can hide from its rows/cards.
  *
  * Status icon, Task ID and Task title are mandatory and never members here.
  * `type` only renders on Board cards; other layouts ignore an entry they can't
@@ -398,10 +401,10 @@ export interface SavedView {
 	sortDirection: SortDirection;
 	columns: ViewColumnState;
 	emptyColumnBehavior: EmptyColumnBehavior;
-	/** Task fields hidden from this view's rows/cards (§8.4); `[]` shows all. */
+	/** Task fields hidden from this view's rows/cards; `[]` shows all. */
 	hiddenFields: TaskField[];
 	/**
-	 * How this view treats sub-tasks (§7.2). Definitional — it changes what the
+	 * How this view treats sub-tasks. Definitional — it changes what the
 	 * view shows — so it rides in `ViewDefinition` and the draft/Save cycle.
 	 */
 	subtaskDisplay: SubtaskDisplay;
@@ -503,8 +506,8 @@ export const DASHBOARD_TIME_BUCKETS: readonly DashboardTimeBucket[] = [
 
 /**
  * What a KPI widget measures. `count` is the task count; the two `estimate`
- * aggregates sum/average the plain `estimate` number (§5.4 — the plugin does no
- * other math on it).
+ * aggregates sum/average the plain `estimate` number — the plugin does no
+ * other math on it.
  */
 export type DashboardMetric = "count" | "estimateSum" | "estimateAvg";
 
@@ -630,8 +633,8 @@ export interface WorkspaceSnapshot {
 // ---------------------------------------------------------------------------
 
 /**
- * Completion rollup. Computed, never stored (§4.2) — and never auto-synced
- * back into a status in either direction (§7.1, §7.2).
+ * Completion rollup. Computed, never stored — and never auto-synced
+ * back into a status in either direction.
  */
 export interface Progress {
 	total: number;

@@ -47,14 +47,14 @@ export const SORT_OPTIONS: { value: SortField; label: string }[] = [
 	{ value: "updatedAt", label: "Updated" },
 ];
 
-/** How the view treats sub-tasks (§7.2). `nested` only reshapes the List view. */
+/** How the view treats sub-tasks. `nested` only reshapes the List view. */
 export const SUBTASK_OPTIONS: { value: SubtaskDisplay; label: string }[] = [
 	{ value: "nested", label: "Nested" },
 	{ value: "flat", label: "Flat" },
 	{ value: "hidden", label: "Hidden" },
 ];
 
-/** Board-only: what happens to a column with no cards (§8.2). */
+/** Board-only: what happens to a column with no cards. */
 export const EMPTY_COLUMN_OPTIONS: {
 	value: EmptyColumnBehavior;
 	label: string;
@@ -65,8 +65,8 @@ export const EMPTY_COLUMN_OPTIONS: {
 ];
 
 /**
- * The task fields a view can hide (§8.4), in `TASK_FIELDS` (canonical) order.
- * `type` only renders on Board cards but is always offered — see §8.4.
+ * The task fields a view can hide, in `TASK_FIELDS` (canonical) order.
+ * `type` only renders on Board cards but is always offered.
  */
 /**
  * The field checklist, in the order it reads best — not `TASK_FIELDS` order,
@@ -107,6 +107,7 @@ export type FilterKey =
 	| "assignee"
 	| "mentions"
 	| "project"
+	| "archived"
 	| "text";
 
 export const FILTER_FIELDS: { key: FilterKey; label: string }[] = [
@@ -117,6 +118,7 @@ export const FILTER_FIELDS: { key: FilterKey; label: string }[] = [
 	{ key: "assignee", label: "Assignee" },
 	{ key: "mentions", label: "Mentions" },
 	{ key: "project", label: "Project" },
+	{ key: "archived", label: "Archived" },
 	{ key: "text", label: "Title" },
 ];
 
@@ -145,7 +147,7 @@ export interface Choice {
 
 /** The selectable values for a chip-style (non-text) filter clause. */
 export function filterChoices(
-	key: Exclude<FilterKey, "text">,
+	key: Exclude<FilterKey, "text" | "archived">,
 	snapshot: WorkspaceSnapshot,
 	taxonomies: WorkspaceTaxonomies,
 ): Choice[] {
@@ -193,6 +195,13 @@ export function summarizeClause(
 	taxonomies: WorkspaceTaxonomies,
 ): string {
 	if (key === "text") return filters.text?.trim() || "…";
+	if (key === "archived") {
+		return filters.archived === "only"
+			? "Only"
+			: filters.archived === "included"
+				? "Included"
+				: "Hidden";
+	}
 	const values = filters[key] ?? [];
 	if (values.length === 0) return "any";
 	const name =
@@ -207,11 +216,14 @@ export function summarizeClause(
 	return `${name(values[0])} +${values.length - 1}`;
 }
 
-/** Clause keys currently carrying a value (ignoring the archived-visibility flag). */
+/** Clause keys currently carrying a value. */
 export function activeFilterKeys(filters: ViewFilters): FilterKey[] {
-	return FILTER_FIELDS.map((f) => f.key).filter((key) =>
-		key === "text" ? Boolean(filters.text?.trim()) : (filters[key]?.length ?? 0) > 0,
-	);
+	return FILTER_FIELDS.map((f) => f.key).filter((key) => {
+		if (key === "text") return Boolean(filters.text?.trim());
+		// String-valued, not an array — `"only".length` is truthy by accident.
+		if (key === "archived") return filters.archived != null;
+		return (filters[key]?.length ?? 0) > 0;
+	});
 }
 
 /** Read-only clause keys currently carrying a value. */

@@ -2,7 +2,7 @@
  * Content pipeline — Projects are series or campaigns, Tasks are individual
  * pieces of content with a publish date. Ships three `started` statuses
  * (Drafting / Editing / Scheduled) and no `unstarted` status at all — a
- * category is allowed to have zero statuses (§5.1).
+ * category is allowed to have zero statuses.
  *
  * The example content is a full feature showcase: three series/campaigns, two
  * productions broken into sub-tasks, a blocked dependency, channel-wide

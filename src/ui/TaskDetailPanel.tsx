@@ -49,7 +49,7 @@ const TASK_INFO_DEFAULT_HEIGHT = 220;
 
 /**
  * Sub-tasks deeper than this still work, but get hard to scan — parenting past
- * it asks for a nudge, never blocks (§7.2). One-based: a root task is level 1.
+ * it asks for a nudge, never blocks. One-based: a root task is level 1.
  */
 const MAX_COMFORTABLE_DEPTH = 4;
 
@@ -105,10 +105,10 @@ export function TaskDetailPanel({
   };
 
   const scope = scopeOf(snapshot);
-  // Sub-tasks list in the shared global `rank` order (§6), so it reads the same
+  // Sub-tasks list in the shared global `rank` order, so it reads the same
   // here as in every other view.
   const children = sortTasksByRank(childTasks(scope, task.path));
-  // Progress excludes archived sub-tasks (§7.7); the list below still shows
+  // Progress excludes archived sub-tasks; the list below still shows
   // them.
   const progress = subtaskProgress(scope, task, taxonomies.status);
 

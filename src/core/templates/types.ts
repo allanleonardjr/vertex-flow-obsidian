@@ -1,5 +1,5 @@
 /**
- * Workspace templates (§13).
+ * Workspace templates.
  *
  * A template is the *only* way to create a workspace: the plainest option
  * ("Getting Started") is just one entry in the gallery, not a separate "blank"

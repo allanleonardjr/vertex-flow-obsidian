@@ -1,5 +1,5 @@
 /**
- * Deletion & cascade policy (§7.8).
+ * Deletion & cascade policy.
  *
  * The rule that shapes this entire module: **one level of nesting at a time.**
  * A dialog never reasons about more than one level. Deleting a Project and
@@ -65,7 +65,7 @@ export function planProjectDeletion(
 	scope: HierarchyScope,
 	project: Project,
 ): DeletionPlan {
-	// Direct hierarchical children only (§7.8's one-level-at-a-time rule). A
+	// Direct hierarchical children only (the one-level-at-a-time rule). A
 	// nested sub-task that merely carries this project as denormalized metadata
 	// is a child of its parent *task*, not of the project — it isn't part of
 	// this cascade/unparent choice. `danglingProjectEdits` tidies its stale
@@ -166,7 +166,7 @@ function unparentEdits(plan: DeletionPlan): FieldEdit[] {
 // ---------------------------------------------------------------------------
 
 /**
- * Relations that point at notes being deleted (§7.3).
+ * Relations that point at notes being deleted.
  *
  * These are *not* part of the cascade dialog — they're not hierarchy, so
  * deleting a task never prompts about the tasks that merely reference it. The
@@ -205,7 +205,7 @@ export function danglingRelationEdits(
 }
 
 /**
- * Tasks whose `project` points at a note being deleted (§4.1's denormalized
+ * Tasks whose `project` points at a note being deleted (the denormalized
  * link). Same spirit as `danglingRelationEdits`: **not** part of the cascade
  * dialog — a deep sub-task carrying a project as metadata isn't a hierarchical
  * child of it — so deleting a project never prompts about these. The plugin

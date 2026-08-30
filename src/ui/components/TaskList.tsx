@@ -15,7 +15,7 @@
  * supplies all of it. A relations list supplies none of it and gets a plain,
  * read-only list of the same rows for free.
  *
- * A group carrying `rows` (the nested List view, §7.2) renders that indented
+ * A group carrying `rows` (the nested List view) renders that indented
  * forest instead of `tasks` — with disclosure toggles and a muted "ghost" row
  * for any parent the filter excluded. Nested groups are drag-free; reordering a
  * sub-task stays a task-editor action.
@@ -36,7 +36,7 @@ export interface TaskListGroup {
 	tasks: Task[];
 	collapsed?: boolean;
 	/**
-	 * The nested forest for this group (§7.2). When present it's rendered
+	 * The nested forest for this group. When present it's rendered
 	 * instead of `tasks`; `tasks` still carries the flat set for counts.
 	 */
 	rows?: NestedRow[];
@@ -70,7 +70,7 @@ export interface TaskListProps {
 	onOpenTask?: (path: string) => void;
 	/** Trailing per-row control — relations use it for "remove". */
 	rowAction?: (task: Task) => ReactNode;
-	/** Fields to hide from every row (§8.4). Omitted = show all. */
+	/** Fields to hide from every row. Omitted = show all. */
 	hiddenFields?: readonly TaskField[];
 	/** Placeholder inside an empty *group* (List's "Drop tasks here"). */
 	emptyGroupLabel?: string;

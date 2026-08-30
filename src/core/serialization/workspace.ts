@@ -1,5 +1,5 @@
 /**
- * `_workspace.md` — workspace identity plus all taxonomy definitions (§4.5).
+ * `_workspace.md` — workspace identity plus all taxonomy definitions.
  *
  * A frontmatter-only config note. Kept separate from `_views.md` because the
  * two change at wildly different rates: taxonomy config is near-static, saved
@@ -119,7 +119,7 @@ function parsePeople(raw: unknown, log: IssueLog): Person[] {
 
 		const isSelf = asBoolean(record.isSelf, false);
 		if (isSelf && selfSeen) {
-			// `self` filters resolve to exactly one person (§4.6); a second
+			// `self` filters resolve to exactly one person; a second
 			// `isSelf` would make "Assigned to Me" ambiguous.
 			log.add(`More than one person is flagged isSelf; ignoring it on "${id}".`);
 		}
@@ -257,7 +257,7 @@ export function serializeWorkspace(
 	});
 }
 
-/** A ready-to-write config for a brand-new workspace (§13). */
+/** A ready-to-write config for a brand-new workspace. */
 export function createWorkspaceConfig(
 	name: string,
 	idPrefix: string,

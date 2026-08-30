@@ -1,5 +1,5 @@
 /**
- * The confirmation for a blocked taxonomy deletion (§5.6).
+ * The confirmation for a blocked taxonomy deletion.
  *
  * A genuine modal — unlike the browse/settings screens, this interrupts rather
  * than navigates: it exists only because the delete you just clicked can't

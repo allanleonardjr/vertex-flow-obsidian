@@ -1,7 +1,7 @@
 /**
- * LexoRank — fractional indexing over lexicographically-sortable strings (§6).
+ * LexoRank — fractional indexing over lexicographically-sortable strings.
  *
- * Format (Atlassian-compatible, matching the schema in `vault-schema.md` §4.1):
+ * Format (Atlassian-compatible, matching the schema in `vault-schema.md`):
  *
  *     0|i00004:
  *     ^ ^      ^
@@ -236,7 +236,7 @@ export function sortByRank<T>(items: T[], getRank: (item: T) => string): T[] {
 
 /**
  * Whether a rank's decimal has grown long enough to be worth rebalancing.
- * v1 only reports this; §6 accepts last-write-wins and defers real rebalancing.
+ * v1 only reports this; accepts last-write-wins and defers real rebalancing.
  */
 export function needsRebalance(value: string): boolean {
 	return isValidRank(value) && parseRank(value).dec.length >= REBALANCE_THRESHOLD;

@@ -1,7 +1,7 @@
 /**
- * Counting taxonomy usage — the input to the §5.6 deletion guard.
+ * Counting taxonomy usage — the input to the deletion guard.
  *
- * Status is the one taxonomy used by Projects as well as Tasks (§5.1), so its
+ * Status is the one taxonomy used by Projects as well as Tasks, so its
  * usage count spans both entity types. The other three are Task-only.
  */
 

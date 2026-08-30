@@ -1,5 +1,5 @@
 /**
- * The keyboard-driven taxonomy picker (§9.1 / B2): `s` Status, `p` Priority,
+ * The keyboard-driven taxonomy picker (B2): `s` Status, `p` Priority,
  * `l` Label, `t` Task Type on the focused task.
  *
  * A small portaled menu anchored to the focused row (found by `data-task-path`,

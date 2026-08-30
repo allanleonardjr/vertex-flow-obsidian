@@ -1,6 +1,6 @@
 /**
- * Workspace settings: taxonomy configuration (§5) plus the workspace-level
- * toggles from `_workspace.md` (§4.5). Reachable from the sidebar's Settings
+ * Workspace settings: taxonomy configuration plus the workspace-level
+ * toggles from `_workspace.md`. Reachable from the sidebar's Settings
  * row, rendered inline like the browse screens — no modal, just another thing
  * the content area shows.
  */

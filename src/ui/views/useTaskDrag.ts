@@ -1,5 +1,5 @@
 /**
- * Drag-and-drop for both pointer types (§9.2), shared by List and Board.
+ * Drag-and-drop for both pointer types, shared by List and Board.
  *
  * Built on Pointer Events rather than HTML5 drag-and-drop, because HTML5 DnD
  * has no touch support at all on mobile — and full Obsidian Mobile support is a
@@ -253,7 +253,7 @@ function resolveTarget(x: number, y: number, movingPath: string): DropTarget | n
 
 	const groupKey = group.dataset.groupKey as string;
 
-	// A collapsed column is still a valid drop target (§8.2) — it just has no
+	// A collapsed column is still a valid drop target — it just has no
 	// items to position against, so anything landing on it goes to the top.
 	const items = [...group.querySelectorAll<HTMLElement>("[data-task-path]")].filter(
 		(item) => item.dataset.taskPath !== movingPath,

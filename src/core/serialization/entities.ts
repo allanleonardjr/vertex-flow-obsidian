@@ -1,5 +1,5 @@
 /**
- * Project frontmatter ↔ domain object (§4.2).
+ * Project frontmatter ↔ domain object.
  *
  * Unlike Tasks, a Project note is named by *title*, so the filename is the
  * human-readable identity and `title` in frontmatter is the display override.
@@ -101,7 +101,7 @@ export const PROJECT_FIELD_ORDER: readonly string[] = [
 
 /**
  * A Project note's body *is* its description — there's no comments block to
- * split around (§4.2), so this is far simpler than the Task equivalent.
+ * split around, so this is far simpler than the Task equivalent.
  *
  * A lone leading `## Overview` heading (what older projects and the create
  * template seeded) is dropped so it doesn't show up as literal text in the

@@ -1,5 +1,5 @@
 /**
- * Board / Kanban view (§8.1, §8.2).
+ * Board / Kanban view.
  *
  * Columns come from the Saved View's `groupBy`, so this is a board over any
  * grouping — status is just the default. What a drop *means* lives in
@@ -300,7 +300,7 @@ function CardContent({
   task: Task;
   snapshot: WorkspaceSnapshot;
   taxonomies: WorkspaceTaxonomies;
-  /** Fields this view hides (§8.4). Omitted = show all. */
+  /** Fields this view hides. Omitted = show all. */
   hiddenFields?: readonly TaskField[];
 }) {
   const off = (field: TaskField) => hiddenFields?.includes(field) ?? false;

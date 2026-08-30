@@ -46,7 +46,7 @@ export function TaskRowContent({
 	task: Task;
 	snapshot: WorkspaceSnapshot;
 	taxonomies: WorkspaceTaxonomies;
-	/** Fields this view hides (§8.4). Omitted (relations lists, pickers) shows all. */
+	/** Fields this view hides. Omitted (relations lists, pickers) shows all. */
 	hiddenFields?: readonly TaskField[];
 	/**
 	 * Compact single-line render for tight containers (Calendar day chips):

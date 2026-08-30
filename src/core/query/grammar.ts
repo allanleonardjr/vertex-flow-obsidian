@@ -145,14 +145,14 @@ export const EMPTY_VALUES: Record<EmptyColumnBehavior, EnumValueSpec> = {
 	"auto-hide": { token: "auto-hide", aliases: ["hide"] },
 };
 
-/** How the view treats sub-tasks (`subtasks:` clause, §7.2). */
+/** How the view treats sub-tasks (`subtasks:` clause). */
 export const SUBTASK_VALUES: Record<SubtaskDisplay, EnumValueSpec> = {
 	nested: { token: "nested", aliases: ["nest", "tree", "indent"] },
 	flat: { token: "flat", aliases: ["show", "loose"] },
 	hidden: { token: "hidden", aliases: ["hide", "top-level", "toplevel", "root"] },
 };
 
-/** Task fields the `hide:` clause can name (§8.4). Keyed for exhaustiveness. */
+/** Task fields the `hide:` clause can name. Keyed for exhaustiveness. */
 export const FIELD_VALUES: Record<TaskField, EnumValueSpec> = {
 	type: { token: "type", aliases: ["tasktype", "kind"] },
 	project: { token: "project", aliases: ["proj"] },
@@ -187,7 +187,8 @@ export const VERBATIM_PREFIX = "=";
 /* ------------------------------------------------------------- flags ------ */
 
 export const FLAG_TOKENS = {
-	includeArchived: { field: "show", value: "archived", aliases: [] },
+	archivedIncluded: { field: "show", value: "archived", aliases: [] },
+	archivedOnly: { field: "show", value: "archived-only", aliases: [] },
 	openOnly: { field: "is", value: "open", aliases: [] },
 	unscheduled: { field: "is", value: "unscheduled", aliases: [] },
 } as const;
@@ -203,25 +204,26 @@ export const LEGACY_TOP_LEVEL_VALUES = ["top-level", "toplevel", "root"] as cons
 export const FLAG_FIELD_ALIASES: Record<string, string> = { include: "show" };
 
 /**
- * Tokens that look reasonable but name something `ViewFilters` cannot express.
- * Rejected with a pointer rather than silently misinterpreted — `includeArchived`
- * only *widens*, so accepting `is:archived` ("only archived") would be a footgun.
+ * Tokens that look reasonable but name a field `ViewFilters` doesn't have.
+ * `is:` and `archived:` aren't real fields; archived visibility is the `show:`
+ * flag (`show:archived` to mix archived tasks in, `show:archived-only` to filter
+ * to just them). Rejected with a pointer rather than silently misinterpreted.
  */
 export const NOT_EXPRESSIBLE: Record<
 	string,
 	{ message: string; suggestion?: string }
 > = {
 	"is:archived": {
-		message: "Archived tasks can only be added to a view, not shown on their own",
-		suggestion: "show:archived",
+		message: "Use show:archived-only to filter to just archived tasks.",
+		suggestion: "show:archived-only",
 	},
 	"archived:true": {
-		message: "Archived tasks can only be added to a view, not shown on their own",
-		suggestion: "show:archived",
+		message: "Use show:archived-only to filter to just archived tasks.",
+		suggestion: "show:archived-only",
 	},
 	"archived:only": {
-		message: "Archived tasks can only be added to a view, not shown on their own",
-		suggestion: "show:archived",
+		message: "Use show:archived-only to filter to just archived tasks.",
+		suggestion: "show:archived-only",
 	},
 	"is:sub-task": {
 		message: "Filtering to sub-tasks isn't expressible; filter by their parent instead",

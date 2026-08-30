@@ -173,9 +173,14 @@ export function parseQuery(
 		if (field === "show") {
 			const value = soleValue(token);
 			if (!value) continue;
+			// `show:archived` and `show:archived-only` both set `filters.archived`,
+			// so a query with both is a real conflict — dedupe on that key.
+			noteDuplicate("archived", token.span);
 			const lowered = value.text.trim().toLowerCase();
-			if (lowered === FLAG_TOKENS.includeArchived.value) {
-				filters.includeArchived = true;
+			if (lowered === FLAG_TOKENS.archivedIncluded.value) {
+				filters.archived = "included";
+			} else if (lowered === FLAG_TOKENS.archivedOnly.value) {
+				filters.archived = "only";
 			} else {
 				fail("unknown-value", `"show:${lowered}" isn't a known flag`, token.span);
 			}
@@ -243,7 +248,7 @@ export function parseQuery(
 			continue;
 		}
 
-		/* -- hidden fields (§8.4) -- */
+		/* -- hidden fields -- */
 
 		if (field === "hide") {
 			if (token.values.length === 0) {

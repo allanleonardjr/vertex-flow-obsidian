@@ -1,7 +1,7 @@
 /**
  * Rendering and editing task prose through Obsidian's own Markdown pipeline.
  *
- * Descriptions and comments are plain Markdown (§3's whole premise — these are
+ * Descriptions and comments are plain Markdown (the whole premise — these are
  * real notes, not database rows), so `[[wikilinks]]`, `![[embeds]]`, tags, and
  * checkboxes inside them should behave exactly like they do everywhere else in
  * the vault.

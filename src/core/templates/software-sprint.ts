@@ -3,7 +3,7 @@
  *
  * Deliberately ships two `started` statuses ("In Progress" and "In Review") to
  * demonstrate that a status's category drives logic while its name is free —
- * category ≠ name (§5.1).
+ * category ≠ name.
  *
  * This template is also the fixture the core unit tests build on
  * (`sampleSnapshot()` in `instantiate.ts`), so its example content — project
@@ -84,7 +84,7 @@ function buildExampleContent(ctx: TemplateBuildContext): TemplateContent {
 	});
 	const launch = makeProject(ctx, "App Store Launch & Marketing", {
 		// Deliberately still in the backlog while its tasks move — status and
-		// progress never auto-sync (§7.1).
+		// progress never auto-sync.
 		status: "backlog",
 		createdAt: ctx.iso(-30),
 		updatedAt: ctx.iso(-5),
@@ -139,7 +139,7 @@ function buildExampleContent(ctx: TemplateBuildContext): TemplateContent {
 			createdAt: ctx.iso(-30),
 		}),
 
-		// --- The blocked/blocking pair → demonstrates relations (§7.3).
+		// --- The blocked/blocking pair → demonstrates relations.
 		makeTask(ctx, 104, rank, {
 			title: "Fix LexoRank calculation when moving tasks into empty columns",
 			taskType: "bug",
@@ -208,7 +208,7 @@ function buildExampleContent(ctx: TemplateBuildContext): TemplateContent {
 		}),
 
 		// --- Hierarchy #2 (Developer Platform): a parent whose sub-tasks are all
-		//     done while it stays in progress — manual control, §7.2.
+		// done while it stays in progress — manual control.
 		makeTask(ctx, 110, rank, {
 			title: "Build the public REST API v1",
 			taskType: "feature",

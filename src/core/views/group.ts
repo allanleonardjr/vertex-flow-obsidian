@@ -1,6 +1,5 @@
 /**
- * Saved View grouping — the thing that turns a task list into Board columns
- * (§8.2).
+ * Saved View grouping — the thing that turns a task list into Board columns.
  *
  * Two behaviours here are board-specific and deliberate:
  *

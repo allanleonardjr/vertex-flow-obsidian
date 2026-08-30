@@ -2,7 +2,7 @@
  * The vault index: turns Markdown notes into `WorkspaceSnapshot`s that core
  * logic can reason about, and keeps them fresh as files change.
  *
- * A vault may hold several independent Workspaces (§2), each identified by a
+ * A vault may hold several independent Workspaces, each identified by a
  * `_workspace.md`. Everything below that note's folder belongs to it.
  *
  * Indexing reads structure from Obsidian's **metadata cache**, not from disk —
@@ -199,7 +199,7 @@ export class VaultIndex {
 		return new Map(this.issues);
 	}
 
-	/** Every ID prefix in the vault — the input to §3's collision handling. */
+	/** Every ID prefix in the vault — the input to the collision handling. */
 	takenPrefixes(): string[] {
 		return [...this.snapshots.values()].map((s) => s.workspace.idPrefix);
 	}
@@ -249,7 +249,7 @@ export class VaultIndex {
 		}
 
 		// Two workspaces sharing an `idPrefix` break short-form wikilink
-		// resolution (§3). Not fatal — both still load — but flagged on each
+		// resolution. Not fatal — both still load — but flagged on each
 		// `_workspace.md` through the same "this note has issues" surface.
 		for (const collision of detectPrefixCollisions(prefixEntries)) {
 			const others = collision.others.map((name) => `"${name}"`).join(", ");
@@ -312,7 +312,7 @@ export class VaultIndex {
 		}
 
 		// Two projects in one workspace sharing a title (case-insensitive) make
-		// `project:` filters and links ambiguous (§4.2). Not fatal — both load —
+		// `project:` filters and links ambiguous. Not fatal — both load —
 		// but flagged on each note the same way an ID-prefix collision is.
 		for (const snapshot of configs.values()) {
 			for (const collision of detectProjectTitleCollisions(snapshot.projects)) {

@@ -144,9 +144,9 @@ function ProjectEditor({
 
   const scope = scopeOf(snapshot);
   // A stable summary of the project's scope — not tied to the list's
-  // "Show sub-tasks" / "Show archived" toggles.
+  // sub-task display mode or its `archived` filter.
   const counts = projectTaskBreakdown(scope, project.path);
-  // §7.1: progress is computed independently of the project's own status, and
+  // Progress is computed independently of the project's own status, and
   // never fed back into it.
   const progress = projectProgress(scope, project.path, taxonomies.status);
 

@@ -1,5 +1,5 @@
 /**
- * The confirmation for deleting a Task or Project (§7.8).
+ * The confirmation for deleting a Task or Project.
  *
  * A genuine modal — the delete you just clicked can't proceed without one more
  * decision, and cancelling should leave you exactly where you were.

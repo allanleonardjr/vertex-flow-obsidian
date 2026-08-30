@@ -8,7 +8,7 @@
  *    Hand-rolling YAML surgery here would be the fastest way to corrupt
  *    someone's notes.
  * 2. **Deletes go to the system trash**, honouring the user's Obsidian setting,
- *    because §7.8's dialogs are the only confirmation the user gets.
+ * because the dialogs are the only confirmation the user gets.
  */
 
 import {
@@ -185,7 +185,7 @@ export class NoteIO {
 	/**
 	 * Rename/move a note, letting Obsidian rewrite every wikilink that points at
 	 * it. Only used for Projects — Task files are named by ID and never renamed,
-	 * which is the entire point of that decision (§3).
+	 * which is the entire point of that decision.
 	 */
 	async rename(file: TFile, newPath: string): Promise<void> {
 		await this.app.fileManager.renameFile(file, withExtension(normalizePath(newPath)));
