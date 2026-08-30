@@ -10,6 +10,7 @@ import { useState } from "react";
 import type { EvaluatedView } from "../../core/views";
 import {
 	BUILT_IN_VIEW_ID,
+	INBOX_VIEW_ID,
 	layoutIcon,
 	newView,
 	setColumnsCollapsed,
@@ -80,20 +81,24 @@ export function ViewControls({
 
 	const selectedCount = selection.selectedPaths.length;
 
-	// "Save" (overwrite in place) only makes sense for a real Saved View. The
-	// built-in "Tasks" and a synthesised label view aren't in `_views.md`, so an
-	// ad-hoc filter there becomes a *new* view or nothing at all.
-	const canOverwrite =
-		savedView.id !== BUILT_IN_VIEW_ID &&
-		snapshot.views.some((v) => v.id === savedView.id);
+	// The two permanent views (All Tasks, Inbox) are fixed fixtures: their
+	// name/icon and their purpose are not the user's to change, so no inline
+	// title editing and no description section. A synthesised label/project
+	// view isn't in `_views.md` at all.
+	const permanentView =
+		savedView.id === BUILT_IN_VIEW_ID || savedView.id === INBOX_VIEW_ID;
+	const inSavedViews = snapshot.views.some((v) => v.id === savedView.id);
 
-	// The name/icon are editable inline for any real Saved View (the built-in
-	// included); a synthesised label view isn't one and stays a plain heading.
-	const titleEditable = canOverwrite;
-	// The description section is offered for real user views only — not the
-	// built-in "All Tasks", and not synthesised label views.
-	const showDescription =
-		!hideTitle && canOverwrite && savedView.id !== BUILT_IN_VIEW_ID;
+	// "Save" (overwrite in place) works for any view backed by `_views.md` —
+	// the two permanent views included (filter/group/sort tweaks persist just
+	// like a user view). A synthesised label view isn't backed, so an ad-hoc
+	// filter there becomes a *new* view or nothing at all.
+	const canOverwrite = inSavedViews;
+
+	// Name/icon and the description section: real user views only.
+	const canEditIdentity = inSavedViews && !permanentView;
+	const titleEditable = canEditIdentity;
+	const showDescription = !hideTitle && canEditIdentity;
 	const descCollapsed = plugin.settings.descriptionCollapsed;
 	const descSourceMode = plugin.settings.descriptionSourceMode;
 
@@ -319,10 +324,10 @@ export function ViewControls({
 				<NamedIconDialog
 					title="Save view as"
 					initialName={
-						canOverwrite
-							? `${savedView.name} copy`
-							: savedView.id === BUILT_IN_VIEW_ID
-								? "New view"
+						permanentView
+							? "New view"
+							: canOverwrite
+								? `${savedView.name} copy`
 								: savedView.name
 					}
 					initialIcon={view.icon}
