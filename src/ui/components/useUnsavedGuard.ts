@@ -1,11 +1,12 @@
 /**
- * Wire a draft's dirty state into the tab strip's navigate-away guard.
+ * Wire a draft's dirty state into the tab strip's close guard.
  *
- * `useViewDraft` / `useDashboardDraft` hold edits in local state that is thrown
- * away when the tab unmounts. Only the active tab is mounted, so this hook —
- * used by whichever component owns the active draft — registers a check that
- * `tabs-context` runs before any navigation away from (or closure of) the tab:
- * it pops an `<UnsavedChangesDialog>` and resolves the navigation based on the
+ * `useViewDraft` / `useDashboardDraft` now hold edits in the shared draft store
+ * on `TabsProvider`, which survives tab and workspace switches — so navigation
+ * never loses a draft and never prompts. The one case still worth a prompt is
+ * *closing* the specific tab holding the draft: this hook, used by whichever
+ * component owns the active draft, registers a check that `tabs-context` runs
+ * on that close — it pops an `<UnsavedChangesDialog>` and resolves based on the
  * button pressed.
  *
  * Returns the dialog element to render (or `null`).

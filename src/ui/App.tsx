@@ -96,22 +96,25 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
       (path) => plugin.index.workspaceFor(path)?.workspace.root === root,
     );
   }, [tabs, plugin, snapshot.workspace.root, snapshot.tasks]);
+  // View/Dashboard/Label/Project tabs can belong to a workspace other than the
+  // one on screen — Tabs live above this component's per-workspace remount
+  // boundary. So a tab is only pruned when its target is gone from *every*
+  // workspace (`plugin.index.hasX`), never merely absent from the active
+  // snapshot. Deps still name the active snapshot's arrays: every array is
+  // rebuilt with a fresh identity on each index pass, so these re-run after any
+  // vault change (a delete in another workspace included).
   useEffect(() => {
-    tabs.pruneViews((id) => snapshot.views.some((v) => v.id === id));
-  }, [tabs, snapshot.views]);
+    tabs.pruneViews((id) => plugin.index.hasView(id));
+  }, [tabs, plugin, snapshot.views]);
   useEffect(() => {
-    tabs.pruneLabels((id) =>
-      snapshot.workspace.labels.some((l) => l.id === id),
-    );
-  }, [tabs, snapshot.workspace.labels]);
+    tabs.pruneLabels((id) => plugin.index.hasLabel(id));
+  }, [tabs, plugin, snapshot.workspace.labels]);
   useEffect(() => {
-    tabs.pruneProjects((path) =>
-      snapshot.projects.some((p) => p.path === path),
-    );
-  }, [tabs, snapshot.projects]);
+    tabs.pruneProjects((path) => plugin.index.hasProject(path));
+  }, [tabs, plugin, snapshot.projects]);
   useEffect(() => {
-    tabs.pruneDashboards((id) => snapshot.dashboards.some((d) => d.id === id));
-  }, [tabs, snapshot.dashboards]);
+    tabs.pruneDashboards((id) => plugin.index.hasDashboard(id));
+  }, [tabs, plugin, snapshot.dashboards]);
 
   // Escape closes whatever tab you're on; Shift+Escape closes every task tab.
   // Closing the last tab empties the strip and the empty-tabs pane renders —

@@ -10,10 +10,11 @@
  * straight through, and Save preserves whatever is currently on disk.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import type { DashboardConfig, WorkspaceSnapshot } from "../../core/types";
 import { canonicalizeFilters } from "../../core/views";
 import { usePlugin } from "../context";
+import { useTabs } from "../tabs-context";
 
 /** What "unsaved" is measured over: widgets + the canonicalised filter set. */
 function definitionOf(dashboard: DashboardConfig): string {
@@ -42,12 +43,12 @@ export function useDashboardDraft(
 	makeId: () => string,
 ): DashboardDraft {
 	const plugin = usePlugin();
-	const [draft, setDraft] = useState<DashboardConfig | null>(null);
+	const { getDashboardDraft, setDashboardDraft } = useTabs();
 
-	useEffect(
-		() => setDraft(null),
-		[dashboard.id, snapshot.workspace.root],
-	);
+	// Keyed by `dashboard.id` in `TabsProvider`'s shared store, so the draft
+	// outlives this component unmounting on a tab or workspace switch. The store
+	// is already per-id, so no reset-on-id-change effect is needed.
+	const draft = getDashboardDraft(dashboard.id);
 
 	const effective = draft ?? dashboard;
 	const dirty =
@@ -58,8 +59,14 @@ export function useDashboardDraft(
 		[plugin, snapshot],
 	);
 
-	const edit = useCallback((next: DashboardConfig) => setDraft(next), []);
-	const reset = useCallback(() => setDraft(null), []);
+	const edit = useCallback(
+		(next: DashboardConfig) => setDashboardDraft(dashboard.id, next),
+		[setDashboardDraft, dashboard.id],
+	);
+	const reset = useCallback(
+		() => setDashboardDraft(dashboard.id, null),
+		[setDashboardDraft, dashboard.id],
+	);
 
 	const save = useCallback(async () => {
 		if (!draft) return;
@@ -68,8 +75,16 @@ export function useDashboardDraft(
 			name: dashboard.name,
 			icon: dashboard.icon,
 		});
-		setDraft(null);
-	}, [draft, plugin, live, dashboard.name, dashboard.icon]);
+		setDashboardDraft(dashboard.id, null);
+	}, [
+		draft,
+		plugin,
+		live,
+		dashboard.id,
+		dashboard.name,
+		dashboard.icon,
+		setDashboardDraft,
+	]);
 
 	const saveAs = useCallback(
 		async (name: string, icon?: string) => {
@@ -82,10 +97,10 @@ export function useDashboardDraft(
 				widgets: effective.widgets.map((w) => ({ ...w })),
 			};
 			await plugin.mutations.addDashboard(live(), clone);
-			setDraft(null);
+			setDashboardDraft(dashboard.id, null);
 			return id;
 		},
-		[effective, plugin, live, makeId],
+		[effective, plugin, live, makeId, setDashboardDraft, dashboard.id],
 	);
 
 	return useMemo(

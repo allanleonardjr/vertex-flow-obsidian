@@ -419,6 +419,11 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
           active={entry.workspace.root === snapshot.workspace.root}
           onClick={() => {
             setActiveWorkspace(entry.workspace.root);
+            // If the active tab belongs to the workspace being left (a
+            // View/Dashboard/Label/Project tab that survives the switch),
+            // re-home to All Tasks in the same batch so its content pane never
+            // renders against the wrong snapshot. The foreign tab stays open.
+            tabs.syncToWorkspace(entry.workspace.root);
             // Clicking a workspace row with nothing open lands on All Tasks —
             // including a click on the workspace that's already active, which
             // doesn't change the root and so wouldn't trip TabsProvider's
@@ -449,6 +454,7 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
                 onClick={() => {
                   setMenuRoot(null);
                   setActiveWorkspace(entry.workspace.root);
+                  tabs.syncToWorkspace(entry.workspace.root);
                   tabs.openScreen("settings");
                 }}
               >

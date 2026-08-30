@@ -2035,6 +2035,31 @@ body.vf-dragging {
   background: transparent;
 }
 
+/* Dirty View/Dashboard tab: a small filled dot stands in for ✕ until hover. */
+.vf-tab-close.is-dirty {
+  opacity: 1;
+}
+
+.vf-tab-close-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.75;
+}
+
+.vf-tab-close-x {
+  display: none;
+}
+
+.vf-tab-close.is-dirty:hover .vf-tab-close-dot {
+  display: none;
+}
+
+.vf-tab-close.is-dirty:hover .vf-tab-close-x {
+  display: inline;
+}
+
 .vf-editor-header {
   display: flex;
   align-items: center;

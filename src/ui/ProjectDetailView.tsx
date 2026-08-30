@@ -59,12 +59,15 @@ export function ProjectDetailView({
 
   const project = snapshot.projects.find((p) => p.path === path) ?? null;
 
-  // Unresolvable (deleted since the last rebuild — App's prune effect normally
-  // catches this first). Closing has to happen in an effect, not inline: a
-  // state setter fired mid-render is unsafe in React. Same guard as `TaskPane`.
+  // Genuinely deleted — gone from every workspace, not merely absent from the
+  // active snapshot (this tab can briefly outlive a workspace switch before
+  // `syncToWorkspace` / `activate` re-homes it). Closing has to happen in an
+  // effect, not inline: a state setter fired mid-render is unsafe in React.
+  // Same guard as `TaskPane`.
+  const gone = !plugin.index.hasProject(path);
   useEffect(() => {
-    if (!project) closeActive();
-  }, [project, closeActive]);
+    if (gone) closeActive();
+  }, [gone, closeActive]);
 
   if (!project) return null;
 

@@ -146,6 +146,50 @@ export class VaultIndex {
 		return snapshot?.tasks.find((task) => task.path === path) ?? null;
 	}
 
+	/**
+	 * Vault-wide existence checks, used by App.tsx's tab-prune effects: a
+	 * View/Dashboard/Label/Project tab may belong to a workspace other than the
+	 * one currently on screen (Tabs live above the per-workspace remount
+	 * boundary), so pruning must check every workspace — not just the active
+	 * snapshot — or it silently closes other workspaces' tabs on every switch.
+	 */
+	/** The workspace whose `_views.md` holds this Saved View, if any. */
+	snapshotWithView(viewId: string): WorkspaceSnapshot | null {
+		for (const s of this.snapshots.values())
+			if (s.views.some((v) => v.id === viewId)) return s;
+		return null;
+	}
+
+	/** The workspace whose `_dashboards` holds this dashboard, if any. */
+	snapshotWithDashboard(dashboardId: string): WorkspaceSnapshot | null {
+		for (const s of this.snapshots.values())
+			if (s.dashboards.some((d) => d.id === dashboardId)) return s;
+		return null;
+	}
+
+	/** The workspace whose taxonomy defines this label, if any. */
+	snapshotWithLabel(labelId: string): WorkspaceSnapshot | null {
+		for (const s of this.snapshots.values())
+			if (s.workspace.labels.some((l) => l.id === labelId)) return s;
+		return null;
+	}
+
+	hasView(viewId: string): boolean {
+		return this.snapshotWithView(viewId) != null;
+	}
+
+	hasDashboard(dashboardId: string): boolean {
+		return this.snapshotWithDashboard(dashboardId) != null;
+	}
+
+	hasLabel(labelId: string): boolean {
+		return this.snapshotWithLabel(labelId) != null;
+	}
+
+	hasProject(path: string): boolean {
+		return this.workspaceFor(path)?.projects.some((p) => p.path === path) ?? false;
+	}
+
 	/** Parse problems found in a note, for the "this note has issues" badge. */
 	issuesFor(path: string): string[] {
 		return this.issues.get(path) ?? [];

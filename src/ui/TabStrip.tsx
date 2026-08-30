@@ -45,8 +45,18 @@ function isPermanentView(viewId: string): boolean {
 
 export function TabStrip({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 	const plugin = usePlugin();
-	const { tabs, activeId, activate, close, reorder } = useTabs();
+	const { tabs, activeId, activate, close, reorder, getViewDraft, getDashboardDraft } =
+		useTabs();
 	const drag = useTabDrag(reorder);
+
+	// A View/Dashboard tab holding a transient draft (the only unsaved state in
+	// the app) shows a dot in place of its close button — see `TabRow`.
+	const isTabDirty = (tab: Tab): boolean =>
+		tab.kind === "view"
+			? getViewDraft(tab.viewId) != null
+			: tab.kind === "dashboard"
+				? getDashboardDraft(tab.dashboardId) != null
+				: false;
 
 	// Task tabs show a bare title by default. Titles aren't unique across a
 	// vault though — two tasks in different projects can share a name — so
@@ -84,6 +94,7 @@ export function TabStrip({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 					<TabRow
 						tab={tab}
 						active={tab.id === activeId}
+						dirty={isTabDirty(tab)}
 						dragging={drag.isDragging(tab.id)}
 						snapshot={snapshot}
 						duplicateTaskTitles={duplicateTaskTitles}
@@ -142,7 +153,11 @@ function tabContent(
 	let label: React.ReactNode;
 
 	if (tab.kind === "view") {
-		const view = snapshot.views.find((v) => v.id === tab.viewId);
+		// Resolved via the index, not the active `snapshot` — a view tab can
+		// outlive a workspace switch (Tabs live above that boundary), so it has
+		// to find its own owning workspace regardless of which one is on screen.
+		const owner = plugin.index.snapshotWithView(tab.viewId) ?? snapshot;
+		const view = owner.views.find((v) => v.id === tab.viewId);
 		if (!view) return null;
 		icon = (
 			<span className="vf-tab-icon">
@@ -155,7 +170,9 @@ function tabContent(
 		);
 		label = isPermanentView(view.id) ? view.name : `${view.name} - View`;
 	} else if (tab.kind === "dashboard") {
-		const dashboard = snapshot.dashboards.find((d) => d.id === tab.dashboardId);
+		const owner =
+			plugin.index.snapshotWithDashboard(tab.dashboardId) ?? snapshot;
+		const dashboard = owner.dashboards.find((d) => d.id === tab.dashboardId);
 		if (!dashboard) return null;
 		icon = (
 			<span className="vf-tab-icon">
@@ -164,8 +181,9 @@ function tabContent(
 		);
 		label = `${dashboard.name} - Dashboard`;
 	} else if (tab.kind === "label") {
+		const owner = plugin.index.snapshotWithLabel(tab.labelId) ?? snapshot;
 		const labelValue = getValue(
-			workspaceTaxonomies(snapshot.workspace).label,
+			workspaceTaxonomies(owner.workspace).label,
 			tab.labelId,
 		);
 		if (!labelValue) return null;
@@ -218,6 +236,7 @@ function tabContent(
 function TabRow({
 	tab,
 	active,
+	dirty,
 	dragging,
 	snapshot,
 	duplicateTaskTitles,
@@ -228,6 +247,8 @@ function TabRow({
 }: {
 	tab: Tab;
 	active: boolean;
+	/** Holds a transient draft (view/dashboard only) — shows a dot, not ✕. */
+	dirty: boolean;
 	/** This tab is the one currently being dragged. */
 	dragging: boolean;
 	snapshot: WorkspaceSnapshot;
@@ -254,14 +275,23 @@ function TabRow({
 			{content.icon}
 			<span className="vf-tab-title">{content.label}</span>
 			<button
-				className="vf-tab-close"
-				title="Close tab"
+				className={`vf-tab-close${dirty ? " is-dirty" : ""}`}
+				title={dirty ? "Unsaved changes — close tab" : "Close tab"}
 				onClick={(event) => {
 					event.stopPropagation();
 					onClose();
 				}}
 			>
-				✕
+				{dirty ? (
+					<>
+						<span className="vf-tab-close-dot" aria-hidden />
+						<span className="vf-tab-close-x" aria-hidden>
+							✕
+						</span>
+					</>
+				) : (
+					"✕"
+				)}
 			</button>
 		</div>
 	);

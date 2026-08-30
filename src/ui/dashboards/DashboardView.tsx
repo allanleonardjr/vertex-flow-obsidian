@@ -78,6 +78,11 @@ export function DashboardView({
   }, []);
 
   if (!dashboard) {
+    // Absent from the active snapshot but still alive in another workspace: this
+    // tab briefly outlived a workspace switch before `syncToWorkspace` /
+    // `activate` re-homes it. Render nothing for that (unpainted) frame rather
+    // than flashing the "no longer exists" state.
+    if (plugin.index.hasDashboard(dashboardId)) return null;
     return (
       <EmptyView
         iconFallback="layout-dashboard"

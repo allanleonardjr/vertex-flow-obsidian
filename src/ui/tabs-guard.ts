@@ -3,15 +3,17 @@
  * and the drag-reorder splice — split out so they can be unit-tested (the React
  * wiring around them can't).
  *
- * Only the active tab is ever mounted, so only it can hold a live draft. The
- * rules:
+ * View/Dashboard drafts now live in `TabsProvider`, above the per-workspace
+ * remount boundary, so they survive both tab switches and workspace switches.
+ * That means navigation never loses a draft — the guard only has a reason to
+ * fire when the user *closes* the specific tab holding one. The rules:
  *
  *   - No guard registered → never prompt.
- *   - Switching / opening a tab that is *already* the active one → no-op, never
- *     prompt.
- *   - Closing a tab that isn't the active one → that tab has no live draft,
- *     never prompt.
- *   - Otherwise → prompt (navigation is leaving the active, guarded tab).
+ *   - Any navigation (switching/opening a tab, workspace switch) → never prompt;
+ *     the draft is safe in the shared store.
+ *   - Closing a tab that isn't the active one → that tab's draft isn't the one
+ *     the guard was registered for, never prompt.
+ *   - Closing the active, guarded tab → prompt.
  */
 
 export type GuardedAction = "navigate" | "close";
@@ -26,12 +28,11 @@ export function shouldPromptUnsavedGuard(input: {
 }): boolean {
 	if (!input.hasGuard) return false;
 
-	if (input.action === "close") {
-		return input.targetId === input.activeId;
-	}
+	// Navigation never prompts — the draft lives in the shared store above the
+	// remount boundary, so switching tabs or workspaces can't lose it.
+	if (input.action !== "close") return false;
 
-	// navigate: a no-op switch to the current tab shouldn't prompt.
-	return input.targetId !== input.activeId;
+	return input.targetId === input.activeId;
 }
 
 /**

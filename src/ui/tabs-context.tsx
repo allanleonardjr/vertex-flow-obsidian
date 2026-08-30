@@ -15,12 +15,15 @@ import {
 	useCallback,
 	useContext,
 	useEffect,
+	useLayoutEffect,
 	useMemo,
 	useRef,
 	useState,
 	type ReactNode,
 } from "react";
-import { BUILT_IN_VIEW_ID } from "../core/views";
+import type VertexFlowPlugin from "../main";
+import { BUILT_IN_VIEW_ID, INBOX_VIEW_ID } from "../core/views";
+import type { DashboardConfig, SavedView } from "../core/types";
 import { useActiveWorkspace, usePlugin, useSetActiveWorkspace } from "./context";
 import {
 	reorderTabs,
@@ -72,6 +75,47 @@ function projectTabId(path: string): string {
 	return `project:${path}`;
 }
 
+/**
+ * The workspace a tab is bound to, or `null` when it renders fine against any
+ * workspace (the browse screens, and the two permanent views All Tasks / Inbox,
+ * whose ids every workspace shares).
+ *
+ * View/Dashboard/Label/Project tabs survive a workspace switch (their drafts are
+ * safe in the store), but their content pane resolves against the *active*
+ * snapshot — so whenever such a tab is the active one, the active workspace has
+ * to match it, or the pane shows "this dashboard no longer exists" / the wrong
+ * view. `activate` enforces that on click; a layout effect re-homes the active
+ * tab after a sidebar workspace switch.
+ */
+function tabWorkspaceRoot(
+	plugin: VertexFlowPlugin,
+	tab: Tab,
+): string | null {
+	switch (tab.kind) {
+		case "task":
+		case "project":
+			return plugin.index.workspaceFor(tab.path)?.workspace.root ?? null;
+		case "view":
+			if (tab.viewId === BUILT_IN_VIEW_ID || tab.viewId === INBOX_VIEW_ID)
+				return null;
+			return (
+				plugin.index.snapshotWithView(tab.viewId)?.workspace.root ?? null
+			);
+		case "dashboard":
+			return (
+				plugin.index.snapshotWithDashboard(tab.dashboardId)?.workspace
+					.root ?? null
+			);
+		case "label":
+			return (
+				plugin.index.snapshotWithLabel(tab.labelId)?.workspace.root ??
+				null
+			);
+		default:
+			return null;
+	}
+}
+
 export interface TabsApi {
 	tabs: Tab[];
 	/** Null when no tab is open — the shell shows its empty-tabs pane. */
@@ -100,6 +144,15 @@ export interface TabsApi {
 	/** Close a tab. Closing the last one leaves `activeId === null`. */
 	close: (id: string) => void;
 	closeActive: () => void;
+	/**
+	 * Call right after switching this pane's active workspace from the sidebar,
+	 * in the same event handler. If the active tab belongs to the workspace
+	 * just left (a View/Dashboard/Label/Project tab that survived the switch),
+	 * its content pane can't render against the new snapshot — re-home to All
+	 * Tasks synchronously so the two state changes land in one render. The
+	 * foreign tab stays open; clicking it switches back to its workspace.
+	 */
+	syncToWorkspace: (root: string) => void;
 	/** Bulk-close every open task tab, keeping the browse/view tabs. */
 	closeAllTasks: () => void;
 	/** Drop task tabs whose task no longer exists. Browse/settings tabs are never pruned. */
@@ -123,6 +176,24 @@ export interface TabsApi {
 	 * when the draft goes clean and on unmount.
 	 */
 	setUnsavedGuard: (guard: (() => Promise<boolean>) | null) => void;
+
+	/**
+	 * The transient draft store for View / Dashboard tab edits — the only
+	 * genuinely unsaved state in the app (everything else writes straight
+	 * through). It lives here in `TabsProvider`, *above* the per-workspace
+	 * remount boundary (see the comment on `<Workspace key=… />` in App.tsx), so
+	 * a draft survives both tab switches and workspace switches. Memory-only:
+	 * still lost on plugin reload / Obsidian restart, by design.
+	 *
+	 * Keyed by `viewId` / `dashboardId`. Setting `null` clears the entry.
+	 */
+	getViewDraft: (viewId: string) => SavedView | null;
+	setViewDraft: (viewId: string, value: SavedView | null) => void;
+	getDashboardDraft: (dashboardId: string) => DashboardConfig | null;
+	setDashboardDraft: (
+		dashboardId: string,
+		value: DashboardConfig | null,
+	) => void;
 }
 
 const TabsCtx = createContext<TabsApi | null>(null);
@@ -136,6 +207,70 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 		useActiveWorkspace()?.snapshot.workspace.root ?? null;
 	const [tabs, setTabs] = useState<Tab[]>([]);
 	const [activeId, setActiveId] = useState<string | null>(null);
+
+	// Ref mirrors so the async navigation callbacks and the re-home layout
+	// effect can read the current tab list / active workspace without taking
+	// them as dependencies.
+	const tabsRef = useRef(tabs);
+	tabsRef.current = tabs;
+	const activeWorkspaceRootRef = useRef(activeWorkspaceRoot);
+	activeWorkspaceRootRef.current = activeWorkspaceRoot;
+
+	// Transient View / Dashboard drafts, lifted out of the per-view/dashboard
+	// component (where they died on every tab background) into the provider.
+	// Only non-null drafts are stored; clearing deletes the key. Reads go
+	// through refs so `getViewDraft` / the prune closures see the current value
+	// without taking the maps as a dependency; the maps are still in the `api`
+	// memo deps so consumers re-render when a draft changes.
+	const [viewDrafts, setViewDrafts] = useState<Record<string, SavedView>>({});
+	const [dashboardDrafts, setDashboardDrafts] = useState<
+		Record<string, DashboardConfig>
+	>({});
+	const viewDraftsRef = useRef(viewDrafts);
+	viewDraftsRef.current = viewDrafts;
+	const dashboardDraftsRef = useRef(dashboardDrafts);
+	dashboardDraftsRef.current = dashboardDrafts;
+
+	const getViewDraft = useCallback(
+		(viewId: string): SavedView | null =>
+			viewDraftsRef.current[viewId] ?? null,
+		[],
+	);
+	const setViewDraft = useCallback(
+		(viewId: string, value: SavedView | null) => {
+			setViewDrafts((current) => {
+				if (value == null) {
+					if (!(viewId in current)) return current;
+					const next = { ...current };
+					delete next[viewId];
+					return next;
+				}
+				if (current[viewId] === value) return current;
+				return { ...current, [viewId]: value };
+			});
+		},
+		[],
+	);
+	const getDashboardDraft = useCallback(
+		(dashboardId: string): DashboardConfig | null =>
+			dashboardDraftsRef.current[dashboardId] ?? null,
+		[],
+	);
+	const setDashboardDraft = useCallback(
+		(dashboardId: string, value: DashboardConfig | null) => {
+			setDashboardDrafts((current) => {
+				if (value == null) {
+					if (!(dashboardId in current)) return current;
+					const next = { ...current };
+					delete next[dashboardId];
+					return next;
+				}
+				if (current[dashboardId] === value) return current;
+				return { ...current, [dashboardId]: value };
+			});
+		},
+		[],
+	);
 
 	// A ref mirror so the (now async) navigation callbacks can read the current
 	// active tab without taking it as a dependency — keeps their identity stable.
@@ -273,9 +408,21 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 	const activate = useCallback(
 		async (id: string) => {
 			if (!(await mayLeaveActive("navigate", id))) return;
+			// A View/Dashboard/Label/Project tab can belong to a workspace other
+			// than the one on screen (it survived a workspace switch). Its
+			// content pane resolves against the active snapshot, so switch the
+			// workspace to match before showing it — same move `openTask` makes
+			// for a cross-workspace link.
+			const tab = tabsRef.current.find((t) => t.id === id);
+			if (tab) {
+				const owner = tabWorkspaceRoot(plugin, tab);
+				if (owner && owner !== activeWorkspaceRootRef.current) {
+					setActiveWorkspace(owner);
+				}
+			}
 			setActiveId(id);
 		},
-		[mayLeaveActive],
+		[mayLeaveActive, plugin, setActiveWorkspace],
 	);
 
 	// Reordering is not navigation — it never touches `activeId`, so it doesn't
@@ -313,6 +460,32 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 		const active = activeIdRef.current;
 		if (active) void close(active);
 	}, [close]);
+
+	const syncToWorkspace = useCallback(
+		(root: string) => {
+			const active = tabsRef.current.find(
+				(tab) => tab.id === activeIdRef.current,
+			);
+			if (!active) return;
+			const owner = tabWorkspaceRoot(plugin, active);
+			if (!owner || owner === root) return;
+			const allTasksId = viewTabId(BUILT_IN_VIEW_ID);
+			setTabs((current) =>
+				current.some((tab) => tab.id === allTasksId)
+					? current
+					: [
+							...current,
+							{
+								id: allTasksId,
+								kind: "view",
+								viewId: BUILT_IN_VIEW_ID,
+							},
+						],
+			);
+			setActiveId(allTasksId);
+		},
+		[plugin],
+	);
 
 	const closeAllTasks = useCallback(() => {
 		setTabs((current) => current.filter((tab) => tab.kind !== "task"));
@@ -359,7 +532,16 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 	);
 	const pruneViews = useCallback(
 		(existing: (viewId: string) => boolean) =>
-			makePrune("view", (tab) => existing(tab.viewId)),
+			// Never drop a tab that holds a real pending draft — even if its
+			// underlying Saved View was genuinely deleted, keep the tab so the
+			// edits aren't silently lost. A clean tab whose target is gone still
+			// closes.
+			makePrune(
+				"view",
+				(tab) =>
+					existing(tab.viewId) ||
+					viewDraftsRef.current[tab.viewId] != null,
+			),
 		[makePrune],
 	);
 	const pruneLabels = useCallback(
@@ -369,7 +551,13 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 	);
 	const pruneDashboards = useCallback(
 		(existing: (dashboardId: string) => boolean) =>
-			makePrune("dashboard", (tab) => existing(tab.dashboardId)),
+			// Same dirty-tab protection as `pruneViews`.
+			makePrune(
+				"dashboard",
+				(tab) =>
+					existing(tab.dashboardId) ||
+					dashboardDraftsRef.current[tab.dashboardId] != null,
+			),
 		[makePrune],
 	);
 	const pruneProjects = useCallback(
@@ -414,6 +602,25 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 		}
 	}, [plugin, activeWorkspaceRoot, openView]);
 
+	// A sidebar workspace switch leaves `activeId` untouched — but the active
+	// tab may belong to the workspace just left. Its content pane resolves
+	// against the new snapshot, so it would render "this dashboard no longer
+	// exists" / fall back to the wrong view. Re-home to All Tasks (every
+	// workspace has it); the foreign tab stays in the strip, its draft safe,
+	// and clicking it switches back to its own workspace (see `activate`).
+	// LayoutEffect so the mismatched frame never paints.
+	useLayoutEffect(() => {
+		if (!activeWorkspaceRoot || plugin.pendingOpenView) return;
+		const active = tabsRef.current.find(
+			(tab) => tab.id === activeIdRef.current,
+		);
+		if (!active) return;
+		const owner = tabWorkspaceRoot(plugin, active);
+		if (owner && owner !== activeWorkspaceRoot) {
+			void openView(BUILT_IN_VIEW_ID);
+		}
+	}, [plugin, activeWorkspaceRoot, openView]);
+
 	const activeTab = tabs.find((tab) => tab.id === activeId) ?? null;
 
 	const api = useMemo<TabsApi>(
@@ -432,14 +639,24 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			close,
 			closeActive,
 			closeAllTasks,
+			syncToWorkspace,
 			pruneTasks,
 			pruneViews,
 			pruneLabels,
 			pruneDashboards,
 			pruneProjects,
 			setUnsavedGuard,
+			getViewDraft,
+			setViewDraft,
+			getDashboardDraft,
+			setDashboardDraft,
 		}),
 		[
+			// The draft maps are in here (not just the stable getters) so every
+			// `useTabs()` consumer re-renders when a draft changes — that's what
+			// keeps `useViewDraft` / the tab dirty-dot live.
+			viewDrafts,
+			dashboardDrafts,
 			tabs,
 			activeId,
 			activeTab,
@@ -454,12 +671,17 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			close,
 			closeActive,
 			closeAllTasks,
+			syncToWorkspace,
 			pruneTasks,
 			pruneViews,
 			pruneLabels,
 			pruneDashboards,
 			pruneProjects,
 			setUnsavedGuard,
+			getViewDraft,
+			setViewDraft,
+			getDashboardDraft,
+			setDashboardDraft,
 		],
 	);
 

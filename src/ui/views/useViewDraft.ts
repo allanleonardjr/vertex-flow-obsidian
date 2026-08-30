@@ -13,7 +13,7 @@
  * go through the draft.)
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import type {
 	SavedView,
 	ViewCalendarState,
@@ -22,6 +22,7 @@ import type {
 	WorkspaceSnapshot,
 } from "../../core/types";
 import { canonicalizeDefinition, viewDefinition } from "../../core/views";
+import { useTabs } from "../tabs-context";
 import { useViewWriter } from "./useViewWriter";
 
 /**
@@ -61,12 +62,13 @@ export function useViewDraft(
 	view: SavedView,
 ): ViewDraft {
 	const writeView = useViewWriter(snapshot, view);
-	const [draft, setDraft] = useState<SavedView | null>(null);
+	const { getViewDraft, setViewDraft } = useTabs();
 
-	// Switching views abandons the draft — a draft belongs to the view it was
-	// started on. Keyed on the id, not the object: `view` gets a fresh identity
-	// on every index rebuild.
-	useEffect(() => setDraft(null), [view.id, snapshot.workspace.root]);
+	// The draft is keyed by `view.id` in the shared store owned by
+	// `TabsProvider`, so it survives this component unmounting on a tab or
+	// workspace switch. No reset-on-id-change effect: the store is already
+	// per-id, so each view only ever sees its own draft.
+	const draft = getViewDraft(view.id);
 
 	// Columns and timeline chrome always come from disk, so collapsing a column
 	// or zooming the timeline while a draft is pending isn't reverted when the
@@ -81,7 +83,10 @@ export function useViewDraft(
 		: view;
 	const dirty = draft != null && definitionOf(draft) !== definitionOf(view);
 
-	const edit = useCallback((next: SavedView) => setDraft(next), []);
+	const edit = useCallback(
+		(next: SavedView) => setViewDraft(view.id, next),
+		[setViewDraft, view.id],
+	);
 
 	const setColumns = useCallback(
 		(columns: ViewColumnState) => writeView({ ...view, columns }),
@@ -106,10 +111,21 @@ export function useViewDraft(
 			timeline: view.timeline,
 			calendar: view.calendar,
 		});
-		setDraft(null);
-	}, [draft, writeView, view.columns, view.timeline, view.calendar]);
+		setViewDraft(view.id, null);
+	}, [
+		draft,
+		writeView,
+		view.id,
+		view.columns,
+		view.timeline,
+		view.calendar,
+		setViewDraft,
+	]);
 
-	const reset = useCallback(() => setDraft(null), []);
+	const reset = useCallback(
+		() => setViewDraft(view.id, null),
+		[setViewDraft, view.id],
+	);
 
 	return {
 		effective,

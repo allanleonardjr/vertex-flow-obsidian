@@ -16,7 +16,7 @@ describe("shouldPromptUnsavedGuard", () => {
 		).toBe(false);
 	});
 
-	it("prompts when navigating away from a dirty active tab", () => {
+	it("never prompts on navigation, even away from a dirty active tab", () => {
 		expect(
 			shouldPromptUnsavedGuard({
 				hasGuard: true,
@@ -24,7 +24,7 @@ describe("shouldPromptUnsavedGuard", () => {
 				targetId: "dashboard:a",
 				activeId: "workspace",
 			}),
-		).toBe(true);
+		).toBe(false);
 	});
 
 	it("does not prompt for a no-op switch to the tab already active", () => {
@@ -56,6 +56,38 @@ describe("shouldPromptUnsavedGuard", () => {
 				action: "close",
 				targetId: "view:other",
 				activeId: "dashboard:a",
+			}),
+		).toBe(false);
+	});
+
+	it("never prompts on navigation regardless of target (draft is in the shared store)", () => {
+		for (const targetId of ["view:x", "dashboard:a", "workspace", "TSK-1"]) {
+			expect(
+				shouldPromptUnsavedGuard({
+					hasGuard: true,
+					action: "navigate",
+					targetId,
+					activeId: "dashboard:a",
+				}),
+			).toBe(false);
+		}
+	});
+
+	it("prompts on close only when the closed tab is the active guarded one", () => {
+		expect(
+			shouldPromptUnsavedGuard({
+				hasGuard: true,
+				action: "close",
+				targetId: "view:x",
+				activeId: "view:x",
+			}),
+		).toBe(true);
+		expect(
+			shouldPromptUnsavedGuard({
+				hasGuard: false,
+				action: "close",
+				targetId: "view:x",
+				activeId: "view:x",
 			}),
 		).toBe(false);
 	});
