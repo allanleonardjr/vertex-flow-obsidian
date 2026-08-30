@@ -210,6 +210,14 @@ export function printQuery(
 			`${FLAG_TOKENS.includeArchived.field}:${FLAG_TOKENS.includeArchived.value}`,
 		);
 	}
+	if (filters.openOnly) {
+		parts.push(`${FLAG_TOKENS.openOnly.field}:${FLAG_TOKENS.openOnly.value}`);
+	}
+	if (filters.unscheduled) {
+		parts.push(
+			`${FLAG_TOKENS.unscheduled.field}:${FLAG_TOKENS.unscheduled.value}`,
+		);
+	}
 
 	// `layout` and `empty` only when they differ from the default; `group` and
 	// `sort` always, because they're always meaningful and printing them makes

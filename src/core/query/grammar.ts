@@ -188,6 +188,8 @@ export const VERBATIM_PREFIX = "=";
 
 export const FLAG_TOKENS = {
 	includeArchived: { field: "show", value: "archived", aliases: [] },
+	openOnly: { field: "is", value: "open", aliases: [] },
+	unscheduled: { field: "is", value: "unscheduled", aliases: [] },
 } as const;
 
 /**

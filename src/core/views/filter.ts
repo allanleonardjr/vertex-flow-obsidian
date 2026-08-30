@@ -8,6 +8,7 @@
  */
 
 import { linksMatch } from "../links";
+import { isOpen } from "../taxonomy";
 import {
 	NONE,
 	SELF,
@@ -75,6 +76,13 @@ export function matchesFilters(
 	// revealed by the "Show archived" toggle rather than by a status filter.
 	if (task.archived && !filters.includeArchived) return false;
 
+	// Triaged-out predicates: finished work and scheduled work have both left
+	// the "needs a decision" pool. Independent of `includeArchived` (§7.7).
+	if (filters.openOnly && !isOpen(context.taxonomies.status, task.status)) {
+		return false;
+	}
+	if (filters.unscheduled && (task.dueDate || task.startDate)) return false;
+
 	if (!matchesSingle(task.status, filters.status)) return false;
 	if (!matchesSingle(task.priority, filters.priority)) return false;
 	if (!matchesSingle(task.taskType, filters.taskType)) return false;
@@ -126,7 +134,7 @@ export function applyFilters(
  */
 export type ArrayFilterKey = Exclude<
 	keyof ViewFilters,
-	"text" | "includeArchived"
+	"text" | "includeArchived" | "openOnly" | "unscheduled"
 >;
 
 export const FILTER_ARRAY_FIELDS: readonly ArrayFilterKey[] = [
@@ -168,6 +176,8 @@ export function canonicalizeFilters(filters: ViewFilters): ViewFilters {
 	const text = filters.text?.trim();
 	if (text) out.text = text;
 	if (filters.includeArchived) out.includeArchived = true;
+	if (filters.openOnly) out.openOnly = true;
+	if (filters.unscheduled) out.unscheduled = true;
 
 	return out;
 }

@@ -76,6 +76,31 @@ describe("filtering", () => {
 		expect(withArchived.length).toBe(all.length + archivedCount);
 	});
 
+	it("openOnly drops completed and canceled tasks (per category)", () => {
+		const tasks = [
+			task({ path: "A", status: "todo" }),
+			task({ path: "B", status: "in-progress" }),
+			task({ path: "C", status: "done" }),
+			task({ path: "D", status: "canceled" }),
+		];
+		const open = applyFilters(tasks, { openOnly: true }, context);
+		expect(open.map((t) => t.id)).toEqual(["A", "B"]);
+		// Independent of includeArchived: an archived-but-open task still needs
+		// the archived flag to show, and openOnly never reveals finished work.
+		expect(applyFilters(tasks, {}, context).length).toBe(4);
+	});
+
+	it("unscheduled drops any task with a startDate or dueDate", () => {
+		const tasks = [
+			task({ path: "A" }),
+			task({ path: "B", dueDate: "2026-09-01" }),
+			task({ path: "C", startDate: "2026-09-01" }),
+		];
+		expect(applyFilters(tasks, { unscheduled: true }, context).map((t) => t.id)).toEqual([
+			"A",
+		]);
+	});
+
 	it("ORs within one filter and ANDs across filters", () => {
 		const result = applyFilters(
 			snapshot.tasks,
@@ -372,8 +397,13 @@ describe("evaluateView", () => {
 		expect(views[0].viewType).toBe("list");
 		expect(views[0].subtaskDisplay).toBe("flat");
 		expect(views[0].filters).toEqual({});
-		// Inbox is "no project assigned" — nothing more.
-		expect(views[1].filters).toEqual({ project: [NONE] });
+		// Inbox is "untriaged": no project, top-level, open, and unscheduled.
+		expect(views[1].filters).toEqual({
+			project: [NONE],
+			parent: [NONE],
+			openOnly: true,
+			unscheduled: true,
+		});
 		expect(views[1].viewType).toBe("list");
 	});
 });

@@ -65,6 +65,9 @@ describe("round-trip (Invariant A)", () => {
 		["subtasks nested", def({ subtaskDisplay: "nested" })],
 		["subtasks hidden", def({ subtaskDisplay: "hidden" })],
 		["includeArchived", withFilters({ includeArchived: true })],
+		["openOnly", withFilters({ openOnly: true })],
+		["unscheduled", withFilters({ unscheduled: true })],
+		["both is: flags", withFilters({ openOnly: true, unscheduled: true })],
 		["text", withFilters({ text: "login" })],
 		["text with spaces", withFilters({ text: "login screen" })],
 		["text with a colon", withFilters({ text: "status:todo" })],
@@ -109,6 +112,8 @@ describe("round-trip (Invariant A)", () => {
 					parent: [taskPath],
 					text: "onboarding flow",
 					includeArchived: true,
+					openOnly: true,
+					unscheduled: true,
 				},
 			}),
 		],
@@ -469,6 +474,23 @@ describe("resolution", () => {
 		expect(parsed.ok).toBe(true);
 		expect(parsed.definition.subtaskDisplay).toBe("hidden");
 		expect(printQuery(parsed.definition, ctx)).toContain("subtasks:hidden");
+	});
+
+	it("parses is:open and is:unscheduled and round-trips them", () => {
+		const parsed = parseQuery("is:open is:unscheduled", ctx);
+		expect(parsed.ok).toBe(true);
+		expect(parsed.definition.filters.openOnly).toBe(true);
+		expect(parsed.definition.filters.unscheduled).toBe(true);
+		expect(printQuery(parsed.definition, ctx)).toBe(
+			"is:open is:unscheduled group:none sort:rank",
+		);
+	});
+
+	it("prints the Inbox definition as its documented query", () => {
+		const inbox = defaultViews().find((v) => v.id === "inbox")!;
+		expect(printQuery(viewDefinition(inbox), ctx)).toBe(
+			"project:unset parent:unset is:open is:unscheduled group:status sort:rank",
+		);
 	});
 
 	it("refuses to guess an ambiguous basename", () => {

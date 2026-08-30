@@ -63,12 +63,16 @@ export const BUILT_IN_VIEW_NAME = "All Tasks";
 export const LEGACY_BUILT_IN_VIEW_NAME = "Tasks";
 
 /**
- * The second permanent view: every task with no Project attached. Like the
+ * The second permanent view: a queue of genuinely untriaged captures. Like the
  * built-in "All Tasks" it can't be deleted from the sidebar and doesn't appear
- * in the Views section — it renders as its own bare row. `project: [NONE]` leans
- * on the existing filter-engine sentinel (`matchesLink`), so no filter change is
- * needed. It is *not* also filtered by date presence — Inbox is purely
- * "unassigned to a project".
+ * in the Views section — it renders as its own bare row.
+ *
+ * "Untriaged" means all four of: no Project (`project: [NONE]`), top-level
+ * (`parent: [NONE]` — a project-less sub-task is still anchored to its parent),
+ * still outstanding (`openOnly` — not Completed/Canceled), and not yet scheduled
+ * (`unscheduled` — a date is itself a triage decision). The link sentinels lean
+ * on the existing filter-engine `matchesLink` handling; `openOnly`/`unscheduled`
+ * are plain `ViewFilters` flags, also typeable as `is:open` / `is:unscheduled`.
  */
 export const INBOX_VIEW_ID = "inbox";
 export const INBOX_VIEW_NAME = "Inbox";
@@ -92,7 +96,12 @@ export function defaultViews(): SavedView[] {
 			viewType: "list",
 			groupBy: "status",
 			subtaskDisplay: "flat",
-			filters: { project: [NONE] },
+			filters: {
+				project: [NONE],
+				parent: [NONE],
+				openOnly: true,
+				unscheduled: true,
+			},
 		}),
 	];
 }

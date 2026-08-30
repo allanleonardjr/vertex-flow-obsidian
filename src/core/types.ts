@@ -305,6 +305,10 @@ export interface ViewFilters {
 	text?: string;
 	/** Defaults to hiding archived tasks (§7.7). */
 	includeArchived?: boolean;
+	/** Only tasks whose status isn't Completed or Canceled (per taxonomy category). */
+	openOnly?: boolean;
+	/** Only tasks with neither a dueDate nor a startDate set. */
+	unscheduled?: boolean;
 }
 
 /** Per-Saved-View, not global (§8.2). */

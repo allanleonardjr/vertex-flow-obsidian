@@ -160,6 +160,10 @@ export function parseQuery(
 			if (LEGACY_TOP_LEVEL_VALUES.includes(lowered as never)) {
 				noteDuplicate("subtasks", token.span);
 				subtaskDisplay = "hidden";
+			} else if (lowered === FLAG_TOKENS.openOnly.value) {
+				filters.openOnly = true;
+			} else if (lowered === FLAG_TOKENS.unscheduled.value) {
+				filters.unscheduled = true;
 			} else {
 				fail("unknown-value", `"is:${lowered}" isn't a known flag`, token.span);
 			}
