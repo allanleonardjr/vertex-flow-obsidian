@@ -1,0 +1,17 @@
+node_modules/
+
+# Build output — shipped via GitHub releases, not committed.
+main.js
+dist/
+*.js.map
+src/core/help-generated.ts
+src/core/templates/generated.ts
+.template-validate-*/
+
+# Obsidian plugin runtime state
+data.json
+
+.DS_Store
+coverage/
+
+repomix-*
