@@ -13,7 +13,7 @@ import { Icon } from "./components/Icon";
 import { StatusDot } from "./components/TaskBits";
 import { usePlugin } from "./context";
 import {
-	tabWorkspaceRoot,
+	tabAccentRoot,
 	useTabs,
 	type BrowseKind,
 	type Tab,
@@ -86,14 +86,17 @@ export function TabStrip({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 		return duplicates;
 	}, [tabs, plugin]);
 
-	// Each tab's owning workspace root (null only for the browse screens now —
-	// System View tabs carry their own root). Resolved fresh off the live index,
-	// same convention as `duplicateTaskTitles`.
+	// The workspace each tab's *content* currently tracks, for accent coloring
+	// (null only for Help / New-workspace now — the Projects/Dashboards/Views/
+	// Labels/Trash/Settings hub tabs follow the active workspace, System View
+	// tabs carry their own root). Resolved fresh off the live index, same
+	// convention as `duplicateTaskTitles`.
 	const tabRoots = useMemo(() => {
 		const map = new Map<string, string | null>();
-		for (const tab of tabs) map.set(tab.id, tabWorkspaceRoot(plugin, tab));
+		for (const tab of tabs)
+			map.set(tab.id, tabAccentRoot(plugin, tab, snapshot.workspace.root));
 		return map;
-	}, [tabs, plugin]);
+	}, [tabs, plugin, snapshot.workspace.root]);
 
 	// A System View (All Tasks / Untriaged) open for more than one workspace at
 	// once — both tabs would otherwise read the same bare name, so each gets its

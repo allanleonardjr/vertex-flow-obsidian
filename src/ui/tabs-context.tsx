@@ -129,6 +129,41 @@ export function tabWorkspaceRoot(
 	}
 }
 
+/**
+ * The workspace a tab's *content* is currently associated with, for accent
+ * coloring — broader than `tabWorkspaceRoot`. Task/Project/View/Dashboard/
+ * Label tabs keep their fixed owner. Projects/Dashboards/Views/Labels/Trash/
+ * Settings hub tabs have no fixed owner but do render whichever workspace is
+ * currently active (same relationship the Settings tab's own label already
+ * reflects), so they resolve to `activeRoot` instead of `null`. Help and
+ * New-workspace are the only tabs with no workspace relationship at all —
+ * their content never changes based on which workspace is active.
+ */
+export function tabAccentRoot(
+	plugin: VertexFlowPlugin,
+	tab: Tab,
+	activeRoot: string,
+): string | null {
+	switch (tab.kind) {
+		case "task":
+		case "project":
+		case "view":
+		case "dashboard":
+		case "label":
+			return tabWorkspaceRoot(plugin, tab);
+		case "projects":
+		case "dashboards":
+		case "views":
+		case "labels":
+		case "trash":
+		case "settings":
+			return activeRoot;
+		case "help":
+		case "new-workspace":
+			return null;
+	}
+}
+
 export interface TabsApi {
 	tabs: Tab[];
 	/** Null when no tab is open — the shell shows its empty-tabs pane. */

@@ -56,7 +56,7 @@ import {
 } from "./context";
 import { NamedIconDialog } from "./modals/NamedIconDialog";
 import { ConfirmDeleteDialog } from "./components/ConfirmDeleteDialog";
-import { tabWorkspaceRoot, useTabs } from "./tabs-context";
+import { tabAccentRoot, useTabs } from "./tabs-context";
 import { workspaceAccentColor } from "../core/workspace-color";
 
 const MIN_WIDTH = 170;
@@ -449,11 +449,11 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   const openWorkspaceRoots = useMemo(() => {
     const roots = new Set<string>();
     for (const tab of tabs.tabs) {
-      const root = tabWorkspaceRoot(plugin, tab);
+      const root = tabAccentRoot(plugin, tab, snapshot.workspace.root);
       if (root) roots.add(root);
     }
     return roots;
-  }, [tabs.tabs, plugin]);
+  }, [tabs.tabs, plugin, snapshot.workspace.root]);
 
   const showWorkspaceAccents = [...openWorkspaceRoots].some(
     (root) => root !== snapshot.workspace.root,
