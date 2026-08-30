@@ -7,6 +7,8 @@ import {
 	mentionsInNote,
 	extractProjectDescription,
 	isProjectTitleTaken,
+	nextAvailableProjectTitle,
+	projectDuplicatePatch,
 	detectViewIdCollisions,
 	nextCommentId,
 	parseComments,
@@ -316,6 +318,83 @@ describe("project title uniqueness (per workspace)", () => {
 
 	it("detectProjectTitleCollisions is empty when every title is distinct", () => {
 		expect(detectProjectTitleCollisions(projects)).toEqual([]);
+	});
+});
+
+describe("nextAvailableProjectTitle", () => {
+	const P = (path: string, title: string) =>
+		parseProject({ title }, { path, defaultStatus: "queue" }).value;
+
+	it("returns the base unchanged when nothing takes it", () => {
+		expect(nextAvailableProjectTitle([], "New project")).toBe("New project");
+		expect(
+			nextAvailableProjectTitle([P("W/P/a", "Roadmap")], "New project"),
+		).toBe("New project");
+	});
+
+	it("suffixes ' 2', ' 3', … past a run of collisions (case-insensitively)", () => {
+		const taken = [
+			P("W/P/a", "New project"),
+			P("W/P/b", "new project 2"),
+			P("W/P/c", "NEW PROJECT 3"),
+		];
+		expect(nextAvailableProjectTitle(taken, "New project")).toBe(
+			"New project 4",
+		);
+	});
+
+	it("works for the '<title> copy' base the duplicate flow passes", () => {
+		const taken = [
+			P("W/P/a", "Core App"),
+			P("W/P/b", "Core App copy"),
+		];
+		expect(nextAvailableProjectTitle(taken, "Core App copy")).toBe(
+			"Core App copy 2",
+		);
+	});
+});
+
+describe("projectDuplicatePatch", () => {
+	const source = parseProject(
+		{
+			title: "Core App",
+			icon: "rocket",
+			status: "in-progress",
+			priority: "high",
+			owner: "alice",
+			labels: ["performance", "ui"],
+			startDate: "2026-01-10",
+			dueDate: "2026-06-30",
+			archived: true,
+			archivedAt: "2026-07-01T00:00:00Z",
+		},
+		{ path: "W/Projects/Core App", defaultStatus: "queue" },
+	).value;
+
+	it("copies the taxonomy + scheduling identity fields", () => {
+		expect(projectDuplicatePatch(source)).toEqual({
+			status: "in-progress",
+			priority: "high",
+			labels: ["performance", "ui"],
+			startDate: "2026-01-10",
+			dueDate: "2026-06-30",
+			owner: "alice",
+		});
+	});
+
+	it("never carries archived state or title into the copy", () => {
+		const patch = projectDuplicatePatch(source);
+		expect(patch).not.toHaveProperty("archived");
+		expect(patch).not.toHaveProperty("archivedAt");
+		expect(patch).not.toHaveProperty("title");
+		expect(patch).not.toHaveProperty("icon");
+	});
+
+	it("clones the labels array rather than aliasing the source's", () => {
+		const patch = projectDuplicatePatch(source);
+		expect(patch.labels).not.toBe(source.labels);
+		patch.labels.push("mutated");
+		expect(source.labels).toEqual(["performance", "ui"]);
 	});
 });
 

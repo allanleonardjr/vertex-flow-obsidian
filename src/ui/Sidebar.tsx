@@ -222,12 +222,19 @@ function Section({
   title,
   count,
   action,
+  onOpenHub,
   children,
 }: {
   id: string;
   title: string;
   count: number;
   action?: ReactNode;
+  /**
+   * Where the title + count click leads, for sections that have a hub screen
+   * (Views/Dashboards/Projects). Absent — Labels, Workspaces — the title falls
+   * back to toggling collapse, same as the chevron.
+   */
+  onOpenHub?: () => void;
   children: ReactNode;
 }) {
   const plugin = usePlugin();
@@ -245,9 +252,13 @@ function Section({
   return (
     <div className="vf-section">
       <div className="vf-section-head">
+        {/* Chevron and title are separate sibling buttons — a button can't nest
+            inside a button, and only the chevron should toggle collapse when a
+            hub exists. */}
         <button
-          className="vf-section-toggle"
+          className="vf-section-chevron-btn"
           aria-expanded={!collapsed}
+          aria-label={collapsed ? `Expand ${title}` : `Collapse ${title}`}
           onClick={toggle}
         >
           <span
@@ -256,6 +267,11 @@ function Section({
           >
             ›
           </span>
+        </button>
+        <button
+          className="vf-section-title-btn"
+          onClick={onOpenHub ?? toggle}
+        >
           <span className="vf-section-title">{title}</span>
           <span className="vf-section-count">({count})</span>
         </button>
@@ -585,6 +601,7 @@ function ViewsSection({
   onSelectView: (id: string) => void;
 }) {
   const plugin = usePlugin();
+  const { openScreen } = useTabs();
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<ViewDialogState>(null);
   const [deleting, setDeleting] = useState<SavedView | null>(null);
@@ -627,6 +644,7 @@ function ViewsSection({
       title="Views"
       count={userViews.length}
       action={<AddButton title="New view" onClick={create} />}
+      onOpenHub={() => openScreen("views")}
     >
       {userViews.length === 0 && (
         <p className="vf-section-empty">No custom views yet</p>
@@ -733,7 +751,7 @@ type DashboardDialogState =
 
 function DashboardsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   const plugin = usePlugin();
-  const { activeTab, openDashboard } = useTabs();
+  const { activeTab, openDashboard, openScreen } = useTabs();
   const [menuId, setMenuId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<DashboardDialogState>(null);
   const [deleting, setDeleting] = useState<DashboardConfig | null>(null);
@@ -774,6 +792,7 @@ function DashboardsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
       title="Dashboards"
       count={dashboards.length}
       action={<AddButton title="New dashboard" onClick={create} />}
+      onOpenHub={() => openScreen("dashboards")}
     >
       {dashboards.length === 0 ? (
         <p className="vf-section-empty">No dashboards yet</p>
@@ -891,6 +910,12 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   const activeProjectPath =
     tabs.activeTab?.kind === "project" ? tabs.activeTab.path : null;
 
+  const duplicate = (project: Project) => {
+    void plugin.mutations
+      .duplicateProject(snapshot, project)
+      .then((file) => tabs.openProject(withoutExtension(file.path)));
+  };
+
   return (
     <Section
       id="projects"
@@ -899,6 +924,7 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
       action={
         <AddButton title="New project" onClick={() => setCreating(true)} />
       }
+      onOpenHub={() => tabs.openScreen("projects")}
     >
       {projects.length === 0 ? (
         <p className="vf-section-empty">No projects yet</p>
@@ -928,6 +954,15 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
                   }}
                 >
                   Edit
+                </button>
+                <button
+                  className="vf-menu-item"
+                  onClick={() => {
+                    setMenuPath(null);
+                    duplicate(project);
+                  }}
+                >
+                  Duplicate
                 </button>
               </RowMenu>
             }

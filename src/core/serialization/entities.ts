@@ -152,6 +152,50 @@ export function isProjectTitleTaken(
 	);
 }
 
+/**
+ * `base`, or `"base 2"`, `"base 3"`… — the first form not already taken by a
+ * project in this workspace (case-insensitive, matching `isProjectTitleTaken`).
+ *
+ * The two convenience entry points that mint a project without a dialog to fix
+ * the name in — the `c p` / "New project" default title, and "Duplicate" — use
+ * this to disambiguate their own generated title. A user typing a real name
+ * still gets hard-blocked on a real clash by `createProject`.
+ */
+export function nextAvailableProjectTitle(
+	projects: readonly Project[],
+	base: string,
+): string {
+	const taken = new Set(projects.map((p) => titleKey(p.title)));
+	if (!taken.has(titleKey(base))) return base;
+	for (let n = 2; ; n++) {
+		const candidate = `${base} ${n}`;
+		if (!taken.has(titleKey(candidate))) return candidate;
+	}
+}
+
+/**
+ * The subset of a project's fields a duplicate inherits: its taxonomy and
+ * scheduling identity, but **not** `archived`/`archivedAt` (a copy starts fresh
+ * and active, like every other "new" flow) and **not** `title` (the caller
+ * assigns a deduped `"<title> copy"`). The note body / description is copied
+ * separately by the mutation. Pure so `duplicateProject` stays testable.
+ */
+export function projectDuplicatePatch(
+	project: Project,
+): Pick<
+	Project,
+	"status" | "priority" | "labels" | "startDate" | "dueDate" | "owner"
+> {
+	return {
+		status: project.status,
+		priority: project.priority,
+		labels: [...project.labels],
+		startDate: project.startDate,
+		dueDate: project.dueDate,
+		owner: project.owner,
+	};
+}
+
 export interface ProjectTitleCollision {
 	path: string;
 	title: string;

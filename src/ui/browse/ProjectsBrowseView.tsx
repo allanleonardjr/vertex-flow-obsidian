@@ -1,23 +1,29 @@
 /**
- * Projects browse screen — every Project in the workspace, as a card with its
- * status, task count, and computed progress.
+ * Projects hub — every Project in the workspace, as a card with its status,
+ * task count, and computed progress. Each card carries an Edit / Duplicate row
+ * menu, matching what `ProjectsSection` offers in the sidebar.
+ *
+ * Deliberately *not* a Saved View (those filter Tasks, not Projects) — it's a
+ * plain manager list. There is no Delete here: project deletion is explicitly
+ * deferred, from both this hub and the sidebar.
  */
 
-import { projectProgress, projectTaskBreakdown, scopeOf } from "../../core/hierarchy";
+import { useState } from "react";
+import { isProjectTitleTaken } from "../../core/serialization";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
-import type { WorkspaceSnapshot } from "../../core/types";
+import type { Project, WorkspaceSnapshot } from "../../core/types";
+import { withoutExtension } from "../../obsidian/note-io";
 import { useCreateProject } from "../actions";
-import { TaxonomyChip } from "../components/TaskBits";
+import { usePlugin } from "../context";
+import { NamedIconDialog } from "../modals/NamedIconDialog";
 import { useTabs } from "../tabs-context";
+import { ProjectCardContent } from "./ProjectCardContent";
 import {
 	BrowseCard,
+	BrowseCardMenu,
 	BrowseEmpty,
 	BrowseHeader,
 	BrowseList,
-	BrowseMeta,
-	BrowseProgress,
-	formatFullDate,
-	pluralize,
 } from "./shared";
 
 export function ProjectsBrowseView({
@@ -27,9 +33,18 @@ export function ProjectsBrowseView({
 	snapshot: WorkspaceSnapshot;
 	taxonomies: WorkspaceTaxonomies;
 }) {
+	const plugin = usePlugin();
 	const createProject = useCreateProject();
 	const tabs = useTabs();
-	const scope = scopeOf(snapshot);
+
+	const [menuPath, setMenuPath] = useState<string | null>(null);
+	const [editing, setEditing] = useState<Project | null>(null);
+
+	const duplicate = (project: Project) => {
+		void plugin.mutations
+			.duplicateProject(snapshot, project)
+			.then((file) => tabs.openProject(withoutExtension(file.path)));
+	};
 
 	return (
 		<div className="vf-browse">
@@ -45,37 +60,71 @@ export function ProjectsBrowseView({
 				<BrowseEmpty label="projects" actionLabel="New project" />
 			) : (
 				<BrowseList>
-					{snapshot.projects.map((project) => {
-						// All active work in the project (top-level + sub-tasks); the
-						// detail header breaks this down further.
-						const counts = projectTaskBreakdown(scope, project.path);
-						const taskCount = counts.tasks + counts.subtasks;
-						// Progress is computed independently of the project's
-						// own status, and never fed back into it.
-						const progress = projectProgress(scope, project.path, taxonomies.status);
-
-						return (
-							<BrowseCard
-								key={project.path}
-								onClick={() => tabs.openProject(project.path)}
-							>
-								<div className="vf-browse-card-top">
-									<TaxonomyChip
-										taxonomies={taxonomies}
-										kind="status"
-										id={project.status}
-									/>
-									<span className="vf-browse-title">{project.title}</span>
-								</div>
-								<BrowseMeta>
-									<span>{pluralize(taskCount, "task")}</span>
-									<span>Created {formatFullDate(project.createdAt)}</span>
-								</BrowseMeta>
-								<BrowseProgress progress={progress} />
-							</BrowseCard>
-						);
-					})}
+					{snapshot.projects.map((project) => (
+						<BrowseCard
+							key={project.path}
+							onClick={() => tabs.openProject(project.path)}
+							trailing={
+								<BrowseCardMenu
+									open={menuPath === project.path}
+									onToggle={() =>
+										setMenuPath((p) =>
+											p === project.path ? null : project.path,
+										)
+									}
+									onClose={() => setMenuPath(null)}
+								>
+									<button
+										className="vf-menu-item"
+										onClick={() => {
+											setMenuPath(null);
+											setEditing(project);
+										}}
+									>
+										Edit
+									</button>
+									<button
+										className="vf-menu-item"
+										onClick={() => {
+											setMenuPath(null);
+											duplicate(project);
+										}}
+									>
+										Duplicate
+									</button>
+								</BrowseCardMenu>
+							}
+						>
+							<ProjectCardContent
+								snapshot={snapshot}
+								taxonomies={taxonomies}
+								project={project}
+							/>
+						</BrowseCard>
+					))}
 				</BrowseList>
+			)}
+
+			{editing && (
+				<NamedIconDialog
+					title="Edit project"
+					initialName={editing.title}
+					initialIcon={editing.icon}
+					iconFallback="folder"
+					confirmLabel="Save"
+					validateName={(name) =>
+						isProjectTitleTaken(snapshot.projects, name, editing.path)
+							? `A project named "${name.trim()}" already exists`
+							: null
+					}
+					onConfirm={(name, icon) =>
+						void plugin.mutations.updateProject(editing, {
+							title: name,
+							icon,
+						})
+					}
+					onClose={() => setEditing(null)}
+				/>
 			)}
 		</div>
 	);

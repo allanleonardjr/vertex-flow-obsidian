@@ -180,14 +180,14 @@ body.vf-text-comfortable {
   align-items: center;
 }
 
-.vf-section-toggle {
+/* Chevron and title are two sibling buttons (a button can't nest in a button).
+   Shared reset; the chevron hugs its glyph, the title takes the rest. */
+.vf-section-chevron-btn,
+.vf-section-title-btn {
   display: flex;
   align-items: center;
   /* Obsidian's base `button` centers its content — force left. */
   justify-content: flex-start !important;
-  gap: 3px;
-  flex: 1;
-  min-width: 0;
   padding: 4px 6px;
   border: none !important;
   background: transparent !important;
@@ -201,7 +201,20 @@ body.vf-text-comfortable {
   cursor: pointer;
 }
 
-.vf-section-toggle:hover {
+.vf-section-chevron-btn {
+  flex: 0 0 auto;
+  padding-right: 0;
+}
+
+.vf-section-title-btn {
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+  padding-left: 3px;
+}
+
+.vf-section-chevron-btn:hover,
+.vf-section-title-btn:hover {
   color: var(--text-normal);
 }
 
@@ -2655,16 +2668,16 @@ button.vf-crumb:hover {
   color: var(--text-normal);
 }
 
+/* The border / hover treatment lives on the wrapper so a card with no trailing
+   menu looks identical to one with. The body is the clickable button; the
+   trailing slot is a separate sibling (button-in-button is invalid). */
 .vf-browse-card {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
   border: 1px solid var(--vf-border);
   border-radius: var(--vf-radius);
   background: var(--background-primary);
-  text-align: left;
-  cursor: pointer;
 }
 
 .vf-browse-card:hover {
@@ -2672,10 +2685,74 @@ button.vf-crumb:hover {
   background: var(--background-modifier-hover);
 }
 
+.vf-browse-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 14px;
+  border: none !important;
+  border-radius: var(--vf-radius);
+  background: transparent !important;
+  box-shadow: none !important;
+  text-align: left;
+  cursor: pointer;
+}
+
+.vf-browse-card-trailing {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+
+.vf-browse-card-menu-anchor {
+  position: relative;
+  display: inline-flex;
+}
+
+.vf-browse-card-menu {
+  padding: 2px 6px;
+  border: none !important;
+  border-radius: 4px;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--vf-muted);
+  font-size: 13px;
+  line-height: 1;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.vf-browse-card:hover .vf-browse-card-menu,
+.vf-browse-card-menu:focus-visible,
+.vf-browse-card-menu[aria-expanded="true"] {
+  opacity: 1;
+}
+
+.vf-browse-card-menu:hover {
+  background: var(--background-modifier-hover) !important;
+  color: var(--text-normal);
+}
+
+/* Anchor the dropdown to the trigger's right edge and size it to content,
+   like the section "+" menu. */
+.vf-browse-card-menu-anchor .vf-menu {
+  left: auto;
+  right: 0;
+  width: max-content;
+}
+
+.vf-browse-card-icon {
+  display: inline-flex;
+  color: var(--vf-muted);
+}
+
 .vf-browse-card-top {
   display: flex;
   align-items: center;
   gap: 8px;
+  /* Keep the title clear of the trailing ⋯ menu in the card's top-right. */
+  padding-right: 20px;
 }
 
 .vf-browse-title {

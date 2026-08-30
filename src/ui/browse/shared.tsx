@@ -9,7 +9,7 @@
  * the escape hatch to the file.
  */
 
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import type { Progress } from "../../core/types";
 import { ProgressBar } from "../components/TaskBits";
 
@@ -62,17 +62,77 @@ export function BrowseEmpty({ label, actionLabel }: { label: string; actionLabel
 	);
 }
 
+/**
+ * A card with a clickable body and an optional trailing slot for a row menu.
+ *
+ * The card can't be a single `<button>` wrapping everything — the trailing menu
+ * trigger is itself a `<button>`, and nesting is invalid. Same split `NavRow`
+ * uses in the sidebar: a body button plus a sibling trailing element, with the
+ * border / hover treatment on the outer wrapper so a card with no `trailing`
+ * still looks identical.
+ */
 export function BrowseCard({
 	onClick,
+	trailing,
 	children,
 }: {
 	onClick: () => void;
+	trailing?: ReactNode;
 	children: ReactNode;
 }) {
 	return (
-		<button className="vf-browse-card" onClick={onClick}>
-			{children}
-		</button>
+		<div className="vf-browse-card">
+			<button className="vf-browse-card-body" onClick={onClick}>
+				{children}
+			</button>
+			{trailing && <div className="vf-browse-card-trailing">{trailing}</div>}
+		</div>
+	);
+}
+
+/**
+ * The `⋯` row menu for a browse card — the card equivalent of the sidebar's
+ * `RowMenu`. Opens a `.vf-menu` of `.vf-menu-item` buttons; a window click
+ * closes it. Each hub screen owns the open/close state.
+ */
+export function BrowseCardMenu({
+	open,
+	onToggle,
+	onClose,
+	children,
+}: {
+	open: boolean;
+	onToggle: () => void;
+	onClose: () => void;
+	children: ReactNode;
+}) {
+	useEffect(() => {
+		if (!open) return;
+		window.addEventListener("click", onClose);
+		return () => window.removeEventListener("click", onClose);
+	}, [open, onClose]);
+
+	return (
+		<div className="vf-browse-card-menu-anchor">
+			<button
+				className="vf-browse-card-menu"
+				title="Options"
+				aria-label="Options"
+				aria-haspopup="menu"
+				aria-expanded={open}
+				onClick={(event) => {
+					event.stopPropagation();
+					onToggle();
+				}}
+			>
+				⋯
+			</button>
+			{open && (
+				<div className="vf-menu" onClick={(event) => event.stopPropagation()}>
+					{children}
+				</div>
+			)}
+		</div>
 	);
 }
 

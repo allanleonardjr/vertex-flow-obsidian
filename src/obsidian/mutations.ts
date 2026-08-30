@@ -24,6 +24,8 @@ import {
 import {
   extractProjectDescription,
   isProjectTitleTaken,
+  nextAvailableProjectTitle,
+  projectDuplicatePatch,
   serializeProject,
   withProjectDescription,
 } from "../core/serialization/entities";
@@ -69,7 +71,7 @@ import {
   type DeletionPlan,
 } from "../core/hierarchy";
 import { FOLDERS, VaultIndex, WORKSPACE_NOTE } from "./index-store";
-import { NoteIO } from "./note-io";
+import { NoteIO, withoutExtension } from "./note-io";
 
 export interface NewTaskInput {
   title: string;
@@ -726,6 +728,40 @@ export class Mutations {
       "",
     );
     await this.index.rebuild();
+    return file;
+  }
+
+  /**
+   * Copy a project into a fresh, active project of the same identity — title
+   * `"<title> copy"` (deduped), same icon, status, priority, labels, dates,
+   * owner and description. Deliberately copies **nothing under it**: a
+   * duplicated project has no tasks (remapping ids/relations/parent links is a
+   * separate, much larger feature). `archived`/`archivedAt` are not copied —
+   * every "new" flow in the app starts active.
+   */
+  async duplicateProject(
+    snapshot: WorkspaceSnapshot,
+    project: Project,
+  ): Promise<TFile> {
+    const title = nextAvailableProjectTitle(
+      snapshot.projects,
+      `${project.title} copy`,
+    );
+    // `createProject` rebuilds the index, so the new project is resolvable
+    // straight after.
+    const file = await this.createProject(snapshot, title, project.icon);
+    const created = this.index
+      .workspaceFor(file.path)
+      ?.projects.find((p) => p.path === withoutExtension(file.path));
+    if (created) {
+      // Description first: `setProjectDescription` re-stamps frontmatter from
+      // the (still blank) `created`, so the field patch has to land after it.
+      const source = await this.readProjectDocument(project);
+      if (source.description) {
+        await this.setProjectDescription(created, source.description);
+      }
+      await this.updateProject(created, projectDuplicatePatch(project));
+    }
     return file;
   }
 

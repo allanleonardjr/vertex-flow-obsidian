@@ -13,11 +13,13 @@ import {
 import { workspaceTaxonomies } from "../core/taxonomy";
 import type { Project, SavedView, WorkspaceSnapshot } from "../core/types";
 import { EmptyState } from "./EmptyState";
-import { EmptyTabsPane, BrowseHubPane } from "./EmptyTabsPane";
+import { EmptyTabsPane } from "./EmptyTabsPane";
 import { ProjectDetailView } from "./ProjectDetailView";
 import { TemplateGallery } from "./TemplateGallery";
 import { SelectionProvider } from "./selection";
 import { ProjectsBrowseView } from "./browse/ProjectsBrowseView";
+import { ViewsBrowseView } from "./browse/ViewsBrowseView";
+import { DashboardsBrowseView } from "./browse/DashboardsBrowseView";
 import { DashboardView } from "./dashboards/DashboardView";
 import { Sidebar } from "./Sidebar";
 import { WorkspaceSettingsView } from "./settings/WorkspaceSettingsView";
@@ -183,9 +185,9 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
         ) : activeTab.kind === "new-workspace" ? (
           <TemplateGallery onClose={() => tabs.close("new-workspace")} />
         ) : activeTab.kind === "dashboards" ? (
-          <BrowseHubPane kind="dashboards" />
+          <DashboardsBrowseView snapshot={snapshot} />
         ) : activeTab.kind === "views" ? (
-          <BrowseHubPane kind="views" />
+          <ViewsBrowseView snapshot={snapshot} />
         ) : activeTab.kind === "dashboard" ? (
           <DashboardView
             key={activeTab.dashboardId}
