@@ -574,9 +574,10 @@ export class Mutations {
     snapshot: WorkspaceSnapshot,
     name: string,
     color: string,
+    description?: string,
   ): Promise<string> {
     const labels = workspaceTaxonomies(snapshot.workspace).label;
-    const next = addValue(labels, { name: name.trim(), color });
+    const next = addValue(labels, { name: name.trim(), color, description });
     const created = next.values[next.values.length - 1];
     await this.saveWorkspaceConfig(withTaxonomy(snapshot.workspace, next));
     return created.id;
@@ -585,7 +586,7 @@ export class Mutations {
   async updateLabel(
     snapshot: WorkspaceSnapshot,
     id: string,
-    patch: { name?: string; color?: string },
+    patch: { name?: string; color?: string; description?: string },
   ): Promise<void> {
     const labels = workspaceTaxonomies(snapshot.workspace).label;
     const next = updateValue(labels, id, patch);

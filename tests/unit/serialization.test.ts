@@ -612,6 +612,58 @@ describe("parseWorkspace", () => {
 		);
 		expect(parseWorkspace({ name: "W" }, { path }).value.icon).toBeUndefined();
 	});
+
+	it("round-trips a taxonomy description on all four taxonomies, and leaves it undefined when absent", () => {
+		const { value } = parseWorkspace(
+			{
+				name: "W",
+				idPrefix: "WWW",
+				statuses: [
+					{
+						id: "queue",
+						name: "Queue",
+						color: "#94a3b8",
+						category: "backlog",
+						order: 1,
+						description: "Not started",
+					},
+					{ id: "done", name: "Done", color: "#34d399", category: "completed", order: 2 },
+				],
+				priorities: [
+					{ id: "high", name: "High", color: "#f97316", order: 1, description: "Do soon" },
+				],
+				taskTypes: [
+					{ id: "bug", name: "Bug", color: "#ef4444", description: "Something broke" },
+				],
+				labels: [
+					{
+						id: "performance",
+						name: "Performance",
+						color: "#f97316",
+						description: "Speed and memory work",
+					},
+					{ id: "design", name: "Design", color: "#a855f7" },
+				],
+			},
+			{ path },
+		);
+
+		expect(value.statuses[0].description).toBe("Not started");
+		expect(value.statuses[1]).not.toHaveProperty("description");
+		expect(value.priorities[0].description).toBe("Do soon");
+		expect(value.taskTypes[0].description).toBe("Something broke");
+		expect(value.labels[0].description).toBe("Speed and memory work");
+		expect(value.labels[1]).not.toHaveProperty("description");
+
+		const round = parseWorkspace(serializeWorkspace(value), { path }).value;
+		expect(round).toEqual(value);
+
+		const serialized = serializeWorkspace(value);
+		expect(serialized.labels).toEqual([
+			{ id: "performance", name: "Performance", color: "#f97316", description: "Speed and memory work" },
+			{ id: "design", name: "Design", color: "#a855f7" },
+		]);
+	});
 });
 
 describe("parseViews", () => {

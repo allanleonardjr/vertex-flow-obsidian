@@ -1055,7 +1055,7 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 
 function LabelsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   const plugin = usePlugin();
-  const { activeTab, openLabel } = useTabs();
+  const { activeTab, openLabel, openScreen } = useTabs();
   const labels = workspaceTaxonomies(snapshot.workspace).label;
   const ordered = [...labels.values].sort((a, b) =>
     a.name.localeCompare(b.name),
@@ -1106,6 +1106,7 @@ function LabelsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
       title="Labels"
       count={ordered.length}
       action={<AddButton title="New label" onClick={() => setCreating(true)} />}
+      onOpenHub={() => openScreen("labels")}
     >
       {ordered.length === 0 ? (
         <p className="vf-section-empty">No labels yet</p>
@@ -1155,8 +1156,10 @@ function LabelsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
           title="New label"
           initialName="New label"
           confirmLabel="Create"
-          onConfirm={(name, color) =>
-            plugin.mutations.createLabel(snapshot, name, color).then(() => {})
+          onConfirm={(name, color, description) =>
+            plugin.mutations
+              .createLabel(snapshot, name, color, description)
+              .then(() => {})
           }
           onClose={() => setCreating(false)}
         />
@@ -1167,11 +1170,13 @@ function LabelsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
           title="Edit label"
           initialName={editLabel.name}
           initialColor={editLabel.color}
+          initialDescription={editLabel.description}
           confirmLabel="Save"
-          onConfirm={(name, color) =>
+          onConfirm={(name, color, description) =>
             plugin.mutations.updateLabel(snapshot, editLabel.id, {
               name,
               color,
+              description,
             })
           }
           onClose={() => setEditing(null)}

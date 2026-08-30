@@ -99,6 +99,8 @@ export interface TaxonomyValue {
 	order?: number;
 	/** Present only on categorized taxonomies (status). */
 	category?: StatusCategory;
+	/** Optional free text. Currently only surfaced in the UI for labels. */
+	description?: string;
 }
 
 export interface StatusValue extends TaxonomyValue {

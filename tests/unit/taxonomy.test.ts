@@ -141,6 +141,30 @@ describe("mutation", () => {
 		expect(original.values).toHaveLength(2);
 	});
 
+	it("stores an optional description on add, and leaves it undefined when absent", () => {
+		const withDesc = addValue(labels(), {
+			name: "Blocked",
+			color: "#f00",
+			description: "Waiting on someone else",
+		});
+		expect(withDesc.values.find((v) => v.id === "blocked")?.description).toBe(
+			"Waiting on someone else",
+		);
+
+		const without = addValue(labels(), { name: "Chore", color: "#999" });
+		expect(without.values.find((v) => v.id === "chore")).not.toHaveProperty(
+			"description",
+		);
+	});
+
+	it("updates a description via updateValue, and can clear it", () => {
+		const set = updateValue(labels(), "perf", { description: "Speed work" });
+		expect(set.values.find((v) => v.id === "perf")?.description).toBe("Speed work");
+
+		const cleared = updateValue(set, "perf", { description: undefined });
+		expect(cleared.values.find((v) => v.id === "perf")?.description).toBeUndefined();
+	});
+
 	it("renumbers order on reorder", () => {
 		const next = reorderValues(statuses(), ["done", "queue"]);
 		expect(next.values.map((v) => [v.id, v.order])).toEqual([

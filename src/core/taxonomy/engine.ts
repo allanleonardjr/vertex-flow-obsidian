@@ -198,6 +198,7 @@ export interface NewValueInput {
 	order?: number;
 	/** Explicit id, else slugified from `name`. */
 	id?: string;
+	description?: string;
 }
 
 export function addValue<V extends TaxonomyValue>(
@@ -227,6 +228,7 @@ export function addValue<V extends TaxonomyValue>(
 	if (taxonomy.schema.categorized) {
 		value.category = input.category;
 	}
+	if (input.description) value.description = input.description;
 
 	return { ...taxonomy, values: [...taxonomy.values, value] };
 }

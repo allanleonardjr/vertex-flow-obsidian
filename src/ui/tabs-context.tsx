@@ -39,7 +39,8 @@ export type BrowseKind =
 	| "new-workspace"
 	| "dashboards"
 	| "views"
-	| "trash";
+	| "trash"
+	| "labels";
 
 export type Tab =
 	| { id: BrowseKind; kind: BrowseKind }

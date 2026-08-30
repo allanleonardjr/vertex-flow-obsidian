@@ -23,6 +23,7 @@ workspaces' lists open side by side.
 | `g` `p` | Projects |
 | `g` `d` | Dashboards |
 | `g` `v` | Views |
+| `g` `l` | Labels |
 | `g` `t` | Trash |
 | `g` `h` | Help |
 | `g` `s` | Settings |

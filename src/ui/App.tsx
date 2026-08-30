@@ -19,6 +19,7 @@ import { TemplateGallery } from "./TemplateGallery";
 import { SelectionProvider } from "./selection";
 import { ProjectsBrowseView } from "./browse/ProjectsBrowseView";
 import { ViewsBrowseView } from "./browse/ViewsBrowseView";
+import { LabelsBrowseView } from "./browse/LabelsBrowseView";
 import { DashboardsBrowseView } from "./browse/DashboardsBrowseView";
 import { TrashBrowseView } from "./browse/TrashBrowseView";
 import { DashboardView } from "./dashboards/DashboardView";
@@ -190,6 +191,8 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
           <DashboardsBrowseView snapshot={snapshot} />
         ) : activeTab.kind === "views" ? (
           <ViewsBrowseView snapshot={snapshot} />
+        ) : activeTab.kind === "labels" ? (
+          <LabelsBrowseView snapshot={snapshot} />
         ) : activeTab.kind === "trash" ? (
           <TrashBrowseView snapshot={snapshot} taxonomies={active.taxonomies} />
         ) : activeTab.kind === "dashboard" ? (

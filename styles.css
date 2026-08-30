@@ -2768,6 +2768,17 @@ button.vf-crumb:hover {
   font-size: var(--font-ui-smaller);
 }
 
+.vf-browse-card-description {
+  margin: 4px 0 0;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
 .vf-browse-progress .vf-progress-wrap {
   width: 100%;
 }

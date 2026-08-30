@@ -72,6 +72,9 @@ function parseTaxonomyList(
 			color: asString(record.color) ?? FALLBACK_COLOR,
 		};
 
+		const description = asString(record.description);
+		if (description) row.description = description;
+
 		if (options.ordered) row.order = asNumber(record.order) ?? rows.length + 1;
 
 		if (options.categorized) {
@@ -101,6 +104,7 @@ interface TaxonomyRow {
 	color: string;
 	order?: number;
 	category?: StatusCategory;
+	description?: string;
 }
 
 function parsePeople(raw: unknown, log: IssueLog): Person[] {
@@ -226,29 +230,41 @@ export function serializeWorkspace(
 		defaultNewTaskStatus: workspace.defaultNewTaskStatus,
 		estimateUnitLabel: workspace.estimateUnitLabel,
 		deletedAt: workspace.deletedAt,
-		statuses: workspace.statuses.map((value) => ({
-			id: value.id,
-			name: value.name,
-			color: value.color,
-			category: value.category,
-			order: value.order,
-		})),
-		priorities: workspace.priorities.map((value) => ({
-			id: value.id,
-			name: value.name,
-			color: value.color,
-			order: value.order,
-		})),
-		taskTypes: workspace.taskTypes.map((value) => ({
-			id: value.id,
-			name: value.name,
-			color: value.color,
-		})),
-		labels: workspace.labels.map((value) => ({
-			id: value.id,
-			name: value.name,
-			color: value.color,
-		})),
+		statuses: workspace.statuses.map((value) =>
+			compact({
+				id: value.id,
+				name: value.name,
+				color: value.color,
+				category: value.category,
+				order: value.order,
+				description: value.description,
+			}),
+		),
+		priorities: workspace.priorities.map((value) =>
+			compact({
+				id: value.id,
+				name: value.name,
+				color: value.color,
+				order: value.order,
+				description: value.description,
+			}),
+		),
+		taskTypes: workspace.taskTypes.map((value) =>
+			compact({
+				id: value.id,
+				name: value.name,
+				color: value.color,
+				description: value.description,
+			}),
+		),
+		labels: workspace.labels.map((value) =>
+			compact({
+				id: value.id,
+				name: value.name,
+				color: value.color,
+				description: value.description,
+			}),
+		),
 		people: workspace.people.map((person) =>
 			compact({
 				id: person.id,

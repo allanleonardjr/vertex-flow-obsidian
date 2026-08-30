@@ -12,6 +12,7 @@ export function LabelDialog({
 	title,
 	initialName,
 	initialColor,
+	initialDescription,
 	confirmLabel,
 	onConfirm,
 	onClose,
@@ -19,12 +20,14 @@ export function LabelDialog({
 	title: string;
 	initialName: string;
 	initialColor?: string;
+	initialDescription?: string;
 	confirmLabel: string;
-	onConfirm: (name: string, color: string) => Promise<void>;
+	onConfirm: (name: string, color: string, description?: string) => Promise<void>;
 	onClose: () => void;
 }) {
 	const [name, setName] = useState(initialName);
 	const [color, setColor] = useState(initialColor ?? TAXONOMY_PALETTE[0]);
+	const [description, setDescription] = useState(initialDescription ?? "");
 	const [error, setError] = useState<string | null>(null);
 	const [busy, setBusy] = useState(false);
 	const valid = name.trim().length > 0;
@@ -34,7 +37,7 @@ export function LabelDialog({
 		setBusy(true);
 		setError(null);
 		try {
-			await onConfirm(name.trim(), color);
+			await onConfirm(name.trim(), color, description.trim() || undefined);
 			onClose();
 		} catch (cause) {
 			setError(cause instanceof Error ? cause.message : String(cause));
@@ -72,6 +75,15 @@ export function LabelDialog({
 						/>
 					</label>
 				</div>
+
+				<label className="vf-field vf-field-description">
+					<span>Description</span>
+					<textarea
+						rows={2}
+						value={description}
+						onChange={(event) => setDescription(event.target.value)}
+					/>
+				</label>
 
 				{error && <p className="vf-error">{error}</p>}
 

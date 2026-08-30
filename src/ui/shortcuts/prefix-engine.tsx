@@ -92,6 +92,9 @@ export function PrefixEngine({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 					case "v":
 						void tabs.openScreen("views");
 						return true;
+					case "l":
+						void tabs.openScreen("labels");
+						return true;
 					case "t":
 						void tabs.openScreen("trash");
 						return true;
