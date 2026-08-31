@@ -111,9 +111,7 @@ function RecoverWorkspaces({
     <EmptyPanel className="vf-recover">
       <EmptyStateIcon id="archive-restore" fallback="history" />
       <h1>
-        {plural
-          ? "Your workspaces are in Trash"
-          : "Your workspace is in Trash"}
+        {plural ? "Your workspaces are in Trash" : "Your workspace is in Trash"}
       </h1>
       <p className="vf-empty-panel-sub">
         Restore one to pick up where you left off, or start fresh.
@@ -124,7 +122,7 @@ function RecoverWorkspaces({
         ))}
       </div>
       <button type="button" className="vf-link-button" onClick={onCreateNew}>
-        Create a new workspace instead
+        Create a new workspace instead →
       </button>
     </EmptyPanel>
   );

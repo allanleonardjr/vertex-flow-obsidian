@@ -5275,14 +5275,10 @@ body.vf-bar-dragging .vf-timeline-bar {
    Obsidian's base `button` background was leaking through, the same bug
    already fixed on `.vf-browse-card-body`. */
 .vf-link-button {
-  padding: 0;
-  border: none !important;
-  box-shadow: none !important;
-  background: transparent !important;
+  padding: 6px 8px;
+  /* border: none !important; */
+  /* box-shadow: none !important; */
+  /* background: transparent !important; */
   color: var(--text-accent);
   cursor: pointer;
-}
-
-.vf-link-button:hover {
-  text-decoration: underline;
 }

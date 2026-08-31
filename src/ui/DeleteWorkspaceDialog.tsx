@@ -7,12 +7,6 @@
  * be trashed — its own `Trash/` folder lives inside it). It's fully
  * reversible from the Trash view or the empty-state recovery screen.
  *
- * Heavier than the taxonomy/entity dialogs on purpose — this hides a whole
- * workspace, so it summarises what's inside and warns when links elsewhere in
- * the vault will be rewritten. It still gates confirmation behind typing the
- * workspace's name: an independent extra safety step, not a claim about
- * reversibility.
- *
  * The genuinely irreversible step is `Mutations.permanentlyDeleteWorkspace`,
  * triggered from the Trash view or the empty-state recovery screen — never
  * from here.
@@ -37,7 +31,6 @@ export function DeleteWorkspaceDialog({
 }) {
   const plugin = usePlugin();
   const workspaces = useWorkspaces();
-  const [typed, setTyped] = useState("");
   const [busy, setBusy] = useState(false);
 
   const name = snapshot.workspace.name;
@@ -50,7 +43,7 @@ export function DeleteWorkspaceDialog({
     [workspaces, root],
   );
 
-  const canDelete = typed.trim() === name && !busy;
+  const canDelete = !busy;
 
   const remove = async () => {
     if (!canDelete) return;
@@ -62,11 +55,6 @@ export function DeleteWorkspaceDialog({
       setBusy(false);
     }
   };
-
-  const inside = [
-    count(snapshot.tasks.length, "task"),
-    count(snapshot.projects.length, "project"),
-  ].join(" and ");
 
   return createPortal(
     <div className="vf-editor-backdrop" onClick={onClose}>
@@ -91,29 +79,14 @@ export function DeleteWorkspaceDialog({
           </p>
         )}
 
-        <label className="vf-field">
-          <span>
-            Type <strong>{name}</strong> to confirm
-          </span>
-          <input
-            className="vf-input"
-            type="text"
-            value={typed}
-            autoFocus
-            onChange={(event) => setTyped(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && canDelete) void remove();
-            }}
-          />
-        </label>
-
         <div className="vf-dialog-actions">
           <button disabled={busy} onClick={onClose}>
             Cancel
           </button>
           <button
             className="mod-cta"
-            disabled={!canDelete}
+            disabled={busy}
+            autoFocus
             onClick={() => void remove()}
           >
             Move to Trash

@@ -22,11 +22,7 @@ import {
 import { newDashboard } from "../core/dashboards";
 import { newConfigId } from "../core/ids";
 import { isProjectTitleTaken } from "../core/serialization";
-import {
-  planDeletion,
-  scopeOf,
-  type DeletionPlan,
-} from "../core/hierarchy";
+import { planDeletion, scopeOf, type DeletionPlan } from "../core/hierarchy";
 import { withoutExtension } from "../obsidian/note-io";
 import {
   describeUsage,
@@ -87,8 +83,12 @@ export function Sidebar({
   onSelectView: (id: string) => void;
 }) {
   const { activeId, openScreen } = useTabs();
-  const { minimized, width: storedWidth, setMinimized, setWidth } =
-    useSidebarChrome();
+  const {
+    minimized,
+    width: storedWidth,
+    setMinimized,
+    setWidth,
+  } = useSidebarChrome();
 
   const width = minimized
     ? SLIVER_WIDTH
@@ -183,10 +183,7 @@ export function Sidebar({
             onClick={() => openScreen("settings")}
           />
 
-          <ResizeHandle
-            width={width}
-            onResize={(w) => setWidth(w)}
-          />
+          <ResizeHandle width={width} onResize={(w) => setWidth(w)} />
         </>
       )}
     </aside>
@@ -283,10 +280,7 @@ function Section({
             ›
           </span>
         </button>
-        <button
-          className="vf-section-title-btn"
-          onClick={onOpenHub ?? toggle}
-        >
+        <button className="vf-section-title-btn" onClick={onOpenHub ?? toggle}>
           <span className="vf-section-title">{title}</span>
           <span className="vf-section-count">({count})</span>
         </button>
@@ -481,8 +475,7 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
           iconFallback="layers"
           variant="workspace"
           accentColor={
-            showWorkspaceAccents &&
-            openWorkspaceRoots.has(entry.workspace.root)
+            showWorkspaceAccents && openWorkspaceRoots.has(entry.workspace.root)
               ? workspaceAccentColor(entry.workspace.root)
               : undefined
           }
@@ -533,7 +526,7 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
               </button>
               <div className="vf-menu-divider" aria-hidden />
               <button
-                className="vf-menu-item vf-menu-item-danger"
+                className="vf-menu-item"
                 onClick={() => {
                   setMenuRoot(null);
                   setDeleteRoot(entry.workspace.root);
@@ -628,9 +621,7 @@ function ViewsSection({
 
   // The two System Views (All Tasks, Untriaged) render as their own bare rows
   // above this section — never in the list, never in the count.
-  const userViews = snapshot.views.filter(
-    (v) => !isSystemViewId(v.id),
-  );
+  const userViews = snapshot.views.filter((v) => !isSystemViewId(v.id));
 
   const create = () => {
     const view = newView(newConfigId("view"), "New view", "list");
@@ -707,15 +698,18 @@ function ViewsSection({
                 Duplicate
               </button>
               {!isSystemViewId(view.id) && (
-                <button
-                  className="vf-menu-item vf-menu-item-danger"
-                  onClick={() => {
-                    setMenuOpenId(null);
-                    setDeleting(view);
-                  }}
-                >
-                  Move to Trash
-                </button>
+                <>
+                  <div className="vf-menu-divider" aria-hidden />
+                  <button
+                    className="vf-menu-item"
+                    onClick={() => {
+                      setMenuOpenId(null);
+                      setDeleting(view);
+                    }}
+                  >
+                    Move to Trash
+                  </button>
+                </>
               )}
             </RowMenu>
           }
@@ -852,8 +846,9 @@ function DashboardsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
                 >
                   Duplicate
                 </button>
+                <div className="vf-menu-divider" aria-hidden />
                 <button
-                  className="vf-menu-item vf-menu-item-danger"
+                  className="vf-menu-item"
                   onClick={() => {
                     setMenuId(null);
                     setDeleting(dashboard);
@@ -985,8 +980,9 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
                 >
                   Duplicate
                 </button>
+                <div className="vf-menu-divider" aria-hidden />
                 <button
-                  className="vf-menu-item vf-menu-item-danger"
+                  className="vf-menu-item"
                   onClick={() => {
                     setMenuPath(null);
                     setDeletePlan(planDeletion(scopeOf(snapshot), project));
@@ -1138,6 +1134,7 @@ function LabelsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
                 >
                   Edit
                 </button>
+                <div className="vf-menu-divider" aria-hidden />
                 <button
                   className="vf-menu-item"
                   onClick={() => {
@@ -1145,7 +1142,7 @@ function LabelsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
                     requestDelete(label.id);
                   }}
                 >
-                  Delete
+                  Move to Trash
                 </button>
               </RowMenu>
             }
@@ -1260,7 +1257,9 @@ function PeopleSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
       id="people"
       title="People"
       count={people.length}
-      action={<AddButton title="New person" onClick={() => setCreating(true)} />}
+      action={
+        <AddButton title="New person" onClick={() => setCreating(true)} />
+      }
       onOpenHub={() => openScreen("people")}
     >
       {people.length === 0 ? (
@@ -1291,6 +1290,7 @@ function PeopleSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
                 >
                   Edit
                 </button>
+                <div className="vf-menu-divider" aria-hidden />
                 <button
                   className="vf-menu-item vf-menu-item-danger"
                   onClick={() => {
@@ -1312,7 +1312,9 @@ function PeopleSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
           initialName=""
           confirmLabel="Create"
           onConfirm={(name, aliases) =>
-            plugin.mutations.createPerson(snapshot, name, aliases).then(() => {})
+            plugin.mutations
+              .createPerson(snapshot, name, aliases)
+              .then(() => {})
           }
           onClose={() => setCreating(false)}
         />

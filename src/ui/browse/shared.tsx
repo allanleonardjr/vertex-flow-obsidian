@@ -13,7 +13,6 @@ import { useEffect, useState, type ReactNode } from "react";
 import type { Progress, WorkspaceSnapshot } from "../../core/types";
 import { ProgressBar } from "../components/TaskBits";
 import { Icon } from "../components/Icon";
-import { ConfirmDeleteDialog } from "../components/ConfirmDeleteDialog";
 import { usePlugin } from "../context";
 
 export function BrowseHeader({
@@ -227,84 +226,60 @@ export function BrowseGroupHeader({
 /**
  * One soft-deleted workspace, rendered as a dense browse card for the Trash
  * hub's "Workspaces" group — an always-visible Restore button plus a `⋯` menu
- * holding only "Delete Forever". (The empty-state recovery screen uses its own
- * `RecoverableWorkspace` card instead.)
- *
- * Deleted workspaces are vault-wide, not part of any one workspace's
- * `snapshot.trash`, so this deliberately drives `restoreWorkspace` /
- * `permanentlyDeleteWorkspace` directly rather than routing through the
- * `EntityKind` trash path (a workspace root can't be moved into its own
- * `Trash/` subfolder). The component owns its menu-open and confirm-dialog
- * state — callers just render `<DeletedWorkspaceRow snapshot={ws} />`.
+ * holding only "Delete Forever".
  */
 export function DeletedWorkspaceRow({
   snapshot,
+  onPurge,
 }: {
   snapshot: WorkspaceSnapshot;
+  onPurge: () => void;
 }) {
   const plugin = usePlugin();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [confirming, setConfirming] = useState(false);
 
   const { workspace } = snapshot;
 
   return (
-    <>
-      <BrowseCard
-        trailing={
-          <>
+    <BrowseCard
+      trailing={
+        <>
+          <button
+            className="vf-browse-card-restore"
+            onClick={() => void plugin.mutations.restoreWorkspace(snapshot)}
+          >
+            Restore
+          </button>
+          <BrowseCardMenu
+            open={menuOpen}
+            onToggle={() => setMenuOpen((o) => !o)}
+            onClose={() => setMenuOpen(false)}
+          >
             <button
-              className="vf-browse-card-restore"
-              onClick={() =>
-                void plugin.mutations.restoreWorkspace(snapshot)
-              }
+              className="vf-menu-item vf-menu-item-danger"
+              onClick={() => {
+                setMenuOpen(false);
+                onPurge();
+              }}
             >
-              Restore
+              Delete Forever
             </button>
-            <BrowseCardMenu
-              open={menuOpen}
-              onToggle={() => setMenuOpen((o) => !o)}
-              onClose={() => setMenuOpen(false)}
-            >
-              <button
-                className="vf-menu-item vf-menu-item-danger"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setConfirming(true);
-                }}
-              >
-                Delete Forever
-              </button>
-            </BrowseCardMenu>
-          </>
-        }
-      >
-        <div className="vf-browse-card-top">
-          <Icon id={workspace.icon} fallback="layers" size={16} />
-          <span className="vf-browse-title">{workspace.name}</span>
-        </div>
-        <BrowseMeta>
-          <span>{pluralize(snapshot.tasks.length, "task")}</span>
-          <span>{pluralize(snapshot.projects.length, "project")}</span>
-        </BrowseMeta>
-        <span className="vf-trashed-meta">
-          Trashed {formatRelativeTime(workspace.deletedAt ?? "")}
-        </span>
-      </BrowseCard>
-
-      {confirming && (
-        <ConfirmDeleteDialog
-          title={`Delete workspace "${workspace.name}" forever?`}
-          body="This can't be undone."
-          confirmLabel="Delete Forever"
-          onCancel={() => setConfirming(false)}
-          onConfirm={() => {
-            void plugin.mutations.permanentlyDeleteWorkspace(snapshot);
-            setConfirming(false);
-          }}
-        />
-      )}
-    </>
+          </BrowseCardMenu>
+        </>
+      }
+    >
+      <div className="vf-browse-card-top">
+        <Icon id={workspace.icon} fallback="layers" size={16} />
+        <span className="vf-browse-title">{workspace.name}</span>
+      </div>
+      <BrowseMeta>
+        <span>{pluralize(snapshot.tasks.length, "task")}</span>
+        <span>{pluralize(snapshot.projects.length, "project")}</span>
+      </BrowseMeta>
+      <span className="vf-trashed-meta">
+        Trashed {formatRelativeTime(workspace.deletedAt ?? "")}
+      </span>
+    </BrowseCard>
   );
 }
 
