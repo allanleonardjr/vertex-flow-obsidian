@@ -15,6 +15,7 @@ export function ConfirmDeleteDialog({
 	title,
 	body,
 	confirmLabel = "Delete",
+	destructive = true,
 	onConfirm,
 	onCancel,
 }: {
@@ -23,6 +24,13 @@ export function ConfirmDeleteDialog({
 	/** One line of consequence. Defaults to the generic warning. */
 	body?: string;
 	confirmLabel?: string;
+	/**
+	 * When `true` (default) the confirm button is the destructive red
+	 * `mod-warning`. Set to `false` for the reversible "Move to Trash" step —
+	 * a blue `mod-cta`, matching `DeleteWorkspaceDialog`, because nothing is
+	 * irreversibly gone yet.
+	 */
+	destructive?: boolean;
 	onConfirm: () => void;
 	onCancel: () => void;
 }) {
@@ -41,7 +49,7 @@ export function ConfirmDeleteDialog({
 				<div className="vf-dialog-actions">
 					<button onClick={onCancel}>Cancel</button>
 					<button
-						className="mod-cta mod-warning"
+						className={destructive ? "mod-cta mod-warning" : "mod-cta"}
 						autoFocus
 						onClick={onConfirm}
 					>

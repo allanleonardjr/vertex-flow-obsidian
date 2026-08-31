@@ -184,8 +184,9 @@ export function ProjectsBrowseView({
                   >
                     Duplicate
                   </button>
+                  <div className="vf-menu-divider" aria-hidden />
                   <button
-                    className="vf-menu-item vf-menu-item-danger"
+                    className="vf-menu-item"
                     onClick={() => {
                       setMenuPath(null);
                       setDeletePlan(planDeletion(scopeOf(snapshot), project));

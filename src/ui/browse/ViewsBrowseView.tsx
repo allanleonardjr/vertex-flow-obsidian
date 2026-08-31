@@ -100,8 +100,9 @@ export function ViewsBrowseView({ snapshot }: { snapshot: WorkspaceSnapshot }) {
                   >
                     Duplicate
                   </button>
+                  <div className="vf-menu-divider" aria-hidden />
                   <button
-                    className="vf-menu-item vf-menu-item-danger"
+                    className="vf-menu-item"
                     onClick={() => {
                       setMenuOpenId(null);
                       setDeleting(view);
@@ -120,6 +121,7 @@ export function ViewsBrowseView({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 
       {deleting && (
         <ConfirmDeleteDialog
+          destructive={false}
           title={`Move view "${deleting.name}" to Trash?`}
           body="The view definition is removed. Tasks are not affected. You can restore it anytime from the Trash view."
           onCancel={() => setDeleting(null)}
