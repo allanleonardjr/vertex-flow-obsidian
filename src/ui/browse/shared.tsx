@@ -14,44 +14,47 @@ import type { Progress } from "../../core/types";
 import { ProgressBar } from "../components/TaskBits";
 
 export function BrowseHeader({
-	title,
-	noun,
-	plural,
-	count,
-	actionLabel,
-	onAction,
+  title,
+  noun,
+  plural,
+  count,
+  actionLabel,
+  onAction,
+  children,
 }: {
-	title: string;
-	/** Singular noun, for the count line: "3 projects". */
-	noun: string;
-	/** Irregular plural, when `noun + "s"` is wrong ("people", not "persons"). */
-	plural?: string;
-	count: number;
-	/** Omitted — like the Trash hub — the header shows just the title + count. */
-	actionLabel?: string;
-	onAction?: () => void;
+  title: string;
+  /** Singular noun, for the count line: "3 projects". */
+  noun: string;
+  /** Irregular plural, when `noun + "s"` is wrong ("people", not "persons"). */
+  plural?: string;
+  count: number;
+  /** Omitted — like the Trash hub — the header shows just the title + count. */
+  actionLabel?: string;
+  onAction?: () => void;
+  /** Extra controls rendered before the primary action (e.g. a view toggle). */
+  children?: ReactNode;
 }) {
-	return (
-		<header className="vf-toolbar">
-			<div className="vf-toolbar-title">
-				<h2>{title}</h2>
-				<span className="vf-count">
-					{count === 1 ? `1 ${noun}` : `${count} ${plural ?? `${noun}s`}`}
-				</span>
-			</div>
-			{actionLabel && onAction && (
-				<div className="vf-toolbar-actions">
-					<button className="mod-cta" onClick={onAction}>
-						{actionLabel}
-					</button>
-				</div>
-			)}
-		</header>
-	);
+  return (
+    <header className="vf-toolbar">
+      <div className="vf-toolbar-title">
+        <h2>{title}</h2>
+        <span className="vf-count">
+          {count === 1 ? `1 ${noun}` : `${count} ${plural ?? `${noun}s`}`}
+        </span>
+      </div>
+      {actionLabel && onAction && (
+        <div className="vf-toolbar-actions">
+          <button className="mod-cta" onClick={onAction}>
+            {actionLabel}
+          </button>
+        </div>
+      )}
+    </header>
+  );
 }
 
 export function BrowseList({ children }: { children: ReactNode }) {
-	return <div className="vf-browse-list">{children}</div>;
+  return <div className="vf-browse-list">{children}</div>;
 }
 
 /**
@@ -62,21 +65,21 @@ export function BrowseList({ children }: { children: ReactNode }) {
  * moment a workspace had no projects.
  */
 export function BrowseEmpty({
-	label,
-	actionLabel,
+  label,
+  actionLabel,
 }: {
-	label: string;
-	/** Omitted — like the Trash hub — drops the "click … to create one" line. */
-	actionLabel?: string;
+  label: string;
+  /** Omitted — like the Trash hub — drops the "click … to create one" line. */
+  actionLabel?: string;
 }) {
-	return (
-		<div className="vf-browse-empty">
-			<p>No {label} yet.</p>
-			{actionLabel && (
-				<p className="vf-empty-note">Click "{actionLabel}" to create one.</p>
-			)}
-		</div>
-	);
+  return (
+    <div className="vf-browse-empty">
+      <p>No {label} yet.</p>
+      {actionLabel && (
+        <p className="vf-empty-note">Click "{actionLabel}" to create one.</p>
+      )}
+    </div>
+  );
 }
 
 /**
@@ -89,33 +92,33 @@ export function BrowseEmpty({
  * still looks identical.
  */
 export function BrowseCard({
-	onClick,
-	trailing,
-	children,
+  onClick,
+  trailing,
+  children,
 }: {
-	/**
-	 * Omitted — like a Trash card, where the item isn't live and there's
-	 * nothing to open — the body renders as a plain `<div>` rather than a
-	 * `<button>`. The `trailing` slot works either way.
-	 */
-	onClick?: () => void;
-	trailing?: ReactNode;
-	children: ReactNode;
+  /**
+   * Omitted — like a Trash card, where the item isn't live and there's
+   * nothing to open — the body renders as a plain `<div>` rather than a
+   * `<button>`. The `trailing` slot works either way.
+   */
+  onClick?: () => void;
+  trailing?: ReactNode;
+  children: ReactNode;
 }) {
-	return (
-		<div className="vf-browse-card">
-			{onClick ? (
-				<button className="vf-browse-card-body" onClick={onClick}>
-					{children}
-				</button>
-			) : (
-				<div className="vf-browse-card-body vf-browse-card-body-static">
-					{children}
-				</div>
-			)}
-			{trailing && <div className="vf-browse-card-trailing">{trailing}</div>}
-		</div>
-	);
+  return (
+    <div className="vf-browse-card">
+      {onClick ? (
+        <button className="vf-browse-card-body" onClick={onClick}>
+          {children}
+        </button>
+      ) : (
+        <div className="vf-browse-card-body vf-browse-card-body-static">
+          {children}
+        </div>
+      )}
+      {trailing && <div className="vf-browse-card-trailing">{trailing}</div>}
+    </div>
+  );
 }
 
 /**
@@ -124,74 +127,74 @@ export function BrowseCard({
  * closes it. Each hub screen owns the open/close state.
  */
 export function BrowseCardMenu({
-	open,
-	onToggle,
-	onClose,
-	children,
+  open,
+  onToggle,
+  onClose,
+  children,
 }: {
-	open: boolean;
-	onToggle: () => void;
-	onClose: () => void;
-	children: ReactNode;
+  open: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  children: ReactNode;
 }) {
-	useEffect(() => {
-		if (!open) return;
-		window.addEventListener("click", onClose);
-		return () => window.removeEventListener("click", onClose);
-	}, [open, onClose]);
+  useEffect(() => {
+    if (!open) return;
+    window.addEventListener("click", onClose);
+    return () => window.removeEventListener("click", onClose);
+  }, [open, onClose]);
 
-	return (
-		<div className="vf-browse-card-menu-anchor">
-			<button
-				className="vf-browse-card-menu"
-				title="Options"
-				aria-label="Options"
-				aria-haspopup="menu"
-				aria-expanded={open}
-				onClick={(event) => {
-					event.stopPropagation();
-					onToggle();
-				}}
-			>
-				⋯
-			</button>
-			{open && (
-				<div className="vf-menu" onClick={(event) => event.stopPropagation()}>
-					{children}
-				</div>
-			)}
-		</div>
-	);
+  return (
+    <div className="vf-browse-card-menu-anchor">
+      <button
+        className="vf-browse-card-menu"
+        title="Options"
+        aria-label="Options"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={(event) => {
+          event.stopPropagation();
+          onToggle();
+        }}
+      >
+        ⋯
+      </button>
+      {open && (
+        <div className="vf-menu" onClick={(event) => event.stopPropagation()}>
+          {children}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function BrowseMeta({ children }: { children: ReactNode }) {
-	return <div className="vf-browse-meta">{children}</div>;
+  return <div className="vf-browse-meta">{children}</div>;
 }
 
 export function BrowseProgress({ progress }: { progress: Progress }) {
-	// `ProgressBar` already renders the "X/Y done" count — this
-	// wrapper exists only to give it a little breathing room in a card.
-	if (progress.total === 0) return null;
-	return (
-		<div className="vf-browse-progress">
-			<ProgressBar progress={progress} />
-		</div>
-	);
+  // `ProgressBar` already renders the "X/Y done" count — this
+  // wrapper exists only to give it a little breathing room in a card.
+  if (progress.total === 0) return null;
+  return (
+    <div className="vf-browse-progress">
+      <ProgressBar progress={progress} />
+    </div>
+  );
 }
 
 /** `"Aug 20, 2026"` — browse lists can span years, unlike a due-date chip. */
 export function formatFullDate(iso: string): string {
-	const date = new Date(iso);
-	if (Number.isNaN(date.getTime())) return iso.slice(0, 10);
-	return date.toLocaleDateString(undefined, {
-		month: "short",
-		day: "numeric",
-		year: "numeric",
-	});
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso.slice(0, 10);
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 export function pluralize(count: number, noun: string): string {
-	return `${count} ${noun}${count === 1 ? "" : "s"}`;
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
 }
 
 /**
@@ -201,18 +204,18 @@ export function pluralize(count: number, noun: string): string {
  * about grouping.
  */
 export function BrowseGroupHeader({
-	label,
-	count,
+  label,
+  count,
 }: {
-	label: string;
-	count: number;
+  label: string;
+  count: number;
 }) {
-	return (
-		<div className="vf-list-group">
-			<span>{label}</span>
-			<span className="vf-count">{count}</span>
-		</div>
-	);
+  return (
+    <div className="vf-list-group">
+      <span>{label}</span>
+      <span className="vf-count">{count}</span>
+    </div>
+  );
 }
 
 /**
@@ -221,19 +224,19 @@ export function BrowseGroupHeader({
  * stamp so the line still reads.
  */
 export function formatRelativeTime(iso: string): string {
-	const then = new Date(iso).getTime();
-	if (Number.isNaN(then)) return "recently";
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "recently";
 
-	const minutes = Math.round((Date.now() - then) / 60_000);
-	if (minutes < 1) return "just now";
-	if (minutes < 60) return `${minutes}m ago`;
+  const minutes = Math.round((Date.now() - then) / 60_000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
 
-	const hours = Math.round(minutes / 60);
-	if (hours < 24) return `${hours}h ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
 
-	const days = Math.round(hours / 24);
-	if (days < 7) return `${days}d ago`;
-	if (days < 30) return `${Math.round(days / 7)}w ago`;
-	if (days < 365) return `${Math.round(days / 30)}mo ago`;
-	return `${Math.round(days / 365)}y ago`;
+  const days = Math.round(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  if (days < 30) return `${Math.round(days / 7)}w ago`;
+  if (days < 365) return `${Math.round(days / 30)}mo ago`;
+  return `${Math.round(days / 365)}y ago`;
 }

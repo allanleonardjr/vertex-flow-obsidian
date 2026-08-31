@@ -6,152 +6,235 @@
  * Deliberately *not* a Saved View (those filter Tasks, not Projects) — it's a
  * plain manager list. Each card's menu mirrors `ProjectsSection` in the
  * sidebar: Edit / Duplicate / Delete.
+ *
+ * The header carries a fixed, non-configurable 2-up hero chart row (task
+ * status + priority distribution across the whole workspace) behind a
+ * show/hide toggle. These are plain `DashboardWidget` objects fed through the
+ * real `computeWidgetData` / `WidgetChart` pipeline used by full dashboards —
+ * they're just never persisted to a `DashboardConfig`, since they're fixed
+ * presets rather than something the user configures.
  */
 
-import { useState } from "react";
-import {
-	planDeletion,
-	scopeOf,
-	type DeletionPlan,
-} from "../../core/hierarchy";
+import { useMemo, useState } from "react";
+import { planDeletion, scopeOf, type DeletionPlan } from "../../core/hierarchy";
 import { isProjectTitleTaken } from "../../core/serialization";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
-import type { Project, WorkspaceSnapshot } from "../../core/types";
+import type {
+  DashboardWidget,
+  Project,
+  WorkspaceSnapshot,
+} from "../../core/types";
+import { computeWidgetData } from "../../core/dashboards";
+import { snapshotContext } from "../../core/views";
 import { withoutExtension } from "../../obsidian/note-io";
 import { useCreateProject } from "../actions";
 import { usePlugin } from "../context";
+import { WidgetChart } from "../dashboards/charts/WidgetChart";
 import { DeleteEntityDialog } from "../DeleteEntityDialog";
 import { NamedIconDialog } from "../modals/NamedIconDialog";
 import { useTabs } from "../tabs-context";
 import { ProjectCardContent } from "./ProjectCardContent";
 import {
-	BrowseCard,
-	BrowseCardMenu,
-	BrowseEmpty,
-	BrowseHeader,
-	BrowseList,
+  BrowseCard,
+  BrowseCardMenu,
+  BrowseEmpty,
+  BrowseHeader,
+  BrowseList,
 } from "./shared";
 
+/**
+ * Fixed hero-chart presets for the Projects hub header — task-level status
+ * and priority distribution across every task in the workspace. Not
+ * user-configurable and never persisted to a `DashboardConfig`; `layout` is
+ * unused since these never go through `DashboardGrid`.
+ */
+const HERO_STATUS_WIDGET: DashboardWidget = {
+  id: "hero-status",
+  chartType: "bar",
+  title: "Tasks by Status",
+  titleIsCustom: true,
+  fieldMapping: { chartType: "bar", groupBy: "status" },
+  layout: { x: 0, y: 0, w: 0, h: 0 },
+};
+
+const HERO_PRIORITY_WIDGET: DashboardWidget = {
+  id: "hero-priority",
+  chartType: "pie",
+  title: "Priority Breakdown",
+  titleIsCustom: true,
+  fieldMapping: { chartType: "pie", groupBy: "priority" },
+  layout: { x: 0, y: 0, w: 0, h: 0 },
+};
+
 export function ProjectsBrowseView({
-	snapshot,
-	taxonomies,
+  snapshot,
+  taxonomies,
 }: {
-	snapshot: WorkspaceSnapshot;
-	taxonomies: WorkspaceTaxonomies;
+  snapshot: WorkspaceSnapshot;
+  taxonomies: WorkspaceTaxonomies;
 }) {
-	const plugin = usePlugin();
-	const createProject = useCreateProject();
-	const tabs = useTabs();
+  const plugin = usePlugin();
+  const createProject = useCreateProject();
+  const tabs = useTabs();
 
-	const [menuPath, setMenuPath] = useState<string | null>(null);
-	const [editing, setEditing] = useState<Project | null>(null);
-	const [deletePlan, setDeletePlan] = useState<DeletionPlan | null>(null);
+  const [showHeroCharts, setShowHeroCharts] = useState(true);
+  const [menuPath, setMenuPath] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Project | null>(null);
+  const [deletePlan, setDeletePlan] = useState<DeletionPlan | null>(null);
 
-	const duplicate = (project: Project) => {
-		void plugin.mutations
-			.duplicateProject(snapshot, project)
-			.then((file) => tabs.openProject(withoutExtension(file.path)));
-	};
+  const duplicate = (project: Project) => {
+    void plugin.mutations
+      .duplicateProject(snapshot, project)
+      .then((file) => tabs.openProject(withoutExtension(file.path)));
+  };
 
-	return (
-		<div className="vf-browse">
-			<BrowseHeader
-				title="Projects"
-				noun="project"
-				count={snapshot.projects.length}
-				actionLabel="New project"
-				onAction={() => void createProject(snapshot)}
-			/>
+  const context = useMemo(() => snapshotContext(snapshot), [snapshot]);
+  const statusData = useMemo(
+    () => computeWidgetData(HERO_STATUS_WIDGET, snapshot.tasks, context),
+    [snapshot.tasks, context],
+  );
+  const priorityData = useMemo(
+    () => computeWidgetData(HERO_PRIORITY_WIDGET, snapshot.tasks, context),
+    [snapshot.tasks, context],
+  );
 
-			{snapshot.projects.length === 0 ? (
-				<BrowseEmpty label="projects" actionLabel="New project" />
-			) : (
-				<BrowseList>
-					{snapshot.projects.map((project) => (
-						<BrowseCard
-							key={project.path}
-							onClick={() => tabs.openProject(project.path)}
-							trailing={
-								<BrowseCardMenu
-									open={menuPath === project.path}
-									onToggle={() =>
-										setMenuPath((p) =>
-											p === project.path ? null : project.path,
-										)
-									}
-									onClose={() => setMenuPath(null)}
-								>
-									<button
-										className="vf-menu-item"
-										onClick={() => {
-											setMenuPath(null);
-											setEditing(project);
-										}}
-									>
-										Edit
-									</button>
-									<button
-										className="vf-menu-item"
-										onClick={() => {
-											setMenuPath(null);
-											duplicate(project);
-										}}
-									>
-										Duplicate
-									</button>
-									<button
-										className="vf-menu-item vf-menu-item-danger"
-										onClick={() => {
-											setMenuPath(null);
-											setDeletePlan(
-												planDeletion(scopeOf(snapshot), project),
-											);
-										}}
-									>
-										Delete
-									</button>
-								</BrowseCardMenu>
-							}
-						>
-							<ProjectCardContent
-								snapshot={snapshot}
-								taxonomies={taxonomies}
-								project={project}
-							/>
-						</BrowseCard>
-					))}
-				</BrowseList>
-			)}
+  return (
+    <div className="vf-browse">
+      <BrowseHeader
+        title="Projects"
+        noun="project"
+        count={snapshot.projects.length}
+        actionLabel="New project"
+        onAction={() => void createProject(snapshot)}
+      >
+        <button
+          type="button"
+          className={`vf-bar-item${showHeroCharts ? " is-on" : ""}`}
+          onClick={() => setShowHeroCharts((prev) => !prev)}
+        >
+          {showHeroCharts ? "Hide charts" : "Show charts"}
+        </button>
+      </BrowseHeader>
 
-			{deletePlan && (
-				<DeleteEntityDialog
-					snapshot={snapshot}
-					plan={deletePlan}
-					onClose={() => setDeletePlan(null)}
-				/>
-			)}
+      {showHeroCharts && (
+        <div className="vf-browse-hero">
+          <div className="vf-browse-hero-chart">
+            <div className="vf-dash-widget">
+              <div className="vf-dash-widget-head">
+                <span className="vf-browse-hero-chart-title">
+                  {HERO_STATUS_WIDGET.title}
+                </span>
+              </div>
+              <div className="vf-dash-widget-body">
+                <WidgetChart widget={HERO_STATUS_WIDGET} data={statusData} />
+              </div>
+            </div>
+          </div>
+          <div className="vf-browse-hero-chart">
+            <div className="vf-dash-widget">
+              <div className="vf-dash-widget-head">
+                <span className="vf-browse-hero-chart-title">
+                  {HERO_PRIORITY_WIDGET.title}
+                </span>
+              </div>
+              <div className="vf-dash-widget-body">
+                <WidgetChart
+                  widget={HERO_PRIORITY_WIDGET}
+                  data={priorityData}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
-			{editing && (
-				<NamedIconDialog
-					title="Edit project"
-					initialName={editing.title}
-					initialIcon={editing.icon}
-					iconFallback="folder"
-					confirmLabel="Save"
-					validateName={(name) =>
-						isProjectTitleTaken(snapshot.projects, name, editing.path)
-							? `A project named "${name.trim()}" already exists`
-							: null
-					}
-					onConfirm={(name, icon) =>
-						void plugin.mutations.updateProject(editing, {
-							title: name,
-							icon,
-						})
-					}
-					onClose={() => setEditing(null)}
-				/>
-			)}
-		</div>
-	);
+      {snapshot.projects.length === 0 ? (
+        <BrowseEmpty label="projects" actionLabel="New project" />
+      ) : (
+        <BrowseList>
+          {snapshot.projects.map((project) => (
+            <BrowseCard
+              key={project.path}
+              onClick={() => tabs.openProject(project.path)}
+              trailing={
+                <BrowseCardMenu
+                  open={menuPath === project.path}
+                  onToggle={() =>
+                    setMenuPath((p) =>
+                      p === project.path ? null : project.path,
+                    )
+                  }
+                  onClose={() => setMenuPath(null)}
+                >
+                  <button
+                    className="vf-menu-item"
+                    onClick={() => {
+                      setMenuPath(null);
+                      setEditing(project);
+                    }}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="vf-menu-item"
+                    onClick={() => {
+                      setMenuPath(null);
+                      duplicate(project);
+                    }}
+                  >
+                    Duplicate
+                  </button>
+                  <button
+                    className="vf-menu-item vf-menu-item-danger"
+                    onClick={() => {
+                      setMenuPath(null);
+                      setDeletePlan(planDeletion(scopeOf(snapshot), project));
+                    }}
+                  >
+                    Delete
+                  </button>
+                </BrowseCardMenu>
+              }
+            >
+              <ProjectCardContent
+                snapshot={snapshot}
+                taxonomies={taxonomies}
+                project={project}
+              />
+            </BrowseCard>
+          ))}
+        </BrowseList>
+      )}
+
+      {deletePlan && (
+        <DeleteEntityDialog
+          snapshot={snapshot}
+          plan={deletePlan}
+          onClose={() => setDeletePlan(null)}
+        />
+      )}
+
+      {editing && (
+        <NamedIconDialog
+          title="Edit project"
+          initialName={editing.title}
+          initialIcon={editing.icon}
+          iconFallback="folder"
+          confirmLabel="Save"
+          validateName={(name) =>
+            isProjectTitleTaken(snapshot.projects, name, editing.path)
+              ? `A project named "${name.trim()}" already exists`
+              : null
+          }
+          onConfirm={(name, icon) =>
+            void plugin.mutations.updateProject(editing, {
+              title: name,
+              icon,
+            })
+          }
+          onClose={() => setEditing(null)}
+        />
+      )}
+    </div>
+  );
 }

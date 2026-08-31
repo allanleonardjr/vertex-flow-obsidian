@@ -2648,6 +2648,35 @@ button.vf-crumb:hover {
   flex: 1;
   flex-direction: column;
   min-height: 0;
+  container-type: inline-size;
+}
+
+.vf-browse-hero {
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+}
+
+.vf-browse-hero-chart {
+  flex: 1;
+  min-width: 0;
+  height: 180px;
+}
+
+.vf-browse-hero-chart-title {
+  font-size: var(--font-ui-small);
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+@container (max-width: 480px) {
+  .vf-browse-hero {
+    flex-direction: column;
+  }
+
+  .vf-browse-hero-chart {
+    flex: none;
+  }
 }
 
 .vf-browse-list {
