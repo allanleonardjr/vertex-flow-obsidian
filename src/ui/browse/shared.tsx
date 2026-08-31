@@ -42,11 +42,14 @@ export function BrowseHeader({
           {count === 1 ? `1 ${noun}` : `${count} ${plural ?? `${noun}s`}`}
         </span>
       </div>
-      {actionLabel && onAction && (
+      {(children || (actionLabel && onAction)) && (
         <div className="vf-toolbar-actions">
-          <button className="mod-cta" onClick={onAction}>
-            {actionLabel}
-          </button>
+          {children}
+          {actionLabel && onAction && (
+            <button className="mod-cta" onClick={onAction}>
+              {actionLabel}
+            </button>
+          )}
         </div>
       )}
     </header>
