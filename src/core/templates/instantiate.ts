@@ -8,7 +8,7 @@
  * the descriptions into files.
  *
  * `sampleSnapshot()` at the bottom is the fixture the core unit tests build
- * on: the `software-sprint` template with example content included.
+ * on: the `sample-workspace` fixture template with example content included.
  */
 
 import { joinPath } from "../links";
@@ -31,7 +31,7 @@ import type {
 	WorkspaceSnapshot,
 } from "../types";
 import { deriveMentions } from "./helpers";
-import { softwareSprintTemplate } from "./software-sprint";
+import { sampleWorkspaceTemplate } from "./sample-workspace";
 import type {
 	TemplateBuildContext,
 	TemplateContent,
@@ -237,11 +237,11 @@ export function instantiateTemplate(
 	};
 }
 
-/** Shorthand used throughout the unit tests: the software-sprint template,
+/** Shorthand used throughout the unit tests: the sample-workspace fixture,
  *  populated, on a fixed clock. */
 export function sampleSnapshot(root = "Sample"): WorkspaceSnapshot {
 	return instantiateTemplate({
-		template: softwareSprintTemplate,
+		template: sampleWorkspaceTemplate,
 		root,
 		name: "Sample Workspace",
 		idPrefix: "SMP",

@@ -9,14 +9,15 @@
  * gallery cutover here safe to do ahead of actually converting the remaining
  * files.
  *
- * The five remaining TS-authored templates (`software-sprint`,
- * `feedback-roadmap`, `sales-pipeline`, `content-pipeline`, `freelance`,
+ * The remaining TS-authored templates (`software-sprint`, `feedback-roadmap`,
  * `personal-admin`) still exist as source files and are still directly
- * importable — `software-sprint.ts` in particular backs `sampleSnapshot()`,
- * which most of the unit suite's fixtures build on. They're just not
- * surfaced here until each is converted to the markdown format; do that
- * conversion as its own follow-up, one file at a time, not by re-adding them
- * to this list wholesale.
+ * importable, just not surfaced here until each is converted to the markdown
+ * format; do that conversion as its own follow-up, one file at a time, not by
+ * re-adding them to this list wholesale. `software-sprint.ts` is a special
+ * case — it's the gallery-candidate twin of `sample-workspace.ts`, the frozen
+ * fixture that backs `sampleSnapshot()` and most of the unit suite; the two
+ * are deliberately decoupled so `software-sprint.ts` can be converted without
+ * touching a single test.
  *
  * Parsing happens once, at module load. That's deliberate: a template that
  * doesn't parse is an authoring bug, and failing loudly the first time the

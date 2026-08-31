@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { instantiateTemplate } from "../../src/core/templates/instantiate";
 import { WORKSPACE_TEMPLATES, templateById } from "../../src/core/templates";
-import { softwareSprintTemplate } from "../../src/core/templates/software-sprint";
+import { sampleWorkspaceTemplate } from "../../src/core/templates/sample-workspace";
 import { workspaceTaxonomies } from "../../src/core/taxonomy";
 import type { Task } from "../../src/core/types";
 
@@ -151,7 +151,7 @@ describe("instantiateTemplate — self person seeding", () => {
 	it("appends the creator and clears isSelf elsewhere when example people exist", () => {
 		const { workspace } = instantiateTemplate({
 			...base,
-			template: softwareSprintTemplate,
+			template: sampleWorkspaceTemplate,
 			includeExampleContent: true,
 			selfPersonName: "Casey",
 		});
@@ -167,7 +167,7 @@ describe("instantiateTemplate — self person seeding", () => {
 	it("emits a per-file dashboard note and a full task set", () => {
 		const generated = instantiateTemplate({
 			...base,
-			template: softwareSprintTemplate,
+			template: sampleWorkspaceTemplate,
 			includeExampleContent: true,
 		});
 		expect(generated.snapshot.tasks).toHaveLength(25);
@@ -188,7 +188,7 @@ describe("instantiateTemplate — self person seeding", () => {
 	it("reuses a matching entry by name instead of duplicating it", () => {
 		const { workspace } = instantiateTemplate({
 			...base,
-			template: softwareSprintTemplate,
+			template: sampleWorkspaceTemplate,
 			includeExampleContent: true,
 			selfPersonName: "alice",
 		});
