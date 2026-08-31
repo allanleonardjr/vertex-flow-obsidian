@@ -7,15 +7,24 @@
  * a referenced one opens `ReplacePersonDialog` (reassign-or-clear) — never
  * Labels' confirm-then-maybe-reassign two-step, since Person deletion is never
  * simply "blocked".
+ *
+ * The header carries a fixed, non-configurable 2-up hero chart row (task
+ * assignee + status distribution across the whole workspace) behind a
+ * show/hide toggle — same pattern as `ProjectsBrowseView`. Plain
+ * `DashboardWidget` objects fed through the real `computeWidgetData` /
+ * `WidgetChart` pipeline, never persisted to a `DashboardConfig`.
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
 	findPersonUsage,
 	planPersonDeletion,
 	type PersonDeletionPlan,
 } from "../../core/people";
-import type { Person, WorkspaceSnapshot } from "../../core/types";
+import type { DashboardWidget, Person, WorkspaceSnapshot } from "../../core/types";
+import { computeWidgetData } from "../../core/dashboards";
+import { snapshotContext } from "../../core/views";
+import { WidgetChart } from "../dashboards/charts/WidgetChart";
 import { PersonDialog } from "../modals/PersonDialog";
 import { ReplacePersonDialog } from "../modals/ReplacePersonDialog";
 import { usePlugin } from "../context";
@@ -29,6 +38,30 @@ import {
 	BrowseList,
 } from "./shared";
 
+/**
+ * Fixed hero-chart presets for the People hub header — task-level assignee
+ * and status distribution across every task in the workspace. Not
+ * user-configurable and never persisted to a `DashboardConfig`; `layout` is
+ * unused since these never go through `DashboardGrid`.
+ */
+const HERO_ASSIGNEE_WIDGET: DashboardWidget = {
+	id: "hero-assignee",
+	chartType: "bar",
+	title: "Tasks by Assignee",
+	titleIsCustom: true,
+	fieldMapping: { chartType: "bar", groupBy: "assignee" },
+	layout: { x: 0, y: 0, w: 0, h: 0 },
+};
+
+const HERO_STATUS_WIDGET: DashboardWidget = {
+	id: "hero-status",
+	chartType: "pie",
+	title: "Tasks by Status",
+	titleIsCustom: true,
+	fieldMapping: { chartType: "pie", groupBy: "status" },
+	layout: { x: 0, y: 0, w: 0, h: 0 },
+};
+
 export function PeopleBrowseView({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 	const plugin = usePlugin();
 	const { openPerson } = useTabs();
@@ -36,6 +69,7 @@ export function PeopleBrowseView({ snapshot }: { snapshot: WorkspaceSnapshot }) 
 		a.name.localeCompare(b.name),
 	);
 
+	const [showHeroCharts, setShowHeroCharts] = useState(true);
 	const [menuId, setMenuId] = useState<string | null>(null);
 	const [creating, setCreating] = useState(false);
 	const [editing, setEditing] = useState<string | null>(null);
@@ -59,6 +93,16 @@ export function PeopleBrowseView({ snapshot }: { snapshot: WorkspaceSnapshot }) 
 		setDeleting(planPersonDeletion(person, snapshot.workspace.people, usage));
 	};
 
+	const context = useMemo(() => snapshotContext(snapshot), [snapshot]);
+	const assigneeData = useMemo(
+		() => computeWidgetData(HERO_ASSIGNEE_WIDGET, snapshot.tasks, context),
+		[snapshot.tasks, context],
+	);
+	const statusData = useMemo(
+		() => computeWidgetData(HERO_STATUS_WIDGET, snapshot.tasks, context),
+		[snapshot.tasks, context],
+	);
+
 	return (
 		<div className="vf-browse">
 			<BrowseHeader
@@ -68,7 +112,44 @@ export function PeopleBrowseView({ snapshot }: { snapshot: WorkspaceSnapshot }) 
 				count={people.length}
 				actionLabel="New person"
 				onAction={() => setCreating(true)}
-			/>
+			>
+				<button
+					type="button"
+					className={`vf-bar-item${showHeroCharts ? " is-on" : ""}`}
+					onClick={() => setShowHeroCharts((prev) => !prev)}
+				>
+					{showHeroCharts ? "Hide charts" : "Show charts"}
+				</button>
+			</BrowseHeader>
+
+			{showHeroCharts && (
+				<div className="vf-browse-hero">
+					<div className="vf-browse-hero-chart">
+						<div className="vf-dash-widget">
+							<div className="vf-dash-widget-head">
+								<span className="vf-browse-hero-chart-title">
+									{HERO_ASSIGNEE_WIDGET.title}
+								</span>
+							</div>
+							<div className="vf-dash-widget-body">
+								<WidgetChart widget={HERO_ASSIGNEE_WIDGET} data={assigneeData} />
+							</div>
+						</div>
+					</div>
+					<div className="vf-browse-hero-chart">
+						<div className="vf-dash-widget">
+							<div className="vf-dash-widget-head">
+								<span className="vf-browse-hero-chart-title">
+									{HERO_STATUS_WIDGET.title}
+								</span>
+							</div>
+							<div className="vf-dash-widget-body">
+								<WidgetChart widget={HERO_STATUS_WIDGET} data={statusData} />
+							</div>
+						</div>
+					</div>
+				</div>
+			)}
 
 			{people.length === 0 ? (
 				<BrowseEmpty label="people" actionLabel="New person" />
