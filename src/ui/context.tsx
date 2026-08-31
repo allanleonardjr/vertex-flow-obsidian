@@ -48,8 +48,15 @@ export function usePlugin(): VertexFlowPlugin {
 	return value.plugin;
 }
 
-/** Re-renders whenever the vault index changes. */
-export function useWorkspaces(): WorkspaceSnapshot[] {
+/**
+ * Re-renders whenever the vault index changes. Pass
+ * `{ includeDeleted: true }` to also surface soft-deleted workspaces (for the
+ * Trash view and the empty-state recovery screen); the default excludes them,
+ * so every existing call site is unaffected.
+ */
+export function useWorkspaces(options?: {
+	includeDeleted?: boolean;
+}): WorkspaceSnapshot[] {
 	const plugin = usePlugin();
 
 	const subscribe = useCallback(
@@ -61,7 +68,7 @@ export function useWorkspaces(): WorkspaceSnapshot[] {
 	const getSnapshot = useCallback(() => plugin.index.revision, [plugin]);
 
 	useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-	return plugin.index.list();
+	return plugin.index.list(options);
 }
 
 export interface ActiveWorkspace {

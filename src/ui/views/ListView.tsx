@@ -153,7 +153,7 @@ export function ListView({
     <button
       type="button"
       className="vf-icon-button vf-row-remove"
-      title={`Delete ${task.title}`}
+      title={`Move "${task.title}" to Trash`}
       onClick={(e) => {
         e.stopPropagation();
         setDeletePlan(planDeletion(scopeOf(snapshot), task));

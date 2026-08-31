@@ -1086,6 +1086,21 @@ export class Mutations {
     await this.index.rebuild();
   }
 
+  /**
+   * Permanently remove a soft-deleted workspace. Sends the whole root folder
+   * through `io.trash()` — the same call every other permanent delete in the
+   * codebase uses (see `permanentlyDeleteItem`) — honouring the user's
+   * Obsidian "deleted files" preference. Once the folder is gone, the next
+   * index rebuild naturally drops it from `list()`; no extra bookkeeping.
+   */
+  async permanentlyDeleteWorkspace(
+    snapshot: WorkspaceSnapshot,
+  ): Promise<void> {
+    const folder = this.io.getFolder(snapshot.workspace.root);
+    if (folder) await this.io.trash(folder);
+    await this.index.rebuild();
+  }
+
   // -- Helpers --------------------------------------------------------------
 
   private requireFile(path: string): TFile {

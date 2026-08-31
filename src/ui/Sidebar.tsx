@@ -539,7 +539,7 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
                   setDeleteRoot(entry.workspace.root);
                 }}
               >
-                Delete
+                Move to Trash
               </button>
             </RowMenu>
           }
@@ -714,7 +714,7 @@ function ViewsSection({
                     setDeleting(view);
                   }}
                 >
-                  Delete
+                  Move to Trash
                 </button>
               )}
             </RowMenu>
@@ -725,7 +725,7 @@ function ViewsSection({
       {deleting && (
         <ConfirmDeleteDialog
           title={`Delete view "${deleting.name}"?`}
-          body="The view definition is removed. Tasks are not affected."
+          body="The view definition is removed. Tasks are not affected. You can restore it anytime from the Trash view."
           onCancel={() => setDeleting(null)}
           onConfirm={() => {
             remove(deleting);
@@ -859,7 +859,7 @@ function DashboardsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
                     setDeleting(dashboard);
                   }}
                 >
-                  Delete
+                  Move to Trash
                 </button>
               </RowMenu>
             }
@@ -902,7 +902,7 @@ function DashboardsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
       {deleting && (
         <ConfirmDeleteDialog
           title={`Delete dashboard "${deleting.name}"?`}
-          body={`Removes the dashboard and its ${deleting.widgets.length} chart${deleting.widgets.length === 1 ? "" : "s"}. Tasks are not affected.`}
+          body={`Removes the dashboard and its ${deleting.widgets.length} chart${deleting.widgets.length === 1 ? "" : "s"}. Tasks are not affected. You can restore it anytime from the Trash view.`}
           onCancel={() => setDeleting(null)}
           onConfirm={() => {
             void plugin.mutations.deleteDashboard(snapshot, deleting.id);
@@ -992,7 +992,7 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
                     setDeletePlan(planDeletion(scopeOf(snapshot), project));
                   }}
                 >
-                  Delete
+                  Move to Trash
                 </button>
               </RowMenu>
             }

@@ -5107,15 +5107,20 @@ body.vf-bar-dragging .vf-timeline-bar {
   color: var(--vf-muted);
 }
 
-/* --- Welcome screen (first-run onboarding, before the template gallery) - */
+/* --- Empty-state panels: first-run Welcome + workspace recovery ----------
+   One centered card (accent icon box, centered copy, one primary affordance).
+   `.vf-recover` widens it and swaps the CTA for a list of restorable
+   workspaces. */
 
-.vf-welcome {
+.vf-empty-panel {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   max-width: 420px;
-  height: 100%;
+  /* `min-height` (not `height`) so the recovery list can grow and
+     `.vf-empty-scroll` scrolls, rather than the card clipping. */
+  min-height: 100%;
   margin: 0 auto;
   padding: 28px;
   text-align: center;
@@ -5156,29 +5161,128 @@ body.vf-bar-dragging .vf-timeline-bar {
   background-size: 400px 400px;
 }
 
-.vf-welcome-icon {
+.vf-empty-panel-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  /* width: 60px; */
-  /* height: 60px; */
   margin-bottom: 8px;
-  border-radius: 14px;
   background: var(--background-modifier-hover);
   color: var(--text-accent);
+  /* width / height / border-radius supplied inline by <EmptyStateIcon> */
 }
 
-.vf-welcome h1 {
+.vf-empty-panel h1 {
   margin: 0;
   font-size: var(--font-ui-larger, 1.5em);
 }
 
-.vf-welcome-sub {
+.vf-empty-panel-sub {
   margin: 0 0 12px;
   color: var(--vf-muted);
   line-height: 1.5;
 }
 
-.vf-welcome-cta {
+.vf-empty-panel-cta {
   cursor: pointer;
+}
+
+/* Empty-state recovery screen — a soft-deleted workspace exists but no live
+   one. Deliberately mirrors the first-run `.vf-empty-panel` card (centered,
+   accent icon box, centered copy): the §9.6 left-align default explicitly
+   yields here to a design that matches its sibling screen. The restorable
+   rows are their own stacked `.vf-recover-card`s, NOT the dense
+   `.vf-browse-card` the Trash hub uses — a one-row screen needs a visible
+   Restore CTA and room for the full workspace name. */
+.vf-recover {
+  max-width: 460px;
+}
+
+.vf-recover-list {
+  display: flex;
+  flex: 0 1 auto; /* never stretch inside the centered flex column */
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-height: 300px; /* many soft-deleted workspaces → scroll */
+  margin: 4px 0 8px;
+  overflow-y: auto;
+}
+
+.vf-recover-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--vf-border);
+  border-radius: 8px;
+  background: var(--background-primary);
+  text-align: left; /* rows stay left-aligned inside the centered panel */
+}
+
+.vf-recover-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-normal);
+}
+
+.vf-recover-card-name {
+  font-weight: 600;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis; /* has the full card width to itself — realistic names fit */
+}
+
+.vf-recover-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.vf-recover-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.vf-recover-card-actions .mod-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+/* Quiet text button — reset Obsidian's base `button` chrome with `!important`,
+   same pattern as `.vf-browse-card-body` / `.vf-link-button`. */
+.vf-recover-card-delete {
+  padding: 4px 8px;
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  color: var(--vf-muted);
+  cursor: pointer;
+}
+
+.vf-recover-card-delete:hover {
+  color: var(--text-error);
+  background: var(--background-modifier-hover) !important;
+}
+
+/* Secondary "Create a new workspace instead" link. `!important` resets —
+   Obsidian's base `button` background was leaking through, the same bug
+   already fixed on `.vf-browse-card-body`. */
+.vf-link-button {
+  padding: 0;
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  color: var(--text-accent);
+  cursor: pointer;
+}
+
+.vf-link-button:hover {
+  text-decoration: underline;
 }
