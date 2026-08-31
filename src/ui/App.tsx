@@ -86,23 +86,17 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
     tabs.openView(id, snapshot.workspace.root);
   };
 
-  // Drop tabs whose target isn't in this workspace — after a delete, or after
-  // a workspace switch (this component is keyed on the root, so it re-runs
-  // with the new workspace's data and everything left over from the old one
-  // fails the membership check).
-  //
-  // Task tabs need their own pass here: the provider's index subscription only
-  // knows whether a task still exists *somewhere in the vault*, which every
-  // task of the workspace you just left does. Ownership is resolved from the
-  // path rather than from `snapshot.tasks`, so a task file that's been created
-  // but not yet re-indexed (quick capture, "New task") keeps its tab instead
-  // of being closed the instant it opens.
+  // Task tabs: closed only when the task is gone from *every* workspace
+  // (mirrors the vault-wide checks below for views/labels/people/projects).
+  // Ownership is resolved from the path rather than `snapshot.tasks`, so a
+  // task file that's been created but not yet re-indexed (quick capture,
+  // "New task") keeps its tab instead of being closed the instant it opens.
+  // Genuine deletions are handled by the separate index-subscribed prune
+  // effect in TabsProvider (tabs-context.tsx) — this effect only guards the
+  // reindex-lag edge case.
   useEffect(() => {
-    const root = snapshot.workspace.root;
-    tabs.pruneTasks(
-      (path) => plugin.index.workspaceFor(path)?.workspace.root === root,
-    );
-  }, [tabs, plugin, snapshot.workspace.root, snapshot.tasks]);
+    tabs.pruneTasks((path) => plugin.index.workspaceFor(path) != null);
+  }, [tabs, plugin, snapshot.tasks]);
   // View/Dashboard/Label/Project tabs can belong to a workspace other than the
   // one on screen — Tabs live above this component's per-workspace remount
   // boundary. So a tab is only pruned when its target is gone from *every*
