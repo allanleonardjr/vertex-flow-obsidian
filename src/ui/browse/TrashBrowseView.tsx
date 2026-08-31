@@ -1,6 +1,7 @@
 /**
  * Trash hub — everything sitting in this workspace's `Trash/` folder, grouped
- * by Item Kind, each row with a Restore / Delete Forever menu.
+ * by Item Kind. Each row has an always-visible Restore button; the `⋯` menu
+ * holds only the permanent "Delete Forever".
  *
  * Reuses the exact card-content components the other hubs use
  * (`TaskRowContent` / `ProjectCardContent` / `ViewCardContent` /
@@ -21,7 +22,7 @@ import type {
 } from "../../core/types";
 import { ConfirmDeleteDialog } from "../components/ConfirmDeleteDialog";
 import { TaskRowContent } from "../components/TaskRow";
-import { usePlugin } from "../context";
+import { usePlugin, useWorkspaces } from "../context";
 import { DashboardCardContent } from "./DashboardCardContent";
 import { ProjectCardContent } from "./ProjectCardContent";
 import { ViewCardContent } from "./ViewCardContent";
@@ -32,6 +33,7 @@ import {
 	BrowseGroupHeader,
 	BrowseHeader,
 	BrowseList,
+	DeletedWorkspaceRow,
 	formatRelativeTime,
 } from "./shared";
 
@@ -56,7 +58,13 @@ export function TrashBrowseView({
 	const [menuPath, setMenuPath] = useState<string | null>(null);
 	const [purging, setPurging] = useState<TrashedItem | null>(null);
 
-	const total = snapshot.trash.length;
+	// Soft-deleted workspaces are vault-wide, not part of this workspace's own
+	// `snapshot.trash` — a separate data source shown as its own group.
+	const deletedWorkspaces = useWorkspaces({ includeDeleted: true }).filter(
+		(w) => w.workspace.deletedAt != null,
+	);
+
+	const total = snapshot.trash.length + deletedWorkspaces.length;
 
 	const restore = (item: TrashedItem) => {
 		setMenuPath(null);
@@ -102,6 +110,20 @@ export function TrashBrowseView({
 				<BrowseEmpty label="trashed items" />
 			) : (
 				<BrowseList>
+					{deletedWorkspaces.length > 0 && (
+						<div className="vf-trash-group">
+							<BrowseGroupHeader
+								label="Workspaces"
+								count={deletedWorkspaces.length}
+							/>
+							{deletedWorkspaces.map((ws) => (
+								<DeletedWorkspaceRow
+									key={ws.workspace.root}
+									snapshot={ws}
+								/>
+							))}
+						</div>
+					)}
 					{KIND_ORDER.map((kind) => {
 						const items = snapshot.trash.filter((t) => t.kind === kind);
 						if (items.length === 0) return null;
@@ -115,33 +137,35 @@ export function TrashBrowseView({
 									<BrowseCard
 										key={item.entity.path}
 										trailing={
-											<BrowseCardMenu
-												open={menuPath === item.entity.path}
-												onToggle={() =>
-													setMenuPath((p) =>
-														p === item.entity.path
-															? null
-															: item.entity.path,
-													)
-												}
-												onClose={() => setMenuPath(null)}
-											>
+											<>
 												<button
-													className="vf-menu-item"
+													className="vf-browse-card-restore"
 													onClick={() => restore(item)}
 												>
 													Restore
 												</button>
-												<button
-													className="vf-menu-item vf-menu-item-danger"
-													onClick={() => {
-														setMenuPath(null);
-														setPurging(item);
-													}}
+												<BrowseCardMenu
+													open={menuPath === item.entity.path}
+													onToggle={() =>
+														setMenuPath((p) =>
+															p === item.entity.path
+																? null
+																: item.entity.path,
+														)
+													}
+													onClose={() => setMenuPath(null)}
 												>
-													Delete Forever
-												</button>
-											</BrowseCardMenu>
+													<button
+														className="vf-menu-item vf-menu-item-danger"
+														onClick={() => {
+															setMenuPath(null);
+															setPurging(item);
+														}}
+													>
+														Delete Forever
+													</button>
+												</BrowseCardMenu>
+											</>
 										}
 									>
 										{renderBody(item)}

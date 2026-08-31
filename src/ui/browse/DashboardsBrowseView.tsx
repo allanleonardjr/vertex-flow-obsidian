@@ -116,7 +116,7 @@ export function DashboardsBrowseView({
 											setDeleting(dashboard);
 										}}
 									>
-										Delete
+										Move to Trash
 									</button>
 								</BrowseCardMenu>
 							}
@@ -164,7 +164,7 @@ export function DashboardsBrowseView({
 			{deleting && (
 				<ConfirmDeleteDialog
 					title={`Delete dashboard "${deleting.name}"?`}
-					body={`Removes the dashboard and its ${deleting.widgets.length} chart${deleting.widgets.length === 1 ? "" : "s"}. Tasks are not affected.`}
+					body={`Removes the dashboard and its ${deleting.widgets.length} chart${deleting.widgets.length === 1 ? "" : "s"}. Tasks are not affected. You can restore it anytime from the Trash view.`}
 					onCancel={() => setDeleting(null)}
 					onConfirm={() => {
 						void plugin.mutations.deleteDashboard(snapshot, deleting.id);

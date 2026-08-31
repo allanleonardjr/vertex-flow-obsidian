@@ -191,7 +191,7 @@ export function ProjectsBrowseView({
                       setDeletePlan(planDeletion(scopeOf(snapshot), project));
                     }}
                   >
-                    Delete
+                    Move to Trash
                   </button>
                 </BrowseCardMenu>
               }

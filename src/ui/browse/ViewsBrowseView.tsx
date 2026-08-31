@@ -107,7 +107,7 @@ export function ViewsBrowseView({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 											setDeleting(view);
 										}}
 									>
-										Delete
+										Move to Trash
 									</button>
 								</BrowseCardMenu>
 							}
@@ -121,7 +121,7 @@ export function ViewsBrowseView({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 			{deleting && (
 				<ConfirmDeleteDialog
 					title={`Delete view "${deleting.name}"?`}
-					body="The view definition is removed. Tasks are not affected."
+					body="The view definition is removed. Tasks are not affected. You can restore it anytime from the Trash view."
 					onCancel={() => setDeleting(null)}
 					onConfirm={() => {
 						void plugin.mutations.deleteView(snapshot, deleting.id);
