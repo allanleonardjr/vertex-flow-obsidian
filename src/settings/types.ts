@@ -43,6 +43,8 @@ export interface VertexFlowSettings {
 	projectInfoHeight: number;
 	/** Height, in pixels, of the Task editor's description pane above Sub-tasks. */
 	taskDescriptionHeight: number;
+	/** Height, in pixels, of a Saved View's description pane above its Board/List. */
+	viewDescriptionHeight: number;
 	/** Timeline view: width of the sticky task-label column left of the chart. */
 	timelineLeftWidth: number;
 	/** Timeline view: that label column collapsed to a sliver. */
@@ -53,6 +55,8 @@ export interface VertexFlowSettings {
 	timelineLowerCollapsed: boolean;
 	/** Calendar view: the Unscheduled drawer collapsed to its header. */
 	calendarUnscheduledCollapsed: boolean;
+	/** Calendar view: height of the Unscheduled drawer below the month grid. */
+	calendarUnscheduledHeight: number;
 	/** Size of the Parent / relation task-picker popover, drag-resizable. */
 	taskPickerWidth: number;
 	taskPickerHeight: number;
@@ -97,11 +101,13 @@ export const DEFAULT_SETTINGS: VertexFlowSettings = {
 	editorSectionsCollapsed: {},
 	projectInfoHeight: 220,
 	taskDescriptionHeight: 220,
+	viewDescriptionHeight: 220,
 	timelineLeftWidth: 300,
 	timelineLeftCollapsed: false,
 	timelineLowerHeight: 200,
 	timelineLowerCollapsed: false,
 	calendarUnscheduledCollapsed: false,
+	calendarUnscheduledHeight: 200,
 	taskPickerWidth: 380,
 	taskPickerHeight: 360,
 	helpSidebarWidth: 240,

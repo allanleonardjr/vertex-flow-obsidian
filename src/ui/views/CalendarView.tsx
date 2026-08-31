@@ -44,6 +44,7 @@ import type {
   WorkspaceSnapshot,
 } from "../../core/types";
 import { EmptyView } from "../components/EmptyView";
+import { ResizeHandle } from "../components/ResizeHandle";
 import { TaskRowContent } from "../components/TaskRow";
 import { Popover } from "../components/Popover";
 import { useCreateTask } from "../actions";
@@ -54,6 +55,12 @@ import { useScheduleDrag } from "./useScheduleDrag";
 
 /** How many chips a day cell shows before the rest fold into "+N more". */
 const MAX_CHIPS_PER_DAY = 3;
+
+/* Unscheduled-drawer resize bounds — matched to Timeline's lower pane so the
+   two drawers feel identical. */
+const UNSCHEDULED_MIN_HEIGHT = 64; // = Timeline's LOWER_MIN_HEIGHT
+const UNSCHEDULED_DEFAULT_HEIGHT = 200; // = Timeline's LOWER_DEFAULT_HEIGHT
+const GRID_MIN_HEIGHT = 140; // keeps some month grid visible, = Timeline's CHART_MIN_HEIGHT
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS_LONG = [
@@ -114,6 +121,9 @@ export function CalendarView({
   const [moreDate, setMoreDate] = useState<IsoDate | null>(null);
   const [unscheduledCollapsed, setUnscheduledCollapsed] = useState(
     plugin.settings.calendarUnscheduledCollapsed,
+  );
+  const [unscheduledHeight, setUnscheduledHeight] = useState(
+    plugin.settings.calendarUnscheduledHeight,
   );
 
   const dateField = view.calendarDateField;
@@ -300,145 +310,167 @@ export function CalendarView({
         </span>
       </div>
 
-      <div className="vf-calendar-scroll" ref={setGridEl}>
-        <div className="vf-calendar-weekdays" aria-hidden>
-          {WEEKDAYS.map((day) => (
-            <span key={day} className="vf-calendar-weekday">
-              {day}
-            </span>
-          ))}
-        </div>
+      <div className="vf-calendar-body">
+        <div className="vf-calendar-scroll" ref={setGridEl}>
+          <div className="vf-calendar-weekdays" aria-hidden>
+            {WEEKDAYS.map((day) => (
+              <span key={day} className="vf-calendar-weekday">
+                {day}
+              </span>
+            ))}
+          </div>
 
-        <div className="vf-calendar-grid">
-          {cells.map((iso) => {
-            const dayTasks = buckets.get(iso) ?? [];
-            const shown = dayTasks.slice(0, MAX_CHIPS_PER_DAY);
-            const overflow = dayTasks.length - shown.length;
-            const outside = startOfMonth(iso) !== visibleMonth;
-            return (
-              <div
-                key={iso}
-                className={`vf-calendar-cell${outside ? " is-outside" : ""}${
-                  iso === todayIso ? " is-today" : ""
-                }${iso === dragTargetDate ? " is-drag-target" : ""}`}
-                data-date={iso}
-                onClick={(event) => onCellClick(event, iso)}
-              >
-                <span className="vf-calendar-daynum">
-                  {Number(iso.slice(8, 10))}
-                </span>
-                <div className="vf-calendar-cell-chips">
-                  {shown.map(renderChip)}
-                  {overflow > 0 && (
-                    <button
-                      type="button"
-                      className="vf-cal-more"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setMoreDate(iso);
-                      }}
-                    >
-                      +{overflow} more
-                    </button>
+          <div className="vf-calendar-grid">
+            {cells.map((iso) => {
+              const dayTasks = buckets.get(iso) ?? [];
+              const shown = dayTasks.slice(0, MAX_CHIPS_PER_DAY);
+              const overflow = dayTasks.length - shown.length;
+              const outside = startOfMonth(iso) !== visibleMonth;
+              return (
+                <div
+                  key={iso}
+                  className={`vf-calendar-cell${outside ? " is-outside" : ""}${
+                    iso === todayIso ? " is-today" : ""
+                  }${iso === dragTargetDate ? " is-drag-target" : ""}`}
+                  data-date={iso}
+                  onClick={(event) => onCellClick(event, iso)}
+                >
+                  <span className="vf-calendar-daynum">
+                    {Number(iso.slice(8, 10))}
+                  </span>
+                  <div className="vf-calendar-cell-chips">
+                    {shown.map(renderChip)}
+                    {overflow > 0 && (
+                      <button
+                        type="button"
+                        className="vf-cal-more"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setMoreDate(iso);
+                        }}
+                      >
+                        +{overflow} more
+                      </button>
+                    )}
+                  </div>
+
+                  {moreDate === iso && (
+                    <Popover align="left" onClose={() => setMoreDate(null)}>
+                      <div
+                        className="vf-calendar-more-list"
+                        style={{
+                          minWidth: Math.max(
+                            200,
+                            plugin.settings.taskPickerWidth - 120,
+                          ),
+                        }}
+                      >
+                        <div className="vf-calendar-more-head">
+                          {monthLabel(iso)} · {Number(iso.slice(8, 10))}
+                        </div>
+                        {moreTasks.map((task) => (
+                          <button
+                            key={task.path}
+                            type="button"
+                            className={chipClass(task)}
+                            data-task-path={task.path}
+                            onClick={(event) => {
+                              openRow(event, task);
+                              setMoreDate(null);
+                            }}
+                          >
+                            <TaskRowContent
+                              task={task}
+                              snapshot={snapshot}
+                              taxonomies={taxonomies}
+                              hiddenFields={shownFields}
+                              dense
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    </Popover>
                   )}
                 </div>
-
-                {moreDate === iso && (
-                  <Popover align="left" onClose={() => setMoreDate(null)}>
-                    <div
-                      className="vf-calendar-more-list"
-                      style={{
-                        minWidth: Math.max(
-                          200,
-                          plugin.settings.taskPickerWidth - 120,
-                        ),
-                      }}
-                    >
-                      <div className="vf-calendar-more-head">
-                        {monthLabel(iso)} · {Number(iso.slice(8, 10))}
-                      </div>
-                      {moreTasks.map((task) => (
-                        <button
-                          key={task.path}
-                          type="button"
-                          className={chipClass(task)}
-                          data-task-path={task.path}
-                          onClick={(event) => {
-                            openRow(event, task);
-                            setMoreDate(null);
-                          }}
-                        >
-                          <TaskRowContent
-                            task={task}
-                            snapshot={snapshot}
-                            taxonomies={taxonomies}
-                            hiddenFields={shownFields}
-                            dense
-                          />
-                        </button>
-                      ))}
-                    </div>
-                  </Popover>
-                )}
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
 
-      {unscheduled.length > 0 && (
-        <div
-          className={`vf-calendar-unscheduled${
-            unscheduledCollapsed ? " is-collapsed" : ""
-          }`}
-        >
-          <button
-            type="button"
-            className="vf-calendar-unscheduled-head"
-            aria-expanded={!unscheduledCollapsed}
-            onClick={() => {
-              const next = !unscheduledCollapsed;
-              setUnscheduledCollapsed(next);
-              plugin.settings.calendarUnscheduledCollapsed = next;
+        {unscheduled.length > 0 && !unscheduledCollapsed && (
+          <ResizeHandle
+            axis="y"
+            sign={-1}
+            value={unscheduledHeight}
+            min={UNSCHEDULED_MIN_HEIGHT}
+            computeMax={(h) => h - GRID_MIN_HEIGHT}
+            onResize={setUnscheduledHeight}
+            onResizeEnd={(next) => {
+              plugin.settings.calendarUnscheduledHeight = next;
               void plugin.saveSettings();
             }}
-          >
-            <ChevronsUpDown size={12} aria-hidden />
-            <span>Unscheduled</span>
-            <span className="vf-count">{unscheduled.length}</span>
-            <span className="vf-calendar-unscheduled-hint">
-              drag onto a day to schedule
-            </span>
-          </button>
+            resetTo={UNSCHEDULED_DEFAULT_HEIGHT}
+            className="vf-calendar-unscheduled-handle"
+          />
+        )}
 
-          {!unscheduledCollapsed && (
-            <div className="vf-calendar-unscheduled-body">
-              {unscheduled.map((task) => (
-                <div
-                  key={task.path}
-                  className={`vf-row vf-calendar-unscheduled-row${
-                    selection.focusedPath === task.path ? " is-focused" : ""
-                  }${selection.isSelected(task.path) ? " is-selected" : ""}${
-                    scheduleDrag.isDragging(task.path) ? " is-dragging" : ""
-                  }`}
-                  data-task-path={task.path}
-                  onPointerDown={(event) =>
-                    scheduleDrag.onPointerDown(event, task.path)
-                  }
-                  onClick={(event) => openRow(event, task)}
-                >
-                  <TaskRowContent
-                    task={task}
-                    snapshot={snapshot}
-                    taxonomies={taxonomies}
-                    hiddenFields={shownFields}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+        {unscheduled.length > 0 && (
+          <div
+            className={`vf-calendar-unscheduled${
+              unscheduledCollapsed ? " is-collapsed" : ""
+            }`}
+            style={
+              unscheduledCollapsed ? undefined : { height: unscheduledHeight }
+            }
+          >
+            <button
+              type="button"
+              className="vf-calendar-unscheduled-head"
+              aria-expanded={!unscheduledCollapsed}
+              onClick={() => {
+                const next = !unscheduledCollapsed;
+                setUnscheduledCollapsed(next);
+                plugin.settings.calendarUnscheduledCollapsed = next;
+                void plugin.saveSettings();
+              }}
+            >
+              <ChevronsUpDown size={12} aria-hidden />
+              <span>Unscheduled</span>
+              <span className="vf-count">{unscheduled.length}</span>
+              <span className="vf-calendar-unscheduled-hint">
+                drag onto a day to schedule
+              </span>
+            </button>
+
+            {!unscheduledCollapsed && (
+              <div className="vf-calendar-unscheduled-body">
+                {unscheduled.map((task) => (
+                  <div
+                    key={task.path}
+                    className={`vf-row vf-calendar-unscheduled-row${
+                      selection.focusedPath === task.path ? " is-focused" : ""
+                    }${selection.isSelected(task.path) ? " is-selected" : ""}${
+                      scheduleDrag.isDragging(task.path) ? " is-dragging" : ""
+                    }`}
+                    data-task-path={task.path}
+                    onPointerDown={(event) =>
+                      scheduleDrag.onPointerDown(event, task.path)
+                    }
+                    onClick={(event) => openRow(event, task)}
+                  >
+                    <TaskRowContent
+                      task={task}
+                      snapshot={snapshot}
+                      taxonomies={taxonomies}
+                      hiddenFields={shownFields}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {scheduleDrag.drag &&
         createPortal(

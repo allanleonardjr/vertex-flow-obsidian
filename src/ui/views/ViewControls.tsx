@@ -6,7 +6,7 @@
  * text; only a control's value list opens on click.
  */
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { EvaluatedView } from "../../core/views";
 import {
 	isSystemViewId,
@@ -26,6 +26,7 @@ import { usePlugin, useSettingsWriter } from "../context";
 import { DescriptionSection } from "../components/DescriptionSection";
 import { EditableTitle } from "../components/EditableTitle";
 import { Icon } from "../components/Icon";
+import { ResizeHandle } from "../components/ResizeHandle";
 import { NamedIconDialog } from "../modals/NamedIconDialog";
 import { useSelection } from "../selection";
 import {
@@ -80,6 +81,10 @@ export function ViewControls({
 	const writeSettings = useSettingsWriter();
 	const selection = useSelection();
 	const [savingAs, setSavingAs] = useState(false);
+	const [descHeight, setDescHeight] = useState(
+		plugin.settings.viewDescriptionHeight,
+	);
+	const headerRef = useRef<HTMLElement | null>(null);
 	const queryOpen = plugin.settings.queryBarOpen;
 
 	// `pending`/`editing` are shared by the Row 1 "+ Filter" trigger and the
@@ -136,180 +141,188 @@ export function ViewControls({
 	};
 
 	return (
-		<header className="vf-view-header">
-			{(!hideTitle || selectedCount > 0) && (
-				<div className="vf-view-title">
-					{!hideTitle && (
-						<>
-							{titleEditable ? (
-								<EditableTitle
-									key={savedView.id}
-									icon={savedView.icon}
-									iconFallback={layoutIcon(savedView.viewType)}
-									name={savedView.name}
-									suffix={`(${snapshot.workspace.idPrefix})`}
-									placeholder="View name"
-									onRename={(name) =>
-										plugin.mutations.updateView(snapshot, {
-											...savedView,
-											name,
-										})
-									}
-									onIconChange={(icon) =>
-										void plugin.mutations.updateView(snapshot, {
-											...savedView,
-											icon,
-										})
-									}
-								/>
-							) : (
-								<h2>
-									<span className="vf-view-title-icon" aria-hidden>
-										<Icon
-											id={view.icon}
-											fallback={layoutIcon(view.viewType)}
-											size={16}
-										/>
-									</span>
-									{view.name}
-									<span className="vf-view-title-code">
-										({snapshot.workspace.idPrefix})
-									</span>
-								</h2>
-							)}
-							<span className="vf-count">
-								{evaluated.total} {evaluated.total === 1 ? "task" : "tasks"}
-							</span>
-						</>
-					)}
-
-					<span className="vf-view-title-spacer" />
-
-					{selectedCount > 0 && (
-						<>
-							<span className="vf-count">{selectedCount} selected</span>
-							<BulkStatus snapshot={snapshot} evaluated={evaluated} />
-							<button onClick={() => selection.clearSelection()}>Clear</button>
-						</>
-					)}
-
-					{!hideTitle && (
-						<button className="mod-cta" onClick={onNewTask}>
-							New task
-						</button>
-					)}
-				</div>
-			)}
-
-			{/* Row 1 — always on screen: layout + every display control + the
-			    action triggers (+ Filter, Query) that must stay reachable even
-			    when Row 2 doesn't exist. */}
-			<div className="vf-view-bar vf-view-bar-display">
-				<LayoutToggle view={view} onChange={editView} />
-				{/* Timeline and Calendar ignore grouping entirely (a day grid has no
-				    columns to group), so the control is hidden for both. */}
-				{view.viewType !== "timeline" && view.viewType !== "calendar" && (
-					<>
-						<span className="vf-bar-divider" />
-						<GroupChip view={view} onChange={editView} />
-						{view.groupBy !== "none" && view.viewType === "board" && (
-							<EmptyColumnsChip view={view} onChange={editView} />
+		<>
+			<header ref={headerRef} className="vf-view-header">
+				{(!hideTitle || selectedCount > 0) && (
+					<div className="vf-view-title">
+						{!hideTitle && (
+							<>
+								{titleEditable ? (
+									<EditableTitle
+										key={savedView.id}
+										icon={savedView.icon}
+										iconFallback={layoutIcon(savedView.viewType)}
+										name={savedView.name}
+										suffix={`(${snapshot.workspace.idPrefix})`}
+										placeholder="View name"
+										onRename={(name) =>
+											plugin.mutations.updateView(snapshot, {
+												...savedView,
+												name,
+											})
+										}
+										onIconChange={(icon) =>
+											void plugin.mutations.updateView(snapshot, {
+												...savedView,
+												icon,
+											})
+										}
+									/>
+								) : (
+									<h2>
+										<span className="vf-view-title-icon" aria-hidden>
+											<Icon
+												id={view.icon}
+												fallback={layoutIcon(view.viewType)}
+												size={16}
+											/>
+										</span>
+										{view.name}
+										<span className="vf-view-title-code">
+											({snapshot.workspace.idPrefix})
+										</span>
+									</h2>
+								)}
+								<span className="vf-count">
+									{evaluated.total} {evaluated.total === 1 ? "task" : "tasks"}
+								</span>
+							</>
 						)}
-						{/* List and Board share one collapsed-column set, so the bulk
-						    toggle has to be reachable from both — otherwise a board
-						    inherits a "collapse all" done on the list with no way
-						    back. */}
-						{view.groupBy !== "none" && (
-							<CollapseAllToggle
-								view={view}
-								evaluated={evaluated}
-								onColumnsChange={draft.setColumns}
-							/>
+
+						<span className="vf-view-title-spacer" />
+
+						{selectedCount > 0 && (
+							<>
+								<span className="vf-count">{selectedCount} selected</span>
+								<BulkStatus snapshot={snapshot} evaluated={evaluated} />
+								<button onClick={() => selection.clearSelection()}>Clear</button>
+							</>
 						)}
-					</>
+
+						{!hideTitle && (
+							<button className="mod-cta" onClick={onNewTask}>
+								New task
+							</button>
+						)}
+					</div>
 				)}
-				<span className="vf-bar-divider" />
-				<SortChip view={view} onChange={editView} />
-				<span className="vf-bar-divider" />
-				<SubtasksChip view={view} onChange={editView} />
-				<span className="vf-bar-divider" />
-				<FieldsControl view={view} onChange={editView} />
-				<span className="vf-bar-divider" />
-				<AddFilterTrigger view={view} clause={filterClause} />
 
-				<button
-					type="button"
-					className={`vf-bar-item vf-query-toggle${queryOpen ? " is-on" : ""}`}
-					aria-expanded={queryOpen}
-					aria-controls="vf-query-row"
-					title="Edit this view as a text query"
-					onClick={() => writeSettings({ queryBarOpen: !queryOpen })}
-				>
-					<span
-						className={`vf-section-chevron${queryOpen ? " is-open" : ""}`}
-						aria-hidden
+				{/* Row 1 — always on screen: layout + every display control + the
+				    action triggers (+ Filter, Query) that must stay reachable even
+				    when Row 2 doesn't exist. */}
+				<div className="vf-view-bar vf-view-bar-display">
+					<LayoutToggle view={view} onChange={editView} />
+					{/* Timeline and Calendar ignore grouping entirely (a day grid has no
+					    columns to group), so the control is hidden for both. */}
+					{view.viewType !== "timeline" && view.viewType !== "calendar" && (
+						<>
+							<span className="vf-bar-divider" />
+							<GroupChip view={view} onChange={editView} />
+							{view.groupBy !== "none" && view.viewType === "board" && (
+								<EmptyColumnsChip view={view} onChange={editView} />
+							)}
+							{/* List and Board share one collapsed-column set, so the bulk
+							    toggle has to be reachable from both — otherwise a board
+							    inherits a "collapse all" done on the list with no way
+							    back. */}
+							{view.groupBy !== "none" && (
+								<CollapseAllToggle
+									view={view}
+									evaluated={evaluated}
+									onColumnsChange={draft.setColumns}
+								/>
+							)}
+						</>
+					)}
+					<span className="vf-bar-divider" />
+					<SortChip view={view} onChange={editView} />
+					<span className="vf-bar-divider" />
+					<SubtasksChip view={view} onChange={editView} />
+					<span className="vf-bar-divider" />
+					<FieldsControl view={view} onChange={editView} />
+					<span className="vf-bar-divider" />
+					<AddFilterTrigger view={view} clause={filterClause} />
+
+					<button
+						type="button"
+						className={`vf-bar-item vf-query-toggle${queryOpen ? " is-on" : ""}`}
+						aria-expanded={queryOpen}
+						aria-controls="vf-query-row"
+						title="Edit this view as a text query"
+						onClick={() => writeSettings({ queryBarOpen: !queryOpen })}
 					>
-						›
-					</span>
-					Query
-				</button>
-
-				<span className="vf-bar-spacer" />
-
-				{draft.dirty && (
-					<>
-						<button
-							type="button"
-							className="vf-bar-item vf-bar-reset"
-							title="Discard unsaved changes to this view"
-							onClick={draft.reset}
+						<span
+							className={`vf-section-chevron${queryOpen ? " is-open" : ""}`}
+							aria-hidden
 						>
-							Reset
-						</button>
-						{canOverwrite && (
+							›
+						</span>
+						Query
+					</button>
+
+					<span className="vf-bar-spacer" />
+
+					{draft.dirty && (
+						<>
+							<button
+								type="button"
+								className="vf-bar-item vf-bar-reset"
+								title="Discard unsaved changes to this view"
+								onClick={draft.reset}
+							>
+								Reset
+							</button>
+							{canOverwrite && (
+								<button
+									type="button"
+									className="vf-bar-item vf-bar-save"
+									title={`Save these changes to "${savedView.name}"`}
+									onClick={draft.save}
+								>
+									Save
+								</button>
+							)}
 							<button
 								type="button"
 								className="vf-bar-item vf-bar-save"
-								title={`Save these changes to "${savedView.name}"`}
-								onClick={draft.save}
+								onClick={() => setSavingAs(true)}
 							>
-								Save
+								Save view as…
 							</button>
-						)}
-						<button
-							type="button"
-							className="vf-bar-item vf-bar-save"
-							onClick={() => setSavingAs(true)}
-						>
-							Save view as…
-						</button>
-					</>
+						</>
+					)}
+				</div>
+
+				{/* Row 2 — the active filter chips. Not rendered at all when there
+				    are none, so an unfiltered view reserves no height for it. */}
+				{hasFilterRow && (
+					<div className="vf-view-bar vf-view-bar-filters">
+						<FilterControls
+							snapshot={snapshot}
+							view={view}
+							taxonomies={taxonomies}
+							onChange={editView}
+							clause={filterClause}
+						/>
+					</div>
 				)}
-			</div>
 
-			{/* Row 2 — the active filter chips. Not rendered at all when there
-			    are none, so an unfiltered view reserves no height for it. */}
-			{hasFilterRow && (
-				<div className="vf-view-bar vf-view-bar-filters">
-					<FilterControls
-						snapshot={snapshot}
-						view={view}
-						taxonomies={taxonomies}
-						onChange={editView}
-						clause={filterClause}
-					/>
-				</div>
-			)}
+				{/* Row 3 — the text query editor. */}
+				{queryOpen && (
+					<div id="vf-query-row">
+						<QueryBar snapshot={snapshot} view={view} onChange={editView} />
+					</div>
+				)}
 
-			{/* Row 3 — the text query editor. */}
-			{queryOpen && (
-				<div id="vf-query-row">
-					<QueryBar snapshot={snapshot} view={view} onChange={editView} />
-				</div>
-			)}
+			</header>
 
 			{showDescription && (
-				<div className="vf-view-description">
+				<div
+					className={`vf-view-description${descCollapsed ? " is-collapsed" : ""}`}
+					style={
+						descCollapsed ? undefined : { height: descHeight, flex: "0 0 auto" }
+					}
+				>
 					<DescriptionSection
 						collapsed={descCollapsed}
 						onToggleCollapsed={() =>
@@ -332,6 +345,27 @@ export function ViewControls({
 				</div>
 			)}
 
+			{showDescription && !descCollapsed && (
+				<ResizeHandle
+					axis="y"
+					sign={1}
+					value={descHeight}
+					min={VIEW_DESC_MIN_HEIGHT}
+					computeMax={(colHeight) =>
+						colHeight -
+						(headerRef.current?.clientHeight ?? 0) -
+						VIEW_BODY_MIN_HEIGHT
+					}
+					onResize={setDescHeight}
+					onResizeEnd={(next) => {
+						plugin.settings.viewDescriptionHeight = next;
+						void plugin.saveSettings();
+					}}
+					resetTo={VIEW_DESC_DEFAULT_HEIGHT}
+					className="vf-view-description-resize"
+				/>
+			)}
+
 			{savingAs && (
 				<NamedIconDialog
 					title="Save view as"
@@ -349,9 +383,13 @@ export function ViewControls({
 					onClose={() => setSavingAs(false)}
 				/>
 			)}
-		</header>
+		</>
 	);
 }
+
+const VIEW_DESC_MIN_HEIGHT = 80;
+const VIEW_BODY_MIN_HEIGHT = 120;
+const VIEW_DESC_DEFAULT_HEIGHT = 220;
 
 /**
  * List-view "collapse all" / "expand all" for grouped rows. Flips based on

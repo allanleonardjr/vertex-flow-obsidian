@@ -3061,12 +3061,29 @@ button.vf-crumb:hover {
   left: 0;
 }
 
-/* A Saved View's description sits below the control bar. */
+/* A Saved View's description sits below the control bar. Expanded, its
+   height is drag-controlled (inline style); collapsed, it's just the
+   toggle. Scrolls internally — the Board/List below takes the rest. The
+   header's own `border-bottom` already separates it from the bar above,
+   so the border here sits below the pane, right above the resize handle. */
 .vf-view-description {
+  flex: 0 0 auto;
   padding: 8px 14px 10px;
-  border-top: 1px solid var(--vf-border);
-  max-height: 40vh;
+  border-bottom: 1px solid var(--vf-border);
   overflow-y: auto;
+}
+
+.vf-view-description.is-collapsed {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+/* Handle between a Saved View's description and its Board/List — the
+   generic `.vf-resize-handle` / `.vf-resize-y`, sized down for this spot. */
+.vf-view-description-resize {
+  flex: none;
+  height: 5px;
+  margin: -3px 0;
 }
 
 /* Handle between the project info pane and its task list — the generic
@@ -4704,19 +4721,38 @@ body.vf-bar-dragging .vf-timeline-bar {
   letter-spacing: 0.06em;
 }
 
-/* Unscheduled drawer — visually consistent with the Timeline lower pane. */
+/* Grid + Unscheduled drawer, stacked below the toolbar. Kept a level below
+   `.vf-calendar` (like Timeline's `.vf-timeline-body`) so the drawer's resize
+   handle measures a parent that's already net of the toolbar. */
+.vf-calendar-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Unscheduled drawer — visually consistent with the Timeline lower pane.
+   Expanded height is drag-controlled (inline style); collapsed it's just
+   its header row. */
 .vf-calendar-unscheduled {
   flex: none;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  max-height: 40%;
   border-top: 1px solid var(--vf-border);
   overflow: hidden;
 }
 
 .vf-calendar-unscheduled.is-collapsed {
-  max-height: none;
+  height: auto;
+}
+
+/* Handle between the month grid and the Unscheduled drawer — the generic
+   `.vf-resize-handle` / `.vf-resize-y`, sized to match Timeline's. */
+.vf-calendar-unscheduled-handle {
+  flex: none;
+  height: 7px;
+  margin: -3px 0;
 }
 
 .vf-calendar-unscheduled-head {
