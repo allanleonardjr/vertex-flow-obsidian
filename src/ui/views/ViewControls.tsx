@@ -195,7 +195,6 @@ export function ViewControls({
 						{selectedCount > 0 && (
 							<>
 								<span className="vf-count">{selectedCount} selected</span>
-								<BulkStatus snapshot={snapshot} evaluated={evaluated} />
 								<button onClick={() => selection.clearSelection()}>Clear</button>
 							</>
 						)}
@@ -432,38 +431,5 @@ function CollapseAllToggle({
 		>
 			{allCollapsed ? "Expand all" : "Collapse all"}
 		</button>
-	);
-}
-
-/** Bulk status edit across the multi-selection. */
-function BulkStatus({
-	snapshot,
-	evaluated,
-}: {
-	snapshot: WorkspaceSnapshot;
-	evaluated: EvaluatedView;
-}) {
-	const plugin = usePlugin();
-	const selection = useSelection();
-
-	return (
-		<select
-			className="vf-bulk-select"
-			value=""
-			onChange={(event) => {
-				const status = event.target.value;
-				if (!status) return;
-				void plugin.mutations.bulkUpdate(selection.targets(evaluated.tasks), {
-					status,
-				});
-			}}
-		>
-			<option value="">Set status…</option>
-			{snapshot.workspace.statuses.map((status) => (
-				<option key={status.id} value={status.id}>
-					{status.name}
-				</option>
-			))}
-		</select>
 	);
 }

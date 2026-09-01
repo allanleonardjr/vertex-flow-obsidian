@@ -294,15 +294,16 @@ export interface TabsApi {
 	) => void;
 
 	/**
-	 * The selection (focused task + multi-selection) a view tab last had when
-	 * it was in front, so switching back restores your place. Keyed by tab id.
+	 * The selection (focused task + multi-selection + scroll position) a view tab
+	 * last had when it was in front, so switching back restores your place.
+	 * Keyed by tab id.
 	 */
 	getSelectionSnapshot: (
 		tabId: string,
-	) => { focusedPath: string | null; selectedPaths: string[] } | null;
+	) => { focusedPath: string | null; selectedPaths: string[]; scrollTop: number } | null;
 	setSelectionSnapshot: (
 		tabId: string,
-		snapshot: { focusedPath: string | null; selectedPaths: string[] } | null,
+		snapshot: { focusedPath: string | null; selectedPaths: string[]; scrollTop: number } | null,
 	) => void;
 }
 
@@ -350,26 +351,27 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 	dashboardDraftsRef.current = dashboardDrafts;
 
 	// Per-tab selection snapshots. TaskViewport saves its focused path (and
-	// multi-selection) whenever it loses the active tab, and restores it when
-	// it regains the tab — so switching away and back keeps your place instead
-	// of resetting to an empty selection. Keyed by tab id (`view.id`), the same
-	// way view drafts are keyed by `viewId`. Memory-only; discarded with the
-	// workspace on switch (the whole SelectionProvider remounts then).
+	// multi-selection) and scroll position whenever it loses the active tab,
+	// and restores them when it regains the tab — so switching away and back
+	// keeps your place instead of resetting to an empty selection. Keyed by
+	// tab id (`view.id`), the same way view drafts are keyed by `viewId`.
+	// Memory-only; discarded with the workspace on switch (the whole
+	// SelectionProvider remounts then).
 	const [selectionSnapshots, setSelectionSnapshots] = useState<
-		Record<string, { focusedPath: string | null; selectedPaths: string[] }>
+		Record<string, { focusedPath: string | null; selectedPaths: string[]; scrollTop: number }>
 	>({});
 	const selectionSnapshotsRef = useRef(selectionSnapshots);
 	selectionSnapshotsRef.current = selectionSnapshots;
 
 	const getSelectionSnapshot = useCallback(
-		(tabId: string): { focusedPath: string | null; selectedPaths: string[] } | null =>
+		(tabId: string): { focusedPath: string | null; selectedPaths: string[]; scrollTop: number } | null =>
 			selectionSnapshotsRef.current[tabId] ?? null,
 		[],
 	);
 	const setSelectionSnapshot = useCallback(
 		(
 			tabId: string,
-			snapshot: { focusedPath: string | null; selectedPaths: string[] } | null,
+			snapshot: { focusedPath: string | null; selectedPaths: string[]; scrollTop: number } | null,
 		) => {
 			setSelectionSnapshots((current) => {
 				if (snapshot == null) {

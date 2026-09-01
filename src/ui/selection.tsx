@@ -48,6 +48,8 @@ export interface SelectionApi extends SelectionState {
 	moveColumn: (delta: number) => void;
 	/** Click semantics: plain = focus only, cmd = toggle, shift = range. */
 	select: (path: string, modifiers?: { toggle?: boolean; range?: boolean }) => void;
+	/** Toggle selection of the currently focused task (Spacebar). */
+	toggleFocused: () => void;
 	clearSelection: () => void;
 	selectAll: () => void;
 	isSelected: (path: string) => boolean;
@@ -189,6 +191,17 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
 		[],
 	);
 
+	const toggleFocused = useCallback(() => {
+		if (!focusedPath) return;
+		setSelectedPaths((current) =>
+			current.includes(focusedPath)
+				? current.filter((p) => p !== focusedPath)
+				: [...current, focusedPath],
+		);
+		// Keep anchor on the focused task so range selection still works from it.
+		anchor.current = focusedPath;
+	}, [focusedPath]);
+
 	const api = useMemo<SelectionApi>(
 		() => ({
 			focusedPath,
@@ -198,6 +211,7 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
 			moveFocus,
 			moveColumn,
 			select,
+			toggleFocused,
 			clearSelection,
 			selectAll,
 			isSelected: (path) => selectedPaths.includes(path),
@@ -217,6 +231,7 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
 			moveFocus,
 			moveColumn,
 			select,
+			toggleFocused,
 			clearSelection,
 			selectAll,
 		],

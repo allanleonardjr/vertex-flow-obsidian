@@ -154,9 +154,10 @@ export function TaskViewport({
   } | null>(null);
   useEffect(() => setQuickPicker(null), [view.id]);
 
-  // Save the keyboard focus and multi-selection when this viewport unmounts
-  // (its tab loses focus — only the active tab stays mounted), and restore
-  // them when it mounts again (the tab comes back to the front).
+  // Save the keyboard focus, multi-selection, and scroll position when this
+  // viewport unmounts (its tab loses focus — only the active tab stays
+  // mounted), and restore them when it mounts again (the tab comes back to
+  // the front).
   //
   // The save lives in a mount-effect *cleanup*, which fires on unmount after
   // the last committed render — selection changes always render before any
@@ -176,6 +177,12 @@ export function TaskViewport({
           if (path !== saved.focusedPath) selection.select(path, { toggle: true });
         }
         if (saved.focusedPath) selection.focus(saved.focusedPath);
+        // Restore scroll position after a paint so the DOM is laid out.
+        if (saved.scrollTop != null && containerRef) {
+          requestAnimationFrame(() => {
+            containerRef.scrollTop = saved.scrollTop;
+          });
+        }
       }
     }
     // Cleanup runs when the effect tears down — i.e. exactly when we unmount
@@ -185,6 +192,7 @@ export function TaskViewport({
       tabs.setSelectionSnapshot(view.id, {
         focusedPath: selectionRef.current.focusedPath,
         selectedPaths: [...selectionRef.current.selectedPaths],
+        scrollTop: containerRef?.scrollTop ?? 0,
       });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -460,13 +468,22 @@ export function TaskViewport({
           }
         },
       },
+      {
+        key: " ",
+        run: () => selection.toggleFocused(),
+      },
       // Enter opens the task's own tab — the thing you almost always want.
       // Opening the raw Markdown note is the rarer, deliberate act, so it
       // gets its own key.
       {
         key: "Enter",
         run: () => {
-          if (selection.focusedPath) tabs.openTask(selection.focusedPath);
+          // If there's a multi-selection, open all selected tasks.
+          // Otherwise fall back to opening the focused task.
+          const targets = selection.selectedPaths.length > 0
+            ? selection.selectedPaths
+            : selection.focusedPath ? [selection.focusedPath] : [];
+          for (const path of targets) tabs.openTask(path);
         },
       },
       {

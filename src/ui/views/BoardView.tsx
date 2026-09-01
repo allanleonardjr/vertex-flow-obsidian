@@ -285,7 +285,14 @@ export function openOrSelect(
   const range = event.shiftKey;
 
   selection.select(path, { toggle, range });
-  if (!toggle && !range) tabs.openTask(path);
+  if (!toggle && !range) {
+    // If there's a multi-selection, open all selected tasks.
+    // Otherwise fall back to opening the clicked task.
+    const targets = selection.selectedPaths.length > 0
+      ? selection.selectedPaths
+      : [path];
+    for (const p of targets) tabs.openTask(p);
+  }
 }
 
 /**
