@@ -49,7 +49,6 @@ keys, vim-style `j` / `k` / `h` / `l`, or click.
 | `↑` / `↓`, or `j` / `k` | Move focus up / down |
 | `←` / `→`, or `h` / `l` | Move between board columns |
 | Enter | Open the focused task |
-| `o` | Open the raw Markdown note |
 | `x` | Add to selection (toggle) |
 | `⌘` / `Ctrl` + `a` | Select all |
 | `⌘` / `Ctrl` + `Shift` + `↑` | Open parent task (or project) |

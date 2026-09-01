@@ -10,7 +10,14 @@
  * keeps only the shell, the tab strip, and Escape/tab handling.
  */
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   buildNestedRows,
   evaluateView,
@@ -174,7 +181,8 @@ export function TaskViewport({
         selection.clearSelection();
         if (saved.focusedPath) selection.focus(saved.focusedPath);
         for (const path of saved.selectedPaths) {
-          if (path !== saved.focusedPath) selection.select(path, { toggle: true });
+          if (path !== saved.focusedPath)
+            selection.select(path, { toggle: true });
         }
         if (saved.focusedPath) selection.focus(saved.focusedPath);
         // Restore scroll position after a paint so the DOM is laid out.
@@ -299,7 +307,9 @@ export function TaskViewport({
       if (key === "x") {
         event.preventDefault();
         event.stopPropagation();
-        const targets = selectionRef.current.targets(evaluatedRef.current.tasks);
+        const targets = selectionRef.current.targets(
+          evaluatedRef.current.tasks,
+        );
         if (targets.length === 0) return;
         const archiving = !targets[0].archived;
         void plugin.mutations.bulkUpdate(targets, {
@@ -319,7 +329,10 @@ export function TaskViewport({
    * for every other layout and for `flat`/`hidden`, which render plain rows.
    */
   const nestedGroups = useMemo(() => {
-    if (effective.viewType !== "list" || effective.subtaskDisplay !== "nested") {
+    if (
+      effective.viewType !== "list" ||
+      effective.subtaskDisplay !== "nested"
+    ) {
       return null;
     }
     const scope = scopeOf(snapshot);
@@ -480,20 +493,16 @@ export function TaskViewport({
         run: () => {
           // If there's a multi-selection, open all selected tasks.
           // Otherwise fall back to opening the focused task.
-          const targets = selection.selectedPaths.length > 0
-            ? selection.selectedPaths
-            : selection.focusedPath ? [selection.focusedPath] : [];
+          const targets =
+            selection.selectedPaths.length > 0
+              ? selection.selectedPaths
+              : selection.focusedPath
+                ? [selection.focusedPath]
+                : [];
           for (const path of targets) tabs.openTask(path);
         },
       },
-      {
-        key: "o",
-        run: () => {
-          if (selection.focusedPath)
-            void plugin.mutations.open(selection.focusedPath);
-        },
-      },
-      ],
+    ],
     // These act on the task list, so they're only live while this viewport's
     // tab is the one you're looking at. Escape is handled by App's unified
     // capture-phase listener instead, since it must work on every tab.
@@ -560,11 +569,12 @@ export function TaskViewport({
             (t) => t.path === quickPicker.path,
           );
           if (!target) return null;
-          const batch = quickPicker.tasks.length > 0
-            ? quickPicker.tasks
-                .map((p) => evaluated.tasks.find((t) => t.path === p))
-                .filter((t): t is NonNullable<typeof t> => t != null)
-            : [target];
+          const batch =
+            quickPicker.tasks.length > 0
+              ? quickPicker.tasks
+                  .map((p) => evaluated.tasks.find((t) => t.path === p))
+                  .filter((t): t is NonNullable<typeof t> => t != null)
+              : [target];
           return (
             <QuickFieldPicker
               task={target}
