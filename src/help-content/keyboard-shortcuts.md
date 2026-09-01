@@ -42,23 +42,43 @@ Always two keys — there is no bare-`c` action.
 ## On the focused task
 
 The focused task is the one your keystrokes act on — move it with the arrow
-keys or `j` / `k`.
+keys, vim-style `j` / `k` / `h` / `l`, or click.
 
 | Key | Action |
 | --- | --- |
-| `↑` / `↓`, or `j` / `k` | Move focus |
-| `←` / `→` | Move between board columns |
+| `↑` / `↓`, or `j` / `k` | Move focus up / down |
+| `←` / `→`, or `h` / `l` | Move between board columns |
 | Enter | Open the focused task |
 | `o` | Open the raw Markdown note |
-| `s` | Set status |
-| `p` | Set priority |
-| `l` | Toggle a label |
-| `t` | Set task type |
+| `x` | Add to selection (toggle) |
+| `⌘` / `Ctrl` + `a` | Select all |
 | `⌘` / `Ctrl` + `Shift` + `↑` | Open parent task (or project) |
 | `⌘` / `Ctrl` + `Shift` + `↓` | Open first sub-task |
-| `x` | Add to selection |
-| `⌘` / `Ctrl` + `a` | Select all |
-| `e` | Archive / unarchive focused (or selected) |
+
+In a one-column List view the `←` / `→` / `h` / `l` keys are no-ops — there's
+nothing to move across, exactly as before.
+
+## Update a field — `u` then a key
+
+Editing a task's fields is a two-key chord spelled with a bare `u` followed by
+the field's letter — same grammar as the `g` / `c` chords: press `u`, then the
+field key, with up to a second between them. `u` `u` re-arms rather than
+resolving, and any other key cancels the chord.
+
+The taxonomy pickers used to sit on bare `s` / `p` / `l` / `t`; moving them
+under `u` freed those letters for navigation (`l` is now board-column-right).
+
+| Key | Action |
+| --- | --- |
+| `u` `s` | Set status |
+| `u` `p` | Set priority |
+| `u` `t` | Set task type |
+| `u` `l` | Toggle labels |
+| `u` `x` | Archive / unarchive the focused (or selected) tasks |
+
+`u` `x` took over from the old bare-`e` archive shortcut — archiving is a field
+edit too now, and `e` is released. As with `g` / `c`, these stay live only
+while a task view is the active tab.
 
 ## Everywhere
 

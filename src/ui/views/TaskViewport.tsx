@@ -10,7 +10,7 @@
  * keeps only the shell, the tab strip, and Escape/tab handling.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   buildNestedRows,
   evaluateView,
@@ -43,6 +43,9 @@ import { ListView } from "./ListView";
 import { TimelineView } from "./TimelineView";
 import { ViewControls } from "./ViewControls";
 import { useViewDraft } from "./useViewDraft";
+
+/** How long a lone `u` waits for its second key before lapsing. */
+const CHORD_TIMEOUT_MS = 1000;
 
 export function TaskViewport({
   snapshot,
@@ -139,21 +142,13 @@ export function TaskViewport({
   );
   useEffect(() => setCollapsedSubtrees(new Set()), [view.id]);
 
-  // The keyboard taxonomy picker (`s`/`p`/`l`/`t`), or null. Bound to the
-  // focused task at the moment the key is pressed.
+  // The keyboard taxonomy picker (opened via the `u` chord: `u s`/`u p`/`u l`/
+  // `u t`), or null. Bound to the focused task at the moment the key is pressed.
   const [quickPicker, setQuickPicker] = useState<{
     kind: QuickPickerKind;
     path: string;
   } | null>(null);
   useEffect(() => setQuickPicker(null), [view.id]);
-  const openQuickPicker = useCallback(
-    (kind: QuickPickerKind) => {
-      if (selection.focusedPath) {
-        setQuickPicker({ kind, path: selection.focusedPath });
-      }
-    },
-    [selection.focusedPath],
-  );
   const toggleSubtree = useCallback((path: string) => {
     setCollapsedSubtrees((prev) => {
       const next = new Set(prev);
@@ -162,6 +157,99 @@ export function TaskViewport({
       return next;
     });
   }, []);
+
+  // The `u` chord — "update a field". A bare `u` arms a one-second chord; the
+  // next key resolves it (`u s/p/t/l` → that field's taxonomy picker, `u x` →
+  // archive toggle), `u u` re-arms, and anything else cancels and falls
+  // through. Same grammar as the `g`/`c` engine, but task-scoped: it edits the
+  // focused task, so it lives in the viewport (gated on this tab being on
+  // screen), not the app-root engine. Window capture so it sees the key before
+  // the shell's bubble-phase handlers — which now use the freed letters
+  // (`h`/`l` move columns, `x` toggles selection).
+  const uPickerKey: Record<string, QuickPickerKind> = useMemo(
+    () => ({ s: "status", p: "priority", t: "taskType", l: "label" }),
+    [],
+  );
+  const pendingU = useRef(false);
+  const uTimer = useRef<number | null>(null);
+  const clearPendingU = useCallback(() => {
+    pendingU.current = false;
+    if (uTimer.current != null) window.clearTimeout(uTimer.current);
+    uTimer.current = null;
+  }, []);
+  const armU = useCallback(() => {
+    pendingU.current = true;
+    if (uTimer.current != null) window.clearTimeout(uTimer.current);
+    uTimer.current = window.setTimeout(clearPendingU, CHORD_TIMEOUT_MS);
+  }, [clearPendingU]);
+
+  // Latest selection/evaluated for the chord listener, so the listener
+  // identity is stable and doesn't re-bind on every focus move.
+  const selectionRef = useRef(selection);
+  selectionRef.current = selection;
+  const evaluatedRef = useRef(evaluated);
+  evaluatedRef.current = evaluated;
+
+  useEffect(() => {
+    if (!active) return;
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (
+        target?.isContentEditable ||
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement
+      ) {
+        clearPendingU();
+        return;
+      }
+      // Never steal modifier combos — those stay real Obsidian commands.
+      if (event.metaKey || event.ctrlKey || event.altKey) {
+        clearPendingU();
+        return;
+      }
+
+      // Bare `u` arms the chord; a lone `u` outside a field does nothing else,
+      // and we don't swallow it (same as `g`/`c` in the engine).
+      if (event.key === "u") {
+        armU();
+        return;
+      }
+      if (!pendingU.current) return;
+
+      const key = event.key.toLowerCase();
+      // `u u` re-arms (consistent with `g g` / `c c`).
+      if (key === "u") {
+        armU();
+        return;
+      }
+      clearPendingU();
+
+      const kind = uPickerKey[key];
+      const focusedPath = selectionRef.current.focusedPath;
+      if (kind && focusedPath) {
+        event.preventDefault();
+        event.stopPropagation();
+        setQuickPicker({ kind, path: focusedPath });
+        return;
+      }
+      if (key === "x") {
+        event.preventDefault();
+        event.stopPropagation();
+        const targets = selectionRef.current.targets(evaluatedRef.current.tasks);
+        if (targets.length === 0) return;
+        const archiving = !targets[0].archived;
+        void plugin.mutations.bulkUpdate(targets, {
+          archived: archiving,
+          archivedAt: archiving ? new Date().toISOString() : null,
+        });
+        return;
+      }
+      // Any other key cancels the chord and falls through.
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [active, clearPendingU, armU, plugin, setQuickPicker, uPickerKey]);
 
   /**
    * The nested List view's rows — one forest per rendered group. `null`
@@ -255,24 +343,22 @@ export function TaskViewport({
     containerRef,
     [
       // j/k and the arrow keys walk the visual layout: up/down within a
-      // column, left/right across board columns. The vim h/l aliases for
-      // column movement were dropped (Linear does the same) — that frees `l`
-      // for the Label picker below.
+      // column, left/right across board columns. vim h/l alias the column
+      // movement now that `l` is no longer the Label picker (it moved behind
+      // the `u` chord — `u l`).
       { key: "ArrowDown", run: () => selection.moveFocus(1) },
       { key: "ArrowUp", run: () => selection.moveFocus(-1) },
       { key: "j", run: () => selection.moveFocus(1) },
       { key: "k", run: () => selection.moveFocus(-1) },
       { key: "ArrowLeft", run: () => selection.moveColumn(-1) },
       { key: "ArrowRight", run: () => selection.moveColumn(1) },
+      { key: "h", run: () => selection.moveColumn(-1) },
+      { key: "l", run: () => selection.moveColumn(1) },
 
-      // Taxonomy pickers for the focused task (Linear's convention).
-      { key: "s", run: () => openQuickPicker("status") },
-      { key: "p", run: () => openQuickPicker("priority") },
-      { key: "l", run: () => openQuickPicker("label") },
-      { key: "t", run: () => openQuickPicker("taskType") },
+      // Selection toggle stays a bare key: `x`. (Archive is `u x`.)
 
       // Hierarchy navigation — ⌘/Ctrl+Shift+↑ to the parent, ↓ to the first
-      // sub-task (Linear's convention; `p`/`s` now open pickers).
+      // sub-task (Linear's convention).
       {
         key: "ArrowUp",
         mod: true,
@@ -335,19 +421,7 @@ export function TaskViewport({
             void plugin.mutations.open(selection.focusedPath);
         },
       },
-      {
-        key: "e",
-        run: () => {
-          const targets = selection.targets(evaluated.tasks);
-          if (targets.length === 0) return;
-          const archiving = !targets[0].archived;
-          void plugin.mutations.bulkUpdate(targets, {
-            archived: archiving,
-            archivedAt: archiving ? new Date().toISOString() : null,
-          });
-        },
-      },
-    ],
+      ],
     // These act on the task list, so they're only live while this viewport's
     // tab is the one you're looking at. Escape is handled by App's unified
     // capture-phase listener instead, since it must work on every tab.
