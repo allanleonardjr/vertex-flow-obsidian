@@ -179,10 +179,8 @@ export function TaskViewport({
       const saved = tabs.getSelectionSnapshot(view.id);
       if (saved) {
         selection.clearSelection();
-        if (saved.focusedPath) selection.focus(saved.focusedPath);
         for (const path of saved.selectedPaths) {
-          if (path !== saved.focusedPath)
-            selection.select(path, { toggle: true });
+          selection.select(path, { toggle: true });
         }
         if (saved.focusedPath) selection.focus(saved.focusedPath);
         // Restore scroll position after a paint so the DOM is laid out.
