@@ -4,12 +4,27 @@ A keyboard-first task manager stored entirely as Markdown: projects, tasks, boar
 
 Vertex Flow turns your vault into a fast, high-density project management OS — no cloud, no account, no database. Every task, project, view, and dashboard is a plain Markdown note. You own the data, always, and you can edit it with any tool that reads Markdown.
 
+## Table of Contents
+
+- [Why Vertex Flow?](#why-vertex-flow)
+- [Features](#features)
+- [Getting started](#getting-started)
+- [Requirements](#requirements)
+- [Documentation](#documentation)
+- [Support](#support)
+- [Development](#development)
+- [License](#license)
+
 ## Why Vertex Flow?
 
 - **Your data is your data.** Everything lives as Markdown notes in your vault. Nothing is stored outside it, nothing is locked away in a proprietary database, and nothing requires a server. Export, sync, or back it up with whatever you already use.
 - **Fast and keyboard-first.** Move between tasks, reorder cards, set statuses, and fire off quick captures without reaching for the mouse. Core actions (open, quick capture, rebuild index) are also registered as native Obsidian commands, so you can rebind them through Obsidian's own hotkey settings.
 - **Full offline help.** Press `?` anywhere for the keyboard-reference, and a complete built-in Help system ships with the plugin — no internet connection or external site required.
 - **Flexible by default.** Use it as a solo shopping list or run a full team. Projects and formal ceremony are optional, and every default is overridable per workspace.
+
+## Support
+
+If Vertex Flow helps you stay organized, consider [sponsoring on GitHub ❤️](https://github.com/sponsors/allanleonardjr) — it keeps the project moving and is much appreciated.
 
 ## Features
 
