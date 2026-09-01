@@ -144,10 +144,13 @@ export function TaskViewport({
 
   // The keyboard field picker (opened via the `u` chord: `u s`/`u p`/`u l`/
   // `u t` for taxonomy fields, `u a`/`u r`/`u m`/`u e`/`u b`/`u d` for the
-  // rest), or null. Bound to the focused task at the moment the key is pressed.
+  // rest), or null. Bound to the focused task at the moment the key is pressed;
+  // when tasks are multi-selected the batch is carried along so the picker
+  // applies to all of them.
   const [quickPicker, setQuickPicker] = useState<{
     kind: QuickPickerKind;
     path: string;
+    tasks: string[];
   } | null>(null);
   useEffect(() => setQuickPicker(null), [view.id]);
   const toggleSubtree = useCallback((path: string) => {
@@ -243,7 +246,10 @@ export function TaskViewport({
       if (kind && focusedPath) {
         event.preventDefault();
         event.stopPropagation();
-        setQuickPicker({ kind, path: focusedPath });
+        const batch = selectionRef.current
+          .targets(evaluatedRef.current.tasks)
+          .map((t) => t.path);
+        setQuickPicker({ kind, path: focusedPath, tasks: batch });
         return;
       }
       if (key === "x") {
@@ -500,15 +506,22 @@ export function TaskViewport({
           const target = evaluated.tasks.find(
             (t) => t.path === quickPicker.path,
           );
-          return target ? (
+          if (!target) return null;
+          const batch = quickPicker.tasks.length > 0
+            ? quickPicker.tasks
+                .map((p) => evaluated.tasks.find((t) => t.path === p))
+                .filter((t): t is NonNullable<typeof t> => t != null)
+            : [target];
+          return (
             <QuickFieldPicker
               task={target}
+              tasks={batch}
               kind={quickPicker.kind}
               snapshot={snapshot}
               taxonomies={taxonomies}
               onClose={() => setQuickPicker(null)}
             />
-          ) : null;
+          );
         })()}
     </>
   );

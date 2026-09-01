@@ -11,8 +11,16 @@
  *   - **Input fields** (estimate, dates) open a small field with a native
  *     input; Enter commits, Esc closes without changing.
  *
- * Re-parenting past `MAX_COMFORTABLE_DEPTH` asks the same "Move anyway?"
- * nudge the editor rail shows, instead of silently nesting that deep.
+ * A `tasks` list enables batch mode: the anchor task drives the highlighted
+ * row and initial values, but every mutation applies to the full selection via
+ * `bulkUpdate`. Labels are additive across the batch — picking a label adds
+ * it to tasks that don't carry it; re-picking removes it. The depth-nudge
+ * nudge is skipped in batch mode (a deliberate multi-task edit already
+ * implies intent).
+ *
+ * Labels support create-on-attach: the type-ahead input below the label list
+ * calls `addLabel` (attach-or-create) before toggling — matching the rail's
+ * LabelEditor behaviour.
  */
 
 import {
@@ -82,12 +90,15 @@ interface Row {
 
 export function QuickFieldPicker({
 	task,
+	tasks: tasksProp,
 	kind,
 	snapshot,
 	taxonomies,
 	onClose,
 }: {
 	task: Task;
+	/** The selection targets to apply to — defaults to `[task]`. */
+	tasks?: Task[];
 	kind: QuickPickerKind;
 	snapshot: WorkspaceSnapshot;
 	taxonomies: WorkspaceTaxonomies;
@@ -96,9 +107,37 @@ export function QuickFieldPicker({
 	const plugin = usePlugin();
 	const listRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
+	const labelInputRef = useRef<HTMLInputElement>(null);
 	const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
 	const isInput = INPUT_KINDS.has(kind);
+	const batch = tasksProp ?? [task];
+
+	// Type-ahead for the label branch's create-on-attach.
+	const [newLabelName, setNewLabelName] = useState("");
+
+	const createAndAttach = useCallback(
+		async (name: string) => {
+			const id = await plugin.mutations.addLabel(snapshot, name);
+			if (batch.length > 1) {
+				await Promise.all(
+					batch.map((t) => {
+						const next = t.labels.includes(id)
+							? t.labels
+							: [...t.labels, id];
+						return plugin.mutations.setLabels(t, next);
+					}),
+				);
+			} else {
+				const next = task.labels.includes(id)
+					? task.labels
+					: [...task.labels, id];
+				await plugin.mutations.setLabels(task, next);
+			}
+			onClose();
+		},
+		[plugin, snapshot, batch, task, onClose],
+	);
 
 	// A parent picked past MAX_COMFORTABLE_DEPTH waits on a "move anyway?"
 	// nudge. Kept in a ref so the window listeners stay stable while it's up.
@@ -265,31 +304,73 @@ export function QuickFieldPicker({
 	const choose = useCallback(
 		(id: string | null) => {
 			const m = plugin.mutations;
+			const multi = batch.length > 1;
+
 			if (kind === "status") {
-				if (id) void m.setStatus(task, id);
+				if (id) {
+					if (multi) {
+						void m.bulkUpdate(batch, { status: id });
+					} else {
+						void m.setStatus(task, id);
+					}
+				}
 			} else if (kind === "priority") {
-				void m.setPriority(task, id);
+				if (multi) {
+					void m.bulkUpdate(batch, { priority: id });
+				} else {
+					void m.setPriority(task, id);
+				}
 			} else if (kind === "taskType") {
-				void m.updateTask(task, { taskType: id ?? null });
+				if (multi) {
+					void m.bulkUpdate(batch, { taskType: id ?? null });
+				} else {
+					void m.updateTask(task, { taskType: id ?? null });
+				}
 			} else if (kind === "label") {
-				const next = task.labels.includes(id as string)
-					? task.labels.filter((l) => l !== id)
-					: [...task.labels, id as string];
-				void m.setLabels(task, next);
+				const targetId = id as string;
+				const added = task.labels.includes(targetId);
+				if (multi) {
+					// Additive toggle: flip the label across every target independently.
+					void Promise.all(
+						batch.map((t) => {
+							const next = added
+								? t.labels.filter((l) => l !== targetId)
+								: [...t.labels, targetId];
+							return m.setLabels(t, next);
+						}),
+					);
+				} else {
+					const next = added
+						? task.labels.filter((l) => l !== targetId)
+						: [...task.labels, targetId];
+					void m.setLabels(task, next);
+				}
 			} else if (kind === "assignee") {
-				void m.setAssignee(task, id);
+				if (multi) {
+					void m.bulkUpdate(batch, { assignee: id });
+				} else {
+					void m.setAssignee(task, id);
+				}
 			} else if (kind === "parent") {
-				if (id && depthUnder(scopeOf(snapshot), id) > MAX_COMFORTABLE_DEPTH) {
+				if (!multi && id && depthUnder(scopeOf(snapshot), id) > MAX_COMFORTABLE_DEPTH) {
 					setConfirmParent(id);
 					return;
 				}
-				void m.setParent(task, id);
+				if (multi) {
+					void m.bulkUpdate(batch, { parent: id });
+				} else {
+					void m.setParent(task, id);
+				}
 			} else if (kind === "project") {
-				void m.setProject(task, id);
+				if (multi) {
+					void m.bulkUpdate(batch, { project: id });
+				} else {
+					void m.setProject(task, id);
+				}
 			}
 			onClose();
 		},
-		[plugin, kind, task, snapshot, onClose],
+		[plugin, kind, task, batch, snapshot, onClose],
 	);
 
 	const commit = useCallback(
@@ -297,17 +378,30 @@ export function QuickFieldPicker({
 			const m = plugin.mutations;
 			if (kind === "estimate") {
 				const parsed = next ? Number.parseFloat(next) : NaN;
-				void m.updateTask(task, {
-					estimate: Number.isFinite(parsed) ? parsed : null,
-				});
+				const value = Number.isFinite(parsed) ? parsed : null;
+				if (batch.length > 1) {
+					void m.bulkUpdate(batch, { estimate: value });
+				} else {
+					void m.updateTask(task, { estimate: value });
+				}
 			} else if (kind === "startDate") {
-				void m.updateTask(task, { startDate: next || null });
+				const value = next || null;
+				if (batch.length > 1) {
+					void m.bulkUpdate(batch, { startDate: value });
+				} else {
+					void m.updateTask(task, { startDate: value });
+				}
 			} else {
-				void m.updateTask(task, { dueDate: next || null });
+				const value = next || null;
+				if (batch.length > 1) {
+					void m.bulkUpdate(batch, { dueDate: value });
+				} else {
+					void m.updateTask(task, { dueDate: value });
+				}
 			}
 			onClose();
 		},
-		[plugin, kind, task, onClose],
+		[plugin, kind, task, batch, onClose],
 	);
 
 	// Own the keyboard while open — window capture so it doesn't depend on the
@@ -417,6 +511,7 @@ export function QuickFieldPicker({
 						</span>
 					</div>
 				) : (
+					<>
 					<div
 						ref={listRef}
 						className="vf-option-list vf-option-list-scroll"
@@ -456,6 +551,34 @@ export function QuickFieldPicker({
 							</button>
 						))}
 					</div>
+
+					{kind === "label" && (
+						<div className="vf-quick-picker-create">
+							<input
+								ref={labelInputRef}
+								className="vf-input"
+								placeholder="Create label…"
+								value={newLabelName}
+								onChange={(event) => setNewLabelName(event.target.value)}
+								onKeyDown={(event) => {
+									const name = newLabelName.trim();
+									if (event.key === "Enter" && name) {
+										event.preventDefault();
+										event.stopPropagation();
+										void createAndAttach(name);
+									} else if (event.key === "Escape") {
+										event.preventDefault();
+										event.stopPropagation();
+										onClose();
+									}
+								}}
+							/>
+							<span className="vf-quick-picker-hint">
+								Enter to create and attach · Esc to close
+							</span>
+						</div>
+					)}
+					</>
 				)}
 			</div>
 

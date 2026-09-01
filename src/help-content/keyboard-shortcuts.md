@@ -84,9 +84,15 @@ under `u` freed those letters for navigation (`l` is now board-column-right).
 
 The `s` / `p` / `t` / `l` / `a` / `r` / `m` pickers show a candidate list —
 arrow keys move the highlight, Enter picks, Esc or clicking away closes. Labels
-toggle on pick. Picking a parent past a comfortable nesting depth asks for
+toggle on pick, and offer a type-ahead field to create-and-attach a new label
+(Enter). Picking a parent past a comfortable nesting depth asks for
 confirmation first. The `e` / `b` / `d` pickers open a small input field
 instead: **Enter** saves, **Esc** closes without changing.
+
+With multiple tasks selected (`x` or `Cmd`/`Ctrl`-click), a `u` chord acts on
+the **whole selection**: status, priority, type, assignee, parent, project,
+estimate, and dates apply to every selected task; a picked label is added to
+every task that doesn't already have it.
 
 `u` `x` took over from the old bare-`e` archive shortcut — archiving is a field
 edit too now, and `e` is released. As with `g` / `c`, these stay live only

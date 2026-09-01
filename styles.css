@@ -3674,6 +3674,19 @@ button.vf-crumb:hover {
   color: var(--text-muted);
 }
 
+.vf-quick-picker-create {
+  padding: 4px 8px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-top: 1px solid var(--background-modifier-border);
+  margin-top: 4px;
+}
+
+.vf-quick-picker-create .vf-input {
+  width: 100%;
+}
+
 /* -- The `?` shortcuts overlay ------------------------------------------- */
 
 .vf-shortcuts-dialog {
