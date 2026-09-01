@@ -5,9 +5,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  ancestorTasks,
   childTasks,
+  depthUnder,
   descendantTasks,
+  MAX_COMFORTABLE_DEPTH,
   scopeOf,
   subtaskProgress,
 } from "../core/hierarchy";
@@ -46,19 +47,6 @@ import { usePlugin } from "./context";
 const TASK_INFO_MIN_HEIGHT = 80;
 const TASK_SECTIONS_MIN_HEIGHT = 160;
 const TASK_INFO_DEFAULT_HEIGHT = 220;
-
-/**
- * Sub-tasks deeper than this still work, but get hard to scan — parenting past
- * it asks for a nudge, never blocks. One-based: a root task is level 1.
- */
-const MAX_COMFORTABLE_DEPTH = 4;
-
-/** The level (1-based) a task would sit at if parented under `parentPath`. */
-function depthUnder(snapshot: WorkspaceSnapshot, parentPath: string): number {
-  const parent = snapshot.tasks.find((t) => t.path === parentPath);
-  if (!parent) return 1;
-  return ancestorTasks(scopeOf(snapshot), parent).length + 2;
-}
 
 export interface TaskDetailPanelProps {
   task: Task;
@@ -489,7 +477,7 @@ function AddSubtaskTrigger({
   const add = (path: string) => {
     const picked = snapshot.tasks.find((t) => t.path === path);
     if (!picked) return;
-    if (depthUnder(snapshot, task.path) > MAX_COMFORTABLE_DEPTH) {
+    if (depthUnder(scopeOf(snapshot), task.path) > MAX_COMFORTABLE_DEPTH) {
       setTooDeep(picked);
       return;
     }
@@ -538,7 +526,7 @@ function AddSubtaskTrigger({
       {tooDeep && (
         <ConfirmDeleteDialog
           title={`Nest "${tooDeep.title}" ${depthUnder(
-            snapshot,
+            scopeOf(snapshot),
             task.path,
           )} levels deep?`}
           body="Deeply nested sub-tasks get hard to scan. You can still add it."
@@ -633,7 +621,7 @@ function ParentPicker({
   const [tooDeep, setTooDeep] = useState<string | null>(null);
 
   const choose = (parent: string | null) => {
-    if (parent && depthUnder(snapshot, parent) > MAX_COMFORTABLE_DEPTH) {
+    if (parent && depthUnder(scopeOf(snapshot), parent) > MAX_COMFORTABLE_DEPTH) {
       setTooDeep(parent);
       return;
     }
@@ -644,7 +632,7 @@ function ParentPicker({
     <PropertyRow label="Parent">
       {tooDeep && (
         <ConfirmDeleteDialog
-          title={`Nest "${task.title}" ${depthUnder(snapshot, tooDeep)} levels deep?`}
+          title={`Nest "${task.title}" ${depthUnder(scopeOf(snapshot), tooDeep)} levels deep?`}
           body="Deeply nested sub-tasks get hard to scan. You can still move it."
           confirmLabel="Move anyway"
           onCancel={() => setTooDeep(null)}

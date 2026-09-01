@@ -74,7 +74,19 @@ under `u` freed those letters for navigation (`l` is now board-column-right).
 | `u` `p` | Set priority |
 | `u` `t` | Set task type |
 | `u` `l` | Toggle labels |
+| `u` `a` | Assign someone (or unassign) |
+| `u` `r` | Set parent (re-parent) |
+| `u` `m` | Set project |
+| `u` `e` | Set estimate |
+| `u` `b` | Set start date |
+| `u` `d` | Set due date |
 | `u` `x` | Archive / unarchive the focused (or selected) tasks |
+
+The `s` / `p` / `t` / `l` / `a` / `r` / `m` pickers show a candidate list —
+arrow keys move the highlight, Enter picks, Esc or clicking away closes. Labels
+toggle on pick. Picking a parent past a comfortable nesting depth asks for
+confirmation first. The `e` / `b` / `d` pickers open a small input field
+instead: **Enter** saves, **Esc** closes without changing.
 
 `u` `x` took over from the old bare-`e` archive shortcut — archiving is a field
 edit too now, and `e` is released. As with `g` / `c`, these stay live only

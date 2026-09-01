@@ -3644,7 +3644,7 @@ button.vf-crumb:hover {
   outline: none;
 }
 
-/* -- Keyboard taxonomy picker (s / p / l / t on the focused task) --------- */
+/* -- Keyboard field picker (u <key> on the focused task) ------------------ */
 
 .vf-quick-picker {
   position: fixed;
@@ -3655,6 +3655,22 @@ button.vf-crumb:hover {
   padding: 4px 8px 2px;
   font-size: var(--font-ui-smaller);
   font-weight: 600;
+  color: var(--text-muted);
+}
+
+.vf-quick-picker-field {
+  padding: 6px 8px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vf-quick-picker-field .vf-input {
+  width: 100%;
+}
+
+.vf-quick-picker-hint {
+  font-size: var(--font-ui-smaller);
   color: var(--text-muted);
 }
 

@@ -150,6 +150,19 @@ export function ancestorTasks(scope: HierarchyScope, task: Task): Task[] {
   return out;
 }
 
+/**
+ * Sub-tasks deeper than this still work, but get hard to scan — parenting past
+ * it asks for a nudge, never blocks. One-based: a root task is level 1.
+ */
+export const MAX_COMFORTABLE_DEPTH = 4;
+
+/** The level (1-based) a task would sit at if parented under `parentPath`. */
+export function depthUnder(scope: HierarchyScope, parentPath: LinkTarget): number {
+  const parent = scope.tasks.find((t) => linksMatch(t.path, parentPath));
+  if (!parent) return 1;
+  return ancestorTasks(scope, parent).length + 2;
+}
+
 export function isSubtask(task: Task): boolean {
   return task.parent != null;
 }

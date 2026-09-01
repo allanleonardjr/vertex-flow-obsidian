@@ -3,8 +3,10 @@ import {
 	ancestorTasks,
 	childTasks,
 	computeProgress,
+	depthUnder,
 	descendantTasks,
 	formatProgress,
+	MAX_COMFORTABLE_DEPTH,
 	newTaskProject,
 	primaryParent,
 	projectProgress,
@@ -356,5 +358,50 @@ describe("projectTaskBreakdown", () => {
 			subtasks: 0,
 			archived: 0,
 		});
+	});
+});
+
+describe("depthUnder", () => {
+	it("counts a root parent as depth two (one-based)", () => {
+		expect(depthUnder(scope, T("0101"))).toBe(2);
+	});
+
+	it("counts each ancestor link", () => {
+		// SMP-0102's parent is SMP-0101 (a root), so one more link than a root.
+		expect(depthUnder(scope, T("0102"))).toBe(3);
+	});
+
+	it("walks a deeper synthetic chain", () => {
+		const chain: HierarchyScope = {
+			projects: [],
+			tasks: [
+				task({ path: T("A"), title: "root" }),
+				task({ path: T("B"), parent: T("A") }),
+				task({ path: T("C"), parent: T("B") }),
+				task({ path: T("D"), parent: T("C") }),
+			],
+		};
+		expect(depthUnder(chain, T("A"))).toBe(2);
+		expect(depthUnder(chain, T("B"))).toBe(3);
+		expect(depthUnder(chain, T("C"))).toBe(4);
+		// Planting below the comfortable line reads one past the constant.
+		expect(depthUnder(chain, T("C"))).toBe(MAX_COMFORTABLE_DEPTH);
+		expect(depthUnder(chain, T("D"))).toBe(MAX_COMFORTABLE_DEPTH + 1);
+	});
+
+	it("treats a missing parent as depth one", () => {
+		expect(depthUnder(scope, T("999"))).toBe(1);
+	});
+
+	it("is cycle-safe on a corrupt chain", () => {
+		const cycle: HierarchyScope = {
+			projects: [],
+			tasks: [
+				task({ path: T("A"), parent: T("B") }),
+				task({ path: T("B"), parent: T("A") }),
+			],
+		};
+		// 1 + 2 ancestors reached before the cycle stops.
+		expect(depthUnder(cycle, T("A"))).toBe(3);
 	});
 });

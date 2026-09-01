@@ -34,9 +34,9 @@ import {
 } from "../selection";
 import { useTabs } from "../tabs-context";
 import {
-  QuickTaxonomyPicker,
+  QuickFieldPicker,
   type QuickPickerKind,
-} from "../shortcuts/QuickTaxonomyPicker";
+} from "../shortcuts/QuickFieldPicker";
 import { BoardView } from "./BoardView";
 import { CalendarView } from "./CalendarView";
 import { ListView } from "./ListView";
@@ -142,8 +142,9 @@ export function TaskViewport({
   );
   useEffect(() => setCollapsedSubtrees(new Set()), [view.id]);
 
-  // The keyboard taxonomy picker (opened via the `u` chord: `u s`/`u p`/`u l`/
-  // `u t`), or null. Bound to the focused task at the moment the key is pressed.
+  // The keyboard field picker (opened via the `u` chord: `u s`/`u p`/`u l`/
+  // `u t` for taxonomy fields, `u a`/`u r`/`u m`/`u e`/`u b`/`u d` for the
+  // rest), or null. Bound to the focused task at the moment the key is pressed.
   const [quickPicker, setQuickPicker] = useState<{
     kind: QuickPickerKind;
     path: string;
@@ -159,15 +160,27 @@ export function TaskViewport({
   }, []);
 
   // The `u` chord — "update a field". A bare `u` arms a one-second chord; the
-  // next key resolves it (`u s/p/t/l` → that field's taxonomy picker, `u x` →
-  // archive toggle), `u u` re-arms, and anything else cancels and falls
-  // through. Same grammar as the `g`/`c` engine, but task-scoped: it edits the
-  // focused task, so it lives in the viewport (gated on this tab being on
-  // screen), not the app-root engine. Window capture so it sees the key before
-  // the shell's bubble-phase handlers — which now use the freed letters
-  // (`h`/`l` move columns, `x` toggles selection).
+  // next key resolves it (`u s/p/t/l` → that field's taxonomy picker, `u a` →
+  // assignee, `u r` → re-parent, `u m` → project, `u e` → estimate, `u b`/`u d`
+  // → start/due date, `u x` → archive toggle), `u u` re-arms, and anything else
+  // cancels and falls through. Same grammar as the `g`/`c` engine, but
+  // task-scoped: it edits the focused task, so it lives in the viewport (gated
+  // on this tab being on screen), not the app-root engine. Window capture so it
+  // sees the key before the shell's bubble-phase handlers — which now use the
+  // freed letters (`h`/`l` move columns, `x` toggles selection).
   const uPickerKey: Record<string, QuickPickerKind> = useMemo(
-    () => ({ s: "status", p: "priority", t: "taskType", l: "label" }),
+    () => ({
+      s: "status",
+      p: "priority",
+      t: "taskType",
+      l: "label",
+      a: "assignee",
+      r: "parent",
+      m: "project",
+      e: "estimate",
+      b: "startDate",
+      d: "dueDate",
+    }),
     [],
   );
   const pendingU = useRef(false);
@@ -488,9 +501,10 @@ export function TaskViewport({
             (t) => t.path === quickPicker.path,
           );
           return target ? (
-            <QuickTaxonomyPicker
+            <QuickFieldPicker
               task={target}
               kind={quickPicker.kind}
+              snapshot={snapshot}
               taxonomies={taxonomies}
               onClose={() => setQuickPicker(null)}
             />
