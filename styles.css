@@ -3539,6 +3539,11 @@ button.vf-crumb:hover {
   font-variant-numeric: tabular-nums;
 }
 
+/* A little breathing room between the Query toggle and its help glyph. */
+.vf-query-help {
+  margin-left: 2px;
+}
+
 .vf-query-fix {
   padding: 0 4px !important;
   border: none !important;
@@ -3905,6 +3910,29 @@ button.vf-crumb:hover {
 }
 
 /* ===================================================== Help ===================================================== */
+
+/* A small circular help glyph dropped inline next to a label ("Query", a field
+   name, a toggle). Clicking opens the Help screen on a specific topic/section. */
+.vf-inline-help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 50%;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--vf-muted);
+  cursor: help;
+}
+
+.vf-inline-help:hover {
+  background: var(--background-modifier-hover) !important;
+  color: var(--text-accent);
+}
 
 .vf-help {
   display: flex;

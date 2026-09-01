@@ -189,6 +189,21 @@ export interface TabsApi {
 	/** Open (or reveal) one of the singleton browse/settings tabs. */
 	openScreen: (kind: BrowseKind) => void;
 	/**
+	 * Open (or reveal) the Help screen and land on a specific topic — and
+	 * optionally a heading within it. `anchor` is a `slugifyHeading` slug of a
+	 * heading inside that topic's content. Transient, per-pane, never persisted:
+	 * `HelpView` consumes the target once, the same way it would a freshly
+	 * opened tab, then clears it so a later manual navigation isn't clobbered.
+	 */
+	openHelp: (topicId: string, anchor?: string) => void;
+	/**
+	 * The pending Help deep-link target, if any. Set by `openHelp`; read once
+	 * by `HelpView` (which then clears it via `clearPendingHelpTarget`).
+	 */
+	pendingHelpTarget: { topicId: string; anchor?: string } | null;
+	/** Clear the pending Help target after `HelpView` has consumed it. */
+	clearPendingHelpTarget: () => void;
+	/**
 	 * Open (or reveal) a Saved View as its own tab. For a System View (All
 	 * Tasks / Untriaged) pass `root` to bind the tab to a specific workspace;
 	 * omitted, it binds to the active one. User views ignore `root`.
@@ -277,6 +292,14 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 		useActiveWorkspace()?.snapshot.workspace.root ?? null;
 	const [tabs, setTabs] = useState<Tab[]>([]);
 	const [activeId, setActiveId] = useState<string | null>(null);
+	// Transient deep-link intent for the Help screen — see `openHelp` below.
+	// Lives here (above the per-workspace remount boundary) with the View/
+	// Dashboard drafts, so the intent survives the tab switch that HelpView
+	// then consumes and clears.
+	const [pendingHelpTarget, setPendingHelpTarget] = useState<{
+		topicId: string;
+		anchor?: string;
+	} | null>(null);
 
 	// Ref mirrors so the async navigation callbacks and the re-home layout
 	// effect can read the current tab list / active workspace without taking
@@ -416,6 +439,26 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 		},
 		[mayLeaveActive],
 	);
+
+	const openHelp = useCallback(
+		async (topicId: string, anchor?: string) => {
+			if (!(await mayLeaveActive("navigate", "help"))) return;
+			// Stash the intent before opening, so `setActiveId("help")` below
+			// triggers HelpView (which reads this once and clears it).
+			setPendingHelpTarget({ topicId, ...(anchor ? { anchor } : {}) });
+			setTabs((current) =>
+				current.some((tab) => tab.id === "help")
+					? current
+					: [...current, { id: "help", kind: "help" }],
+			);
+			setActiveId("help");
+		},
+		[mayLeaveActive],
+	);
+
+	const clearPendingHelpTarget = useCallback(() => {
+		setPendingHelpTarget(null);
+	}, []);
 
 	const openView = useCallback(
 		async (viewId: string, explicitRoot?: string) => {
@@ -741,6 +784,9 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			activeTab,
 			openTask,
 			openScreen,
+			openHelp,
+			pendingHelpTarget,
+			clearPendingHelpTarget,
 			openView,
 			openLabel,
 			openPerson,
@@ -775,6 +821,9 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			activeTab,
 			openTask,
 			openScreen,
+			openHelp,
+			pendingHelpTarget,
+			clearPendingHelpTarget,
 			openView,
 			openLabel,
 			openPerson,

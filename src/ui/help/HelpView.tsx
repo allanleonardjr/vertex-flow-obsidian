@@ -7,11 +7,12 @@
  * browse screens — no modal. Content lives in `core/help.ts`, not the vault.
  */
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronRight } from "lucide-react";
-import { HELP_TOPICS, findHelpTopic, type HelpTopic } from "../../core/help";
+import { HELP_TOPICS, findHelpTopic, slugifyHeading, type HelpTopic } from "../../core/help";
 import { Icon } from "../components/Icon";
 import { MarkdownContent } from "../components/Markdown";
+import { useTabs } from "../tabs-context";
 import { usePlugin, useSettingsWriter } from "../context";
 
 const MIN_WIDTH = 180;
@@ -51,18 +52,80 @@ function ancestorIds(topics: HelpTopic[], id: string, trail: string[] = []): str
 export function HelpView() {
 	const plugin = usePlugin();
 	const writeSettings = useSettingsWriter();
+	const { pendingHelpTarget, clearPendingHelpTarget } = useTabs();
 
 	const initial = useMemo(() => firstContentTopic(HELP_TOPICS), []);
-	const [selectedId, setSelectedId] = useState<string | null>(initial?.id ?? null);
+
+	const [selectedId, setSelectedId] = useState<string | null>(() => {
+		const target = pendingHelpTarget;
+		if (target && findHelpTopic(HELP_TOPICS, target.topicId)) {
+			return target.topicId;
+		}
+		return initial?.id ?? null;
+	});
 	const [expanded, setExpanded] = useState<Set<string>>(
 		() => new Set(initial ? ancestorIds(HELP_TOPICS, initial.id) ?? [] : []),
 	);
+	// The anchor to scroll to after the current topic's markdown has rendered.
+	// Held locally so it survives from selection until the DOM is actually
+	// there to scroll to; the TabsProvider copy is cleared on first read.
+	const [pendingAnchor, setPendingAnchor] = useState<string | null>(() =>
+		pendingHelpTarget?.anchor ?? null,
+	);
+
+	// A deep link (via `openHelp`) lands on a specific topic: consume the
+	// provider's copy on first read and align selection to it. If the topic is
+	// unmodified it's our own selection; if it changed (the tab was already
+	// open and the user had navigated elsewhere) we still jump to the target.
+	useEffect(() => {
+		const target = pendingHelpTarget;
+		if (!target) return;
+		clearPendingHelpTarget();
+		const topic = findHelpTopic(HELP_TOPICS, target.topicId);
+		if (!topic) return;
+		setSelectedId(topic.id);
+		setPendingAnchor(target.anchor ?? null);
+		if (topic.children?.length) {
+			setExpanded((current) => new Set(current).add(topic.id));
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [pendingHelpTarget]);
+
+	// After the selected topic's markdown has rendered, scroll the pending
+	// anchor into view. Obsidian's `MarkdownRenderer.render` fills the container
+	// asynchronously, after React's own commit — so instead of a plain effect on
+	// `selectedId` (which would run before the DOM exists), watch the container
+	// for the injected headings and scroll when they appear. `pendingAnchor`
+	// clears itself once consumed so a later manual re-render never re-scrolls.
+	const contentRef = useRef<HTMLDivElement | null>(null);
+	useEffect(() => {
+		if (!pendingAnchor) return;
+		const container = contentRef.current;
+		if (!container) return;
+		const tryScroll = () => {
+			const heading = Array.from(
+				container.querySelectorAll("h1, h2, h3, h4, h5, h6"),
+			).find((h) => slugifyHeading(h.textContent ?? "") === pendingAnchor);
+			if (!heading) return false;
+			heading.scrollIntoView({ block: "start" });
+			setPendingAnchor(null);
+			return true;
+		};
+		if (tryScroll()) return; // already painted on this commit
+		const observer = new MutationObserver(() => {
+			if (tryScroll()) observer.disconnect();
+		});
+		observer.observe(container, { childList: true, subtree: true });
+		return () => observer.disconnect();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [pendingAnchor, selectedId]);
 
 	const width = clamp(plugin.settings.helpSidebarWidth, MIN_WIDTH, MAX_WIDTH);
 	const drag = useRef<{ startX: number; startWidth: number } | null>(null);
 
 	const select = (topic: HelpTopic) => {
 		setSelectedId(topic.id);
+		setPendingAnchor(null);
 		if (topic.children?.length) {
 			setExpanded((current) => new Set(current).add(topic.id));
 		}
@@ -124,7 +187,7 @@ export function HelpView() {
 				title="Drag to resize — double-click to reset"
 			/>
 
-			<div className="vf-help-content">
+			<div className="vf-help-content" ref={contentRef}>
 				{selected ? (
 					<>
 						<h2>{selected.title}</h2>

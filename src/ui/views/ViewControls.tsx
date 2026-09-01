@@ -45,6 +45,7 @@ import {
 } from "./FilterControls";
 import { activeReadonlyFilterKeys } from "./viewOptions";
 import { QueryBar } from "./QueryBar";
+import { InlineHelpIcon } from "../components/InlineHelpIcon";
 import type { ViewDraft } from "./useViewDraft";
 
 export function ViewControls({
@@ -259,6 +260,11 @@ export function ViewControls({
 						</span>
 						Query
 					</button>
+					<InlineHelpIcon
+						target="savedViewsQuery"
+						label="Query language"
+						className="vf-query-help"
+					/>
 
 					<span className="vf-bar-spacer" />
 
