@@ -11,7 +11,7 @@
  */
 
 import { TFolder } from "obsidian";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
 	WORKSPACE_TEMPLATES,
 	type TemplateSetting,
@@ -42,6 +42,24 @@ export function TemplateGallery({ onClose }: { onClose?: () => void }) {
 	);
 }
 
+function scrollCardIntoView(card: HTMLElement) {
+	card.scrollIntoView({ block: "nearest", inline: "nearest" });
+}
+
+/**
+ * Column count of the template grid, derived from the live render: the number
+ * of cards on the first row. `auto-fill/minmax` means the width is fluid, so
+ * this is the only reliable way to know how wide a row is.
+ */
+function gridColumns(grid: HTMLElement): number {
+	const cards = Array.from(
+		grid.querySelectorAll<HTMLElement>("[data-template]"),
+	);
+	if (cards.length <= 1) return 1;
+	const top = cards[0].offsetTop;
+	return cards.findIndex((card) => card.offsetTop !== top);
+}
+
 function Gallery({
 	onPick,
 	onClose,
@@ -49,6 +67,72 @@ function Gallery({
 	onPick: (template: WorkspaceTemplate) => void;
 	onClose?: () => void;
 }) {
+	const gridRef = useRef<HTMLDivElement>(null);
+
+	// Keyboard navigation between the cards (vim j/k plus the arrows). The
+	// gallery is an onboarding pane with no TaskViewport mounted, so the normal
+	// j/k/arrow bindings are absent — this window handler brings them back,
+	// moving DOM focus card-to-card so the existing Enter/Space handlers do
+	// the rest.
+	useEffect(() => {
+		const onKey = (event: KeyboardEvent) => {
+			if (event.metaKey || event.ctrlKey || event.altKey) return;
+			const target = event.target as HTMLElement | null;
+			if (
+				target?.isContentEditable ||
+				target instanceof HTMLInputElement ||
+				target instanceof HTMLTextAreaElement ||
+				target instanceof HTMLSelectElement
+			) {
+				return;
+			}
+			const grid = gridRef.current;
+			if (!grid) return;
+			const cards = Array.from(
+				grid.querySelectorAll<HTMLElement>("[data-template]"),
+			);
+			if (cards.length === 0) return;
+
+			const active = document.activeElement;
+			const index =
+				active instanceof HTMLElement
+					? cards.indexOf(active)
+					: -1;
+
+			// If nothing is focused yet, start from the first card.
+			const from = index >= 0 ? index : 0;
+			const cols = gridColumns(grid);
+			const total = cards.length;
+			const rowOf = (i: number) => Math.floor(i / cols);
+			const clamp = (i: number) =>
+				Math.max(0, Math.min(total - 1, i));
+
+			const moveTo = (target: number) => {
+				event.preventDefault();
+				event.stopPropagation();
+				const next = clamp(target);
+				cards[next].focus();
+				scrollCardIntoView(cards[next]);
+			};
+
+			// j/↓ move to the next row, k/↑ to the previous row, staying in
+			// the same visual column. ←/→ (and vim h/l) move within the row.
+			if (event.key === "ArrowDown" || event.key === "j")
+				moveTo(from + cols);
+			else if (event.key === "ArrowUp" || event.key === "k")
+				moveTo(from - cols);
+			else if (
+				event.key === "ArrowRight" ||
+				event.key === "l"
+			)
+				moveTo(rowOf(from) === rowOf(from + 1) ? from + 1 : from);
+			else if (event.key === "ArrowLeft" || event.key === "h")
+				moveTo(rowOf(from) === rowOf(from - 1) ? from - 1 : from);
+		};
+		window.addEventListener("keydown", onKey, true);
+		return () => window.removeEventListener("keydown", onKey, true);
+	}, []);
+
 	return (
 		<div className="vf-template-gallery">
 			<header className="vf-template-head">
@@ -66,10 +150,11 @@ function Gallery({
 				)}
 			</header>
 
-			<div className="vf-template-grid">
+			<div className="vf-template-grid" ref={gridRef}>
 				{WORKSPACE_TEMPLATES.map((template) => (
 					<div
 						key={template.id}
+						data-template={template.id}
 						className="vf-template-card"
 						role="button"
 						tabIndex={0}
