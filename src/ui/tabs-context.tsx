@@ -238,6 +238,19 @@ export interface TabsApi {
 	syncToWorkspace: (root: string) => void;
 	/** Bulk-close every open task tab, keeping the browse/view tabs. */
 	closeAllTasks: () => void;
+	/**
+	 * Close every tab except `keepId`, leaving it as the sole (and active) tab.
+	 * The unsaved-changes guard runs exactly once — for the active tab when it's
+	 * among the ones being closed (i.e. `keepId` itself isn't active).
+	 */
+	closeAllOtherTabs: (keepId: string) => void;
+	/**
+	 * Close every tab to the right of `id` in the strip (browser-style), leaving
+	 * `id` and everything to its left. Guarded the same way as `closeAllOtherTabs`.
+	 */
+	closeTabsToRight: (id: string) => void;
+	/** Close every open tab. Guarded for the active tab, then empties the strip. */
+	closeAllTabs: () => void;
 	/** Drop task tabs whose task no longer exists. Browse/settings tabs are never pruned. */
 	pruneTasks: (existing: (path: string) => boolean) => void;
 	/** Drop view tabs whose Saved View no longer exists (deleted, or a workspace switch). */
@@ -654,6 +667,56 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 		});
 	}, [tabs]);
 
+	// Shared body for the "close a whole batch of tabs" family. `keep` decides
+	// which tabs survive; the survivor (or `null` when the strip empties) becomes
+	// active. The one guard check that matters is for the *active* tab: if it's
+	// among the closing set and holds an unsaved draft, run the prompt —
+	// background tabs never hold a live draft.
+	const closeSubset = useCallback(
+		async (keep: (tab: Tab) => boolean) => {
+			const survivors = tabsRef.current.filter(keep);
+			const closing = tabsRef.current.filter(
+				(tab) => survivors.findIndex((s) => s.id === tab.id) === -1,
+			);
+			// Nothing being closed → no-op.
+			if (closing.length === 0) return;
+
+			const activeId = activeIdRef.current;
+			const activeClosing =
+				activeId != null && closing.some((tab) => tab.id === activeId);
+			if (activeClosing && !(await mayLeaveActive("close", activeId)))
+				return;
+
+			// Only the guard could abort; if we got here the close always lands.
+			setTabs(survivors);
+			setActiveId(survivors.length > 0 ? survivors[0].id : null);
+		},
+		[mayLeaveActive],
+	);
+
+	const closeAllOtherTabs = useCallback(
+		(keepId: string) => {
+			void closeSubset((tab) => tab.id === keepId);
+		},
+		[closeSubset],
+	);
+
+	const closeTabsToRight = useCallback(
+		(id: string) => {
+			const index = tabsRef.current.findIndex((tab) => tab.id === id);
+			if (index === -1) return;
+			void closeSubset((tab) => {
+				const i = tabsRef.current.indexOf(tab);
+				return i <= index;
+			});
+		},
+		[closeSubset],
+	);
+
+	const closeAllTabs = useCallback(() => {
+		void closeSubset(() => false);
+	}, [closeSubset]);
+
 	/** Shared prune body: drop non-matching tabs of `kind`, keep `activeId` sane. */
 	const makePrune = useCallback(
 		<T extends Tab["kind"]>(
@@ -797,6 +860,9 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			close,
 			closeActive,
 			closeAllTasks,
+			closeAllOtherTabs,
+			closeTabsToRight,
+			closeAllTabs,
 			syncToWorkspace,
 			pruneTasks,
 			pruneViews,
@@ -834,6 +900,9 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			close,
 			closeActive,
 			closeAllTasks,
+			closeAllOtherTabs,
+			closeTabsToRight,
+			closeAllTabs,
 			syncToWorkspace,
 			pruneTasks,
 			pruneViews,

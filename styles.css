@@ -1760,6 +1760,36 @@ body.vf-dragging {
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.24);
 }
 
+/* The tab right-click menu anchors to viewport coordinates (`clientX/Y`), so
+   it's fixed, not absolute like the anchored `.vf-menu`s — the portal lives at
+   `document.body`. It reuses `.vf-menu-item` / `.vf-menu-divider` row chrome. */
+.vf-tab-menu {
+  --vf-radius: 6px;
+  --vf-muted: var(--text-muted);
+  --vf-border: var(--background-modifier-border);
+
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  min-width: 170px;
+  padding: 4px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-primary);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.24);
+}
+
+.vf-tab-menu .vf-menu-item {
+  justify-content: flex-start;
+}
+
+.vf-tab-menu .vf-menu-item:disabled {
+  opacity: 0.45;
+  cursor: default;
+  background: transparent !important;
+}
+
 /* The section "+" menu anchors to a tiny button, so pin it to the right edge
    and let it size to its content rather than stretch to the anchor. */
 .vf-section-add-anchor .vf-menu {
@@ -3651,6 +3681,78 @@ button.vf-crumb:hover {
 
 .vf-shortcuts-dialog-body table {
   width: 100%;
+}
+
+/* -- The Option+Tab tab-switcher overlay -------------------------------- */
+
+.vf-tab-switcher {
+  --vf-radius: 6px;
+  --vf-muted: var(--text-muted);
+  --vf-border: var(--background-modifier-border);
+
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: min(420px, calc(100vw - 48px));
+  padding: 6px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-primary);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.32);
+}
+
+.vf-tab-switcher-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+}
+
+.vf-tab-switcher-item.is-active {
+  background: var(--background-modifier-hover);
+}
+
+.vf-tab-switcher-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 20px;
+}
+
+.vf-tab-switcher-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--font-ui-smaller);
+}
+
+.vf-tab-switcher-item.is-active .vf-tab-switcher-title {
+  color: var(--text-accent);
+}
+
+.vf-tab-switcher-number {
+  flex: none;
+  min-width: 16px;
+  text-align: center;
+  font-size: var(--font-ui-smaller);
+  color: var(--vf-muted);
+}
+
+.vf-tab-switcher-hint {
+  margin-top: 2px;
+  padding: 6px 10px 2px;
+  border-top: 1px solid var(--background-modifier-border);
+  font-size: var(--font-ui-smallest);
+  color: var(--vf-muted);
 }
 
 .vf-empty-tabs-hints {

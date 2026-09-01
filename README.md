@@ -42,6 +42,7 @@ If Vertex Flow helps you stay organized, consider [sponsoring on GitHub ❤️](
 - **One taxonomy engine, four ways.** Status, Priority, Task Type, and Labels are all driven by a single engine with a consistent guard: you can't delete a value still in use until it's reassigned, recolored, or reordered.
 - **Fully native to Obsidian.** Edit a task's note by hand and the views stay in sync; re-parent with a one-field frontmatter edit, never a file move.
 - **Multiple workspaces at once.** Open tabs from several workspaces side by side. Each tab is tinted with its workspace's color — visible only while tabs from more than one workspace are open — so you can tell them apart at a glance.
+- **Keyboard-first tab management.** Hold `Option` (macOS) or `Alt` (Windows/Linux) and press `Tab` to cycle through open tabs with an Arc-style switcher overlay (`Shift+Tab` walks back, `Esc` cancels); jump straight to any tab with `Option`/`Alt` + `1–9` (or `0` for the last) and close the active tab with `Option`/`Alt` + `W` (`Shift` closes them all). Right-click any tab for close-other, close-to-the-right, and close-all.
 - **A density scale that fits your screen.** Choose compact, cozy, or comfortable UI spacing across the whole plugin — Linear-style density without giving up readability.
 - **Fast to open, painless to keep in sync.** The index reads from Obsidian's metadata cache (no slow disk scans) and resolves @mentions in a lazy background pass, so views paint immediately and edits sync automatically.
 

@@ -33,6 +33,7 @@ import { TabStrip } from "./TabStrip";
 import { TaskPane } from "./TaskPane";
 import { TaskViewport } from "./views/TaskViewport";
 import { PrefixEngine } from "./shortcuts/prefix-engine";
+import { TabSwitcher } from "./TabSwitcher";
 
 export function App() {
   const active = useActiveWorkspace();
@@ -120,9 +121,11 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
     tabs.pruneDashboards((id) => plugin.index.hasDashboard(id));
   }, [tabs, plugin, snapshot.dashboards]);
 
-  // Escape closes whatever tab you're on; Shift+Escape closes every task tab.
-  // Closing the last tab empties the strip and the empty-tabs pane renders —
-  // there's no fallback tab to reason about anymore (A1).
+  // Escape clears focus — it never closes a tab. Hitting Escape mid-edit drops
+  // you out of the field so the `g`/`c` chords, `j`/`k`, and `?` become live
+  // again (their listener guard refuses to fire while you're still in an
+  // input). Closing a tab is a deliberate modifier action: Option+W closes the
+  // active tab, Option+Shift+W closes them all (handled in `TabSwitcher`).
   //
   // Bound with `capture: true` on `window` — Obsidian registers its own
   // global Escape handling (closing suggest popups, blurring the active
@@ -134,34 +137,45 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
       if (event.key !== "Escape") return;
 
       // The `[[`-link autocomplete popup wants Escape for itself first —
-      // dismiss the popup, not the tab. It's portaled to `document.body`
+      // dismiss the popup, not the focus. It's portaled to `document.body`
       // as `.vf-autocomplete`, so its presence is a reliable, cheap check;
       // its own bubble-phase handler closes it once this steps aside.
       if (document.querySelector(".vf-autocomplete")) return;
 
-      // The `?` shortcuts overlay and the taxonomy quick-picker own Escape
-      // while they're up — closing them, not the tab behind them.
+      // The `?` shortcuts overlay, the taxonomy quick-picker, the Option+Tab
+      // switcher, and the tab right-click menu each own Escape while they're
+      // up — closing them, not clearing focus behind them.
       if (
         document.querySelector(".vf-shortcuts-dialog") ||
-        document.querySelector(".vf-quick-picker")
+        document.querySelector(".vf-quick-picker") ||
+        document.querySelector(".vf-tab-switcher") ||
+        document.querySelector(".vf-tab-menu")
       ) {
         return;
       }
 
-      // Nothing open — let Escape fall through to Obsidian.
-      if (!tabs.activeTab) return;
-
-      event.stopPropagation();
-      if (event.shiftKey) tabs.closeAllTasks();
-      else tabs.closeActive();
+      // Blur whatever's focused inside the shell, then settle focus on the
+      // shell itself so the view/keyboard listeners are the active context.
+      const el = document.activeElement as HTMLElement | null;
+      if (
+        container &&
+        el &&
+        el !== document.body &&
+        container.contains(el)
+      ) {
+        event.stopPropagation();
+        el.blur();
+        container.focus();
+      }
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [tabs]);
+  }, [container]);
 
   return (
     <div className="vf-shell" ref={setContainer} tabIndex={-1}>
       <PrefixEngine snapshot={snapshot} />
+      <TabSwitcher snapshot={snapshot} />
       <Sidebar
         snapshot={snapshot}
         activeViewId={activeViewId}

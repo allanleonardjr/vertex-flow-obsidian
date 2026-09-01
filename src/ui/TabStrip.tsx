@@ -4,7 +4,7 @@
  * empties the shell shows its empty-tabs pane instead.
  */
 
-import { Fragment, useMemo } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { getValue, workspaceTaxonomies } from "../core/taxonomy";
 import { isSystemViewId, layoutIcon } from "../core/views";
@@ -55,11 +55,67 @@ function isPermanentView(viewId: string): boolean {
 	return isSystemViewId(viewId);
 }
 
+/**
+ * Task tab titles that collide among the currently-open task tabs — both get
+ * their id prefixed until one closes. Resolved off the live index. Exported so
+ * the tab switcher overlay labels match the strip exactly.
+ */
+export function duplicateTaskTitles(
+	plugin: ReturnType<typeof usePlugin>,
+	tabs: Tab[],
+): Set<string> {
+	const seen = new Set<string>();
+	const duplicates = new Set<string>();
+	for (const tab of tabs) {
+		if (tab.kind !== "task") continue;
+		const task = plugin.index.taskAt(tab.path);
+		if (!task) continue;
+		if (seen.has(task.title)) duplicates.add(task.title);
+		seen.add(task.title);
+	}
+	return duplicates;
+}
+
+/**
+ * System View ids (All Tasks / Untriaged) that are open for more than one
+ * workspace at once — those tabs each get their workspace appended. Exported
+ * for the tab switcher overlay.
+ */
+export function duplicateSystemViews(tabs: Tab[]): Set<string> {
+	const seen = new Set<string>();
+	const duplicates = new Set<string>();
+	for (const tab of tabs) {
+		if (tab.kind !== "view" || !isSystemViewId(tab.viewId)) continue;
+		if (seen.has(tab.viewId)) duplicates.add(tab.viewId);
+		seen.add(tab.viewId);
+	}
+	return duplicates;
+}
+
 export function TabStrip({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 	const plugin = usePlugin();
-	const { tabs, activeId, activate, close, reorder, getViewDraft, getDashboardDraft } =
-		useTabs();
+	const {
+		tabs,
+		activeId,
+		activate,
+		close,
+		closeAllOtherTabs,
+		closeTabsToRight,
+		closeAllTabs,
+		reorder,
+		getViewDraft,
+		getDashboardDraft,
+	} = useTabs();
 	const drag = useTabDrag(reorder);
+
+	// The right-click context menu for a tab: which tab it targets and where on
+	// screen to anchor the menu. `null` hides it. Only tabs (not the strip's
+	// empty gutter) open it, and only when there's more than one tab to act on.
+	const [contextMenu, setContextMenu] = useState<{
+		id: string;
+		x: number;
+		y: number;
+	} | null>(null);
 
 	// A View/Dashboard tab holding a transient draft (the only unsaved state in
 	// the app) shows a dot in place of its close button — see `TabRow`.
@@ -74,19 +130,11 @@ export function TabStrip({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 	// vault though — two tasks in different projects can share a name — so
 	// once two *currently open* task tabs collide, both get their id
 	// prefixed until one closes. Resolved fresh off the live index on every
-	// render, same as `TabRow` resolves each task tab's own title.
-	const duplicateTaskTitles = useMemo(() => {
-		const seen = new Set<string>();
-		const duplicates = new Set<string>();
-		for (const tab of tabs) {
-			if (tab.kind !== "task") continue;
-			const task = plugin.index.taskAt(tab.path);
-			if (!task) continue;
-			if (seen.has(task.title)) duplicates.add(task.title);
-			seen.add(task.title);
-		}
-		return duplicates;
-	}, [tabs, plugin]);
+	// render, same as `tabContent` resolves each task tab's own title.
+	const taskTitleDup = useMemo(
+		() => duplicateTaskTitles(plugin, tabs),
+		[tabs, plugin],
+	);
 
 	// The workspace each tab's *content* currently tracks, for accent coloring
 	// (null only for Help / New-workspace now — the Projects/Dashboards/Views/
@@ -103,16 +151,7 @@ export function TabStrip({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 	// A System View (All Tasks / Untriaged) open for more than one workspace at
 	// once — both tabs would otherwise read the same bare name, so each gets its
 	// workspace appended. Same self-disambiguating pattern as `duplicateTaskTitles`.
-	const duplicateSystemViews = useMemo(() => {
-		const seen = new Set<string>();
-		const duplicates = new Set<string>();
-		for (const tab of tabs) {
-			if (tab.kind !== "view" || !isSystemViewId(tab.viewId)) continue;
-			if (seen.has(tab.viewId)) duplicates.add(tab.viewId);
-			seen.add(tab.viewId);
-		}
-		return duplicates;
-	}, [tabs]);
+	const sysViewDup = useMemo(() => duplicateSystemViews(tabs), [tabs]);
 
 	// Accents appear the moment an open tab points at a workspace *other than*
 	// the one on screen — whether that's a second workspace's tab sitting
@@ -133,8 +172,8 @@ export function TabStrip({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 		? tabContent(
 				draggedTab,
 				snapshot,
-				duplicateTaskTitles,
-				duplicateSystemViews,
+				taskTitleDup,
+				sysViewDup,
 				plugin,
 			)
 		: null;
@@ -158,8 +197,8 @@ export function TabStrip({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 							dirty={isTabDirty(tab)}
 							dragging={drag.isDragging(tab.id)}
 							snapshot={snapshot}
-							duplicateTaskTitles={duplicateTaskTitles}
-							duplicateSystemViews={duplicateSystemViews}
+							duplicateTaskTitles={taskTitleDup}
+							duplicateSystemViews={sysViewDup}
 							accentColor={accentColor}
 							showWorkspaceAccents={showWorkspaceAccents}
 							onPointerDown={(event) =>
@@ -172,6 +211,14 @@ export function TabStrip({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 								void activate(tab.id);
 							}}
 							onClose={() => void close(tab.id)}
+							onContextMenu={(event) => {
+								event.preventDefault();
+								setContextMenu({
+									id: tab.id,
+									x: event.clientX,
+									y: event.clientY,
+								});
+							}}
 							plugin={plugin}
 						/>
 					</Fragment>
@@ -180,6 +227,21 @@ export function TabStrip({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 			{dragging && drag.dropIndex === tabs.length && (
 				<span className="vf-tab-drop-line" aria-hidden />
 			)}
+
+			{contextMenu &&
+				createPortal(
+					<TabContextMenu
+						x={contextMenu.x}
+						y={contextMenu.y}
+						tabIndex={tabs.findIndex((t) => t.id === contextMenu.id)}
+						tabCount={tabs.length}
+						onClose={() => setContextMenu(null)}
+						onCloseOthers={() => closeAllOtherTabs(contextMenu.id)}
+						onCloseToRight={() => closeTabsToRight(contextMenu.id)}
+						onCloseAll={() => closeAllTabs()}
+					/>,
+					document.body,
+				)}
 
 			{drag.drag &&
 				draggedContent &&
@@ -210,7 +272,7 @@ export function TabStrip({ snapshot }: { snapshot: WorkspaceSnapshot }) {
  * rendered row and the drag preview. Returns `null` for a tab whose target has
  * gone (a just-deleted view, a task removed by sync); the row renders nothing.
  */
-function tabContent(
+export function tabContent(
 	tab: Tab,
 	snapshot: WorkspaceSnapshot,
 	duplicateTaskTitles: Set<string>,
@@ -343,6 +405,7 @@ function TabRow({
 	onPointerDown,
 	onActivate,
 	onClose,
+	onContextMenu,
 	plugin,
 }: {
 	tab: Tab;
@@ -362,6 +425,7 @@ function TabRow({
 	onPointerDown: (event: React.PointerEvent) => void;
 	onActivate: () => void;
 	onClose: () => void;
+	onContextMenu: (event: React.MouseEvent) => void;
 	plugin: ReturnType<typeof usePlugin>;
 }) {
 	const content = tabContent(
@@ -393,6 +457,7 @@ function TabRow({
 			}
 			onPointerDown={onPointerDown}
 			onClick={onActivate}
+			onContextMenu={onContextMenu}
 		>
 			{content.icon}
 			<span className="vf-tab-title">{content.label}</span>
@@ -416,5 +481,89 @@ function TabRow({
 				)}
 			</button>
 		</div>
+	);
+}
+
+/**
+ * The right-click menu on a tab — "Close other tabs", "Close tabs to the
+ * right", and "Close all tabs". Rendered through a portal to `document.body`
+ * so the tab strip's overflow/positioning never clips it, anchored at the
+ * cursor. A click anywhere else, Escape, or a scroll closes it.
+ */
+function TabContextMenu({
+	x,
+	y,
+	tabIndex,
+	tabCount,
+	onClose,
+	onCloseOthers,
+	onCloseToRight,
+	onCloseAll,
+}: {
+	x: number;
+	y: number;
+	tabIndex: number;
+	tabCount: number;
+	onClose: () => void;
+	onCloseOthers: () => void;
+	onCloseToRight: () => void;
+	onCloseAll: () => void;
+}) {
+	const run = useCallback(
+		(action: () => void) => {
+			onClose();
+			action();
+		},
+		[onClose],
+	);
+
+	useEffect(() => {
+		const close = () => onClose();
+		const onKey = (event: KeyboardEvent) => {
+			if (event.key === "Escape") close();
+		};
+		window.addEventListener("click", close);
+		window.addEventListener("keydown", onKey);
+		window.addEventListener("resize", close);
+		return () => {
+			window.removeEventListener("click", close);
+			window.removeEventListener("keydown", onKey);
+			window.removeEventListener("resize", close);
+		};
+	}, [onClose]);
+
+	return createPortal(
+		<div
+			className="vf-tab-menu"
+			role="menu"
+			style={{ left: x, top: y }}
+			onClick={(event) => event.stopPropagation()}
+		>
+			<button
+				className="vf-menu-item"
+				role="menuitem"
+				disabled={tabCount <= 1}
+				onClick={() => run(onCloseOthers)}
+			>
+				Close other tabs
+			</button>
+			<button
+				className="vf-menu-item"
+				role="menuitem"
+				disabled={tabIndex === -1 || tabIndex >= tabCount - 1}
+				onClick={() => run(onCloseToRight)}
+			>
+				Close tabs to the right
+			</button>
+			<div className="vf-menu-divider" role="separator" />
+			<button
+				className="vf-menu-item"
+				role="menuitem"
+				onClick={() => run(onCloseAll)}
+			>
+				Close all tabs
+			</button>
+		</div>,
+		document.body,
 	);
 }
