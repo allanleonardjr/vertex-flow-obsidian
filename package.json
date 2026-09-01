@@ -1,7 +1,7 @@
 {
   "name": "vertex-flow-obsidian",
   "version": "1.0.0",
-  "description": "A high-density, keyboard-first project management OS for Obsidian.",
+  "description": "A keyboard-first task manager stored entirely as Markdown: projects, tasks, boards, calendars, timelines, chart dashboards, saved views, and an offline help system.",
   "main": "main.js",
   "private": true,
   "scripts": {
@@ -12,7 +12,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "build:templates": "node scripts/build-templates.mjs",
-    "generate:repomix": "pnpx repomix --style markdown --no-gitignore"
+    "generate:repomix": "pnpx repomix --style markdown --no-gitignore",
+    "release": "node scripts/release.mjs",
+    "release:build": "node scripts/release.mjs --build",
+    "release:dry": "node scripts/release.mjs --dry-run"
   },
   "keywords": [
     "obsidian",
@@ -21,7 +24,7 @@
     "kanban"
   ],
   "author": "JR Leonard",
-  "license": "MIT",
+  "license": "AGPL-3.0",
   "packageManager": "pnpm@10.30.3",
   "devDependencies": {
     "@types/node": "^26.4.0",
