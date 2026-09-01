@@ -292,6 +292,18 @@ export interface TabsApi {
 		dashboardId: string,
 		value: DashboardConfig | null,
 	) => void;
+
+	/**
+	 * The selection (focused task + multi-selection) a view tab last had when
+	 * it was in front, so switching back restores your place. Keyed by tab id.
+	 */
+	getSelectionSnapshot: (
+		tabId: string,
+	) => { focusedPath: string | null; selectedPaths: string[] } | null;
+	setSelectionSnapshot: (
+		tabId: string,
+		snapshot: { focusedPath: string | null; selectedPaths: string[] } | null,
+	) => void;
 }
 
 const TabsCtx = createContext<TabsApi | null>(null);
@@ -336,6 +348,41 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 	viewDraftsRef.current = viewDrafts;
 	const dashboardDraftsRef = useRef(dashboardDrafts);
 	dashboardDraftsRef.current = dashboardDrafts;
+
+	// Per-tab selection snapshots. TaskViewport saves its focused path (and
+	// multi-selection) whenever it loses the active tab, and restores it when
+	// it regains the tab — so switching away and back keeps your place instead
+	// of resetting to an empty selection. Keyed by tab id (`view.id`), the same
+	// way view drafts are keyed by `viewId`. Memory-only; discarded with the
+	// workspace on switch (the whole SelectionProvider remounts then).
+	const [selectionSnapshots, setSelectionSnapshots] = useState<
+		Record<string, { focusedPath: string | null; selectedPaths: string[] }>
+	>({});
+	const selectionSnapshotsRef = useRef(selectionSnapshots);
+	selectionSnapshotsRef.current = selectionSnapshots;
+
+	const getSelectionSnapshot = useCallback(
+		(tabId: string): { focusedPath: string | null; selectedPaths: string[] } | null =>
+			selectionSnapshotsRef.current[tabId] ?? null,
+		[],
+	);
+	const setSelectionSnapshot = useCallback(
+		(
+			tabId: string,
+			snapshot: { focusedPath: string | null; selectedPaths: string[] } | null,
+		) => {
+			setSelectionSnapshots((current) => {
+				if (snapshot == null) {
+					if (!(tabId in current)) return current;
+					const next = { ...current };
+					delete next[tabId];
+					return next;
+				}
+				return { ...current, [tabId]: snapshot };
+			});
+		},
+		[],
+	);
 
 	const getViewDraft = useCallback(
 		(viewId: string): SavedView | null =>
@@ -875,13 +922,18 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			setViewDraft,
 			getDashboardDraft,
 			setDashboardDraft,
+			getSelectionSnapshot,
+			setSelectionSnapshot,
 		}),
 		[
-			// The draft maps are in here (not just the stable getters) so every
-			// `useTabs()` consumer re-renders when a draft changes — that's what
-			// keeps `useViewDraft` / the tab dirty-dot live.
+			// The draft maps and selection snapshots are in here (not just the
+			// stable getters) so every `useTabs()` consumer re-renders when
+			// a draft or snapshot changes — that's what keeps `useViewDraft`
+			// / the tab dirty-dot live, and what lets TaskViewport restore
+			// its place when the tab comes back to the front.
 			viewDrafts,
 			dashboardDrafts,
+			selectionSnapshots,
 			tabs,
 			activeId,
 			activeTab,

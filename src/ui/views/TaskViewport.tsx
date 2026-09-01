@@ -10,7 +10,7 @@
  * keeps only the shell, the tab strip, and Escape/tab handling.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   buildNestedRows,
   evaluateView,
@@ -153,6 +153,42 @@ export function TaskViewport({
     tasks: string[];
   } | null>(null);
   useEffect(() => setQuickPicker(null), [view.id]);
+
+  // Save the keyboard focus and multi-selection when this viewport unmounts
+  // (its tab loses focus — only the active tab stays mounted), and restore
+  // them when it mounts again (the tab comes back to the front).
+  //
+  // The save lives in a mount-effect *cleanup*, which fires on unmount after
+  // the last committed render — selection changes always render before any
+  // navigation, so this sees the final selection. Reading `active` via ref
+  // avoids re-running the effect (and thus re-arm/teardown) on every focus
+  // move; the cleanup captures the current ref value at unmount time.
+  const activeRef = useRef(active);
+  activeRef.current = active;
+  useEffect(() => {
+    if (active) {
+      // Restore on (re)mount: the tab is in front, bring back its place.
+      const saved = tabs.getSelectionSnapshot(view.id);
+      if (saved) {
+        selection.clearSelection();
+        if (saved.focusedPath) selection.focus(saved.focusedPath);
+        for (const path of saved.selectedPaths) {
+          if (path !== saved.focusedPath) selection.select(path, { toggle: true });
+        }
+        if (saved.focusedPath) selection.focus(saved.focusedPath);
+      }
+    }
+    // Cleanup runs when the effect tears down — i.e. exactly when we unmount
+    // (deps are stable), which is when the tab is backgrounded/closed.
+    return () => {
+      if (!activeRef.current) return; // never mounted active → nothing to save
+      tabs.setSelectionSnapshot(view.id, {
+        focusedPath: selectionRef.current.focusedPath,
+        selectedPaths: [...selectionRef.current.selectedPaths],
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const toggleSubtree = useCallback((path: string) => {
     setCollapsedSubtrees((prev) => {
       const next = new Set(prev);

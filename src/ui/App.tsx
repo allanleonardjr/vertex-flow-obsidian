@@ -3,7 +3,7 @@
  * sidebar + one tab strip holding the Board/List plus every other open tab.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import {
   viewById,
   useActiveWorkspace,
@@ -120,6 +120,20 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
   useEffect(() => {
     tabs.pruneDashboards((id) => plugin.index.hasDashboard(id));
   }, [tabs, plugin, snapshot.dashboards]);
+
+  // Landing on a tab puts DOM focus on the shell, so the container-scoped
+  // nav keys (`j`/`k`, arrows, `?`) respond immediately without a click. Runs
+  // in a layout effect (before paint) keyed on the tab id, so the new tab's
+  // pane is mounted by the time focus settles. A fresh auto-focus target in
+  // the pane (e.g. an `autoFocus` title field) steals focus from the shell in
+  // its own layout effect, which is the right behaviour — the shell focus is
+  // the fallback that makes nav keys live when nothing else wants focus. The
+  // workspace is remounted per-root (App.tsx line ~52), so this also lands on
+  // a workspace switch without needing `active.snapshot` in the deps.
+  useLayoutEffect(() => {
+    if (!activeTab) return;
+    container?.focus();
+  }, [activeTab?.id, container]);
 
   // Escape clears focus — it never closes a tab. Hitting Escape mid-edit drops
   // you out of the field so the `g`/`c` chords, `j`/`k`, and `?` become live
