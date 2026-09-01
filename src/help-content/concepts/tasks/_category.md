@@ -1,9 +1,8 @@
 ---
 title: Tasks
+icon: list-todo
 order: 40
 ---
-
-# Tasks
 
 The unit of work. A Task is a Markdown note named by ID alone (`TSK-0104.md`) —
 its title lives in frontmatter, so renaming a Task never renames its file. A

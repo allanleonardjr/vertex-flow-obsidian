@@ -49,6 +49,18 @@ function ancestorIds(topics: HelpTopic[], id: string, trail: string[] = []): str
 	return null;
 }
 
+/** The ancestor topics of `topicId` in order — root first, closest last —
+ * for the breadcrumb trail. Empty for a top-level topic. */
+function ancestorTopics(topics: HelpTopic[], topicId: string): HelpTopic[] {
+	const ids = ancestorIds(topics, topicId) ?? [];
+	const chain: HelpTopic[] = [];
+	for (const id of ids) {
+		const topic = findHelpTopic(topics, id);
+		if (topic) chain.push(topic);
+	}
+	return chain;
+}
+
 export function HelpView() {
 	const plugin = usePlugin();
 	const writeSettings = useSettingsWriter();
@@ -141,6 +153,7 @@ export function HelpView() {
 	};
 
 	const selected = selectedId ? findHelpTopic(HELP_TOPICS, selectedId) : null;
+	const breadcrumbs = selected ? ancestorTopics(HELP_TOPICS, selected.id) : [];
 
 	return (
 		<div className="vf-help">
@@ -190,12 +203,37 @@ export function HelpView() {
 			<div className="vf-help-content" ref={contentRef}>
 				{selected ? (
 					<>
-						<h2>{selected.title}</h2>
+						<header className="vf-help-header">
+							{breadcrumbs.length > 0 && (
+								<nav
+									className="vf-help-breadcrumbs"
+									aria-label="Breadcrumb"
+								>
+									{breadcrumbs.map((crumb, index) => (
+										<span key={crumb.id} className="vf-help-crumb">
+											{index > 0 && <span className="vf-help-crumb-arrow">/</span>}
+											<button
+												type="button"
+												className="vf-help-crumb-link"
+												onClick={() => select(crumb)}
+											>
+												{crumb.title}
+											</button>
+										</span>
+									))}
+								</nav>
+							)}
+							<h2 className="vf-help-title">
+								{selected.icon && <Icon id={selected.icon} size={16} />}
+								<span>{selected.title}</span>
+							</h2>
+						</header>
 						{selected.content && (
 							<MarkdownContent text={selected.content} sourcePath={HELP_SOURCE_PATH} />
 						)}
 						{selected.children && selected.children.length > 0 && (
 							<div className="vf-help-index">
+								<span className="vf-help-index-label">In this section</span>
 								{selected.children.map((child) => (
 									<button
 										key={child.id}
@@ -203,7 +241,14 @@ export function HelpView() {
 										className="vf-help-index-item"
 										onClick={() => select(child)}
 									>
-										<strong>{child.title}</strong>
+										<span className="vf-help-index-item-main">
+											{child.icon && <Icon id={child.icon} size={15} />}
+											<span>{child.title}</span>
+										</span>
+										<ChevronRight
+											className="vf-help-index-item-chevron"
+											size={15}
+										/>
 									</button>
 								))}
 							</div>

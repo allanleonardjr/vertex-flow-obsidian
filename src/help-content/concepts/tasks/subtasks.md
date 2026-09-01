@@ -1,4 +1,7 @@
-# Sub-tasks
+---
+title: Sub-tasks
+order: 10
+---
 
 A sub-task is a Task like any other, with a parent Task set. The parent shows a
 progress bar rolled up from its sub-tasks, but nothing auto-completes or

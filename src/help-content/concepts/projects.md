@@ -1,8 +1,7 @@
 ---
+title: Projects
 order: 20
 ---
-
-# Projects
 
 A Project holds Tasks, and it's the only container between a Workspace and a
 Task — a top-level Task attaches to one Project or to nothing at all. A

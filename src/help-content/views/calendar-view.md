@@ -3,8 +3,6 @@ title: Calendar view
 order: 40
 ---
 
-# Calendar view
-
 A month grid that drops each task onto a single day — the day named by one
 date field, chosen with the **Due / Start** toggle in the toolbar. A task with
 no value in that field sits in the collapsible **Unscheduled** drawer until you

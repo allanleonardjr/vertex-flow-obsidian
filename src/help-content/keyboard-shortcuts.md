@@ -4,8 +4,6 @@ icon: zap
 order: 40
 ---
 
-# Keyboard shortcuts
-
 Press <kbd>?</kbd> anywhere in Vertex Flow to pop this list up over whatever
 you're doing.
 
