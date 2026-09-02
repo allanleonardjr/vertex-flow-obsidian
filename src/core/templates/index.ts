@@ -50,12 +50,16 @@ function markdownTemplates(): WorkspaceTemplate[] {
 
 const MARKDOWN_TEMPLATES = markdownTemplates();
 
-/** "Getting Started" leads the gallery — it's the plainest option, and there is
- *  no separate blank path. */
+/** "Blank workspace" leads the gallery — it's the plainest starting point and
+ *  the one a self-directed user wants. "Getting Started" sits right after it:
+ *  the more guided pre-populated entry. */
 function galleryOrder(templates: WorkspaceTemplate[]): WorkspaceTemplate[] {
-	const first = templates.filter((t) => t.id === "getting-started");
-	const rest = templates.filter((t) => t.id !== "getting-started");
-	return [...first, ...rest];
+	const blank = templates.filter((t) => t.id === "blank-workspace");
+	const gettingStarted = templates.filter((t) => t.id === "getting-started");
+	const rest = templates.filter(
+		(t) => t.id !== "blank-workspace" && t.id !== "getting-started",
+	);
+	return [...blank, ...gettingStarted, ...rest];
 }
 
 export const WORKSPACE_TEMPLATES: WorkspaceTemplate[] = galleryOrder(

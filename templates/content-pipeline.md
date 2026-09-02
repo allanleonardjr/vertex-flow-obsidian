@@ -5,7 +5,7 @@ id: content-pipeline
 name: Content Pipeline
 description: Plan articles, videos and newsletters as Tasks under a series or campaign, each with a publish date.
 icon: pen-tool
-defaultIdPrefix: CNT
+supportsExampleContent: true
 
 statuses: ["Idea (backlog, #94a3b8)", "Drafting (started, #60a5fa)", "Editing (started, #fbbf24)", "Scheduled (started, #a855f7)", "Published (completed, #34d399)", "Killed (canceled, #f87171)"]
 taskTypes: [Article (#3b82f6), Video (#ef4444), Newsletter (#14b8a6), Social Post (#ec4899)]

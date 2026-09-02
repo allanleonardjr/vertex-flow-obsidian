@@ -5,7 +5,7 @@ id: getting-started
 name: Getting Started
 description: A complete sample workspace with three mini-projects that opens on a short hands-on intro.
 icon: rocket
-defaultIdPrefix: TSK
+supportsExampleContent: true
 
 # Statuses, Priorities and Task Types are deliberately left out: omitting a
 # taxonomy means "use the workspace defaults", which is exactly what this

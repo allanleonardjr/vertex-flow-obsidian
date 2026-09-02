@@ -69,6 +69,22 @@ function Gallery({
 }) {
 	const gridRef = useRef<HTMLDivElement>(null);
 
+	// Give "Getting Started" initial focus (not selection) so a self-directed
+	// user can jump in immediately, while Blank leads the visual order. Keyboard
+	// focus starts here rather than on the very first card because most users
+	// pick the guided template — but nothing is opened until Enter/Space or a click.
+	useEffect(() => {
+		const grid = gridRef.current;
+		if (!grid) return;
+		const card = grid.querySelector<HTMLElement>(
+			'[data-template="getting-started"]',
+		);
+		if (card) {
+			card.focus();
+			scrollCardIntoView(card);
+		}
+	}, []);
+
 	// Keyboard navigation between the cards (vim j/k plus the arrows). The
 	// gallery is an onboarding pane with no TaskViewport mounted, so the normal
 	// j/k/arrow bindings are absent — this window handler brings them back,
@@ -252,9 +268,9 @@ function ConfigStep({
 
 	const suggestedPrefix = useMemo(() => {
 		// Derived live from the name until the user types their own prefix.
-		if (!name.trim()) return template.defaultIdPrefix;
+		if (!name.trim()) return "";
 		return suggestPrefix(name, plugin.index.takenPrefixes());
-	}, [name, plugin, template.defaultIdPrefix]);
+	}, [name, plugin]);
 	const prefix = prefixOverride ?? suggestedPrefix;
 
 	// Only a hand-typed prefix can collide — the derived one is already
@@ -288,7 +304,8 @@ function ConfigStep({
 				root,
 				idPrefix: prefix.trim() || undefined,
 				icon: template.icon,
-				includeExampleContent: populate,
+				includeExampleContent:
+					template.supportsExampleContent !== false && populate,
 				selfPersonName: selfName.trim() || undefined,
 			});
 			// Nothing keeps a tab open on a new workspace's behalf — open All
@@ -367,7 +384,7 @@ function ConfigStep({
 				<input
 					type="text"
 					value={prefix}
-					placeholder={template.defaultIdPrefix}
+					placeholder="Optional — derived from the name"
 					aria-invalid={prefixTaken}
 					onChange={(event) => {
 						const next = event.target.value.toUpperCase();
@@ -382,8 +399,8 @@ function ConfigStep({
 				) : (
 					<small>
 						Task files are named by ID —{" "}
-						<code>{prefix.trim() || template.defaultIdPrefix}-0001.md</code>.
-						Must be unique across the whole vault.
+						<code>{prefix.trim() || "TSK"}-0001.md</code>. Must be unique
+						across the whole vault.
 					</small>
 				)}
 			</label>
@@ -402,19 +419,21 @@ function ConfigStep({
 				</small>
 			</label>
 
-			<label className="vf-template-toggle">
-				<input
-					type="checkbox"
-					checked={populate}
-					onChange={(event) => setPopulate(event.target.checked)}
-				/>
-				<span>
-					Populate with example content
-					<small>
-						Adds sample Projects and Tasks you can explore, edit, or delete.
-					</small>
-				</span>
-			</label>
+			{template.supportsExampleContent !== false && (
+				<label className="vf-template-toggle">
+					<input
+						type="checkbox"
+						checked={populate}
+						onChange={(event) => setPopulate(event.target.checked)}
+					/>
+					<span>
+						Populate with example content
+						<small>
+							Adds sample Projects and Tasks you can explore, edit, or delete.
+						</small>
+					</span>
+				</label>
+			)}
 
 			{error && <p className="vf-error">{error}</p>}
 

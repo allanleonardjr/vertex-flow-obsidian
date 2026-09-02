@@ -525,7 +525,7 @@ export const softwareSprintTemplate: WorkspaceTemplate = {
 	description:
 		"A sprint per Project, issues as Tasks. Board-first, with a separate In Review status alongside In Progress.",
 	icon: "kanban",
-	defaultIdPrefix: "SPR",
+	supportsExampleContent: true,
 	workspace: { statuses, taskTypes, labels },
 	views: [sprintBoard],
 	settings: [

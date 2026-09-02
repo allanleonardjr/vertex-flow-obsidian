@@ -311,6 +311,16 @@ function optionalString(
 	return value.trim() || undefined;
 }
 
+function optionalBoolean(
+	data: Record<string, unknown>,
+	key: string,
+): boolean | undefined {
+	const value = data[key];
+	if (value == null) return undefined;
+	if (typeof value !== "boolean") fail(`"${key}" must be true or false`);
+	return value;
+}
+
 /* --------------------------------------------------------------- views --- */
 
 function enumOr<T extends string>(
@@ -1002,16 +1012,27 @@ function applyFields(
  * Derived from the frontmatter taxonomy alone — never from resolved example
  * content — so rendering a card stays free of `buildExampleContent()`, exactly
  * as it is for the hand-written TypeScript templates. A taxonomy the template
- * doesn't override shows the workspace defaults, because that is what the
- * created workspace will actually get.
+ * doesn't override is shown as the workspace default *only when the template
+ * overrides at least one other taxonomy*; a template that overrides nothing
+ * gets no taxonomy rows at all (it's saying "use the defaults" wholesale,
+ * which is what the created workspace will actually get).
  */
 function cardSettings(overrides: TemplateWorkspaceOverrides): TemplateSetting[] {
+	// A template with *no* taxonomy override is deliberately saying "use the
+	// workspace defaults" — so the card lists nothing it configured, rather than
+	// restating the system defaults as if the template chose them. "Default view"
+	// always applies, so it stays. This keeps ("blank"-style) templates honest
+	// without special-casing any id.
+	const rows: TemplateSetting[] = [
+		plainSetting("Default view", "All Tasks (List, grouped by Status)"),
+	];
+	if (Object.keys(overrides).length === 0) return rows;
 	return [
 		settingsFromValues("Statuses", overrides.statuses ?? DEFAULT_STATUSES),
 		settingsFromValues("Priorities", overrides.priorities ?? DEFAULT_PRIORITIES),
 		settingsFromValues("Task Types", overrides.taskTypes ?? DEFAULT_TASK_TYPES),
 		settingsFromValues("Labels", overrides.labels ?? DEFAULT_LABELS),
-		plainSetting("Default view", "All Tasks (List, grouped by Status)"),
+		...rows,
 	];
 }
 
@@ -1097,7 +1118,7 @@ export function parseTemplateMarkdown(source: string): ParsedTemplate {
 		name: requireString(data, "name"),
 		description: requireString(data, "description"),
 		icon: optionalString(data, "icon"),
-		defaultIdPrefix: requireString(data, "defaultIdPrefix"),
+		supportsExampleContent: optionalBoolean(data, "supportsExampleContent"),
 		author: optionalString(data, "author"),
 		authorUrl: optionalString(data, "authorUrl"),
 		templateVersion: optionalString(data, "templateVersion"),

@@ -5,7 +5,7 @@ id: sales-pipeline
 name: Sales Pipeline
 description: Track deals as Projects moving from Lead to Won, with the activities to close each one as Tasks underneath.
 icon: handshake
-defaultIdPrefix: DEAL
+supportsExampleContent: true
 
 statuses: ["Lead (backlog, #94a3b8)", "Contacted (unstarted, #60a5fa)", "Qualified (started, #fbbf24)", "Proposal Sent (started, #f59e0b)", "Won (completed, #34d399)", "Lost (canceled, #f87171)"]
 priorities: ["Hot (#ef4444)", "Warm (#f97316)", "Cold (#60a5fa)"]

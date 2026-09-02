@@ -5,7 +5,7 @@ id: agency-client-management
 name: Agency / Client Management
 description: Run a solo shop or small agency - one Project per client, cross-cutting business labels, and dashboards for the whole book of business.
 icon: briefcase-business
-defaultIdPrefix: BIZ
+supportsExampleContent: true
 
 statuses: ["Backlog (backlog)", "To Do (unstarted)", "In Progress (started, #fbbf24)", "Waiting on Client (started, #f59e0b)", "Done (completed, #34d399)", "Canceled (canceled, #f87171)"]
 taskTypes: [Onboarding, Deliverable, Admin, Billing, Meeting]

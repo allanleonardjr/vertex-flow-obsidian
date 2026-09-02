@@ -23,7 +23,12 @@ const base = {
 };
 
 describe("every template's example content is a full feature showcase", () => {
-	for (const template of WORKSPACE_TEMPLATES) {
+	// Templates that opt out (`supportsExampleContent: false`) are verified
+	// separately — they deliberately generate none of this.
+	const showcaseTemplates = WORKSPACE_TEMPLATES.filter(
+		(t) => t.supportsExampleContent !== false,
+	);
+	for (const template of showcaseTemplates) {
 		describe(template.id, () => {
 			const { snapshot } = instantiateTemplate({
 				...base,
@@ -195,5 +200,61 @@ describe("instantiateTemplate — self person seeding", () => {
 		expect(workspace.people.filter((p) => p.name === "Alice")).toHaveLength(1);
 		const self = workspace.people.filter((p) => p.isSelf);
 		expect(self.map((p) => p.name)).toEqual(["Alice"]);
+	});
+});
+
+describe("blank workspace template", () => {
+	const blankTemplate = requireTemplate("blank-workspace");
+
+	it("does not support example content", () => {
+		expect(blankTemplate.supportsExampleContent).toBe(false);
+	});
+
+	it("instantiation produces no seeded user content even when asked to populate", () => {
+		const { snapshot, notes } = instantiateTemplate({
+			...base,
+			template: blankTemplate,
+			includeExampleContent: true,
+		});
+		expect(snapshot.tasks).toHaveLength(0);
+		expect(snapshot.projects).toHaveLength(0);
+		expect(snapshot.dashboards).toHaveLength(0);
+		expect(notes.some((n) => n.path.endsWith("/Dashboards/"))).toBe(false);
+	});
+
+	it("ships only the minimal workspace scaffolding", () => {
+		const { snapshot } = instantiateTemplate({
+			...base,
+			template: blankTemplate,
+			includeExampleContent: false,
+		});
+		// No user views beyond the injected "All Tasks" System View.
+		expect(snapshot.views).toHaveLength(1);
+		// Taxonomy is untouched — the workspace defaults apply.
+		expect(snapshot.workspace.statuses.length).toBeGreaterThan(0);
+	});
+});
+
+describe("workspace template gallery ordering", () => {
+	it("puts blank workspace first, then getting started", () => {
+		const ids = WORKSPACE_TEMPLATES.map((t) => t.id);
+		expect(ids[0]).toBe("blank-workspace");
+		expect(ids[1]).toBe("getting-started");
+	});
+
+	it("every template declares supportsExampleContent", () => {
+		for (const template of WORKSPACE_TEMPLATES) {
+			expect(
+				typeof template.supportsExampleContent,
+				`template "${template.id}"`,
+			).toBe("boolean");
+		}
+	});
+
+	it("all non-blank templates support example content", () => {
+		for (const template of WORKSPACE_TEMPLATES) {
+			if (template.id === "blank-workspace") continue;
+			expect(template.supportsExampleContent).toBe(true);
+		}
 	});
 });

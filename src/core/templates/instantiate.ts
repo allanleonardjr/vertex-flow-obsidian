@@ -116,7 +116,7 @@ export function instantiateTemplate(
 ): GeneratedWorkspace {
 	const { template, root, includeExampleContent } = options;
 	const name = options.name?.trim() || template.name;
-	const idPrefix = (options.idPrefix?.trim() || template.defaultIdPrefix).toUpperCase();
+	const idPrefix = (options.idPrefix?.trim() || "").toUpperCase();
 	const now = options.now ?? new Date();
 
 	const iso = (offsetDays: number) =>
