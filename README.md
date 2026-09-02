@@ -1,5 +1,13 @@
 # Vertex Flow
 
+<p align="center">
+  <img
+    src="assets/images/vertex-flow-hero.png"
+    alt="Vertex Flow showing Board, List, Timeline, and Calendar task views in Obsidian"
+    width="100%"
+  />
+</p>
+
 A keyboard-first task manager stored entirely as Markdown: projects, tasks, boards, calendars, timelines, chart dashboards, saved views, and an offline help system.
 
 Vertex Flow turns your vault into a fast, high-density project management OS — no cloud, no account, no database. Every task, project, view, and dashboard is a plain Markdown note. You own the data, always, and you can edit it with any tool that reads Markdown.
