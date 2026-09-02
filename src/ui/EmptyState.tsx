@@ -190,7 +190,7 @@ function Welcome({ onClose }: { onClose: () => void }) {
       <h1>Welcome to Vertex Flow</h1>
       <p className="vf-empty-panel-sub">
         Task management for your Obsidian vault. <br />
-        Projects and Tasks, List and Board views, all stored as{" "}
+        Projects and Tasks, List and Board views, all stored as <br />
         <RoughNotation
           type="underline"
           multiline={true}
