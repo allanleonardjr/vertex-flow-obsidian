@@ -94,9 +94,12 @@ export function relationTasks(
   task: Task,
   relationCategory: string,
 ): Task[] {
-  // Assumes task.relations is typed as Record<string, LinkTarget[]>
-  // We cast to `any` safely here just in case the TS interface isn't updated yet.
-  const links = (task as any).relations?.[relationCategory];
+  // `relationCategory` is a runtime string that may name any key of
+  // `TaskRelations` (or none). Index the relations as a string-keyed record
+  // rather than reaching for `any` so the lookup stays typed.
+  const links = (task.relations as unknown as Record<string, LinkTarget[]>)[
+    relationCategory
+  ];
   if (!links || !Array.isArray(links)) return [];
 
   return resolveTaskLinks(scope, links);

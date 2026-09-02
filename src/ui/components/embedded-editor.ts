@@ -29,6 +29,14 @@
  * `MarkdownField` is a complete, working rollback.
  */
 
+// Every unsafe-* warning in this module is an *intentional* access to
+// undocumented Obsidian internals through the `Internal` catch-all type. There
+// is no public API for embedding an editor (see the header above); the `any`
+// is confined here, every access resolves to `null` on failure, and the
+// exported surface (`isNativeEditorAvailable`, `createEmbeddedEditor`) is
+// fully typed.
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-argument */
+
 import { TFile } from "obsidian";
 import type { App } from "obsidian";
 

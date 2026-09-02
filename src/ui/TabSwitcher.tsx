@@ -34,6 +34,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { Platform } from "obsidian";
 import type { WorkspaceSnapshot } from "../core/types";
 import { usePlugin } from "./context";
 import { useTabs } from "./tabs-context";
@@ -43,9 +44,8 @@ import {
 	tabContent,
 } from "./TabStrip";
 
-/** macOS only. Detectable in the renderer; Obsidian is Electron so this holds. */
-const IS_MAC =
-	typeof navigator !== "undefined" && /^mac/i.test(navigator.platform || "");
+/** macOS only. Detectable via Obsidian's Platform API instead of navigator. */
+const IS_MAC = Platform.isMacOS;
 
 function isTypingTarget(target: EventTarget | null): boolean {
 	const el = target as HTMLElement | null;

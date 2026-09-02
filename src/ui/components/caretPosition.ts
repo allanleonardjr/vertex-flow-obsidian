@@ -60,7 +60,7 @@ export function getCaretCoordinates(
 	style.position = "absolute";
 	style.visibility = "hidden";
 	style.whiteSpace = "pre-wrap";
-	style.wordWrap = "break-word";
+	style.overflowWrap = "break-word";
 	style.width = computed.width;
 
 	for (const prop of MIRRORED_PROPERTIES) {
@@ -75,7 +75,7 @@ export function getCaretCoordinates(
 
 	div.textContent = el.value.slice(0, position);
 
-	const span = document.createElement("span");
+	const span = createEl("span");
 	// A trailing marker character ensures the span has real dimensions even
 	// when the caret sits at the very end of the text.
 	span.textContent = el.value.slice(position) || ".";

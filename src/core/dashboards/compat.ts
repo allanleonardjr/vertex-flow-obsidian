@@ -133,7 +133,9 @@ export function retargetFieldMapping(
 	if ((chartType === "bar" || chartType === "pie") && "groupBy" in from) {
 		const groupBy = from.groupBy;
 		if (groupBy && isGroupingField(groupBy)) {
-			return { chartType, groupBy } as DashboardFieldMapping;
+			return chartType === "bar"
+				? { chartType, groupBy }
+				: { chartType, groupBy };
 		}
 	}
 
@@ -142,15 +144,14 @@ export function retargetFieldMapping(
 		"xField" in from &&
 		isTemporalField(from.xField)
 	) {
-		return {
-			chartType,
-			xField: from.xField,
-			bucket: isTimeBucket(from.bucket) ? from.bucket : "week",
-			groupBy:
-				"groupBy" in from && from.groupBy && isGroupingField(from.groupBy)
-					? from.groupBy
-					: null,
-		} as DashboardFieldMapping;
+		const groupBy =
+			"groupBy" in from && from.groupBy && isGroupingField(from.groupBy)
+				? from.groupBy
+				: null;
+		const bucket = isTimeBucket(from.bucket) ? from.bucket : "week";
+		return chartType === "line"
+			? { chartType, xField: from.xField, bucket, groupBy }
+			: { chartType, xField: from.xField, bucket, groupBy };
 	}
 
 	return base;

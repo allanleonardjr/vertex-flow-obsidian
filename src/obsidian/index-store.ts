@@ -51,7 +51,6 @@ import {
 import { isWithin, joinPath } from "../core/links";
 import type {
 	EntityKind,
-	Project,
 	SavedView,
 	Task,
 	TrashedItem,
@@ -383,11 +382,11 @@ export class VaultIndex {
 						mentions: this.mentionCache.get(path)?.mentions ?? [],
 					});
 					if (parsed.issues.length > 0) issues.set(path, parsed.issues);
-					snapshot.tasks.push(parsed.value as Task);
+					snapshot.tasks.push(parsed.value);
 					break;
 				}
 				case "project":
-					snapshot.projects.push(parseProject(frontmatter, options).value as Project);
+					snapshot.projects.push(parseProject(frontmatter, options).value);
 					break;
 				case "view": {
 					// Read from disk, not the metadata cache: a "New view" the user
@@ -491,9 +490,9 @@ export class VaultIndex {
 
 		const entity: TrashedItem["entity"] =
 			kind === "task"
-				? (parseTask(frontmatter, { ...options, mentions: [] }).value as Task)
+				? parseTask(frontmatter, { ...options, mentions: [] }).value
 				: kind === "project"
-					? (parseProject(frontmatter, options).value as Project)
+					? parseProject(frontmatter, options).value
 					: kind === "view"
 						? parseView(frontmatter, { path }).value
 						: parseDashboard(frontmatter, { path }).value;

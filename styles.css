@@ -47,6 +47,7 @@ body {
 body.vf-text-cozy {
   --vf-text-scale: 1.12;
 }
+
 body.vf-text-comfortable {
   --vf-text-scale: 1.25;
 }
@@ -75,6 +76,7 @@ body.vf-text-comfortable {
   flex-direction: column;
   flex-grow: 0;
   flex-shrink: 0;
+
   /* width + flex-basis are set inline from settings.sidebarWidth */
   min-width: 0;
   padding: 12px 8px;
@@ -186,6 +188,7 @@ body.vf-text-comfortable {
 .vf-section-title-btn {
   display: flex;
   align-items: center;
+
   /* Obsidian's base `button` centers its content — force left. */
   justify-content: flex-start !important;
   padding: 4px 6px;
@@ -305,6 +308,17 @@ body.vf-text-comfortable {
   background: var(--background-modifier-hover) !important;
 }
 
+.vf-nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 14px;
+  color: var(--vf-muted);
+  text-align: center;
+  font-size: 11px;
+}
+
 /* An active *view* reads as accent text. */
 .vf-nav-row.is-active,
 .vf-nav-row.is-active .vf-nav-icon {
@@ -318,17 +332,6 @@ body.vf-text-comfortable {
 .vf-nav-row.is-current .vf-nav-icon {
   color: var(--text-accent);
   font-weight: 500;
-}
-
-.vf-nav-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  width: 14px;
-  color: var(--vf-muted);
-  text-align: center;
-  font-size: 11px;
 }
 
 .vf-nav-label {
@@ -356,14 +359,14 @@ body.vf-text-comfortable {
   cursor: pointer;
 }
 
-.vf-nav-row-wrap:hover .vf-nav-row-menu,
-.vf-nav-row-menu:focus-visible {
-  opacity: 1;
-}
-
 .vf-nav-row-menu:hover {
   background: var(--background-modifier-hover) !important;
   color: var(--text-normal);
+}
+
+.vf-nav-row-menu:focus-visible,
+.vf-nav-row-wrap:hover .vf-nav-row-menu {
+  opacity: 1;
 }
 
 /* --------------------------------------------------------------- Toolbar -- */
@@ -440,6 +443,15 @@ body.vf-text-comfortable {
   padding-top: 2px;
 }
 
+.vf-select,
+.vf-input {
+  width: 100%;
+  max-width: 100%;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: var(--font-ui-smaller);
+}
+
 .vf-embedded-list-footer .vf-select {
   background: transparent;
   border: 1px dashed var(--vf-border);
@@ -449,6 +461,12 @@ body.vf-text-comfortable {
   border-radius: var(--vf-radius);
   transition: all 0.15s ease;
   cursor: pointer;
+}
+
+.vf-relation-group .vf-select {
+  width: auto;
+  min-width: 160px;
+  max-width: 280px;
 }
 
 .vf-embedded-list-footer .vf-select:hover {
@@ -464,10 +482,6 @@ body.vf-text-comfortable {
   border: 1px solid var(--vf-border);
   border-radius: var(--vf-radius);
   overflow: hidden;
-}
-
-.vf-list-embedded .vf-row:last-child {
-  border-bottom: none;
 }
 
 .vf-row-with-action {
@@ -494,6 +508,31 @@ body.vf-text-comfortable {
   cursor: pointer;
 }
 
+.vf-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: var(--vf-row-height);
+  padding: 0 14px;
+  border-bottom: 1px solid var(--vf-border);
+  cursor: default;
+  user-select: none;
+  touch-action: pan-y;
+}
+
+.vf-row:hover {
+  background: var(--background-modifier-hover);
+}
+
+.is-mobile .vf-row {
+  height: auto;
+  padding: 10px 12px;
+}
+
+.vf-list-embedded .vf-row:last-child {
+  border-bottom: none;
+}
+
 /* Linear-style integrated action button. Two variants share this shape:
    `.vf-row-remove` really deletes (List view, confirms first), `.vf-row-unlink`
    only breaks a link (sub-tasks, relations). They differ solely in the hover
@@ -504,6 +543,7 @@ body.vf-text-comfortable {
    reserves a permanent right gutter — an unhovered row stays balanced 14/14
    with its left edge. It fades in over the far-right meta on hover, the way
    Linear's row actions do. */
+
 /* `.vf-icon-button` is always also on these elements and is defined later in
    this file, so match it here to keep the layout/background props winning. */
 .vf-icon-button.vf-row-remove,
@@ -532,17 +572,6 @@ body.vf-text-comfortable {
   cursor: pointer;
 }
 
-/* Reveal cleanly on row hover. Fully opaque — the button floats over the
-   far-right meta now, so a translucent one would just look like a rendering
-   glitch. The muted icon colour keeps it quiet until directly hovered. */
-.vf-row:hover .vf-row-remove,
-.vf-row-with-action:hover .vf-row-remove,
-.vf-row:hover .vf-row-unlink,
-.vf-row-with-action:hover .vf-row-unlink {
-  opacity: 1;
-  pointer-events: auto;
-}
-
 /* Unlinking is not deleting — it clears a `parent` field or drops a path from
    `relations`, and the task survives. So: no error tint, no red. */
 .vf-row-unlink:hover {
@@ -555,9 +584,20 @@ body.vf-text-comfortable {
 /* Linear subtle error highlight on direct icon hover */
 .vf-row-remove:hover {
   opacity: 1 !important;
-  background: var(--background-modifier-error-hover, rgba(239, 68, 68, 0.15));
-  border-color: var(--text-error, rgba(239, 68, 68, 0.3));
+  background: var(--background-modifier-error-hover, rgb(239 68 68 / 15%));
+  border-color: var(--text-error, rgb(239 68 68 / 30%));
   color: var(--text-error, #ef4444);
+}
+
+/* Reveal cleanly on row hover. Fully opaque — the button floats over the
+   far-right meta now, so a translucent one would just look like a rendering
+   glitch. The muted icon colour keeps it quiet until directly hovered. */
+.vf-row:hover .vf-row-remove,
+.vf-row-with-action:hover .vf-row-remove,
+.vf-row:hover .vf-row-unlink,
+.vf-row-with-action:hover .vf-row-unlink {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .vf-list-group {
@@ -594,22 +634,6 @@ button.vf-list-group-toggle:hover {
   background: var(--background-primary);
 }
 
-.vf-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  height: var(--vf-row-height);
-  padding: 0 14px;
-  border-bottom: 1px solid var(--vf-border);
-  cursor: default;
-  user-select: none;
-  touch-action: pan-y;
-}
-
-.vf-row:hover {
-  background: var(--background-modifier-hover);
-}
-
 .vf-row.is-focused {
   box-shadow: inset 2px 0 0 var(--interactive-accent);
 }
@@ -628,6 +652,14 @@ button.vf-list-group-toggle:hover {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+/* Truncation basis where the title sits inside an option/action row: the
+   flex-basis items need `min-width: 0` or the long title refuses to shrink. */
+.vf-trash-task-row .vf-row-title,
+.vf-task-option .vf-row-title {
+  flex: 1;
+  min-width: 0;
 }
 
 .vf-row-meta {
@@ -698,8 +730,7 @@ button.vf-list-group-toggle:hover {
   flex: 1;
   gap: var(--vf-gap);
   padding: 12px;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: auto hidden;
 }
 
 .vf-column {
@@ -787,7 +818,7 @@ button.vf-list-group-toggle:hover {
   border: 1px solid var(--vf-border);
   border-radius: var(--vf-radius);
   background: var(--background-primary);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 8%);
   transition:
     border-color 0.15s ease,
     box-shadow 0.15s ease,
@@ -799,7 +830,7 @@ button.vf-list-group-toggle:hover {
 
 .vf-card:hover {
   border-color: var(--background-modifier-border-hover);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 12%);
 }
 
 .vf-card.is-focused {
@@ -817,6 +848,7 @@ button.vf-list-group-toggle:hover {
 .vf-card-progress {
   margin-bottom: 10px;
 }
+
 /* --- Drag preview ------------------------------------------------------- */
 
 .vf-drag-layer {
@@ -832,7 +864,7 @@ button.vf-list-group-toggle:hover {
 .vf-card-preview {
   margin: 0;
   background: var(--background-primary);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 10px 24px rgb(0 0 0 / 28%);
   transform: rotate(1.5deg);
   opacity: 0.95;
 }
@@ -1059,6 +1091,7 @@ body.vf-dragging {
   align-items: center;
   flex-shrink: 0;
 }
+
 .vf-priority-icon.is-none {
   color: var(--vf-muted);
 }
@@ -1068,6 +1101,7 @@ body.vf-dragging {
 .vf-icon-select {
   position: relative;
 }
+
 .vf-icon-select-trigger {
   display: flex;
   align-items: center;
@@ -1078,6 +1112,7 @@ body.vf-dragging {
   padding: 3px 6px;
   border: 1px solid var(--background-modifier-border) !important;
   border-radius: 4px;
+
   /* Same surface as the <select>/<input> fields in the rest of the rail. */
   background: var(--background-modifier-form-field) !important;
   box-shadow: none !important;
@@ -1086,17 +1121,20 @@ body.vf-dragging {
   text-align: left;
   cursor: pointer;
 }
+
 .vf-icon-select-trigger:hover {
   background: var(
     --background-modifier-form-field-highlighted,
     var(--background-modifier-hover)
   ) !important;
 }
+
 .vf-icon-select-caret {
   margin-left: auto;
   color: var(--vf-muted);
   font-size: 10px;
 }
+
 .vf-icon-select-name {
   overflow: hidden;
   white-space: nowrap;
@@ -1145,7 +1183,7 @@ body.vf-dragging {
 
 /* The active label tab: a ring in the label's own colour (set inline). */
 .vf-nav-row.is-active .vf-nav-chip {
-  box-shadow: inset 0 0 0 1px currentColor;
+  box-shadow: inset 0 0 0 1px currentcolor;
 }
 
 /* ------------------------------------------------------------- Labels -- */
@@ -1188,9 +1226,29 @@ body.vf-dragging {
   cursor: pointer;
 }
 
+.vf-icon-button {
+  padding: 2px 7px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--vf-muted);
+  cursor: pointer;
+}
+
+.vf-icon-button:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
 .vf-label-editor-row .vf-icon-button {
   opacity: 0;
   font-size: 10px;
+}
+
+.vf-comment header .vf-icon-button {
+  opacity: 1;
+  margin-left: auto;
 }
 
 .vf-label-editor-row:hover .vf-icon-button {
@@ -1236,7 +1294,7 @@ body.vf-dragging {
   border: 1px solid var(--vf-border);
   border-radius: var(--vf-radius);
   background: var(--background-primary);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.24);
+  box-shadow: 0 8px 20px rgb(0 0 0 / 24%);
 }
 
 .vf-label-editor-create {
@@ -1359,6 +1417,7 @@ body.vf-dragging {
  */
 .vf-template-card {
   --pad: 16px;
+
   display: flex;
   flex-direction: column;
   gap: var(--pad);
@@ -1366,7 +1425,7 @@ body.vf-dragging {
   border: 1px solid var(--vf-border);
   border-radius: 10px;
   background: var(--background-primary);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 6%);
   cursor: pointer;
   transition:
     border-color 120ms ease,
@@ -1376,7 +1435,7 @@ body.vf-dragging {
 .vf-template-card:hover,
 .vf-template-card:focus-visible {
   border-color: var(--interactive-accent);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 12%);
   outline: none;
 }
 
@@ -1540,19 +1599,19 @@ body.vf-dragging {
   font-weight: 600;
 }
 
-.vf-field input:not([type="radio"]):not([type="checkbox"]) {
+.vf-folder-field input {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+}
+
+.vf-field input:not([type="radio"], [type="checkbox"]) {
   width: 100%;
 }
 
 .vf-folder-field {
   display: flex;
   gap: 6px;
-}
-
-.vf-folder-field input {
-  flex: 1;
-  width: auto;
-  min-width: 0;
 }
 
 .vf-field small {
@@ -1627,7 +1686,7 @@ body.vf-dragging {
   border: 1px solid var(--vf-border);
   border-radius: var(--vf-radius);
   background: var(--background-primary);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.32);
+  box-shadow: 0 12px 30px rgb(0 0 0 / 32%);
 }
 
 .vf-icon-picker {
@@ -1723,7 +1782,7 @@ body.vf-dragging {
   border: 1px solid var(--vf-border);
   border-radius: var(--vf-radius);
   background: var(--background-primary);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.32);
+  box-shadow: 0 12px 30px rgb(0 0 0 / 32%);
 }
 
 /* ---------------------------------------------------------------- Mobile -- */
@@ -1735,11 +1794,6 @@ body.vf-dragging {
 .is-mobile .vf-column {
   width: 82vw;
   flex-basis: 82vw;
-}
-
-.is-mobile .vf-row {
-  height: auto;
-  padding: 10px 12px;
 }
 
 /* =========================================================================
@@ -1757,7 +1811,7 @@ body.vf-dragging {
   border: 1px solid var(--vf-border);
   border-radius: var(--vf-radius);
   background: var(--background-primary);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.24);
+  box-shadow: 0 8px 20px rgb(0 0 0 / 24%);
 }
 
 /* The tab right-click menu anchors to viewport coordinates (`clientX/Y`), so
@@ -1777,7 +1831,34 @@ body.vf-dragging {
   border: 1px solid var(--vf-border);
   border-radius: var(--vf-radius);
   background: var(--background-primary);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.24);
+  box-shadow: 0 8px 20px rgb(0 0 0 / 24%);
+}
+
+.vf-menu-item {
+  display: flex;
+  align-items: center;
+
+  /* Obsidian's base `button` rule sets `justify-content: center`; without this
+     override every row's icon + label sits centred instead of left-aligned. */
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 4px;
+
+  /* `!important`: these are <button>s and Obsidian's theme button chrome
+     (border + raised box-shadow) otherwise wins, giving every row a box. */
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--text-normal);
+  font-size: var(--font-ui-smaller);
+  text-align: left;
+  cursor: pointer;
+}
+
+.vf-menu-item:hover {
+  background: var(--background-modifier-hover) !important;
 }
 
 .vf-tab-menu .vf-menu-item {
@@ -1795,31 +1876,6 @@ body.vf-dragging {
 .vf-section-add-anchor .vf-menu {
   left: auto;
   right: 0;
-}
-
-.vf-menu-item {
-  display: flex;
-  align-items: center;
-  /* Obsidian's base `button` rule sets `justify-content: center`; without this
-     override every row's icon + label sits centred instead of left-aligned. */
-  justify-content: flex-start;
-  gap: 8px;
-  width: 100%;
-  padding: 6px 8px;
-  border-radius: 4px;
-  /* `!important`: these are <button>s and Obsidian's theme button chrome
-     (border + raised box-shadow) otherwise wins, giving every row a box. */
-  border: none !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  color: var(--text-normal);
-  font-size: var(--font-ui-smaller);
-  text-align: left;
-  cursor: pointer;
-}
-
-.vf-menu-item:hover {
-  background: var(--background-modifier-hover) !important;
 }
 
 .vf-menu-item.is-active {
@@ -1844,6 +1900,7 @@ body.vf-dragging {
 .vf-menu-item-danger {
   color: var(--text-error);
 }
+
 .vf-menu-item-danger:hover {
   background: var(
     --background-modifier-error-hover,
@@ -1903,7 +1960,7 @@ body.vf-dragging {
   border: 1px solid var(--vf-border);
   border-radius: var(--vf-radius);
   background: var(--background-primary);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 10px 24px rgb(0 0 0 / 28%);
   transform: rotate(1deg);
   opacity: 0.95;
 }
@@ -1920,7 +1977,7 @@ body.vf-dragging {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(0, 0, 0, 0.42);
+  background: rgb(0 0 0 / 42%);
 }
 
 .vf-dialog {
@@ -1937,7 +1994,7 @@ body.vf-dragging {
   border: 1px solid var(--vf-border);
   border-radius: 10px;
   background: var(--background-primary);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 24px 60px rgb(0 0 0 / 40%);
   font-size: var(--font-ui-small);
 }
 
@@ -1978,6 +2035,7 @@ body.vf-dragging {
   padding: 6px 8px;
   border-radius: 6px 6px 0 0;
   background: transparent;
+
   /* Reserve the workspace-accent underline's space so it appearing/disappearing
      never nudges the strip's height — see `.vf-tab-has-accent`. */
   border-bottom: 2px solid transparent;
@@ -2022,7 +2080,7 @@ body.vf-dragging {
   max-width: none;
   background: var(--background-primary);
   border: 1px solid var(--vf-border);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 10px 24px rgb(0 0 0 / 28%);
   transform: rotate(1deg);
   opacity: 0.95;
 }
@@ -2039,6 +2097,7 @@ body.vf-dragging {
 .vf-tab.is-active {
   background: var(--background-primary);
   color: var(--text-normal);
+
   /* The tab you're on shows its whole title; the strip scrolls if it must. */
   max-width: none;
 }
@@ -2106,7 +2165,7 @@ body.vf-dragging {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: currentColor;
+  background: currentcolor;
   opacity: 0.75;
 }
 
@@ -2132,21 +2191,6 @@ body.vf-dragging {
 
 .vf-editor-spacer {
   flex: 1;
-}
-
-.vf-icon-button {
-  padding: 2px 7px;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  box-shadow: none;
-  color: var(--vf-muted);
-  cursor: pointer;
-}
-
-.vf-icon-button:hover {
-  background: var(--background-modifier-hover);
-  color: var(--text-normal);
 }
 
 .vf-editor-breadcrumb {
@@ -2314,6 +2358,10 @@ button.vf-crumb:hover {
   border-left: 2px solid var(--interactive-accent);
 }
 
+.vf-auto-grow {
+  height: auto;
+}
+
 .vf-editor-title {
   width: 100%;
   padding: 0;
@@ -2430,7 +2478,7 @@ button.vf-crumb:hover {
   border: 1px solid var(--vf-border);
   border-radius: var(--vf-radius);
   background: var(--background-primary);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.24);
+  box-shadow: 0 8px 20px rgb(0 0 0 / 24%);
 }
 
 .vf-autocomplete-item {
@@ -2529,15 +2577,6 @@ button.vf-crumb:hover {
   font-style: italic;
 }
 
-.vf-select,
-.vf-input {
-  width: 100%;
-  max-width: 100%;
-  padding: 4px 6px;
-  border-radius: 4px;
-  font-size: var(--font-ui-smaller);
-}
-
 .vf-label-picker {
   display: flex;
   flex-wrap: wrap;
@@ -2577,12 +2616,6 @@ button.vf-crumb:hover {
   color: var(--vf-muted);
   font-size: var(--font-ui-smaller);
   font-weight: 600;
-}
-
-.vf-relation-group .vf-select {
-  width: auto;
-  min-width: 160px;
-  max-width: 280px;
 }
 
 .vf-row-missing {
@@ -2626,10 +2659,6 @@ button.vf-crumb:hover {
 .vf-comment-date {
   color: var(--vf-muted);
   font-size: 11px;
-}
-
-.vf-comment header .vf-icon-button {
-  margin-left: auto;
 }
 
 .vf-reactions {
@@ -2760,6 +2789,7 @@ button.vf-crumb:hover {
   border-radius: 0;
   background: transparent !important;
   box-shadow: none !important;
+
   /* Obsidian's base `button` centers flex content — force left, matching
      .vf-section-title-btn (views-and-ux.md §9.6). */
   justify-content: flex-start !important;
@@ -2790,15 +2820,15 @@ button.vf-crumb:hover {
   cursor: pointer;
 }
 
-.vf-browse-card:hover .vf-browse-card-menu,
-.vf-browse-card-menu:focus-visible,
-.vf-browse-card-menu[aria-expanded="true"] {
-  opacity: 1;
-}
-
 .vf-browse-card-menu:hover {
   background: var(--background-modifier-hover) !important;
   color: var(--text-normal);
+}
+
+.vf-browse-card-menu:focus-visible,
+.vf-browse-card-menu[aria-expanded="true"],
+.vf-browse-card:hover .vf-browse-card-menu {
+  opacity: 1;
 }
 
 .vf-browse-card-menu-anchor .vf-menu {
@@ -2884,11 +2914,6 @@ button.vf-crumb:hover {
   gap: 10px;
 }
 
-.vf-trash-task-row .vf-row-title {
-  flex: 1;
-  min-width: 0;
-}
-
 /* A flex child of .vf-browse-card-body now; without this it can get squeezed
    or wrap when the row is narrow. */
 .vf-trashed-meta {
@@ -2929,6 +2954,7 @@ button.vf-crumb:hover {
   width: auto;
   max-width: 100%;
   min-width: 4ch;
+
   /* Exact fit where supported; the `size` attribute is the fallback. */
   field-sizing: content;
   padding: 0;
@@ -3081,19 +3107,24 @@ button.vf-crumb:hover {
   border: none;
 }
 
+/* Match CodeMirror's own metrics, so a line sits in the same place in either
+   mode — a textarea otherwise inherits Obsidian's smaller form-field font. */
+.vf-description-plain .vf-markdown-edit {
+  color: var(--text-normal);
+  font-family: var(--font-text);
+  font-size: var(--font-text-size);
+  line-height: var(--line-height-normal, 1.5);
+
+  /* The pane has its own resize handle, and the field auto-grows to its
+     content — a drag grabber here would just be undone by the next keystroke. */
+  resize: none;
+}
+
 /* Raw Source is the same field in a different mode, so it can't announce
    itself as a form control the way a bare textarea does. Obsidian's own
    `textarea:focus-visible` draws its focus ring with `box-shadow` (and the
    fill with `background`), neither of which the reset above covers — so
    restate them for every state rather than the resting one only. */
-.vf-description-plain .vf-markdown-edit:hover,
-.vf-description-plain .vf-markdown-edit:focus,
-.vf-description-plain .vf-markdown-edit:focus-visible,
-.vf-description-plain .vf-markdown-edit:active {
-  border: none;
-  background: transparent;
-}
-
 .vf-description-plain .vf-markdown-edit,
 .vf-description-plain .vf-markdown-edit:hover,
 .vf-description-plain .vf-markdown-edit:focus,
@@ -3103,16 +3134,12 @@ button.vf-crumb:hover {
   box-shadow: none;
 }
 
-/* Match CodeMirror's own metrics, so a line sits in the same place in either
-   mode — a textarea otherwise inherits Obsidian's smaller form-field font. */
-.vf-description-plain .vf-markdown-edit {
-  color: var(--text-normal);
-  font-family: var(--font-text);
-  font-size: var(--font-text-size);
-  line-height: var(--line-height-normal, 1.5);
-  /* The pane has its own resize handle, and the field auto-grows to its
-     content — a drag grabber here would just be undone by the next keystroke. */
-  resize: none;
+.vf-description-plain .vf-markdown-edit:hover,
+.vf-description-plain .vf-markdown-edit:focus,
+.vf-description-plain .vf-markdown-edit:focus-visible,
+.vf-description-plain .vf-markdown-edit:active {
+  border: none;
+  background: transparent;
 }
 
 .vf-description-plain .vf-markdown-placeholder {
@@ -3385,6 +3412,19 @@ button.vf-crumb:hover {
   cursor: pointer;
 }
 
+.vf-bar-label,
+.vf-add-filter {
+  color: var(--vf-muted);
+}
+
+.vf-layout-opt {
+  /* Icon-only: no label to space out from, so drop the gap and tighten the
+     box to roughly the icon plus a hair each side. */
+  gap: 0;
+  padding: 3px 6px;
+  color: var(--vf-muted);
+}
+
 .vf-bar-item:hover,
 .vf-bar-item.is-on,
 .vf-layout-opt:hover,
@@ -3398,11 +3438,6 @@ button.vf-crumb:hover {
   align-items: center;
   font-size: 11px;
   opacity: 0.75;
-}
-
-.vf-bar-label,
-.vf-add-filter {
-  color: var(--vf-muted);
 }
 
 /* The chosen value on each control carries the Obsidian accent colour, the
@@ -3423,14 +3458,6 @@ button.vf-crumb:hover {
   display: inline-flex;
   align-items: center;
   gap: 1px;
-}
-
-.vf-layout-opt {
-  /* Icon-only: no label to space out from, so drop the gap and tighten the
-     box to roughly the icon plus a hair each side. */
-  gap: 0;
-  padding: 3px 6px;
-  color: var(--vf-muted);
 }
 
 .vf-layout-opt.is-on {
@@ -3473,8 +3500,9 @@ button.vf-crumb:hover {
   display: inline-flex;
   align-items: center;
   border-radius: 4px;
+
   /* A faint wash of the Obsidian accent colour rather than a flat grey. */
-  background: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.12);
+  background: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 12%);
   font-size: var(--font-ui-smaller);
   white-space: nowrap;
 }
@@ -3507,14 +3535,14 @@ button.vf-crumb:hover {
   transition: width 80ms ease;
 }
 
+.vf-filter-tag-x:hover {
+  color: var(--text-normal);
+}
+
 .vf-filter-tag:hover .vf-filter-tag-x,
 .vf-filter-tag:focus-within .vf-filter-tag-x {
   width: 18px;
   padding: 3px 5px;
-}
-
-.vf-filter-tag-x:hover {
-  color: var(--text-normal);
 }
 
 /* A filter the chip bar can't edit (only the query bar can) — no click target
@@ -3539,6 +3567,7 @@ button.vf-crumb:hover {
   padding: 6px 9px;
   resize: none;
   overflow-y: auto;
+
   /* Wrap the whole query into view on a narrow pane, breaking between words
      (and only inside a word when a single token can't fit). */
   white-space: pre-wrap;
@@ -3598,7 +3627,7 @@ button.vf-crumb:hover {
   border: 1px solid var(--vf-border);
   border-radius: var(--vf-radius);
   background: var(--background-primary);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 10px 28px rgb(0 0 0 / 28%);
 }
 
 .vf-popover-left {
@@ -3627,7 +3656,7 @@ button.vf-crumb:hover {
   border: 1px solid var(--vf-border);
   border-radius: var(--vf-radius);
   background: var(--background-primary);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 10px 28px rgb(0 0 0 / 28%);
 }
 
 .vf-select-search {
@@ -3732,7 +3761,7 @@ button.vf-crumb:hover {
   border: 1px solid var(--vf-border);
   border-radius: var(--vf-radius);
   background: var(--background-primary);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.32);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 32%);
 }
 
 .vf-tab-switcher-item {
@@ -3812,7 +3841,7 @@ button.vf-crumb:hover {
   border: 1px solid var(--vf-border);
   border-radius: var(--vf-radius);
   background: var(--background-primary);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.34);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 34%);
 }
 
 .vf-task-menu-search {
@@ -3888,11 +3917,6 @@ button.vf-crumb:hover {
    button rather than a list section. */
 .vf-task-option {
   gap: 10px;
-}
-
-.vf-task-option .vf-row-title {
-  flex: 1;
-  min-width: 0;
 }
 
 .vf-task-option .vf-row-meta {
@@ -4024,14 +4048,14 @@ button.vf-crumb:hover {
   cursor: pointer;
 }
 
-.vf-field-bulk:hover:not(:disabled) {
-  background: var(--background-modifier-hover) !important;
-  color: var(--text-normal);
-}
-
 .vf-field-bulk:disabled {
   opacity: 0.4;
   cursor: default;
+}
+
+.vf-field-bulk:hover:not(:disabled) {
+  background: var(--background-modifier-hover) !important;
+  color: var(--text-normal);
 }
 
 .vf-fields-note {
@@ -4124,6 +4148,7 @@ button.vf-crumb:hover {
 .vf-help-topic-label {
   display: flex;
   align-items: center;
+
   /* Obsidian's base `button` centers its content — force left, like every
      other row in the sidebars. */
   justify-content: flex-start !important;
@@ -4268,6 +4293,11 @@ button.vf-crumb:hover {
   min-width: 0;
 }
 
+.vf-timeline-band-cell span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .vf-help-index-item-main span:last-child {
   overflow: hidden;
   white-space: nowrap;
@@ -4312,6 +4342,7 @@ button.vf-crumb:hover {
   --vf-tl-left-w: 300px;
   --vf-tl-row-h: 32px;
   --vf-tl-header-h: 40px;
+
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -4416,10 +4447,6 @@ button.vf-crumb:hover {
   justify-content: center;
 }
 
-.vf-timeline.is-left-collapsed .vf-timeline-row-label {
-  padding: 0 !important;
-}
-
 .vf-timeline-row-label {
   display: flex !important;
   align-items: center;
@@ -4441,6 +4468,10 @@ button.vf-crumb:hover {
 
 .vf-timeline-row-label:hover {
   background: var(--background-modifier-hover) !important;
+}
+
+.vf-timeline.is-left-collapsed .vf-timeline-row-label {
+  padding: 0 !important;
 }
 
 .vf-timeline-row-label.is-focused,
@@ -4491,11 +4522,6 @@ button.vf-crumb:hover {
   font-size: 10px;
   font-weight: 600;
   white-space: nowrap;
-}
-
-.vf-timeline-band-cell span {
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* Bottom band: equal-width day (or month) columns. */
@@ -4551,16 +4577,15 @@ button.vf-crumb:hover {
   border-radius: 4px 0 0 4px;
 }
 
-.vf-timeline-lane.is-dragging .vf-timeline-bar,
-.vf-timeline-lane.is-dragging .vf-timeline-diamond {
-  opacity: 1;
-  box-shadow: 0 0 0 2px var(--interactive-accent-hover);
-}
-
 body.vf-bar-dragging,
 body.vf-bar-dragging .vf-timeline-bar {
   cursor: grabbing;
   user-select: none;
+}
+
+.vf-timeline-lane.is-dragging .vf-timeline-bar {
+  opacity: 1;
+  box-shadow: 0 0 0 2px var(--interactive-accent-hover);
 }
 
 /* ~14px hit target, ~6px visible grip. */
@@ -4575,6 +4600,7 @@ body.vf-bar-dragging .vf-timeline-bar {
 .vf-timeline-handle.is-start {
   left: -7px;
 }
+
 .vf-timeline-handle.is-end {
   right: -7px;
 }
@@ -4613,6 +4639,11 @@ body.vf-bar-dragging .vf-timeline-bar {
   transform: translate(-50%, -50%) rotate(45deg);
   background: var(--interactive-accent);
   border-radius: 2px;
+}
+
+.vf-timeline-lane.is-dragging .vf-timeline-diamond {
+  opacity: 1;
+  box-shadow: 0 0 0 2px var(--interactive-accent-hover);
 }
 
 /* Date read-out shown while dragging (or on hover). One per draggable point. */
@@ -4680,6 +4711,7 @@ body.vf-bar-dragging .vf-timeline-bar {
 .vf-resize-x {
   cursor: ew-resize;
 }
+
 .vf-resize-y {
   cursor: row-resize;
 }
@@ -4775,7 +4807,7 @@ body.vf-bar-dragging .vf-timeline-bar {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   pointer-events: none;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 30%);
 }
 
 /* ------------------------------------------------------------------ *
@@ -4890,6 +4922,14 @@ body.vf-bar-dragging .vf-timeline-bar {
   background: var(--background-secondary);
 }
 
+.vf-calendar-daynum {
+  align-self: flex-start;
+  padding: 1px 5px;
+  color: var(--vf-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
 .vf-calendar-cell.is-outside .vf-calendar-daynum {
   opacity: 0.45;
 }
@@ -4897,14 +4937,6 @@ body.vf-bar-dragging .vf-timeline-bar {
 .vf-calendar-cell.is-drag-target {
   background: var(--background-modifier-hover);
   box-shadow: inset 0 0 0 2px var(--interactive-accent);
-}
-
-.vf-calendar-daynum {
-  align-self: flex-start;
-  padding: 1px 5px;
-  color: var(--vf-muted);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
 }
 
 .vf-calendar-cell.is-today .vf-calendar-daynum {
@@ -4942,11 +4974,6 @@ body.vf-bar-dragging .vf-timeline-bar {
   cursor: grab;
 }
 
-.vf-cal-chip .vf-row-title {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .vf-cal-chip:hover {
   background: var(--background-modifier-hover) !important;
 }
@@ -4969,7 +4996,7 @@ body.vf-bar-dragging .vf-timeline-bar {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  background: var(--vf-muted-bg, rgba(255, 255, 255, 0.08));
+  background: var(--vf-muted-bg, rgb(255 255 255 / 8%));
   color: var(--vf-muted, currentColor);
 }
 
@@ -5095,24 +5122,33 @@ body.vf-bar-dragging .vf-timeline-bar {
   position: relative;
   transition: height 200ms ease;
 }
+
 .vertex-flow .react-grid-item {
   transition: all 200ms ease;
   transition-property: left, top, width, height;
   box-sizing: border-box;
 }
+
+/* `cssTransforms` is react-grid-layout's own class name, injected by the
+   library (see its bundled styles.css); it is not a Vertex Flow class, so it
+   can't be kebab-cased without breaking the grid's transform rendering. */
+/* stylelint-disable-next-line selector-class-pattern */
 .vertex-flow .react-grid-item.cssTransforms {
   transition-property: transform, width, height;
 }
+
 .vertex-flow .react-grid-item.resizing {
   transition: none;
   z-index: 3;
   will-change: width, height;
 }
+
 .vertex-flow .react-grid-item.react-draggable-dragging {
   transition: none;
   z-index: 3;
   will-change: transform;
 }
+
 .vertex-flow .react-grid-item.react-grid-placeholder {
   background: var(--interactive-accent);
   opacity: 0.18;
@@ -5121,6 +5157,7 @@ body.vf-bar-dragging .vf-timeline-bar {
   z-index: 2;
   user-select: none;
 }
+
 .vertex-flow .react-grid-item > .react-resizable-handle {
   position: absolute;
   width: 18px;
@@ -5131,9 +5168,11 @@ body.vf-bar-dragging .vf-timeline-bar {
   opacity: 0;
   transition: opacity 120ms ease;
 }
+
 .vertex-flow .react-grid-item:hover > .react-resizable-handle {
   opacity: 1;
 }
+
 .vertex-flow .react-grid-item > .react-resizable-handle::after {
   content: "";
   position: absolute;
@@ -5149,8 +5188,7 @@ body.vf-bar-dragging .vf-timeline-bar {
 
 .vf-dash-scroll {
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden auto;
   padding: 12px 14px 24px;
 }
 
@@ -5185,10 +5223,12 @@ body.vf-bar-dragging .vf-timeline-bar {
     border-color 120ms ease,
     color 120ms ease;
 }
+
 .vf-dash-add-tile:hover {
   border-color: var(--interactive-accent);
   color: var(--text-normal);
 }
+
 .vf-dash-add-tile-plus {
   display: inline-flex;
 }
@@ -5221,9 +5261,11 @@ body.vf-bar-dragging .vf-timeline-bar {
   border-bottom: 1px solid var(--vf-border);
   cursor: grab;
 }
+
 .vf-dash-widget-head:active {
   cursor: grabbing;
 }
+
 .vf-dash-widget-head-spacer {
   flex: 1;
 }
@@ -5285,6 +5327,7 @@ body.vf-bar-dragging .vf-timeline-bar {
   justify-content: center;
   height: 100%;
 }
+
 .vf-dash-kpi-value {
   font-size: clamp(1.6rem, 6vw, 2.75rem);
   font-weight: 700;
@@ -5299,6 +5342,7 @@ body.vf-bar-dragging .vf-timeline-bar {
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
 }
+
 .vf-dash-skeleton-tile {
   height: 260px;
   border-radius: var(--vf-radius);
@@ -5311,10 +5355,12 @@ body.vf-bar-dragging .vf-timeline-bar {
   background-size: 400% 100%;
   animation: vf-dash-shimmer 1.4s ease infinite;
 }
+
 @keyframes vf-dash-shimmer {
   0% {
     background-position: 100% 50%;
   }
+
   100% {
     background-position: 0 50%;
   }
@@ -5325,12 +5371,14 @@ body.vf-bar-dragging .vf-timeline-bar {
 .vf-widget-config {
   width: min(460px, 92vw);
 }
+
 .vf-widget-config-types {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   margin: 4px 0 14px;
 }
+
 .vf-widget-type {
   display: inline-flex;
   align-items: center;
@@ -5343,21 +5391,25 @@ body.vf-bar-dragging .vf-timeline-bar {
   font-size: var(--font-ui-smaller);
   cursor: pointer;
 }
+
 .vf-widget-type.is-on {
   border-color: var(--interactive-accent);
   color: var(--text-normal);
   background: var(--background-modifier-hover);
 }
+
 .vf-widget-config-fields {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
+
 .vf-widget-config-fields .vf-field {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
+
 .vf-widget-config-fields .vf-field > span {
   font-size: var(--font-ui-smaller);
   color: var(--vf-muted);
@@ -5374,6 +5426,7 @@ body.vf-bar-dragging .vf-timeline-bar {
   align-items: center;
   justify-content: center;
   max-width: 420px;
+
   /* `min-height` (not `height`) so the recovery list can grow and
      `.vf-empty-scroll` scrolls, rather than the card clipping. */
   min-height: 100%;
@@ -5383,9 +5436,13 @@ body.vf-bar-dragging .vf-timeline-bar {
   gap: 10px;
 
   /* Testing */
+
   /* background-color: var(--background-primary); */
+
   /* background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' opacity='0.04'%3E%3C!-- Kanban Icon --%3E%3Crect x='10' y='10' width='30' height='40' rx='4' transform='rotate(15 25 30)'/%3E%3Cpath d='M20 20v20' transform='rotate(15 25 30)'/%3E%3C!-- Bar Chart Icon --%3E%3Cpath d='M75 40v15M85 30v25M95 20v35' transform='rotate(-20 85 35)'/%3E%3C!-- Folder Icon --%3E%3Cpath d='M20 85h35l5-5h20v25H20z' transform='rotate(10 45 95)'/%3E%3C/g%3E%3C/svg%3E"); */
+
   /* background-repeat: repeat; */
+
   /* background-size: 120px 120px; */
 }
 
@@ -5400,12 +5457,19 @@ body.vf-bar-dragging .vf-timeline-bar {
 }
 
 /* .vf-app-background { */
+
 /*   width: 100%; */
+
 /*   height: 100%; */
+
 /*   background-color: var(--background-primary); */
+
 /*   background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='360' height='360' viewBox='0 0 360 360'><g fill='none' stroke='%23888888' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round' opacity='0.15'><g transform='translate(64.7,68.0) rotate(-1.6) scale(0.460) translate(-50,-50)'><path d='M50 15a35 35 0 1 1 -24.7 59.7L50 50z'/><path d='M50 50L50 15'/></g><g transform='translate(176.9,64.5) rotate(30.2) scale(0.460) translate(-50,-50)'><path d='M10 25h30l8 10h42v45H10z'/></g><g transform='translate(291.3,59.0) rotate(-12.3) scale(0.460) translate(-50,-50)'><path d='M35 25h50M35 50h50M35 75h35'/><circle cx='18' cy='25' r='4'/><circle cx='18' cy='50' r='4'/><circle cx='18' cy='75' r='4'/></g><g transform='translate(54.7,174.8) rotate(-21.9) scale(0.460) translate(-50,-50)'><path d='M50 15a35 35 0 1 1 -24.7 59.7L50 50z'/><path d='M50 50L50 15'/></g><g transform='translate(175.7,176.3) rotate(12.5) scale(0.460) translate(-50,-50)'><rect x='12' y='20' width='76' height='68' rx='6'/><path d='M12 42h76M32 12v18M68 12v18'/></g><g transform='translate(307.4,182.2) rotate(5.7) scale(0.460) translate(-50,-50)'><rect x='15' y='15' width='70' height='70' rx='10'/><path d='M32 52l14 14 24-30'/></g><g transform='translate(52.7,292.9) rotate(12.3) scale(0.460) translate(-50,-50)'><rect x='12' y='20' width='76' height='68' rx='6'/><path d='M12 42h76M32 12v18M68 12v18'/></g><g transform='translate(184.0,298.2) rotate(11.5) scale(0.460) translate(-50,-50)'><path d='M35 25h50M35 50h50M35 75h35'/><circle cx='18' cy='25' r='4'/><circle cx='18' cy='50' r='4'/><circle cx='18' cy='75' r='4'/></g><g transform='translate(293.1,291.5) rotate(29.1) scale(0.460) translate(-50,-50)'><path d='M10 25h30l8 10h42v45H10z'/></g></g></svg>"); */
+
 /*   background-repeat: repeat; */
+
 /*   background-size: 360px 360px; */
+
 /* } */
 
 .vf-app-background {
@@ -5424,6 +5488,7 @@ body.vf-bar-dragging .vf-timeline-bar {
   margin-bottom: 8px;
   background: var(--background-modifier-hover);
   color: var(--text-accent);
+
   /* width / height / border-radius supplied inline by <EmptyStateIcon> */
 }
 
@@ -5532,8 +5597,11 @@ body.vf-bar-dragging .vf-timeline-bar {
    already fixed on `.vf-browse-card-body`. */
 .vf-link-button {
   padding: 6px 8px;
+
   /* border: none !important; */
+
   /* box-shadow: none !important; */
+
   /* background: transparent !important; */
   color: var(--text-accent);
   cursor: pointer;

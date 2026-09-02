@@ -163,7 +163,7 @@ function parseArchived(record: Record<string, unknown>): ViewFilters["archived"]
 
 export function parseFilters(raw: unknown): ViewFilters {
 	const record = asRecord(raw);
-	return compact({
+	return compactFilters({
 		status: listFilter(record.status),
 		priority: listFilter(record.priority),
 		taskType: listFilter(record.taskType),
@@ -174,12 +174,23 @@ export function parseFilters(raw: unknown): ViewFilters {
 		parent: linkFilter(record.parent),
 		text: asString(record.text) ?? undefined,
 		archived: parseArchived(record),
-	}) as ViewFilters;
+	});
 }
 
 export interface ViewParseOptions {
 	/** Vault path of the note. Its basename is the id fallback when frontmatter omits one. */
 	path: string;
+}
+
+/** Like `compact`, but drops null/undefined/empty-array members of a `ViewFilters` shape. */
+export function compactFilters(filters: ViewFilters): ViewFilters {
+	const out: ViewFilters = {};
+	for (const [key, value] of Object.entries(filters)) {
+		if (value == null) continue;
+		if (Array.isArray(value) && value.length === 0) continue;
+		(out as Record<string, unknown>)[key] = value;
+	}
+	return out;
 }
 
 /** The definitional half of a view — everything but the `type`/`path` discriminants. */

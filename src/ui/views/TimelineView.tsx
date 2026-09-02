@@ -46,7 +46,6 @@ import {
 import type {
   SavedView,
   Task,
-  TaskField,
   ViewTimelineState,
   WorkspaceSnapshot,
 } from "../../core/types";
@@ -323,9 +322,7 @@ export function TimelineView({
       .forEach((el) => {
         widest = Math.max(widest, el.scrollWidth);
       });
-    const region = inner.closest(
-      ".vf-timeline-chart-region",
-    ) as HTMLElement | null;
+    const region = inner.closest(".vf-timeline-chart-region");
     const cap = region
       ? region.clientWidth - CHART_MIN_WIDTH
       : LEFT_DEFAULT_WIDTH;
@@ -339,9 +336,7 @@ export function TimelineView({
   const fitLower = useCallback(() => {
     const body = lowerBodyRef.current;
     if (!body) return;
-    const region = lowerRef.current?.closest(
-      ".vf-timeline-body",
-    ) as HTMLElement | null;
+    const region = lowerRef.current?.closest(".vf-timeline-body");
     const cap = region
       ? region.clientHeight - CHART_MIN_HEIGHT
       : LOWER_DEFAULT_HEIGHT;

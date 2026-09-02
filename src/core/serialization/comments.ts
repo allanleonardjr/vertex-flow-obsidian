@@ -143,7 +143,7 @@ export function nextCommentId(comments: Comment[]): string {
 // @mentions
 // ---------------------------------------------------------------------------
 
-const MENTION_RE = /(^|[\s(\[])@([A-Za-z0-9_.-]+)/g;
+const MENTION_RE = /(^|[\s([])@([A-Za-z0-9_.-]+)/g;
 
 /** Every `@handle` in a piece of text, lowercased, de-duplicated. */
 export function extractMentionHandles(text: string): string[] {

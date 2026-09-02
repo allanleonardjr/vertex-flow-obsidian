@@ -21,7 +21,7 @@ import type {
 	ViewFilters,
 	ViewType,
 } from "../types";
-import { canonicalizeDefinition, type ArrayFilterKey } from "../views/filter";
+import { canonicalizeDefinition } from "../views/filter";
 import { DEFAULT_DEFINITION } from "../views/defaults";
 import type { QueryContext } from "./context";
 import {
@@ -293,7 +293,7 @@ export function parseQuery(
 
 		noteDuplicate(filterKey, token.span);
 
-		const key = filterKey as ArrayFilterKey;
+		const key = filterKey;
 		const spec = FILTER_FIELDS[key];
 		const collected = filters[key] ?? [];
 		for (const value of token.values) {

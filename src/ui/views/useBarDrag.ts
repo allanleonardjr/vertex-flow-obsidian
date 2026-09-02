@@ -29,7 +29,6 @@ import {
 	resizeStart,
 	shiftBar,
 	type Bar,
-	type RangeBar,
 } from "../../core/views/timeline";
 import { LONG_PRESS_MS, liftVerdict } from "./pointerGesture";
 
@@ -71,8 +70,8 @@ function project(bar: Bar, zone: BarDragZone, deltaDays: number): Bar {
 	// there); guard anyway so a stray call can't throw.
 	if (bar.kind !== "range") return bar;
 	return zone === "start"
-		? resizeStart(bar as RangeBar, deltaDays)
-		: resizeEnd(bar as RangeBar, deltaDays);
+		? resizeStart(bar, deltaDays)
+		: resizeEnd(bar, deltaDays);
 }
 
 export function useBarDrag({

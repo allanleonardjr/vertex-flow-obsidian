@@ -14,7 +14,6 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import {
 	CHART_META,
-	autoTitle,
 	defaultFieldMapping,
 	retargetFieldMapping,
 } from "../../core/dashboards";
@@ -159,7 +158,7 @@ export function WidgetConfigDialog({
 										groupBy:
 											value === "__none"
 												? null
-												: (value as DashboardGroupingField),
+												: value,
 									})
 								}
 							/>
@@ -228,7 +227,7 @@ function KpiFields({
 						onChange({ ...mapping, scope: null });
 						return;
 					}
-					const field = value as DashboardGroupingField;
+					const field = value;
 					const first = scopeValueOptions(field, snapshot, context)[0];
 					onChange({
 						...mapping,

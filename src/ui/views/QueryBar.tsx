@@ -32,6 +32,7 @@ import {
 	viewDefinition,
 } from "../../core/views";
 import type { SavedView, WorkspaceSnapshot } from "../../core/types";
+import { resetAutoGrow } from "../components/autoGrow";
 
 const COMMIT_DELAY_MS = 200;
 const MAX_COMMITS_PER_BURST = 5;
@@ -108,7 +109,7 @@ export function QueryBar({
 		cancelCommit();
 		lastAgreed.current = canonicalizeDefinition(incoming);
 		setText(desired);
-		// eslint-disable-next-line react-hooks/exhaustive-deps
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- adopt effect derives from the view, not from deps
 	}, [view, qctx]);
 
 	/* -- commit: text → view (debounced; Enter and blur flush) -------------- */
@@ -123,7 +124,7 @@ export function QueryBar({
 			commit(parsed.definition);
 		}, COMMIT_DELAY_MS);
 		return cancelCommit;
-		// eslint-disable-next-line react-hooks/exhaustive-deps
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- commit effect keys off the parse result; parse() is the pipeline
 	}, [parsed, composing]);
 
 	useEffect(() => () => cancelCommit(), []);
@@ -135,7 +136,7 @@ export function QueryBar({
 	useEffect(() => {
 		const el = inputRef.current;
 		if (!el) return;
-		el.style.height = "auto";
+		resetAutoGrow(el);
 		el.style.height = `${el.scrollHeight}px`;
 	}, [text]);
 
@@ -146,7 +147,7 @@ export function QueryBar({
 		const observer = new ResizeObserver(() => {
 			if (el.clientWidth === lastWidth) return; // skip our own height writes
 			lastWidth = el.clientWidth;
-			el.style.height = "auto";
+			resetAutoGrow(el);
 			el.style.height = `${el.scrollHeight}px`;
 		});
 		observer.observe(el);
@@ -186,7 +187,7 @@ export function QueryBar({
 			<textarea
 				ref={inputRef}
 				rows={1}
-				className="vf-input vf-query-input"
+				className="vf-input vf-query-input vf-auto-grow"
 				spellCheck={false}
 				autoCapitalize="off"
 				autoCorrect="off"

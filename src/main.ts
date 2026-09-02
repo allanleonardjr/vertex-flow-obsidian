@@ -64,8 +64,10 @@ export default class VertexFlowPlugin extends Plugin {
 
 		// Always opens a fresh instance — each click adds another Vertex Flow
 		// pane (its own per-pane active workspace) rather than revealing an
-		// existing one. Use the "Open Vertex Flow" command to jump back to an
-		// open pane instead.
+		// existing one. Use the "Open" command to jump back to an open pane
+		// instead. The ribbon icon is a Vertex Flow shell affordance,
+		// not an Obsidian searchable command, so it keeps the plugin name in
+		// the tooltip.
 		this.addRibbonIcon("kanban-square", "Open Vertex Flow in new tab", () => {
 			void this.activateView(true);
 		});
@@ -89,16 +91,16 @@ export default class VertexFlowPlugin extends Plugin {
 	private registerCommands(): void {
 		this.addCommand({
 			id: "open-view",
-			name: "Open Vertex Flow",
+			name: "Open",
 			callback: () => void this.activateView(),
 		});
 
 		// A second, independent instance — its own tab, its own per-pane active
-		// workspace. Unlike "Open Vertex Flow" this never reveals an existing
-		// pane; it always adds a new one.
+		// workspace. Unlike "Open" this never reveals an existing pane; it
+		// always adds a new one.
 		this.addCommand({
 			id: "open-view-new-tab",
-			name: "Open Vertex Flow in new tab",
+			name: "Open in new tab",
 			callback: () => void this.activateView(true),
 		});
 
@@ -243,7 +245,13 @@ export default class VertexFlowPlugin extends Plugin {
 	}
 
 	async loadSettings(): Promise<void> {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		const data: unknown = await this.loadData();
+		const merged = Object.assign(
+			{},
+			DEFAULT_SETTINGS,
+			(data ?? {}) as Partial<VertexFlowSettings>,
+		);
+		this.settings = merged;
 	}
 
 	async saveSettings(): Promise<void> {

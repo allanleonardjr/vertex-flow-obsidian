@@ -11,6 +11,7 @@ import { Component, MarkdownRenderer } from "obsidian";
 import { useEffect, useRef, useState } from "react";
 import { usePlugin } from "../context";
 import { createEmbeddedEditor, type EmbeddedEditorHandle } from "./embedded-editor";
+import { resetAutoGrow } from "./autoGrow";
 import { useLinkAutocomplete } from "./useLinkAutocomplete";
 
 /**
@@ -207,7 +208,7 @@ function FallbackEditor({
 	useEffect(() => {
 		const el = textareaRef.current;
 		if (!el) return;
-		el.style.height = "auto";
+		resetAutoGrow(el);
 		el.style.height = `${el.scrollHeight}px`;
 	}, [value]);
 
@@ -219,7 +220,7 @@ function FallbackEditor({
 		<>
 			<textarea
 				ref={textareaRef}
-				className="vf-markdown-edit"
+				className="vf-markdown-edit vf-auto-grow"
 				value={value}
 				placeholder={placeholder}
 				onChange={(event) => {

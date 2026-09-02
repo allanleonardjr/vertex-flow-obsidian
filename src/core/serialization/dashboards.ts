@@ -16,10 +16,7 @@ import {
 	type DashboardConfig,
 	type DashboardFieldMapping,
 	type DashboardGroupingField,
-	type DashboardMetric,
 	type DashboardScope,
-	type DashboardTemporalField,
-	type DashboardTimeBucket,
 	type DashboardWidget,
 	type DashboardWidgetLayout,
 	DASHBOARD_GROUPING_FIELDS,
@@ -38,9 +35,8 @@ import {
 	compact,
 	type ParseResult,
 } from "./coerce";
-import { parseFilters } from "./views";
+import { parseFilters, compactFilters } from "./views";
 import { basename } from "../links";
-import type { ViewFilters } from "../types";
 
 function pickEnum<T extends string>(
 	raw: unknown,
@@ -108,19 +104,19 @@ function parseFieldMapping(
 				xField: pickEnum(
 					record.xField,
 					DASHBOARD_TEMPORAL_FIELDS,
-					"createdAt" as DashboardTemporalField,
+					"createdAt",
 					log,
 					"xField",
 				),
 				bucket: pickEnum(
 					record.bucket,
 					DASHBOARD_TIME_BUCKETS,
-					"week" as DashboardTimeBucket,
+					"week",
 					log,
 					"time bucket",
 				),
 				groupBy: isGrouping(groupByRaw)
-					? (groupByRaw as DashboardGroupingField)
+					? groupByRaw
 					: null,
 			};
 			break;
@@ -131,7 +127,7 @@ function parseFieldMapping(
 				metric: pickEnum(
 					record.metric,
 					DASHBOARD_METRICS,
-					"count" as DashboardMetric,
+					"count",
 					log,
 					"metric",
 				),
@@ -339,7 +335,7 @@ export function serializeDashboard(
 		id: dashboard.id,
 		name: dashboard.name,
 		icon: dashboard.icon,
-		filters: compact(dashboard.filters as Record<string, unknown>) as ViewFilters,
+		filters: compactFilters(dashboard.filters),
 		widgets: dashboard.widgets.map(serializeWidget),
 	});
 }

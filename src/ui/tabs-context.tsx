@@ -464,56 +464,62 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 	);
 
 	const openTask = useCallback(
-		async (path: string) => {
-			const id = taskTabId(path);
-			if (!(await mayLeaveActive("navigate", id))) return;
+		(path: string) => {
+			void (async () => {
+				const id = taskTabId(path);
+				if (!(await mayLeaveActive("navigate", id))) return;
 
-			// A task can belong to a workspace other than whichever one this pane
-			// is currently showing — e.g. following a `[[wikilink]]` from another
-			// workspace's task, or a cross-workspace relation. Without switching
-			// first, the panel would look the task up in the wrong snapshot and
-			// find nothing. The switch is per-pane (in-memory), so the other
-			// split panes are unaffected.
-			const owner = plugin.index.workspaceFor(path);
-			if (owner && owner.workspace.root !== activeWorkspaceRoot) {
-				setActiveWorkspace(owner.workspace.root);
-			}
+				// A task can belong to a workspace other than whichever one this pane
+				// is currently showing — e.g. following a `[[wikilink]]` from another
+				// workspace's task, or a cross-workspace relation. Without switching
+				// first, the panel would look the task up in the wrong snapshot and
+				// find nothing. The switch is per-pane (in-memory), so the other
+				// split panes are unaffected.
+				const owner = plugin.index.workspaceFor(path);
+				if (owner && owner.workspace.root !== activeWorkspaceRoot) {
+					setActiveWorkspace(owner.workspace.root);
+				}
 
-			setTabs((current) =>
-				current.some((tab) => tab.id === id)
-					? current
-					: [...current, { id, kind: "task", path }],
-			);
-			setActiveId(id);
+				setTabs((current) =>
+					current.some((tab) => tab.id === id)
+						? current
+						: [...current, { id, kind: "task", path }],
+				);
+				setActiveId(id);
+			})();
 		},
 		[plugin, activeWorkspaceRoot, setActiveWorkspace, mayLeaveActive],
 	);
 
 	const openScreen = useCallback(
-		async (kind: BrowseKind) => {
-			if (!(await mayLeaveActive("navigate", kind))) return;
-			setTabs((current) =>
-				current.some((tab) => tab.id === kind)
-					? current
-					: [...current, { id: kind, kind }],
-			);
-			setActiveId(kind);
+		(kind: BrowseKind) => {
+			void (async () => {
+				if (!(await mayLeaveActive("navigate", kind))) return;
+				setTabs((current) =>
+					current.some((tab) => tab.id === kind)
+						? current
+						: [...current, { id: kind, kind }],
+				);
+				setActiveId(kind);
+			})();
 		},
 		[mayLeaveActive],
 	);
 
 	const openHelp = useCallback(
-		async (topicId: string, anchor?: string) => {
-			if (!(await mayLeaveActive("navigate", "help"))) return;
-			// Stash the intent before opening, so `setActiveId("help")` below
-			// triggers HelpView (which reads this once and clears it).
-			setPendingHelpTarget({ topicId, ...(anchor ? { anchor } : {}) });
-			setTabs((current) =>
-				current.some((tab) => tab.id === "help")
-					? current
-					: [...current, { id: "help", kind: "help" }],
-			);
-			setActiveId("help");
+		(topicId: string, anchor?: string) => {
+			void (async () => {
+				if (!(await mayLeaveActive("navigate", "help"))) return;
+				// Stash the intent before opening, so `setActiveId("help")` below
+				// triggers HelpView (which reads this once and clears it).
+				setPendingHelpTarget({ topicId, ...(anchor ? { anchor } : {}) });
+				setTabs((current) =>
+					current.some((tab) => tab.id === "help")
+						? current
+						: [...current, { id: "help", kind: "help" }],
+				);
+				setActiveId("help");
+			})();
 		},
 		[mayLeaveActive],
 	);
@@ -523,114 +529,126 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 	}, []);
 
 	const openView = useCallback(
-		async (viewId: string, explicitRoot?: string) => {
-			const system = isSystemViewId(viewId);
-			// A System View tab is pinned to one workspace: the caller's, or the
-			// active one. A user view carries no root.
-			const root = system
-				? (explicitRoot ?? activeWorkspaceRootRef.current ?? undefined)
-				: undefined;
-			if (system && !root) return; // no workspace to bind to yet
+		(viewId: string, explicitRoot?: string) => {
+			void (async () => {
+				const system = isSystemViewId(viewId);
+				// A System View tab is pinned to one workspace: the caller's, or the
+				// active one. A user view carries no root.
+				const root = system
+					? (explicitRoot ?? activeWorkspaceRootRef.current ?? undefined)
+					: undefined;
+				if (system && !root) return; // no workspace to bind to yet
 
-			const id = viewTabId(viewId, root);
-			if (!(await mayLeaveActive("navigate", id))) return;
+				const id = viewTabId(viewId, root);
+				if (!(await mayLeaveActive("navigate", id))) return;
 
-			// Opening another workspace's System View switches the active
-			// workspace to match — same move `activate` / `openTask` make so the
-			// content pane resolves against the right snapshot.
-			if (root && root !== activeWorkspaceRootRef.current) {
-				setActiveWorkspace(root);
-			}
+				// Opening another workspace's System View switches the active
+				// workspace to match — same move `activate` / `openTask` make so the
+				// content pane resolves against the right snapshot.
+				if (root && root !== activeWorkspaceRootRef.current) {
+					setActiveWorkspace(root);
+				}
 
-			setTabs((current) =>
-				current.some((tab) => tab.id === id)
-					? current
-					: [
-							...current,
-							root
-								? { id, kind: "view", viewId, root }
-								: { id, kind: "view", viewId },
-						],
-			);
-			setActiveId(id);
+				setTabs((current) =>
+					current.some((tab) => tab.id === id)
+						? current
+						: [
+								...current,
+								root
+									? { id, kind: "view", viewId, root }
+									: { id, kind: "view", viewId },
+							],
+				);
+				setActiveId(id);
+			})();
 		},
 		[mayLeaveActive, setActiveWorkspace],
 	);
 
 	const openLabel = useCallback(
-		async (labelId: string) => {
-			const id = labelTabId(labelId);
-			if (!(await mayLeaveActive("navigate", id))) return;
-			setTabs((current) =>
-				current.some((tab) => tab.id === id)
-					? current
-					: [...current, { id, kind: "label", labelId }],
-			);
-			setActiveId(id);
+		(labelId: string) => {
+			void (async () => {
+				const id = labelTabId(labelId);
+				if (!(await mayLeaveActive("navigate", id))) return;
+				setTabs((current) =>
+					current.some((tab) => tab.id === id)
+						? current
+						: [...current, { id, kind: "label", labelId }],
+				);
+				setActiveId(id);
+			})();
 		},
 		[mayLeaveActive],
 	);
 
 	const openPerson = useCallback(
-		async (personId: string) => {
-			const id = personTabId(personId);
-			if (!(await mayLeaveActive("navigate", id))) return;
-			setTabs((current) =>
-				current.some((tab) => tab.id === id)
-					? current
-					: [...current, { id, kind: "person", personId }],
-			);
-			setActiveId(id);
+		(personId: string) => {
+			void (async () => {
+				const id = personTabId(personId);
+				if (!(await mayLeaveActive("navigate", id))) return;
+				setTabs((current) =>
+					current.some((tab) => tab.id === id)
+						? current
+						: [...current, { id, kind: "person", personId }],
+				);
+				setActiveId(id);
+			})();
 		},
 		[mayLeaveActive],
 	);
 
 	const openProject = useCallback(
-		async (path: string) => {
-			// No cross-workspace switch (unlike `openTask`): a project is only ever
-			// opened from its own workspace's sidebar or browse screen.
-			const id = projectTabId(path);
-			if (!(await mayLeaveActive("navigate", id))) return;
-			setTabs((current) =>
-				current.some((tab) => tab.id === id)
-					? current
-					: [...current, { id, kind: "project", path }],
-			);
-			setActiveId(id);
+		(path: string) => {
+			void (async () => {
+				// No cross-workspace switch (unlike `openTask`): a project is only ever
+				// opened from its own workspace's sidebar or browse screen.
+				const id = projectTabId(path);
+				if (!(await mayLeaveActive("navigate", id))) return;
+				setTabs((current) =>
+					current.some((tab) => tab.id === id)
+						? current
+						: [...current, { id, kind: "project", path }],
+				);
+				setActiveId(id);
+			})();
 		},
 		[mayLeaveActive],
 	);
 
 	const openDashboard = useCallback(
-		async (dashboardId: string) => {
-			const id = dashboardTabId(dashboardId);
-			if (!(await mayLeaveActive("navigate", id))) return;
-			setTabs((current) =>
-				current.some((tab) => tab.id === id)
-					? current
-					: [...current, { id, kind: "dashboard", dashboardId }],
-			);
-			setActiveId(id);
+		(dashboardId: string) => {
+			void (async () => {
+				const id = dashboardTabId(dashboardId);
+				if (!(await mayLeaveActive("navigate", id))) return;
+				setTabs((current) =>
+					current.some((tab) => tab.id === id)
+						? current
+						: [...current, { id, kind: "dashboard", dashboardId }],
+				);
+				setActiveId(id);
+			})();
 		},
 		[mayLeaveActive],
 	);
 
 	const activate = useCallback(
-		async (id: string) => {
-			if (!(await mayLeaveActive("navigate", id))) return;
-			// A View/Dashboard/Label/Project tab can belong to a workspace other
-			// than the one on screen (it survived a workspace switch). Its
-			// content pane resolves against the active snapshot, so switch the
-			// workspace to match before showing it — same move `openTask` makes
-			// for a cross-workspace link.
-			const tab = tabsRef.current.find((t) => t.id === id);
-			if (tab) {
-				const owner = tabWorkspaceRoot(plugin, tab);
-				if (owner && owner !== activeWorkspaceRootRef.current) {
-					setActiveWorkspace(owner);
+		(id: string) => {
+			void (async () => {
+				if (!(await mayLeaveActive("navigate", id))) return;
+				// A View/Dashboard/Label/Project tab can belong to a workspace other
+				// than the one on screen (it survived a workspace switch). Its
+				// content pane resolves against the active snapshot, so switch the
+				// workspace to match before showing it — same move `openTask` makes
+				// for a cross-workspace link.
+				const tab = tabsRef.current.find((t) => t.id === id);
+				if (tab) {
+					const owner = tabWorkspaceRoot(plugin, tab);
+					if (owner && owner !== activeWorkspaceRootRef.current) {
+						setActiveWorkspace(owner);
+					}
 				}
-			}
-			setActiveId(id);
+				setActiveId(id);
+			})();
 		},
 		[mayLeaveActive, plugin, setActiveWorkspace],
 	);
@@ -642,26 +660,28 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 	}, []);
 
 	const close = useCallback(
-		async (id: string) => {
-			// The guard only fires for a close of the *active* tab (see
-			// `shouldPromptUnsavedGuard`) — a background tab holds no live draft.
-			if (!(await mayLeaveActive("close", id))) return;
+		(id: string) => {
+			void (async () => {
+				// The guard only fires for a close of the *active* tab (see
+				// `shouldPromptUnsavedGuard`) — a background tab holds no live draft.
+				if (!(await mayLeaveActive("close", id))) return;
 
-			setTabs((current) => {
-				const index = current.findIndex((tab) => tab.id === id);
-				if (index === -1) return current;
-				const next = current.filter((tab) => tab.id !== id);
+				setTabs((current) => {
+					const index = current.findIndex((tab) => tab.id === id);
+					if (index === -1) return current;
+					const next = current.filter((tab) => tab.id !== id);
 
-				setActiveId((active) => {
-					if (active !== id) return active;
-					// Prefer the neighbour to the right, like a browser. Closing the
-					// last tab leaves nothing active — the empty-tabs pane renders.
-					if (next.length === 0) return null;
-					return next[Math.min(index, next.length - 1)].id;
+					setActiveId((active) => {
+						if (active !== id) return active;
+						// Prefer the neighbour to the right, like a browser. Closing the
+						// last tab leaves nothing active — the empty-tabs pane renders.
+						if (next.length === 0) return null;
+						return next[Math.min(index, next.length - 1)].id;
+					});
+
+					return next;
 				});
-
-				return next;
-			});
+			})();
 		},
 		[mayLeaveActive],
 	);

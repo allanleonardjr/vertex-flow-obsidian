@@ -14,7 +14,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
   Legend,
   Line,
   LineChart,
@@ -22,10 +21,14 @@ import {
   AreaChart,
   Pie,
   PieChart,
+  Rectangle,
   ResponsiveContainer,
+  Sector,
   Tooltip,
   XAxis,
   YAxis,
+  type BarShapeProps,
+  type PieSectorShapeProps,
 } from "recharts";
 import type { DashboardWidget } from "../../../core/types";
 import type { WidgetData } from "../../../core/dashboards";
@@ -136,16 +139,22 @@ function BarBody({
           itemStyle={tooltipTextStyle}
           labelStyle={tooltipTextStyle}
         />
-        <Bar dataKey="value" radius={[3, 3, 0, 0]} isAnimationActive={false}>
-          {data.data.map((d) => (
-            <Cell
-              key={d.key}
-              fill={d.color}
-              cursor="pointer"
-              onClick={() => onSegmentClick?.({ key: d.key, label: d.label })}
-            />
-          ))}
-        </Bar>
+        <Bar
+          dataKey="value"
+          radius={[3, 3, 0, 0]}
+          isAnimationActive={false}
+          shape={(props: BarShapeProps) => {
+            const d = data.data[props.index];
+            return (
+              <Rectangle
+                {...props}
+                fill={d?.color}
+                cursor="pointer"
+                onClick={() => d && onSegmentClick?.({ key: d.key, label: d.label })}
+              />
+            );
+          }}
+        />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -179,16 +188,18 @@ function PieBody({
           outerRadius="80%"
           paddingAngle={1}
           isAnimationActive={false}
-        >
-          {data.data.map((d) => (
-            <Cell
-              key={d.key}
-              fill={d.color}
-              cursor="pointer"
-              onClick={() => onSegmentClick?.({ key: d.key, label: d.label })}
-            />
-          ))}
-        </Pie>
+          shape={(props: PieSectorShapeProps) => {
+            const d = data.data[props.index];
+            return (
+              <Sector
+                {...props}
+                fill={d?.color}
+                cursor="pointer"
+                onClick={() => d && onSegmentClick?.({ key: d.key, label: d.label })}
+              />
+            );
+          }}
+        ></Pie>
       </PieChart>
     </ResponsiveContainer>
   );

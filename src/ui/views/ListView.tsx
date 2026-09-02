@@ -145,8 +145,8 @@ export function ListView({
             onColumnsChange(toggleColumnCollapsed(view, groupKey).columns),
   };
 
-  const groups: TaskListGroup[] = nested
-    ? nestedGroups!.filter((group) => !group.hidden)
+  const groups: TaskListGroup[] = nestedGroups
+    ? nestedGroups.filter((group) => !group.hidden)
     : evaluated.groups.filter((group) => !group.hidden);
 
   const rowAction = (task: Task) => (

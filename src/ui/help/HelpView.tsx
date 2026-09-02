@@ -100,7 +100,7 @@ export function HelpView() {
 		if (topic.children?.length) {
 			setExpanded((current) => new Set(current).add(topic.id));
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- mount-time effect; runs only when the deep-link target appears
 	}, [pendingHelpTarget]);
 
 	// After the selected topic's markdown has rendered, scroll the pending
@@ -129,7 +129,7 @@ export function HelpView() {
 		});
 		observer.observe(container, { childList: true, subtree: true });
 		return () => observer.disconnect();
-		// eslint-disable-next-line react-hooks/exhaustive-deps
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- anchors scroll via MutationObserver once consumed
 	}, [pendingAnchor, selectedId]);
 
 	const width = clamp(plugin.settings.helpSidebarWidth, MIN_WIDTH, MAX_WIDTH);

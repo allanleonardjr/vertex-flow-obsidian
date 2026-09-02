@@ -117,7 +117,7 @@ export function useLinkAutocomplete(
 			// pair we just appended, or the pre-existing one left in `after` — so
 			// the cursor lands the same distance past it either way.
 			const cursor = before.length + 2 + suggestion.insert.length + 2;
-			requestAnimationFrame(() => {
+			window.requestAnimationFrame(() => {
 				textarea.focus();
 				textarea.setSelectionRange(cursor, cursor);
 			});
@@ -199,7 +199,10 @@ function buildCandidates(
 ): Candidate[] {
 	return files.map((file) => {
 		const cache = plugin.app.metadataCache.getFileCache(file);
-		const aliases = cache?.frontmatter?.aliases;
+		// `frontmatter` is `Record<string, any>` in Obsidian's typings; treat
+		// the aliases value as `unknown` and narrow before mapping.
+		const frontmatter = cache?.frontmatter;
+		const aliases: unknown = frontmatter?.aliases;
 		return {
 			path: file.path.replace(/\.md$/i, ""),
 			basename: file.basename,

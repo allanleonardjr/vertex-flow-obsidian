@@ -45,7 +45,7 @@ export function buildNestedRows(
 
 	const parentOf = (task: Task): Task | null => {
 		if (!task.parent) return null;
-		const link = task.parent as LinkTarget;
+		const link = task.parent;
 		return (
 			byPath.get(link) ??
 			scope.tasks.find((candidate) => linksMatch(candidate.path, link)) ??

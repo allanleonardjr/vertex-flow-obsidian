@@ -518,10 +518,10 @@ export class Mutations {
           continue;
         }
 
-        const current = task[kind] as string | null;
+        const current = task[kind];
         const next = reassignValue(current, plan.valueId, to);
         if (next !== current) {
-          await this.updateTask(task, { [kind]: next } as Partial<Task>);
+          await this.updateTask(task, { [kind]: next });
         }
       }
 

@@ -278,7 +278,7 @@ export function computeWidgetData(
 	for (const { task, date } of dated) {
 		const iso = ymd(bucketStart(date, mapping.bucket));
 		let bucket = perBucket.get(iso);
-		if (!bucket) perBucket.set(iso, (bucket = new Map()));
+		if (!bucket) perBucket.set(iso, (bucket = new Map<string, number>()));
 		for (const key of rowKeys(task)) {
 			bucket.set(key, (bucket.get(key) ?? 0) + 1);
 		}

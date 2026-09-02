@@ -33,7 +33,7 @@ export class NoteIO {
 	 */
 	readFrontmatter(file: TFile): Record<string, unknown> | null {
 		const cache = this.app.metadataCache.getFileCache(file);
-		return (cache?.frontmatter as Record<string, unknown> | undefined) ?? null;
+		return cache?.frontmatter ?? null;
 	}
 
 	/** Full file contents. */
@@ -148,12 +148,17 @@ export class NoteIO {
 		file: TFile,
 		frontmatter: Record<string, unknown>,
 	): Promise<void> {
-		await this.app.fileManager.processFrontMatter(file, (existing) => {
-			for (const key of Object.keys(existing)) {
-				if (!(key in frontmatter)) delete existing[key];
-			}
-			Object.assign(existing, frontmatter);
-		});
+		// `processFrontMatter` types the callback arg as `any`; annotate it so
+		// the reads/writes below stay typed.
+		await this.app.fileManager.processFrontMatter(
+			file,
+			(existing: Record<string, unknown>) => {
+				for (const key of Object.keys(existing)) {
+					if (!(key in frontmatter)) delete existing[key];
+				}
+				Object.assign(existing, frontmatter);
+			},
+		);
 	}
 
 	/** Replace the body, leaving frontmatter untouched. */
@@ -265,7 +270,9 @@ export function splitNote(content: string): {
 	const match = FRONTMATTER_RE.exec(content);
 	if (!match) return { frontmatter: {}, body: content };
 	try {
-		const parsed = parseYaml(match[1]);
+		// `parseYaml` (Obsidian's yaml re-export) returns `any`; hold it as
+		// `unknown` so the shape check below is what grants the type.
+		const parsed: unknown = parseYaml(match[1]);
 		return {
 			frontmatter:
 				parsed && typeof parsed === "object" && !Array.isArray(parsed)

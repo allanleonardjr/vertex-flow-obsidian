@@ -13,7 +13,6 @@
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -25,7 +24,7 @@ import {
   partitionScheduled,
   seedFromFilters,
 } from "../../core/views";
-import type { NestedRow, ViewContext } from "../../core/views";
+import type { ViewContext } from "../../core/views";
 import { childTasks, primaryParent, scopeOf } from "../../core/hierarchy";
 import { sortTasksByRank } from "../../core/ranking";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
@@ -185,7 +184,7 @@ export function TaskViewport({
         if (saved.focusedPath) selection.focus(saved.focusedPath);
         // Restore scroll position after a paint so the DOM is laid out.
         if (saved.scrollTop != null && containerRef) {
-          requestAnimationFrame(() => {
+          window.requestAnimationFrame(() => {
             containerRef.scrollTop = saved.scrollTop;
           });
         }
@@ -201,7 +200,7 @@ export function TaskViewport({
         scrollTop: containerRef?.scrollTop ?? 0,
       });
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount/unmount-only effect that persists view selection snapshot
   }, []);
   const toggleSubtree = useCallback((path: string) => {
     setCollapsedSubtrees((prev) => {

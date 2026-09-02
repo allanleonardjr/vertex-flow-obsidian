@@ -155,7 +155,7 @@ export function QuickFieldPicker({
 		}
 		if (kind === "priority" || kind === "taskType") {
 			const values = listValues(taxonomies[kind]).map((v) => ({
-				id: v.id as string | null,
+				id: v.id,
 				name: v.name,
 				color: v.color,
 			}));

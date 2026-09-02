@@ -108,9 +108,9 @@ export function TaxonomyChip({
   if (!id) return null;
 
   const taxonomy = taxonomies[kind];
-  // Assuming the array of items is stored on the `.values` property.
-  // If it's different in types.ts (e.g., .options), change it here!
-  const item = (taxonomy as any)?.values?.find((i: any) => i.id === id);
+  // Every `Taxonomy<V>` carries `.values: V[]`, and every `V` extends
+  // `TaxonomyValue` (`id`/`name`/`color`), so the lookup needs no `any`.
+  const item = taxonomy.values.find((value) => value.id === id);
 
   if (!item) return null;
 
@@ -159,9 +159,7 @@ export function StatusDot({
   status?: string | null;
 }) {
   if (!status) return <span className="vf-status-dot" />;
-  const item = (taxonomies.status as any)?.values?.find(
-    (i: any) => i.id === status,
-  );
+  const item = taxonomies.status.values.find((value) => value.id === status);
   const color = item?.color || "var(--vf-muted)";
   return <span className="vf-status-dot" style={{ backgroundColor: color }} />;
 }

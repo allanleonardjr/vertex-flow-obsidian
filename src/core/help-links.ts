@@ -17,7 +17,13 @@ export interface HelpLinkTarget {
 	anchor?: string;
 }
 
-export const HELP_TOPIC: Record<string, HelpLinkTarget> = {
+/**
+ * `as const satisfies Record<...>` keeps the literal key (`savedViewsQuery`)
+ * in the type so `HELP_TOPIC[key]` resolves to a value whose fields are fully
+ * known — a `Record<string, ...>` annotation would widen `keyof` to `string`
+ * and make every lookup look like opaque, `any`-adjacent indexing to lint.
+ */
+export const HELP_TOPIC = {
 	/** The Saved Views topic — hosts the "Query Language" section. */
 	savedViewsQuery: { topicId: "views-saved-views", anchor: "query-language" },
-} as const;
+} as const satisfies Record<string, HelpLinkTarget>;

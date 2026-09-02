@@ -19,7 +19,6 @@ import { NONE, SELF, type ViewDefinition } from "../types";
 import {
 	canonicalizeDefinition,
 	FILTER_ARRAY_FIELDS,
-	type ArrayFilterKey,
 } from "../views/filter";
 import { DEFAULT_DEFINITION } from "../views/defaults";
 import type { QueryContext, QueryEntity } from "./context";
@@ -196,9 +195,9 @@ export function printQuery(
 	const parts: string[] = [];
 
 	for (const key of FILTER_ARRAY_FIELDS) {
-		const values = filters[key as ArrayFilterKey];
+		const values = filters[key];
 		if (!values || values.length === 0) continue;
-		const spec = FILTER_FIELDS[key as ArrayFilterKey];
+		const spec = FILTER_FIELDS[key];
 		const rendered = values.map((value) => printValue(spec, value, context));
 		parts.push(`${spec.token}:${rendered.join(",")}`);
 	}

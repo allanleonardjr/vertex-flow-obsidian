@@ -56,7 +56,6 @@ import {
 } from "../types";
 import {
 	TemplateParseError,
-	type ParsedComment,
 	type ParsedDashboard,
 	type ParsedDate,
 	type ParsedProject,
@@ -95,9 +94,6 @@ export function slugifyPlain(input: string): string {
  * name, then id, then this key means all three spellings land on the same
  * value without the format having to pick a winner.
  */
-function looseKey(input: string): string {
-	return input.toLowerCase().replace(/[^a-z0-9]+/g, "");
-}
 
 /* -------------------------------------------------------------- dates ----- */
 
@@ -224,8 +220,8 @@ function parseStatuses(raw: unknown): StatusValue[] | undefined {
 		return {
 			id: slugifyPlain(name),
 			name,
-			color: color ?? statusCategoryColor(category as StatusCategory),
-			category: category as StatusCategory,
+			color: color ?? statusCategoryColor(category),
+			category,
 			order: index + 1,
 		};
 	});
@@ -424,7 +420,7 @@ function parseViews(raw: unknown): ParsedView[] {
 				["asc", "desc"] as const,
 				"sortDirection",
 				line,
-			) as SortDirection | undefined,
+			),
 			query: optionalString(data, "query"),
 			line,
 		};
@@ -789,7 +785,7 @@ function scanBody(body: string, firstLine: number): BodyResult {
 						at(i),
 					);
 				}
-				section = key as "projects" | "tasks";
+				section = key;
 				taskStack.length = 0;
 				i += 1;
 				continue;
@@ -1023,7 +1019,7 @@ function cardSettings(overrides: TemplateWorkspaceOverrides): TemplateSetting[] 
 /* ------------------------------------------------------------- entry ------ */
 
 export function parseTemplateMarkdown(source: string): ParsedTemplate {
-	const normalized = source.replace(/^﻿/, "");
+	const normalized = source.replace(/^\uFEFF/, "");
 	const match = FRONTMATTER_RE.exec(normalized);
 	if (!match) {
 		fail(
@@ -1034,7 +1030,7 @@ export function parseTemplateMarkdown(source: string): ParsedTemplate {
 
 	let data: Record<string, unknown>;
 	try {
-		const parsed = parseYaml(match[1]);
+		const parsed: unknown = parseYaml(match[1]);
 		if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
 			fail(`Frontmatter must be a YAML map`, 1);
 		}

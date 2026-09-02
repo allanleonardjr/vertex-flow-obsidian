@@ -4,6 +4,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { resetAutoGrow } from "./components/autoGrow";
 import {
   childTasks,
   depthUnder,
@@ -409,7 +410,7 @@ function TitleField({ task }: { task: Task }) {
   const focusRef = useCallback(
     (element: HTMLTextAreaElement | null) => {
       if (!element) return;
-      element.style.height = "auto";
+      resetAutoGrow(element);
       element.style.height = `${element.scrollHeight}px`;
       if (isPlaceholder) {
         element.focus();
@@ -422,14 +423,14 @@ function TitleField({ task }: { task: Task }) {
   return (
     <textarea
       ref={focusRef}
-      className="vf-editor-title"
+      className="vf-editor-title vf-auto-grow"
       value={title}
       rows={1}
       placeholder="Task title"
       onChange={(event) => setTitle(event.target.value)}
       onInput={(event) => {
         const el = event.currentTarget;
-        el.style.height = "auto";
+        resetAutoGrow(el);
         el.style.height = `${el.scrollHeight}px`;
       }}
     />
