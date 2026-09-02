@@ -5,26 +5,62 @@ on:
     tags:
       - "*"
 
+permissions:
+  contents: write
+
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out tagged source
+        uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
         with:
-          node-version: "lts/*"
+          version: 10
 
-      - name: Build
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify tag matches manifest version
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="$(node -p "require('./manifest.json').version")"
+
+          if [ "$TAG" != "$VERSION" ]; then
+            echo "::error::Tag version '$TAG' does not match manifest.json version '$VERSION'."
+            exit 1
+          fi
+
+      - name: Run tests
+        run: pnpm test
+
+      - name: Build plugin
         run: pnpm build
 
-      - name: Upload release artifacts
+      - name: Verify release files
+        shell: bash
+        run: |
+          test -s main.js
+          test -s manifest.json
+          test -s styles.css
+
+      - name: Create GitHub release and upload assets
         uses: softprops/action-gh-release@v2
         with:
+          name: Vertex Flow ${{ github.ref_name }}
+          generate_release_notes: true
           files: |
             main.js
             manifest.json
             styles.css
+          fail_on_unmatched_files: true

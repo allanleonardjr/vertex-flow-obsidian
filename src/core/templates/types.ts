@@ -14,7 +14,6 @@
 import type {
 	Comment,
 	DashboardConfig,
-	Person,
 	Project,
 	SavedView,
 	Task,

@@ -50,7 +50,7 @@ export function getCaretCoordinates(
 	el: HTMLTextAreaElement,
 	position: number,
 ): CaretCoordinates {
-	const div = document.createElement("div");
+	const div = createEl("div");
 	div.id = "vf-caret-mirror";
 	document.body.appendChild(div);
 

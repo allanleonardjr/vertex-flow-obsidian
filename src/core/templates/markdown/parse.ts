@@ -40,7 +40,6 @@ import {
 	type LabelValue,
 	type Person,
 	type PriorityValue,
-	type SortDirection,
 	type SortField,
 	type StatusCategory,
 	type StatusValue,

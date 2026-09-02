@@ -52,8 +52,8 @@ export function withTaxonomy(
 		case "priority":
 			return { ...workspace, priorities: taxonomy.values as PriorityValue[] };
 		case "taskType":
-			return { ...workspace, taskTypes: taxonomy.values as TaskTypeValue[] };
+			return { ...workspace, taskTypes: taxonomy.values };
 		case "label":
-			return { ...workspace, labels: taxonomy.values as LabelValue[] };
+			return { ...workspace, labels: taxonomy.values };
 	}
 }

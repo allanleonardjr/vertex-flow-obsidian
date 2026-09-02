@@ -27,21 +27,62 @@
  *
  * If this ever does break, deleting this file and the `native` branch in
  * `MarkdownField` is a complete, working rollback.
+ *
+ * Every reach into those internals below goes through `unknown` + a narrow cast
+ * at the access point — never `any`. Each access is guarded so a failure
+ * resolves to `null`, and the exported surface (`isNativeEditorAvailable`,
+ * `createEmbeddedEditor`) is fully typed.
  */
-
-// Every unsafe-* warning in this module is an *intentional* access to
-// undocumented Obsidian internals through the `Internal` catch-all type. There
-// is no public API for embedding an editor (see the header above); the `any`
-// is confined here, every access resolves to `null` on failure, and the
-// exported surface (`isNativeEditorAvailable`, `createEmbeddedEditor`) is
-// fully typed.
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-argument */
 
 import { TFile } from "obsidian";
 import type { App } from "obsidian";
 
-/** Internal Obsidian surfaces have no typings; confine the `any` to here. */
-type Internal = Record<string, any>;
+/** The internal editor surface this module touches, via a narrow typed view. */
+interface InternalEmbed {
+	editable?: boolean;
+	showEditor?: () => void;
+	editMode?: unknown;
+	unload?: () => void;
+	editor?: { cm?: unknown };
+	cm?: unknown;
+	get?: () => unknown;
+	set?: (value: string, noHistory: boolean) => void;
+	onUpdate?: (update: unknown, changed: boolean) => void;
+	destroy?: () => void;
+}
+
+/** The internal `app.embedRegistry` surface we probe for the editor class. */
+interface InternalEmbedRegistry {
+	embedByExtension?: {
+		md: (
+			options: { app: App; containerEl: HTMLElement },
+			unused: unknown,
+			value: string,
+		) => InternalEmbed;
+	};
+}
+
+/** The internal editor constructor, called to build one instance. */
+interface InternalEditorCtor {
+	new (app: App, container: HTMLElement, owner: InternalEmbedOwner): InternalEmbed;
+}
+
+/** The owner stub the internal editor expects; `.file` identifies the note. */
+interface InternalEmbedOwner {
+	app?: App;
+	file?: TFile;
+	getMode?: () => "source";
+	onMarkdownScroll?: () => void;
+	showSearch?: () => void;
+	editor?: unknown;
+}
+
+/** The CodeMirror 6 view surface (or its embed wrapper) that owns focus/read. */
+interface CodeMirrorEditor {
+	state?: { doc?: { toString?: () => string } };
+	contentDOM?: HTMLElement;
+	focus?: () => void;
+}
 
 export interface EmbeddedEditorOptions {
 	value: string;
@@ -63,7 +104,7 @@ export interface EmbeddedEditorHandle {
 	destroy: () => void;
 }
 
-let cachedConstructor: Internal | null = null;
+let cachedConstructor: InternalEditorCtor | null = null;
 let probeFailed = false;
 
 /**
@@ -75,31 +116,43 @@ let probeFailed = false;
  * `getPrototypeOf` hops land on that base class. Depending on the build, that
  * lands on either the constructor itself or its prototype, so both are handled.
  */
-function resolveEditorConstructor(app: App): Internal | null {
+function resolveEditorConstructor(app: App): InternalEditorCtor | null {
 	if (cachedConstructor) return cachedConstructor;
 	if (probeFailed) return null;
 
 	try {
-		const registry = (app as unknown as Internal).embedRegistry;
+		const registry = (
+			app as unknown as { embedRegistry?: InternalEmbedRegistry }
+		).embedRegistry;
 		const createEmbed = registry?.embedByExtension?.md;
 		if (typeof createEmbed !== "function") throw new Error("no markdown embed factory");
 
-		const probeEl = document.createElement("div");
-		const probe: Internal = createEmbed({ app, containerEl: probeEl }, null, "");
+		const probeEl = createEl("div");
+		const probe: InternalEmbed = createEmbed(
+			{ app, containerEl: probeEl },
+			null,
+			"",
+		);
 		probe.editable = true;
 		probe.showEditor?.();
 
 		const editMode = probe.editMode;
 		if (!editMode) throw new Error("embed exposed no editMode");
 
-		const base = Object.getPrototypeOf(Object.getPrototypeOf(editMode));
-		const ctor = typeof base === "function" ? base : base?.constructor;
+		const rawBase = Object.getPrototypeOf(
+			Object.getPrototypeOf(editMode) as unknown,
+		) as unknown;
+		const base =
+			typeof rawBase === "function"
+				? rawBase
+				: (rawBase as { constructor?: unknown }).constructor;
 
 		probe.unload?.();
 		probeEl.remove();
 
-		if (typeof ctor !== "function") throw new Error("could not resolve editor constructor");
+		if (typeof base !== "function") throw new Error("could not resolve editor constructor");
 
+		const ctor = base as unknown as InternalEditorCtor;
 		cachedConstructor = ctor;
 		return ctor;
 	} catch (cause) {
@@ -117,13 +170,17 @@ export function isNativeEditorAvailable(app: App): boolean {
 	return resolveEditorConstructor(app) != null;
 }
 
-function readValue(editor: Internal): string {
+function readValue(editor: InternalEmbed): string {
 	try {
-		if (typeof editor.get === "function") return editor.get() ?? "";
+		if (typeof editor.get === "function") {
+			const value = editor.get();
+			return value == null ? "" : (value as string);
+		}
 	} catch {
 		// fall through to reading CodeMirror's document directly
 	}
-	const doc = (editor.editor?.cm ?? editor.cm)?.state?.doc;
+	const cm = (editor.editor?.cm ?? editor.cm) as CodeMirrorEditor | undefined;
+	const doc = cm?.state?.doc;
 	return typeof doc?.toString === "function" ? doc.toString() : "";
 }
 
@@ -144,7 +201,7 @@ export function createEmbeddedEditor(
 		// The owner object the internal editor expects — it calls these back
 		// during scrolling and mode checks. `.file` lets Obsidian identify the
 		// owning note for per-file state (heading-fold decorations, etc.).
-		const owner: Internal = {
+		const owner: InternalEmbedOwner = {
 			app,
 			file: file ?? undefined,
 			getMode: () => "source",
@@ -152,11 +209,7 @@ export function createEmbeddedEditor(
 			showSearch: () => {},
 		};
 
-		const editor: Internal = new (Editor as new (...args: unknown[]) => Internal)(
-			app,
-			container,
-			owner,
-		);
+		const editor: InternalEmbed = new Editor(app, container, owner);
 
 		// Obsidian points `app.workspace.activeEditor` at this `owner` stub while
 		// a field is focused (the same mechanism it uses for Canvas's embedded
@@ -172,9 +225,10 @@ export function createEmbeddedEditor(
 		// Changes arrive through the base class's own update hook; wrap rather
 		// than replace so whatever it does internally still happens — and guard
 		// it so an internal throw can't stop our onChange from firing.
-		const inheritedOnUpdate = typeof editor.onUpdate === "function"
-			? editor.onUpdate.bind(editor)
-			: null;
+		const inheritedOnUpdate =
+			typeof editor.onUpdate === "function"
+				? editor.onUpdate.bind(editor)
+				: null;
 		editor.onUpdate = (update: unknown, changed: boolean) => {
 			try {
 				inheritedOnUpdate?.(update, changed);
@@ -188,17 +242,25 @@ export function createEmbeddedEditor(
 			if (changed) options.onChange(readValue(editor));
 		};
 
-		const contentEl: HTMLElement | undefined = (editor.editor?.cm ?? editor.cm)?.contentDOM;
+		const contentEl = (
+			(editor.editor?.cm ?? editor.cm) as CodeMirrorEditor | undefined
+		)?.contentDOM;
 
 		// Manage `app.workspace.activeEditor` for this field explicitly, the way
 		// Obsidian's own Canvas view does, rather than trusting internal
 		// auto-registration to clean up after itself.
-		const workspace = (app as unknown as Internal).workspace;
+		const workspace = (
+			app as unknown as { workspace?: { activeEditor?: unknown } }
+		).workspace;
 		const claimActiveEditor = () => {
-			if (workspace && workspace.activeEditor !== owner) workspace.activeEditor = owner;
+			if (workspace && workspace.activeEditor !== owner) {
+				workspace.activeEditor = owner;
+			}
 		};
 		const releaseActiveEditor = () => {
-			if (workspace && workspace.activeEditor === owner) workspace.activeEditor = null;
+			if (workspace && workspace.activeEditor === owner) {
+				workspace.activeEditor = null;
+			}
 		};
 
 		const handleBlur = () => {
@@ -213,7 +275,11 @@ export function createEmbeddedEditor(
 			setValue: (value) => editor.set?.(value, false),
 			focus: () => {
 				try {
-					(editor.editor?.cm ?? editor.cm)?.focus?.();
+					(
+						(editor.editor?.cm ?? editor.cm) as
+							| CodeMirrorEditor
+							| undefined
+					)?.focus?.();
 				} catch {
 					// A focus failure is cosmetic; never let it break a render.
 				}

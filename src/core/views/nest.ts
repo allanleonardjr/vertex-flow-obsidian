@@ -15,7 +15,7 @@
 import { linksMatch } from "../links";
 import { sortTasksByRank } from "../ranking";
 import type { HierarchyScope } from "../hierarchy/resolve";
-import type { LinkTarget, Task } from "../types";
+import type { Task } from "../types";
 
 export interface NestedRow {
 	task: Task;

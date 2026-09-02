@@ -233,9 +233,7 @@ function parseViewValue(
 			),
 			sortBy: pick(record.sortBy, SORT_FIELDS, "rank", log, "sortBy"),
 			sortDirection:
-				asString(record.sortDirection) === "desc"
-					? ("desc" as SortDirection)
-					: ("asc" as SortDirection),
+				asString(record.sortDirection) === "desc" ? "desc" : "asc",
 			columns: {
 				collapsed: asStringArray(columns.collapsed),
 				hidden: asStringArray(columns.hidden),
