@@ -20,6 +20,7 @@ export function BrowseHeader({
   noun,
   plural,
   count,
+  idPrefix,
   actionLabel,
   onAction,
   children,
@@ -30,6 +31,8 @@ export function BrowseHeader({
   /** Irregular plural, when `noun + "s"` is wrong ("people", not "persons"). */
   plural?: string;
   count: number;
+  /** Workspace ID prefix — e.g. `(WF)`. Shown beside the title for consistency with Saved View headers. */
+  idPrefix?: string;
   /** Omitted — like the Trash hub — the header shows just the title + count. */
   actionLabel?: string;
   onAction?: () => void;
@@ -39,7 +42,12 @@ export function BrowseHeader({
   return (
     <header className="vf-toolbar">
       <div className="vf-toolbar-title">
-        <h2>{title}</h2>
+        <h2>
+          {title}
+          {idPrefix && (
+            <span className="vf-view-title-code">({idPrefix})</span>
+          )}
+        </h2>
         <span className="vf-count">
           {count === 1 ? `1 ${noun}` : `${count} ${plural ?? `${noun}s`}`}
         </span>

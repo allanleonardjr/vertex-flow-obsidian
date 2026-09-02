@@ -117,6 +117,7 @@ export function LabelsBrowseView({ snapshot }: { snapshot: WorkspaceSnapshot }) 
 				title="Labels"
 				noun="label"
 				count={ordered.length}
+				idPrefix={snapshot.workspace.idPrefix}
 				actionLabel="New label"
 				onAction={() => setCreating(true)}
 			>

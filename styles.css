@@ -383,6 +383,7 @@ body.vf-text-comfortable {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
   padding: 10px 14px;
   border-bottom: 1px solid var(--vf-border);
@@ -392,9 +393,15 @@ body.vf-text-comfortable {
   display: flex;
   align-items: baseline;
   gap: 8px;
+  min-width: 0;
 }
 
 .vf-toolbar-title h2 {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
   margin: 0;
   font-size: var(--font-ui-medium);
 }
@@ -2184,6 +2191,7 @@ body.vf-dragging {
 .vf-editor-header {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 10px 14px;
   border-bottom: 1px solid var(--vf-border);
@@ -2942,6 +2950,7 @@ button.vf-crumb:hover {
 .vf-editable-title {
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
   min-width: 0;
 }
@@ -2975,7 +2984,8 @@ button.vf-crumb:hover {
 }
 
 .vf-editable-title-suffix {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-width: 0;
   color: var(--vf-muted);
   font-weight: 400;
   font-size: var(--font-ui-medium);
@@ -3330,6 +3340,7 @@ button.vf-crumb:hover {
 .vf-view-title {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 10px 14px;
 }
@@ -3337,7 +3348,9 @@ button.vf-crumb:hover {
 .vf-view-title h2 {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
+  min-width: 0;
   margin: 0;
   font-size: var(--font-ui-medium);
 }
@@ -3348,8 +3361,11 @@ button.vf-crumb:hover {
 }
 
 .vf-view-title-code {
+  flex: 0 1 auto;
+  min-width: 0;
   color: var(--vf-muted);
   font-weight: 400;
+  white-space: nowrap;
 }
 
 .vf-view-title-spacer {
@@ -4354,6 +4370,7 @@ button.vf-crumb:hover {
 .vf-timeline-toolbar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 4px;
   padding: 5px 10px;
   border-bottom: 1px solid var(--vf-border);
@@ -4826,6 +4843,7 @@ body.vf-bar-dragging .vf-timeline-bar {
 .vf-calendar-toolbar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
   padding: 5px 10px;
   border-bottom: 1px solid var(--vf-border);

@@ -11,6 +11,10 @@ This project uses [Semantic Versioning](https://semver.org/).
 ### Fixed
 - Fixed CSS warnings for `clip-path` and `:has` raised during Obsidian plugin review.
 - Removed leftover Linear-specific references from comments and user-facing text.
+- Made header title rows responsive: View, Dashboard, Project, Task, Labels, and People headers now wrap cleanly on narrow/mobile screens instead of clipping or overflowing the workspace ID.
+
+### Changed
+- Added the workspace ID prefix to the Labels, People, Views, Dashboards, and Projects browse hub headers for consistency with other view headers.
 
 ## 1.0.3 — 2026-09-02
 

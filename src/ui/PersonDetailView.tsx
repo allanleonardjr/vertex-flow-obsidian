@@ -52,7 +52,12 @@ export function PersonDetailView({
 		<div className="vf-browse">
 			<header className="vf-toolbar">
 				<div className="vf-toolbar-title">
-					<h2>{person.name}</h2>
+					<h2>
+						{person.name}
+						<span className="vf-view-title-code">
+							({snapshot.workspace.idPrefix})
+						</span>
+					</h2>
 				</div>
 				<div className="vf-toolbar-actions">
 					<button className="mod-cta" onClick={() => setEditing(true)}>
