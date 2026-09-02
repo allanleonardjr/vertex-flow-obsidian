@@ -140,6 +140,6 @@ The `src/core/` domain layer is pure TypeScript with no Obsidian API imports, wh
 
 ## License
 
-Vertex Flow is licensed under the [GNU Affero General Public License v3.0](./LICENSE) (AGPL-3.0).
+Copyright 2026 JR Leonard.
 
-Contributions are welcome via pull requests. By contributing, you agree that your code may be distributed under the same AGPL-3.0 terms — meaning anyone (including you) who builds on this code and distributes it must make the source available under AGPL too.
+Vertex Flow is licensed under the [Apache License 2.0](./LICENSE).
