@@ -4295,6 +4295,15 @@ button.vf-crumb:hover {
   color: var(--vf-muted);
 }
 
+/* Keep Markdown reference tables aligned with Vertex Flow's left-aligned UI. */
+.vf-help-content table th,
+.vf-help-content table td,
+.vf-shortcuts-dialog-body table th,
+.vf-shortcuts-dialog-body table td {
+  text-align: left;
+  vertical-align: top;
+}
+
 /* ------------------------------------------------------------------ *
  * Timeline / Gantt view (§8.1)                                        *
  * ------------------------------------------------------------------ */
