@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "build:templates": "node scripts/build-templates.mjs",
-    "generate:repomix": "pnpx repomix --style markdown --no-gitignore"
+    "generate:repomix": "pnpx repomix --style markdown --no-gitignore",
+    "preflight:release": "pnpm test && pnpm build && node -e \"const fs=require('node:fs'); const manifest=require('./manifest.json'); if (!/^\\d+\\.\\d+\\.\\d+$/.test(manifest.version)) throw new Error('manifest.json version must be x.y.z'); for (const file of ['main.js','manifest.json','styles.css']) { if (!fs.existsSync(file) || fs.statSync(file).size === 0) throw new Error(file + ' is missing or empty'); } console.log('Release preflight passed for ' + manifest.version);\""
   },
   "keywords": [
     "obsidian",
