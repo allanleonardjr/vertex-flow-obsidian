@@ -2884,11 +2884,11 @@ button.vf-crumb:hover {
 
 /* A browse card with no `onClick` (the Trash hub) — the body isn't a button,
    so drop the interactive affordances but keep the layout identical. */
-.vf-browse-card-body-static {
+.vf-browse-card-static .vf-browse-card-body {
   cursor: default;
 }
 
-.vf-browse-card:has(.vf-browse-card-body-static):hover {
+.vf-browse-card-static:hover {
   border-color: var(--vf-border);
   background: var(--background-primary);
 }
@@ -3872,6 +3872,7 @@ button.vf-crumb:hover {
 .vf-task-menu-grip.is-right {
   right: 0;
   cursor: nwse-resize;
+  -webkit-clip-path: polygon(100% 0, 100% 100%, 0 100%);
   clip-path: polygon(100% 0, 100% 100%, 0 100%);
   background: repeating-linear-gradient(
     -45deg,
@@ -3883,6 +3884,7 @@ button.vf-crumb:hover {
 .vf-task-menu-grip.is-left {
   left: 0;
   cursor: nesw-resize;
+  -webkit-clip-path: polygon(0 0, 100% 100%, 0 100%);
   clip-path: polygon(0 0, 100% 100%, 0 100%);
   background: repeating-linear-gradient(
     45deg,

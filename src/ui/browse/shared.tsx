@@ -111,13 +111,13 @@ export function BrowseCard({
   children: ReactNode;
 }) {
   return (
-    <div className="vf-browse-card">
+    <div className={`vf-browse-card${onClick ? "" : " vf-browse-card-static"}`}>
       {onClick ? (
         <button className="vf-browse-card-body" onClick={onClick}>
           {children}
         </button>
       ) : (
-        <div className="vf-browse-card-body vf-browse-card-body-static">
+        <div className="vf-browse-card-body">
           {children}
         </div>
       )}
