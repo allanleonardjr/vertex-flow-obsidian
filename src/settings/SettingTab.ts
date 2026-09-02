@@ -34,7 +34,7 @@ export class VertexFlowSettingTab extends PluginSettingTab {
 		return [
 			{
 				name: "Interface text size",
-				desc: "Vertex Flow ships at a compact, Linear-style density. Pick a " +
+				desc: "Vertex Flow ships at a compact density. Pick a " +
 					"larger size to scale the whole plugin UI up.",
 				control: {
 					type: "dropdown",

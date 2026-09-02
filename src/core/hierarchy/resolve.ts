@@ -42,7 +42,7 @@ export function childTasks(scope: HierarchyScope, parent: LinkTarget): Task[] {
 /**
  * Every task carrying this project link, at any nesting depth.
  *
- * `parent` and `project` are independent fields (like Linear): a sub-task keeps
+ * `parent` and `project` are independent fields: a sub-task keeps
  * its own `project` — seeded from its parent at creation, then never synced —
  * so this flattened result includes nested sub-tasks. That's what a `project:X`
  * view filter wants (show all the work under a project); for a *rollup* use
@@ -173,7 +173,7 @@ export function isSubtask(task: Task): boolean {
 /**
  * The `project` a newly created task should get.
  *
- * `parent` and `project` are independent (like Linear): a new sub-task defaults
+ * `parent` and `project` are independent: a new sub-task defaults
  * to its parent's project *once*, at creation, and from then on the field is
  * maintained on its own — re-parenting or moving the parent never re-syncs it.
  * An explicit value in the creation input — including an explicit `null` — always

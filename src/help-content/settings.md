@@ -11,8 +11,8 @@ apart.
 
 In Obsidian's own **Settings → Vertex Flow** tab:
 
-- **Interface text size** — the density scale: **Compact** (Linear-style
-  baseline), **Cozy**, or **Comfortable**. Applies across the whole plugin.
+- **Interface text size** — the density scale: **Compact** (the baseline),
+  **Cozy**, or **Comfortable**. Applies across the whole plugin.
 - **Open task notes in Vertex Flow** — when enabled (default), opening a task
   note anywhere in Obsidian — search, a wikilink, the quick switcher —
   redirects into Vertex Flow's own editor instead of the raw note. Use the

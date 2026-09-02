@@ -431,7 +431,7 @@ export function TaskViewport({
       // Selection toggle stays a bare key: `x`. (Archive is `u x`.)
 
       // Hierarchy navigation — ⌘/Ctrl+Shift+↑ to the parent, ↓ to the first
-      // sub-task (Linear's convention).
+      // sub-task.
       {
         key: "ArrowUp",
         mod: true,

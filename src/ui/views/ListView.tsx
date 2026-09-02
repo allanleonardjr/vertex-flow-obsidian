@@ -1,5 +1,5 @@
 /**
- * List view — the Saved View rendered as dense, Linear-style rows.
+ * List view — the Saved View rendered as dense rows.
  *
  * The rows, groups, and sections all come from the shared `TaskList` module,
  * so this file is now only what makes it a *view*: turning an evaluated Saved

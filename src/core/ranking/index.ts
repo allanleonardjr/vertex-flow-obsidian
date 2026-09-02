@@ -49,8 +49,8 @@ export function planReorder(
 }
 
 /**
- * Rank for a brand-new task placed at the top of `siblings` (Linear's default:
- * new work appears where you'll see it, not buried at the bottom).
+ * Rank for a brand-new task placed at the top of `siblings`:
+ * new work appears where you'll see it, not buried at the bottom.
  */
 export function rankForNewTask(siblings: Task[]): string {
 	const ordered = sortTasksByRank(siblings).map((task) => task.rank);

@@ -128,7 +128,7 @@ export class Mutations {
 
     // `parent` and `project` are independent. A sub-task defaults to its
     // parent's project *once*, at creation — from then on it's an ordinary
-    // field that never re-syncs (like Linear). An explicit `project` in the
+    // field that never re-syncs. An explicit `project` in the
     // input (including `null`) always wins over that default.
     const project = newTaskProject(input.project, parentTask);
 
@@ -197,7 +197,7 @@ export class Mutations {
    * The task's parent *task* — its one true nesting position (Golden Rule).
    * Independent of `project`: setting or clearing a parent never touches the
    * task's `project` link, and moving a parent to a different project never
-   * cascades to its existing sub-tasks (like Linear).
+    * cascades to its existing sub-tasks.
    */
   async setParent(task: Task, parent: string | null): Promise<void> {
     await this.updateTask(task, { parent });

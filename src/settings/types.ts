@@ -7,7 +7,7 @@
  */
 
 /**
- * Interface text density. `compact` is the built-in Linear-style baseline;
+ * Interface text density. `compact` is the built-in baseline;
  * the larger tiers scale the plugin's `--font-ui-*` tokens up by a fixed
  * factor (see `--vf-text-scale` in `styles.css`).
  */

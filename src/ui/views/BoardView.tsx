@@ -296,7 +296,7 @@ export function openOrSelect(
 }
 
 /**
- * Linear-style CardContent layout separating ID, Title, Labels, and Meta controls.
+ * CardContent layout separating ID, Title, Labels, and Meta controls.
  */
 function CardContent({
   task,
@@ -330,7 +330,7 @@ function CardContent({
 
   return (
     <>
-      {/* Parent trail — Linear puts the sub-task's parent above everything. */}
+      {/* Parent trail — the sub-task's parent sits above everything. */}
       {parent && (
         <button
           type="button"

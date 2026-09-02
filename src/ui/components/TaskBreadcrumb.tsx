@@ -2,10 +2,9 @@
  * The ancestor trail above the task editor: `Project › … › parent › THIS`.
  *
  * Obsidian's native surfaces show a task's ID, never its title, so walking *up*
- * the hierarchy by name matters more here than it does in Linear — hence the
- * full chain (collapsed in the middle past two levels) rather than Linear's
- * single-hop parent chip. The rail's Parent picker is the *editor*; this is
- * navigation.
+ * the hierarchy by name matters more here — hence the full chain (collapsed in
+ * the middle past two levels) rather than a single-hop parent chip. The rail's
+ * Parent picker is the *editor*; this is navigation.
  *
  * Reads `ancestorTasks` from core (cycle-safe). Renders nothing when the task
  * has neither a parent task nor a project.

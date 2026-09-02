@@ -4,7 +4,7 @@ icon: rocket
 order: 10
 ---
 
-Vertex Flow brings a Linear-style task manager into your vault. Projects and
+Vertex Flow brings a keyboard-first task manager into your vault. Projects and
 Tasks are plain Markdown notes — you can read and edit them like any other
 note, and Vertex Flow keeps its own views in sync automatically.
 

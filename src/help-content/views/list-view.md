@@ -3,7 +3,7 @@ title: List view
 order: 10
 ---
 
-The List view is the dense, Linear-style heart of Vertex Flow: every task as a
+The List view is the dense, high-density heart of Vertex Flow: every task as a
 row, grouped and sorted however you like. It's the most information-dense way
 to see your work.
 
