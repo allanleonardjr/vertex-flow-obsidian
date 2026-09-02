@@ -41,9 +41,10 @@ export function TaskPane({ path }: { path: string }) {
 
 	// The `u` chord for the single-task editor, mirroring TaskViewport's:
 	// a bare `u` arms a one-second chord; the next key resolves it to a field
-	// picker (`u s`/`u p`/`u l`/`u t`/`u a`/`u r`/`u m`/`u e`/`u b`/`u d`),
-	// `u u` re-arms, and anything else cancels. Bound to his tab's task — never
-	// the selection, which the editor doesn't participate in.
+	// picker (`u s`/`u p`/`u l`/`u t`/`u a`/`u r`/`u m`/`u e`/`u b`/`u d`)
+	// or the archive toggle (`u x`), `u u` re-arms, and anything else cancels.
+	// Bound to his tab's task — never the selection, which the editor doesn't
+	// participate in.
 	const uPickerKey: Record<string, QuickPickerKind> = useMemo(
 		() => ({
 			s: "status",
@@ -116,6 +117,17 @@ export function TaskPane({ path }: { path: string }) {
 				event.preventDefault();
 				event.stopPropagation();
 				setQuickPicker({ kind });
+				return;
+			}
+			if (key === "x") {
+				event.preventDefault();
+				event.stopPropagation();
+				const archiving = !task.archived;
+				void plugin.mutations.updateTask(task, {
+					archived: archiving,
+					archivedAt: archiving ? new Date().toISOString() : null,
+				});
+				return;
 			}
 			// Any other key cancels the chord and falls through.
 		};
