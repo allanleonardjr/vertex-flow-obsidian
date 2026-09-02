@@ -16,6 +16,7 @@ Vertex Flow turns your vault into a fast, high-density project management OS —
 
 - [Why Vertex Flow?](#why-vertex-flow)
 - [Features](#features)
+- [Views](#views)
 - [Getting started](#getting-started)
 - [Requirements](#requirements)
 - [Documentation](#documentation)
@@ -53,6 +54,51 @@ If Vertex Flow helps you stay organized, consider [sponsoring on GitHub ❤️](
 - **Keyboard-first tab management.** Hold `Option` (macOS) or `Alt` (Windows/Linux) and press `Tab` to cycle through open tabs with an Arc-style switcher overlay (`Shift+Tab` walks back, `Esc` cancels); jump straight to any tab with `Option`/`Alt` + `1–9` (or `0` for the last) and close the active tab with `Option`/`Alt` + `W` (`Shift` closes them all). Right-click any tab for close-other, close-to-the-right, and close-all.
 - **A density scale that fits your screen.** Choose compact, cozy, or comfortable UI spacing across the whole plugin — Linear-style density without giving up readability.
 - **Fast to open, painless to keep in sync.** The index reads from Obsidian's metadata cache (no slow disk scans) and resolves @mentions in a lazy background pass, so views paint immediately and edits sync automatically.
+
+
+## Views
+
+Work from the same Markdown-backed tasks in the view that fits the moment.
+
+### Board
+
+Move work through your workflow with a status-based Kanban board.
+
+<p align="center">
+  <img src="assets/images/views/board-dark.png"
+       alt="Vertex Flow Board view showing tasks organized by status"
+       width="100%" />
+</p>
+
+### List
+
+Scan, group, filter, and manage work in a dense list.
+
+<p align="center">
+  <img src="assets/images/views/list-light.png"
+       alt="Vertex Flow List view showing tasks with project and metadata fields"
+       width="100%" />
+</p>
+
+### Timeline
+
+Plan scheduled work across time with a drag-and-drop timeline.
+
+<p align="center">
+  <img src="assets/images/views/timeline-dark.png"
+       alt="Vertex Flow Timeline view showing tasks scheduled across dates"
+       width="100%" />
+</p>
+
+### Calendar
+
+See dated work on a calendar.
+
+<p align="center">
+  <img src="assets/images/views/calendar-light.png"
+       alt="Vertex Flow Calendar view showing scheduled tasks by date"
+       width="100%" />
+</p>
 
 ## Getting started
 
