@@ -2,7 +2,7 @@
  * Reusable form controls for the task editor.
  *
  * Every one of these writes through immediately on change — there is no Save
- * button in the editor, matching Linear (and matching the fact that the note on
+ * button in the editor (and matching the fact that the note on
  * disk is the source of truth, so a half-saved editor state would be a lie).
  * Free-text fields are the exception; they debounce, see `useDebouncedSave`.
  */

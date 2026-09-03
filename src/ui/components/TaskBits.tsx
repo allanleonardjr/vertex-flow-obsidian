@@ -30,7 +30,7 @@ function signalLevel(index: number, count: number): number {
 }
 
 /**
- * Linear-style priority glyph. `index` is the value's position in the ordered
+ * Priority glyph. `index` is the value's position in the ordered
  * priority list (from `listValues`), `null` means "no priority". Tinted with
  * the value's own colour — see `TaxonomyChip` for the usual call site.
  */
@@ -69,7 +69,7 @@ export function PriorityIcon({
 }
 
 /**
- * A single Linear-style tinted pill: the value's own colour as text over a
+ * A single tinted pill: the value's own colour as text over a
  * faint wash of the same colour. The tint + text already carry the colour, so
  * there's no separate dot. This is the canonical way a label or task type
  * renders anywhere in the app (task rows, the sidebar, the editor) — keep it in
@@ -129,7 +129,7 @@ export function TaxonomyChip({
     );
   }
 
-  // Render Labels & Task Types as Linear-style tinted pills
+  // Render Labels & Task Types as tinted pills
   return <LabelChip name={item.name} color={item.color} />;
 }
 

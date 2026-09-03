@@ -69,6 +69,7 @@ export function DashboardsBrowseView({
 				title="Dashboards"
 				noun="dashboard"
 				count={dashboards.length}
+				idPrefix={snapshot.workspace.idPrefix}
 				actionLabel="New dashboard"
 				onAction={create}
 			/>

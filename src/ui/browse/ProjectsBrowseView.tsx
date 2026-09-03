@@ -104,6 +104,7 @@ export function ProjectsBrowseView({
         title="Projects"
         noun="project"
         count={snapshot.projects.length}
+        idPrefix={snapshot.workspace.idPrefix}
         actionLabel="New project"
         onAction={() => void createProject(snapshot)}
       >

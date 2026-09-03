@@ -14,7 +14,7 @@ import type {
 } from "../types";
 
 /**
- * Default statuses map 1:1 to the fixed category enum, matching Linear's own
+ * Default statuses map 1:1 to the fixed category enum, matching the common
  * default workflow. Users may rename, recolor, reorder, add and remove these
  * freely — the categories underneath never change.
  */

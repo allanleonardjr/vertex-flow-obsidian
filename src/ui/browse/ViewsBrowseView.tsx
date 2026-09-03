@@ -60,6 +60,7 @@ export function ViewsBrowseView({ snapshot }: { snapshot: WorkspaceSnapshot }) {
         title="Views"
         noun="view"
         count={views.length}
+        idPrefix={snapshot.workspace.idPrefix}
         actionLabel="New view"
         onAction={create}
       />

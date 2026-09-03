@@ -66,7 +66,7 @@ export function parseTask(
 
 	// `parent` and `project` are independent fields. A sub-task carries its own
 	// `project` link — seeded from its parent at creation, then maintained on
-	// its own, never auto-synced (like Linear). That's redundancy, not a second
+	// its own, never auto-synced. That's redundancy, not a second
 	// parent: `parent` remains the one true nesting position, and it's what lets
 	// a project view find sub-tasks without walking the whole tree.
 

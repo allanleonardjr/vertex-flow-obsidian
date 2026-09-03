@@ -27,7 +27,6 @@ const HEADER = [
 	"id: fixture",
 	"name: Fixture",
 	"description: A fixture.",
-	"defaultIdPrefix: FIX",
 ].join("\n");
 
 /** Assembles a template file from frontmatter lines plus a body. */
@@ -74,7 +73,7 @@ describe("template markdown — schema gate", () => {
 	it("rejects a file with no templateSchema", () => {
 		expectFailure(
 			template(
-				["kind: template", "id: fixture", "name: Fixture", "description: x", "defaultIdPrefix: FIX"].join("\n"),
+				["kind: template", "id: fixture", "name: Fixture", "description: x"].join("\n"),
 			),
 			/missing "templateSchema"/,
 		);
@@ -101,6 +100,58 @@ describe("template markdown — schema gate", () => {
 			template(HEADER.replace("kind: template", "kind: workspace")),
 			/Unknown "kind: workspace"/,
 		);
+	});
+});
+
+describe("template markdown — supportsExampleContent", () => {
+	it("is undefined when omitted", () => {
+		const parsed = parseTemplateMarkdown(template(HEADER));
+		expect(parsed.meta.supportsExampleContent).toBeUndefined();
+	});
+
+	it("parses supportsExampleContent: true", () => {
+		const parsed = parseTemplateMarkdown(
+			template(HEADER + "\nsupportsExampleContent: true"),
+		);
+		expect(parsed.meta.supportsExampleContent).toBe(true);
+	});
+
+	it("parses supportsExampleContent: false", () => {
+		const parsed = parseTemplateMarkdown(
+			template(HEADER + "\nsupportsExampleContent: false"),
+		);
+		expect(parsed.meta.supportsExampleContent).toBe(false);
+	});
+
+	it("rejects a non-boolean supportsExampleContent", () => {
+		expectFailure(
+			template(HEADER + '\nsupportsExampleContent: "yes"'),
+			/"supportsExampleContent" must be true or false/,
+		);
+	});
+});
+
+describe("template markdown — card settings", () => {
+	it("lists no taxonomy rows for a template that overrides nothing", () => {
+		const parsed = parseTemplateMarkdown(template(HEADER));
+		const labels = parsed.meta.settings.map((s) => s.label);
+		// A "blank" template (no taxonomy overrides) shouldn't restate the
+		// workspace defaults as if it chose them — only "Default view" applies.
+		expect(labels).toEqual(["Default view"]);
+	});
+
+	it("shows default rows for a template that overrides at least one taxonomy", () => {
+		const parsed = parseTemplateMarkdown(
+			template(HEADER + "\nlabels: [Important (#ef4444)]"),
+		);
+		const labels = parsed.meta.settings.map((s) => s.label);
+		expect(labels).toEqual([
+			"Statuses",
+			"Priorities",
+			"Task Types",
+			"Labels",
+			"Default view",
+		]);
 	});
 });
 

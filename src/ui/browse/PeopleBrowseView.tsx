@@ -110,6 +110,7 @@ export function PeopleBrowseView({ snapshot }: { snapshot: WorkspaceSnapshot }) 
 				noun="person"
 				plural="people"
 				count={people.length}
+				idPrefix={snapshot.workspace.idPrefix}
 				actionLabel="New person"
 				onAction={() => setCreating(true)}
 			>

@@ -343,7 +343,7 @@ export const personalAdminTemplate: WorkspaceTemplate = {
 	description:
 		"A GTD-style setup: life areas as Projects, next actions as Tasks, and @context labels to batch what you can do right now.",
 	icon: "house",
-	defaultIdPrefix: "TODO",
+	supportsExampleContent: true,
 	workspace: { statuses, labels },
 	views: [byArea],
 	settings: [

@@ -46,7 +46,10 @@ export interface TemplateMeta {
 	name: string;
 	description: string; // one or two sentences, shown on the card
 	icon?: string; // Obsidian icon name
-	defaultIdPrefix: string;
+	/** Whether the workspace-creation UI offers the "Populate with example
+	 *  content" checkbox. `undefined` or `true` shows it; `false` hides it and
+	 *  forces `populate: false` on creation. */
+	supportsExampleContent?: boolean;
 	/** Community-sharing attribution, carried through from a markdown template's
 	 *  frontmatter. Purely informational — nothing in parsing, resolution or
 	 *  instantiation reads these. */

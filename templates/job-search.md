@@ -5,7 +5,7 @@ id: job-search
 name: Job Search
 description: Track applications as Projects moving from Wishlist to Offer, with the tasks to advance each one underneath.
 icon: target
-defaultIdPrefix: JOB
+supportsExampleContent: true
 
 statuses: ["Wishlist (backlog, #94a3b8)", "Applied (unstarted, #60a5fa)", "Phone Screen (started, #fbbf24)", "Interviewing (started, #f59e0b)", "Offer (completed, #34d399)", "Rejected (canceled, #f87171)"]
 taskTypes: [Application (#3b82f6), Interview (#ef4444), Prep (#a855f7), Follow-up (#f97316), Negotiation (#22c55e)]

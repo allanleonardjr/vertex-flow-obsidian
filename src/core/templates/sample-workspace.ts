@@ -499,7 +499,7 @@ export const sampleWorkspaceTemplate: WorkspaceTemplate = {
 	name: "Sample Workspace",
 	description: "Frozen fixture backing sampleSnapshot() and the unit test suite. Not a gallery template — do not register this in templates/index.ts.",
 	icon: "kanban",
-	defaultIdPrefix: "SMP",
+	supportsExampleContent: true,
 	workspace: { statuses, taskTypes, labels },
 	views: [sprintBoard],
 	settings: [

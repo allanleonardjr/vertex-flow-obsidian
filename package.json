@@ -1,6 +1,6 @@
 {
   "name": "vertex-flow-obsidian",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "A keyboard-first task manager stored entirely as Markdown: projects, tasks, boards, calendars, timelines, chart dashboards, saved views, and an offline help system.",
   "main": "main.js",
   "private": true,
@@ -13,7 +13,7 @@
     "test:watch": "vitest",
     "build:templates": "node scripts/build-templates.mjs",
     "generate:repomix": "pnpx repomix --style markdown --no-gitignore",
-    "preflight:release": "pnpm test && pnpm build && node -e \"const fs=require('node:fs'); const manifest=require('./manifest.json'); if (!/^\\d+\\.\\d+\\.\\d+$/.test(manifest.version)) throw new Error('manifest.json version must be x.y.z'); for (const file of ['main.js','manifest.json','styles.css']) { if (!fs.existsSync(file) || fs.statSync(file).size === 0) throw new Error(file + ' is missing or empty'); } console.log('Release preflight passed for ' + manifest.version);\""
+    "release:preflight": "pnpm test && pnpm build && node -e \"const fs=require('node:fs'); const manifest=require('./manifest.json'); const cl=fs.readFileSync('CHANGELOG.md','utf8'); if (!/^\\d+\\.\\d+\\.\\d+$/.test(manifest.version)) throw new Error('manifest.json version must be x.y.z'); if (!cl.includes('## ' + manifest.version)) throw new Error('CHANGELOG.md has no heading for v' + manifest.version); for (const file of ['main.js','manifest.json','styles.css']) { if (!fs.existsSync(file) || fs.statSync(file).size === 0) throw new Error(file + ' is missing or empty'); } console.log('Release preflight passed for ' + manifest.version);\""
   },
   "keywords": [
     "obsidian",

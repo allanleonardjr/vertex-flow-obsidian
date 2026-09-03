@@ -5,7 +5,7 @@ id: academic-research
 name: Academic / Research Project
 description: Move a paper or thesis chapter from idea to submission, with lit review, drafting, and revision as Tasks underneath.
 icon: graduation-cap
-defaultIdPrefix: RSCH
+supportsExampleContent: true
 
 statuses: ["Idea (backlog, #94a3b8)", "Lit Review (unstarted, #60a5fa)", "Drafting (started, #fbbf24)", "Under Review (started, #f59e0b)", "Published (completed, #34d399)", "Rejected (canceled, #f87171)"]
 taskTypes: [Reading (#3b82f6), Writing (#ec4899), Analysis (#14b8a6), Meeting (#a855f7), Admin (#94a3b8)]

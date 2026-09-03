@@ -411,7 +411,7 @@ export const feedbackRoadmapTemplate: WorkspaceTemplate = {
 	description:
 		"Collect feature requests and bug reports as Tasks under product areas, then move them across a public-roadmap status set.",
 	icon: "megaphone",
-	defaultIdPrefix: "FDB",
+	supportsExampleContent: true,
 	workspace: { statuses, taskTypes, labels },
 	views: [roadmap],
 	settings: [

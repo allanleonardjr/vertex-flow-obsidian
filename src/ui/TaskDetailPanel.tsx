@@ -1,5 +1,5 @@
 /**
- * The task detail panel — a Linear-style editor for one task.
+ * The task detail panel — a dedicated editor for one task.
  */
 
 import { useCallback, useEffect, useState } from "react";

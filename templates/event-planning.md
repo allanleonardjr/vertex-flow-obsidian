@@ -5,7 +5,7 @@ id: event-planning
 name: Event Planning
 description: Plan a one-off event as a set of Projects — venue, catering, guests — with vendors and deadlines as Tasks underneath.
 icon: party-popper
-defaultIdPrefix: EVT
+supportsExampleContent: true
 
 statuses: ["Idea (backlog, #94a3b8)", "To Book (unstarted, #60a5fa)", "In Progress (started, #fbbf24)", "Confirmed (started, #f59e0b)", "Done (completed, #34d399)", "Cancelled (canceled, #f87171)"]
 taskTypes: [Booking (#3b82f6), Payment (#22c55e), Guest List (#ec4899), Decor (#a855f7), Logistics (#f97316)]

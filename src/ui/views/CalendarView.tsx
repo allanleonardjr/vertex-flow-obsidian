@@ -16,7 +16,12 @@
  * `data-date` lookup instead of Timeline's continuous pixel-to-day scale).
  */
 
-import { useCallback, useMemo, useState } from "react";
+import {
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, ChevronsUpDown } from "lucide-react";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
@@ -55,6 +60,9 @@ import { useScheduleDrag } from "./useScheduleDrag";
 
 /** How many chips a day cell shows before the rest fold into "+N more". */
 const MAX_CHIPS_PER_DAY = 3;
+
+/** Below this container width, the 7-column grid becomes day-list. */
+const NARROW_BREAKPOINT_PX = 520;
 
 /* Unscheduled-drawer resize bounds — matched to Timeline's lower pane so the
    two drawers feel identical. */
@@ -99,6 +107,11 @@ function monthLabel(iso: IsoDate): string {
   return `${MONTHS_LONG[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 
+function weekdayShort(iso: IsoDate): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  return WEEKDAYS[d.getUTCDay()];
+}
+
 export function CalendarView({
   snapshot,
   view,
@@ -117,6 +130,23 @@ export function CalendarView({
 
   const [gridEl, setGridEl] = useState<HTMLDivElement | null>(null);
   useScrollFocusIntoView(gridEl);
+
+  /* Narrow-pane detection: below a floor width the 7-column grid degrades into
+     slivers that can't show a chip title, so we swap to a vertical day-list.
+     Reacting to the pane's own width (via ResizeObserver) rather than the
+     viewport keeps it truthful in any Obsidian pane layout. */
+  const [calendarEl, setCalendarEl] = useState<HTMLDivElement | null>(null);
+  const [isNarrow, setIsNarrow] = useState(false);
+  useLayoutEffect(() => {
+    if (!calendarEl) return;
+    const update = (w: number) => setIsNarrow(w > 0 && w < NARROW_BREAKPOINT_PX);
+    update(calendarEl.clientWidth);
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) update(entry.contentRect.width);
+    });
+    observer.observe(calendarEl);
+    return () => observer.disconnect();
+  }, [calendarEl]);
 
   const [moreDate, setMoreDate] = useState<IsoDate | null>(null);
   const [unscheduledCollapsed, setUnscheduledCollapsed] = useState(
@@ -142,9 +172,26 @@ export function CalendarView({
     [tasks, dateField],
   );
   const cells = useMemo(() => monthGrid(visibleMonth), [visibleMonth]);
+  const monthDays = useMemo(
+    () => cells.filter((iso) => startOfMonth(iso) === visibleMonth),
+    [cells, visibleMonth],
+  );
 
   const goToMonth = (iso: IsoDate) =>
     onCalendarChange({ visibleMonth: startOfMonth(iso) });
+
+  /* The Today button navigates to the current month in both layouts, but the
+     day-list has no first-of-month anchor pinning today near the top of the
+     scroll container — the grid's "current month" centering is gone. So in
+     narrow mode it also scrolls today's day block into view, the way the wide
+     grid brings today into focus when you press Today. */
+  const goToToday = useCallback(() => {
+    goToMonth(todayIso);
+    if (!isNarrow || !gridEl) return;
+    const todaySel = `[data-date="${todayIso}"]`;
+    const today = gridEl.querySelector<HTMLElement>(todaySel);
+    today?.scrollIntoView({ block: "center", inline: "nearest" });
+  }, [goToMonth, isNarrow, gridEl, todayIso]);
 
   /* -------------------------------------------------- drag hit-testing --- */
 
@@ -251,7 +298,7 @@ export function CalendarView({
   const moreTasks = moreDate ? (buckets.get(moreDate) ?? []) : [];
 
   return (
-    <div className="vf-calendar">
+    <div className="vf-calendar" ref={setCalendarEl}>
       <div className="vf-calendar-toolbar">
         <span className="vf-calendar-nav" role="group" aria-label="Month">
           <button
@@ -279,7 +326,7 @@ export function CalendarView({
           type="button"
           className={`vf-bar-item${onCurrentMonth ? " is-on" : ""}`}
           title="Jump to the current month"
-          onClick={() => goToMonth(todayIso)}
+          onClick={goToToday}
         >
           Today
         </button>
@@ -312,89 +359,126 @@ export function CalendarView({
 
       <div className="vf-calendar-body">
         <div className="vf-calendar-scroll" ref={setGridEl}>
-          <div className="vf-calendar-weekdays" aria-hidden>
-            {WEEKDAYS.map((day) => (
-              <span key={day} className="vf-calendar-weekday">
-                {day}
-              </span>
-            ))}
-          </div>
-
-          <div className="vf-calendar-grid">
-            {cells.map((iso) => {
-              const dayTasks = buckets.get(iso) ?? [];
-              const shown = dayTasks.slice(0, MAX_CHIPS_PER_DAY);
-              const overflow = dayTasks.length - shown.length;
-              const outside = startOfMonth(iso) !== visibleMonth;
-              return (
-                <div
-                  key={iso}
-                  className={`vf-calendar-cell${outside ? " is-outside" : ""}${
-                    iso === todayIso ? " is-today" : ""
-                  }${iso === dragTargetDate ? " is-drag-target" : ""}`}
-                  data-date={iso}
-                  onClick={(event) => onCellClick(event, iso)}
-                >
-                  <span className="vf-calendar-daynum">
-                    {Number(iso.slice(8, 10))}
-                  </span>
-                  <div className="vf-calendar-cell-chips">
-                    {shown.map(renderChip)}
-                    {overflow > 0 && (
-                      <button
-                        type="button"
-                        className="vf-cal-more"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setMoreDate(iso);
-                        }}
-                      >
-                        +{overflow} more
-                      </button>
-                    )}
+          {isNarrow ? (
+            <div className="vf-calendar-daylist">
+              {monthDays.map((iso) => {
+                const dayTasks = buckets.get(iso) ?? [];
+                const today = iso === todayIso;
+                return (
+                  <div
+                    key={iso}
+                    className={`vf-calendar-day${today ? " is-today" : ""}${
+                      iso === dragTargetDate ? " is-drag-target" : ""
+                    }`}
+                    data-date={iso}
+                    onClick={(event) => onCellClick(event, iso)}
+                  >
+                    <div className="vf-calendar-day-head">
+                      <span className="vf-calendar-day-weekday">
+                        {weekdayShort(iso)}
+                      </span>
+                      <span className="vf-calendar-daynum">
+                        {Number(iso.slice(8, 10))}
+                      </span>
+                    </div>
+                    <div className="vf-calendar-day-chips">
+                      {dayTasks.length === 0 ? (
+                        <span className="vf-calendar-day-empty">—</span>
+                      ) : (
+                        dayTasks.map(renderChip)
+                      )}
+                    </div>
                   </div>
+                );
+              })}
+            </div>
+          ) : (
+            <>
+              <div className="vf-calendar-weekdays" aria-hidden>
+                {WEEKDAYS.map((day) => (
+                  <span key={day} className="vf-calendar-weekday">
+                    {day}
+                  </span>
+                ))}
+              </div>
 
-                  {moreDate === iso && (
-                    <Popover align="left" onClose={() => setMoreDate(null)}>
-                      <div
-                        className="vf-calendar-more-list"
-                        style={{
-                          minWidth: Math.max(
-                            200,
-                            plugin.settings.taskPickerWidth - 120,
-                          ),
-                        }}
-                      >
-                        <div className="vf-calendar-more-head">
-                          {monthLabel(iso)} · {Number(iso.slice(8, 10))}
-                        </div>
-                        {moreTasks.map((task) => (
+              <div className="vf-calendar-grid">
+                {cells.map((iso) => {
+                  const dayTasks = buckets.get(iso) ?? [];
+                  const shown = dayTasks.slice(0, MAX_CHIPS_PER_DAY);
+                  const overflow = dayTasks.length - shown.length;
+                  const outside = startOfMonth(iso) !== visibleMonth;
+                  return (
+                    <div
+                      key={iso}
+                      className={`vf-calendar-cell${outside ? " is-outside" : ""}${
+                        iso === todayIso ? " is-today" : ""
+                      }${iso === dragTargetDate ? " is-drag-target" : ""}`}
+                      data-date={iso}
+                      onClick={(event) => onCellClick(event, iso)}
+                    >
+                      <span className="vf-calendar-daynum">
+                        {Number(iso.slice(8, 10))}
+                      </span>
+                      <div className="vf-calendar-cell-chips">
+                        {shown.map(renderChip)}
+                        {overflow > 0 && (
                           <button
-                            key={task.path}
                             type="button"
-                            className={chipClass(task)}
-                            data-task-path={task.path}
+                            className="vf-cal-more"
                             onClick={(event) => {
-                              openRow(event, task);
-                              setMoreDate(null);
+                              event.stopPropagation();
+                              setMoreDate(iso);
                             }}
                           >
-                            <TaskRowContent
-                              task={task}
-                              snapshot={snapshot}
-                              taxonomies={taxonomies}
-                              hiddenFields={shownFields}
-                              dense
-                            />
+                            +{overflow} more
                           </button>
-                        ))}
+                        )}
                       </div>
-                    </Popover>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+
+                      {moreDate === iso && (
+                        <Popover align="left" onClose={() => setMoreDate(null)}>
+                          <div
+                            className="vf-calendar-more-list"
+                            style={{
+                              minWidth: Math.max(
+                                200,
+                                plugin.settings.taskPickerWidth - 120,
+                              ),
+                            }}
+                          >
+                            <div className="vf-calendar-more-head">
+                              {monthLabel(iso)} · {Number(iso.slice(8, 10))}
+                            </div>
+                            {moreTasks.map((task) => (
+                              <button
+                                key={task.path}
+                                type="button"
+                                className={chipClass(task)}
+                                data-task-path={task.path}
+                                onClick={(event) => {
+                                  openRow(event, task);
+                                  setMoreDate(null);
+                                }}
+                              >
+                                <TaskRowContent
+                                  task={task}
+                                  snapshot={snapshot}
+                                  taxonomies={taxonomies}
+                                  hiddenFields={shownFields}
+                                  dense
+                                />
+                              </button>
+                            ))}
+                          </div>
+                        </Popover>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
 
         {unscheduled.length > 0 && !unscheduledCollapsed && (
