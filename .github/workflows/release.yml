@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   release:
@@ -51,6 +53,13 @@ jobs:
           test -s main.js
           test -s manifest.json
           test -s styles.css
+
+      - name: Generate artifact attestation
+        uses: actions/attest@v4
+        with:
+          subject-path: |
+            main.js
+            styles.css
 
       - name: Create GitHub release and upload assets
         uses: softprops/action-gh-release@v2

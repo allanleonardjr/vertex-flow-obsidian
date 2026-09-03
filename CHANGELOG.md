@@ -5,6 +5,11 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.7 — 2026-09-03
+
+### Added
+- Release workflow now generates GitHub artifact attestations (SLSA build provenance) for `main.js` and `styles.css`, letting users cryptographically verify the assets were built from this repository (`gh attestation verify ... -R <owner>/vertex-flow-obsidian`).
+
 ## 1.0.6 — 2026-09-03
 
 ### Added
