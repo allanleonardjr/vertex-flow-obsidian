@@ -61,6 +61,7 @@ import {
 import { NamedIconDialog } from "./modals/NamedIconDialog";
 import { ConfirmDeleteDialog } from "./components/ConfirmDeleteDialog";
 import { tabAccentRoot, useTabs } from "./tabs-context";
+import { useCompactNav } from "./compact-nav-context";
 import { workspaceAccentColor } from "../core/workspace-color";
 
 const MIN_WIDTH = 170;
@@ -89,6 +90,10 @@ export function Sidebar({
     setMinimized,
     setWidth,
   } = useSidebarChrome();
+  // Compact-mode drawer state. In wide panes `navOpen` stays false and this is
+  // inert; in compact panes the strip's Navigation button drives it and the
+  // aside slides in as a drawer. Any navigation from a row here closes it.
+  const { navOpen, closeDrawers } = useCompactNav();
 
   const width = minimized
     ? SLIVER_WIDTH
@@ -96,8 +101,25 @@ export function Sidebar({
 
   return (
     <aside
-      className={`vf-sidebar${minimized ? " is-minimized" : ""}`}
-      style={{ width, flexBasis: width }}
+      className={`vf-sidebar${minimized ? " is-minimized" : ""}${
+        navOpen ? " is-compact-open" : ""
+      }`}
+      style={{ width, flexBasis: width, ["--vf-sidebar-w" as string]: width }}
+      onClickCapture={(event) => {
+        // In compact mode the sidebar is an overlay drawer. Any interaction
+        // that navigates (a view/project/label/workspace/screen row, a section
+        // title that opens a hub) should also dismiss it; collapsing a section,
+        // opening a row menu / "+" add, or toggling the minimize stay put.
+        const el = event.target as HTMLElement;
+        if (
+          el.closest(
+            ".vf-menu, .vf-nav-row-menu, .vf-section-chevron-btn, .vf-section-add, .vf-sidebar-minimize",
+          )
+        ) {
+          return;
+        }
+        closeDrawers();
+      }}
     >
       <div className="vf-sidebar-top">
         <button

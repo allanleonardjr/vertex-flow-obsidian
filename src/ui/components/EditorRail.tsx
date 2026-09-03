@@ -11,6 +11,7 @@
 import { useRef, useState, type ReactNode } from "react";
 import { PanelRightClose, PanelRightOpen } from "lucide-react";
 import { usePlugin } from "../context";
+import { useCompactNav } from "../compact-nav-context";
 
 const RAIL_MIN_WIDTH = 200;
 /** Keep at least this much for the main (description / tasks) column. */
@@ -19,10 +20,19 @@ const RAIL_DEFAULT_WIDTH = 264;
 
 export function EditorRail({ children }: { children: ReactNode }) {
 	const plugin = usePlugin();
+	// In compact (narrow) panes the rail becomes a right-side overlay drawer and
+	// its open/closed state is driven by the toggle strip (`propertiesOpen`),
+	// never the persisted `collapsed` flag — the two live in different contexts
+	// and must not leak into each other. In wide panes `propertiesOpen` is
+	// perpetually false, so `showFull` collapses back to `!collapsed` (the
+	// original behavior).
+	const { propertiesOpen, closeDrawers } = useCompactNav();
 	const [width, setWidth] = useState(plugin.settings.editorRailWidth);
 	const [collapsed, setCollapsed] = useState(
 		plugin.settings.editorRailCollapsed,
 	);
+
+	const showFull = propertiesOpen || !collapsed;
 
 	const setCollapsedState = (next: boolean) => {
 		setCollapsed(next);
@@ -30,7 +40,7 @@ export function EditorRail({ children }: { children: ReactNode }) {
 		void plugin.saveSettings();
 	};
 
-	if (collapsed) {
+	if (!showFull) {
 		return (
 			<aside className="vf-editor-rail is-collapsed">
 				<button
@@ -63,7 +73,12 @@ export function EditorRail({ children }: { children: ReactNode }) {
 						className="vf-icon-button vf-editor-rail-toggle"
 						title="Collapse panel"
 						aria-label="Collapse panel"
-						onClick={() => setCollapsedState(true)}
+						onClick={() => {
+							// Closes the compact drawer (if open) and remembers the
+							// persisted collapse for wide panes alike.
+							closeDrawers();
+							setCollapsedState(true);
+						}}
 					>
 						<PanelRightClose size={16} />
 					</button>

@@ -28,6 +28,16 @@
   font-size: var(--font-ui-small);
 }
 
+/* Mobile: the on-screen keyboard is an overlay that does not resize the layout
+   viewport (per the CSS spec), so this `height: 100%` root keeps extending
+   behind it, hiding the bottom and leaving a blank band above the keyboard.
+   Pin the root to the true visible height (`--vf-vh`, set from
+   `visualViewport` in App.tsx) on mobile; the value self-restores when the
+   keyboard closes. Desktop keeps the plain 100%. */
+.is-mobile .vertex-flow {
+  height: var(--vf-vh, 100%);
+}
+
 /*
  * Interface text size (Settings → Vertex Flow → Interface text size).
  *
@@ -66,6 +76,15 @@ body.vf-text-comfortable {
   display: flex;
   height: 100%;
   outline: none;
+
+  /* A second inline-size container alongside `.vf-main`: this one measures the
+     whole pane (sidebar + content) so the compact-mode strip, the nav drawer,
+     and the properties drawer all respond to pane width as one. The existing
+     `.vf-main` container tiers are untouched. The `relative` gives the
+     absolutely-positioned drawers + backdrop a stable containing block. */
+  position: relative;
+  container-type: inline-size;
+  container-name: vf-shell;
 }
 
 /* --------------------------------------------------------------- Sidebar -- */
@@ -1873,15 +1892,132 @@ body.vf-dragging {
   box-shadow: 0 12px 30px rgb(0 0 0 / 32%);
 }
 
-/* ---------------------------------------------------------------- Mobile -- */
+/* ------------------------------------------------------------ Compact mode --
+   When the whole pane (`.vf-shell`) is narrower than 520px — on a phone OR a
+   desktop pane dragged very small — the persistent left sidebar gives way to a
+   slide-in drawer opened from a slim toggle strip, and the task/project
+   properties rail becomes a slide-in drawer from the right. Everything here is
+   gated by *pane width*, not `is-mobile`, so a narrow desktop pane gets the
+   same space-preserving layout. */
 
-.is-mobile .vf-sidebar {
-  display: none;
+@container vf-shell (max-width: 520px) {
+  /* The sidebar becomes a left overlay drawer: pulled out of the flex flow
+     (absolute) and translated off-screen until opened. Its width stays the
+     inline one (`--vf-sidebar-w` holds the JS width) — clamped on the pane. */
+  .vf-shell .vf-sidebar {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 60;
+    width: min(var(--vf-sidebar-w, 280px), 82vw) !important;
+    transform: translateX(-100%);
+    transition: transform 0.18s ease;
+    box-shadow: 0 0 40px rgb(0 0 0 / 25%);
+  }
+
+  .vf-shell .vf-sidebar.is-compact-open {
+    transform: translateX(0);
+  }
+
+  /* Wide-only rows (the minimize toggle and the drag-resize strip) make no
+     sense for a drawer. */
+  .vf-shell .vf-sidebar-top,
+  .vf-shell .vf-sidebar-resize {
+    display: none;
+  }
+
+  /* Board columns shrink the same way they did under `is-mobile`. */
+  .vf-shell .vf-column {
+    width: 82vw;
+    flex-basis: 82vw;
+  }
+
+  /* The compact toggle strip — Navigation (left) / spacer / Properties
+     (right) — pinned above the tab strip. */
+  .vf-shell .vf-compact-toggle {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: var(--background-secondary);
+    border-bottom: 1px solid var(--vf-border);
+  }
+
+  .vf-shell .vf-compact-toggle-gap {
+    flex: 1;
+  }
+
+  .vf-shell .vf-compact-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border: none !important;
+    border-radius: var(--vf-radius);
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--vf-muted);
+    font-size: var(--font-ui-small);
+    cursor: pointer;
+  }
+
+  .vf-shell .vf-compact-toggle-btn:hover {
+    background: var(--background-modifier-hover) !important;
+    color: var(--text-normal);
+  }
+
+  .vf-shell .vf-compact-toggle-btn.is-active {
+    color: var(--interactive-accent);
+  }
+
+  /* The shared backdrop behind whichever drawer is open. */
+  .vf-shell .vf-compact-backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+    background: rgb(0 0 0 / 35%);
+  }
+
+  /* The task/project properties rail becomes a right overlay drawer: always
+     off-screen, slid in only while the strip's Properties button is active
+     (mirrored on `.vf-shell.is-properties-open`). The resize strip is moot. */
+  .vf-shell .vf-editor-body {
+    position: relative;
+  }
+
+  .vf-shell .vf-editor-rail {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 55;
+    width: min(84vw, 320px) !important;
+    transform: translateX(100%);
+    transition: transform 0.18s ease;
+    box-shadow: 0 0 40px rgb(0 0 0 / 25%);
+    border-left: 1px solid var(--vf-border);
+  }
+
+  .vf-shell.is-properties-open .vf-editor-rail {
+    transform: translateX(0);
+  }
+
+  .vf-shell .vf-editor-rail.is-collapsed {
+    display: none;
+  }
+
+  .vf-shell .vf-editor-resize-handle {
+    display: none;
+  }
 }
 
-.is-mobile .vf-column {
-  width: 82vw;
-  flex-basis: 82vw;
+/* Wide panes: the toggle strip is hidden. (Lower specificity than the
+   container block's `.vf-shell .vf-compact-toggle`, so compact still shows it.) */
+.vf-compact-toggle,
+.vf-compact-backdrop {
+  display: none;
 }
 
 /* =========================================================================
@@ -2761,30 +2897,6 @@ button.vf-crumb:hover {
   border: 1px solid var(--vf-border);
   border-radius: 10px;
   font-size: 11px;
-}
-
-/* --- Mobile ------------------------------------------------------------- */
-
-.is-mobile .vf-editor-body {
-  flex-direction: column;
-}
-
-.is-mobile .vf-editor-rail {
-  width: 100%;
-  border-left: none;
-  border-top: 1px solid var(--vf-border);
-}
-
-/* Stacked layout — a vertical resize of the rail is meaningless, and a
-   collapsed rail is a full-width bar rather than a sliver. */
-.is-mobile .vf-editor-resize-handle {
-  display: none;
-}
-
-.is-mobile .vf-editor-rail.is-collapsed {
-  width: 100%;
-  padding: 6px 10px;
-  justify-content: flex-end;
 }
 
 /* =========================================================================
