@@ -5,6 +5,8 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.4 — 2026-09-03
+
 ### Added
 - Added a blank workspace template for creating custom workflows from scratch.
 
