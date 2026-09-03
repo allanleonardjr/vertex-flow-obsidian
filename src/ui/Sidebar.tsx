@@ -136,14 +136,17 @@ export function Sidebar({
         </button>
       </div>
 
-      <button
-        className="vf-nav-close"
-        title="Close navigation"
-        aria-label="Close navigation"
-        onClick={() => closeDrawers()}
-      >
-        <PanelLeftClose size={16} />
-      </button>
+      <div className="vf-drawer-head">
+        <span className="vf-drawer-head-title">Navigation</span>
+        <button
+          className="vf-nav-close"
+          title="Close navigation"
+          aria-label="Close navigation"
+          onClick={() => closeDrawers()}
+        >
+          <PanelLeftClose size={16} />
+        </button>
+      </div>
 
       {!minimized && (
         <>
