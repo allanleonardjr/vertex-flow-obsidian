@@ -180,6 +180,19 @@ export function CalendarView({
   const goToMonth = (iso: IsoDate) =>
     onCalendarChange({ visibleMonth: startOfMonth(iso) });
 
+  /* The Today button navigates to the current month in both layouts, but the
+     day-list has no first-of-month anchor pinning today near the top of the
+     scroll container — the grid's "current month" centering is gone. So in
+     narrow mode it also scrolls today's day block into view, the way the wide
+     grid brings today into focus when you press Today. */
+  const goToToday = useCallback(() => {
+    goToMonth(todayIso);
+    if (!isNarrow || !gridEl) return;
+    const todaySel = `[data-date="${todayIso}"]`;
+    const today = gridEl.querySelector<HTMLElement>(todaySel);
+    today?.scrollIntoView({ block: "center", inline: "nearest" });
+  }, [goToMonth, isNarrow, gridEl, todayIso]);
+
   /* -------------------------------------------------- drag hit-testing --- */
 
   const dateFromPoint = useCallback((x: number, y: number): IsoDate | null => {
@@ -313,7 +326,7 @@ export function CalendarView({
           type="button"
           className={`vf-bar-item${onCurrentMonth ? " is-on" : ""}`}
           title="Jump to the current month"
-          onClick={() => goToMonth(todayIso)}
+          onClick={goToToday}
         >
           Today
         </button>
