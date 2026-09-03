@@ -90,6 +90,13 @@ const LOWER_DEFAULT_HEIGHT = 200;
 /** Keep at least this much chart visible above the Unscheduled pane. */
 const CHART_MIN_HEIGHT = 140;
 
+/** Below this container width the label column is clamped to `MAX_LABEL_CLAMP_PX`. */
+const TIMELINE_NARROW_PX = 620;
+
+/** The widest the expanded label column can be on a narrow pane, so the chart
+    always keeps a usable slice. */
+const MAX_LABEL_CLAMP_PX = 220;
+
 export interface TimelineViewProps {
   snapshot: WorkspaceSnapshot;
   view: SavedView;
@@ -122,7 +129,7 @@ export function TimelineView({
   useScrollFocusIntoView(chartEl);
   const width = useElementWidth(chartEl);
 
-  /* ----------------------------------------------- resizable chrome ------ */
+  /* --------------------------------------------------------------- chrome -- */
 
   const [leftWidth, setLeftWidth] = useState(plugin.settings.timelineLeftWidth);
   const [leftCollapsed, setLeftCollapsed] = useState(
@@ -135,6 +142,25 @@ export function TimelineView({
     plugin.settings.timelineLowerCollapsed,
   );
 
+  /* Narrow-pane clamping: a Gantt is a fat visualization — with a ~300px label
+     column plus the toolbar, a narrow pane leaves almost nothing for the chart
+     body. When the pane drops below a floor width the label column is capped at
+     `MAX_LABEL_CLAMP_PX` so the chart always has room to breathe. The resize
+     handle stays visible so the user retains full manual control (they just
+     can't widen the label past the clamp while the pane is small). The moment
+     the pane widens the cap lifts and the stored drag width returns unchanged. */
+  const [timelineEl, setTimelineEl] = useState<HTMLDivElement | null>(null);
+  const [timelineWidth, setTimelineWidth] = useState(0);
+  useLayoutEffect(() => {
+    if (!timelineEl) return;
+    setTimelineWidth(timelineEl.clientWidth);
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) setTimelineWidth(entry.contentRect.width);
+    });
+    observer.observe(timelineEl);
+    return () => observer.disconnect();
+  }, [timelineEl]);
+
   const persist = useCallback(
     (patch: Partial<typeof plugin.settings>) => {
       Object.assign(plugin.settings, patch);
@@ -143,7 +169,11 @@ export function TimelineView({
     [plugin],
   );
 
-  const labelWidth = leftCollapsed ? LEFT_RAIL_WIDTH : leftWidth;
+  const labelWidth = leftCollapsed
+    ? LEFT_RAIL_WIDTH
+    : timelineWidth > 0 && timelineWidth < TIMELINE_NARROW_PX
+      ? Math.min(leftWidth, MAX_LABEL_CLAMP_PX)
+      : leftWidth;
 
   /* ------------------------------------------------------ chart model --- */
 
@@ -406,6 +436,7 @@ export function TimelineView({
 
   return (
     <div
+      ref={setTimelineEl}
       className={`vf-timeline${leftCollapsed ? " is-left-collapsed" : ""}`}
       style={
         {
@@ -520,7 +551,7 @@ export function TimelineView({
             <ResizeHandle
               axis="x"
               sign={1}
-              value={leftWidth}
+              value={labelWidth}
               min={LEFT_MIN_WIDTH}
               computeMax={(w) => w - CHART_MIN_WIDTH}
               onResize={setLeftWidth}
