@@ -5,6 +5,8 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.6 — 2026-09-03
+
 ### Added
 - The navigation drawer's close button sits on its own full-width header row (with a "Navigation" label), keeping it well clear of the first section's "+" add button so it can't be covered by a single tap.
 
