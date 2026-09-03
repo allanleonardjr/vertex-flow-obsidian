@@ -5,6 +5,17 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.8 — 2026-09-03
+
+### Added
+- The **Blank workspace** template is now truly empty: it explicitly overrides every taxonomy (statuses, priorities, task types, labels) to none and ships no views or dashboards, instead of silently applying the workspace defaults.
+- A blank (or otherwise empty-taxonomy) workspace is treated as authoritative and degrades gracefully: the Board shows a friendly empty state, and the Status dropdown reads "None" (like the other unset fields) rather than a "No matches" menu.
+- Status is now nullable across Tasks and Projects: with no statuses configured, new tasks/projects carry no status instead of a phantom ID that would render as "…(removed)". `defaultNewTaskStatus` becomes `null` in that case and the serialized `_workspace.md` omits every empty taxonomy.
+
+### Changed
+- Clicking a **Label** now opens a dedicated label screen (name, tag count, and the same collapsible **Description** editor Projects and Saved Views have — edited through the same mutation as the create/edit dialog) above the label's task viewport, instead of a bare list with no header.
+- The **Label** create/edit dialog's description box now spans the full dialog width like the name field.
+
 ## 1.0.7 — 2026-09-03
 
 ### Added

@@ -398,22 +398,26 @@ export function PrioritySelect(props: {
 	);
 }
 
-/** Status: "{colour dot} {name}". Always set — no "None" row. */
+/** Status: "{colour dot} {name}". Always set — no "None" row — except when the
+ *  workspace has no statuses at all, where "None" (no status) is the only
+ *  sensible choice and keeps the field reading like the other unset fields
+ *  instead of an empty menu of "No matches". */
 export function StatusSelect({
+	taxonomy,
 	value,
 	onChange,
-	...rest
 }: {
 	taxonomy: Taxonomy;
 	value: string | null;
 	onChange: (value: string | null) => void;
 }) {
+	const hasStatuses = listValues(taxonomy).length > 0;
 	return (
 		<TaxonomyMenuSelect
-			{...rest}
+			taxonomy={taxonomy}
 			value={value}
-			onChange={(next) => next && onChange(next)}
-			allowNone={false}
+			onChange={hasStatuses ? (next) => next && onChange(next) : onChange}
+			allowNone={!hasStatuses}
 			renderOption={(entry) => (
 				<IconLabel
 					glyph={
@@ -423,7 +427,13 @@ export function StatusSelect({
 							aria-hidden
 						/>
 					}
-					name={entry?.name ?? "—"}
+					name={
+						entry
+							? entry.name
+							: hasStatuses
+								? "—"
+								: "None"
+					}
 				/>
 			)}
 		/>

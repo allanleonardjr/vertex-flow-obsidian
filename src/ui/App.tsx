@@ -16,6 +16,7 @@ import type { Project, SavedView, WorkspaceSnapshot } from "../core/types";
 import { EmptyState } from "./EmptyState";
 import { EmptyTabsPane } from "./EmptyTabsPane";
 import { ProjectDetailView } from "./ProjectDetailView";
+import { LabelDetailView } from "./LabelDetailView";
 import { PersonDetailView } from "./PersonDetailView";
 import { TemplateGallery } from "./TemplateGallery";
 import { SelectionProvider } from "./selection";
@@ -283,6 +284,16 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
             active
             onSelectView={selectView}
           />
+        ) : activeTab.kind === "label" ? (
+          <LabelDetailView
+            labelId={activeTab.labelId}
+            snapshot={snapshot}
+            taxonomies={active.taxonomies}
+            context={active.context}
+            containerRef={container}
+            active
+            onSelectView={selectView}
+          />
         ) : viewportView ? (
           <TaskViewport
             snapshot={snapshot}
@@ -302,7 +313,7 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
 }
 
 /** A synthesised, never-persisted view showing only tasks carrying `labelId`. */
-function labelView(snapshot: WorkspaceSnapshot, labelId: string): SavedView {
+export function labelView(snapshot: WorkspaceSnapshot, labelId: string): SavedView {
   const label = workspaceTaxonomies(snapshot.workspace).label.values.find(
     (v) => v.id === labelId,
   );

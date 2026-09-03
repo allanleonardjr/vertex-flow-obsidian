@@ -26,8 +26,8 @@ import {
 export interface TaskParseOptions {
 	/** Vault path of the note, which is also its identity. */
 	path: string;
-	/** Workspace's configured default, used when `status` is missing. */
-	defaultStatus: string;
+	/** Workspace's configured default, used when `status` is missing. `null` when the workspace has no statuses. */
+	defaultStatus: string | null;
 	/** `Person.id`s @mentioned in the body — computed by the caller. */
 	mentions?: string[];
 }
@@ -51,7 +51,11 @@ export function parseTask(
 
 	const status = asString(fm.status);
 	if (!status) {
-		log.add(`Missing status; defaulting to "${options.defaultStatus}".`);
+		log.add(
+			options.defaultStatus
+				? `Missing status; defaulting to "${options.defaultStatus}".`
+				: "Missing status; leaving it unset.",
+		);
 	}
 
 	const rawRank = asString(fm.rank);

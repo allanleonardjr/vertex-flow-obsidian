@@ -1757,6 +1757,10 @@ body.vf-dragging {
   min-width: 0;
 }
 
+.vf-field-description textarea {
+  width: 100%;
+}
+
 .vf-icon-field {
   position: relative;
   display: inline-flex;
@@ -3447,6 +3451,32 @@ button.vf-crumb:hover {
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
+}
+
+/* Label editor: the collapsible description pane over the label's task
+   viewport. Same split as the Project editor, minus the drag-resize handle —
+   a label's description is the taxonomy's free text, kept short on purpose. */
+.vf-label-editor-info {
+  flex: 0 0 auto;
+  overflow-y: auto;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--vf-border);
+}
+
+.vf-label-editor-info.is-collapsed {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.vf-label-editor-tasks {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.vf-label-editor-chip {
+  font-size: 14px;
 }
 
 /* =========================================================================

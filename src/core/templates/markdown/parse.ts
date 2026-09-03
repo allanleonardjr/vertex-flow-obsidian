@@ -1026,7 +1026,14 @@ function cardSettings(overrides: TemplateWorkspaceOverrides): TemplateSetting[] 
 	const rows: TemplateSetting[] = [
 		plainSetting("Default view", "All Tasks (List, grouped by Status)"),
 	];
-	if (Object.keys(overrides).length === 0) return rows;
+	// An override counts for the card only if it carries at least one value. A
+	// template that overrides nothing, or that explicitly empties every taxonomy
+	// (a blank workspace) — the latter yields a non-empty key set but all-empty
+	// arrays — deliberately shows no taxonomy rows rather than rows of nothing.
+	const hasValues = Object.values(overrides).some(
+		(arr) => Array.isArray(arr) && arr.length > 0,
+	);
+	if (!hasValues) return rows;
 	return [
 		settingsFromValues("Statuses", overrides.statuses ?? DEFAULT_STATUSES),
 		settingsFromValues("Priorities", overrides.priorities ?? DEFAULT_PRIORITIES),

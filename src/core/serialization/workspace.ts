@@ -8,7 +8,6 @@
 
 import { dirname } from "../links";
 import {
-	DEFAULT_LABELS,
 	DEFAULT_NEW_TASK_STATUS,
 	DEFAULT_PRIORITIES,
 	DEFAULT_STATUSES,
@@ -175,21 +174,26 @@ export function parseWorkspace(
 		categorized: false,
 	}) as LabelValue[];
 
-	// A workspace with no statuses can't render a board at all, so this is the
-	// one taxonomy that gets backfilled rather than left empty.
-	const resolvedStatuses = statuses.length > 0 ? statuses : DEFAULT_STATUSES;
-	if (statuses.length === 0) log.add("No statuses defined; using the defaults.");
+	// A blank workspace may have an empty taxonomy (explicitly `[]` or omitted).
+	// The file is authoritative: we do NOT backfill the workspace defaults, so
+	// Settings/EditorRail show exactly what's configured — nothing, for a blank
+	// workspace. With no statuses there is no sensible default status, so
+	// `defaultNewTaskStatus` becomes `null` and new tasks/projects carry no
+	// status instead of a phantom id that would render as "…(removed)".
 
-	const declaredDefault = asString(fm.defaultNewTaskStatus);
-	let defaultNewTaskStatus = declaredDefault ?? DEFAULT_NEW_TASK_STATUS;
-	if (!resolvedStatuses.some((status) => status.id === defaultNewTaskStatus)) {
-		const fallback = resolvedStatuses[0].id;
-		if (declaredDefault) {
-			log.add(
-				`defaultNewTaskStatus "${declaredDefault}" is not a configured status; using "${fallback}".`,
-			);
+	let defaultNewTaskStatus = asString(fm.defaultNewTaskStatus) ?? null;
+	if (statuses.length > 0) {
+		if (!statuses.some((s) => s.id === defaultNewTaskStatus)) {
+			const fallback = statuses[0].id;
+			if (defaultNewTaskStatus != null) {
+				log.add(
+					`defaultNewTaskStatus "${asString(fm.defaultNewTaskStatus)}" is not a configured status; using "${fallback}".`,
+				);
+			}
+			defaultNewTaskStatus = fallback;
 		}
-		defaultNewTaskStatus = fallback;
+	} else {
+		defaultNewTaskStatus = null;
 	}
 
 	const workspace: WorkspaceConfig = {
@@ -204,10 +208,10 @@ export function parseWorkspace(
 		defaultNewTaskStatus,
 		estimateUnitLabel: asString(fm.estimateUnitLabel),
 		deletedAt: asDateTime(fm.deletedAt),
-		statuses: resolvedStatuses,
-		priorities: priorities.length > 0 ? priorities : DEFAULT_PRIORITIES,
-		taskTypes: taskTypes.length > 0 ? taskTypes : DEFAULT_TASK_TYPES,
-		labels: labels.length > 0 ? labels : DEFAULT_LABELS,
+		statuses,
+		priorities,
+		taskTypes,
+		labels,
 		people: parsePeople(fm.people, log),
 		root,
 	};
