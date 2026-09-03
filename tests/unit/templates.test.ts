@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { instantiateTemplate } from "../../src/core/templates/instantiate";
 import { WORKSPACE_TEMPLATES, templateById } from "../../src/core/templates";
 import { sampleWorkspaceTemplate } from "../../src/core/templates/sample-workspace";
+import { serializeWorkspace } from "../../src/core/serialization/workspace";
 import { workspaceTaxonomies } from "../../src/core/taxonomy";
 import type { Task } from "../../src/core/types";
 
@@ -69,7 +70,7 @@ describe("every template's example content is a full feature showcase", () => {
 
 			it("has archived tasks in both the done and canceled categories", () => {
 				const { status } = workspaceTaxonomies(snapshot.workspace);
-				const cat = (id: string) =>
+				const cat = (id: string | null) =>
 					status.values.find((v) => v.id === id)?.category;
 				const archived = tasks.filter((t) => t.archived);
 				expect(archived.length).toBeGreaterThanOrEqual(3);
@@ -223,15 +224,32 @@ describe("blank workspace template", () => {
 	});
 
 	it("ships only the minimal workspace scaffolding", () => {
-		const { snapshot } = instantiateTemplate({
+		const { snapshot, workspace } = instantiateTemplate({
 			...base,
 			template: blankTemplate,
 			includeExampleContent: false,
 		});
 		// No user views beyond the injected "All Tasks" System View.
 		expect(snapshot.views).toHaveLength(1);
-		// Taxonomy is untouched — the workspace defaults apply.
-		expect(snapshot.workspace.statuses.length).toBeGreaterThan(0);
+		// A blank template overrides every taxonomy to empty — so the in-memory
+		// config is empty, and the written `_workspace.md` frontmatter carries no
+		// taxonomy at all. With no statuses there's also no default status, so
+		// new tasks/projects would carry no status rather than a phantom id.
+		expect(snapshot.workspace.statuses).toHaveLength(0);
+		expect(snapshot.workspace.defaultNewTaskStatus).toBeNull();
+		const frontmatter = serializeWorkspace(workspace);
+		for (const key of ["statuses", "priorities", "taskTypes", "labels", "people"]) {
+			expect(
+				Object.prototype.hasOwnProperty.call(frontmatter, key),
+				`_workspace.md should not restate "${key}"`,
+			).toBe(false);
+		}
+		expect(
+			Object.prototype.hasOwnProperty.call(
+				frontmatter,
+				"defaultNewTaskStatus",
+			),
+		).toBe(false);
 	});
 });
 

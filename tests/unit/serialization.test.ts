@@ -30,7 +30,7 @@ import {
 	withProjectDescription,
 } from "../../src/core/serialization";
 import { MIDDLE_RANK } from "../../src/core/ranking/lexorank";
-import type { Person } from "../../src/core/types";
+import type { Person, WorkspaceConfig } from "../../src/core/types";
 
 const opts = { path: "W/Tasks/PRD-0104", defaultStatus: "queue" };
 
@@ -572,10 +572,49 @@ describe("parseWorkspace", () => {
 		expect(value.archiving.autoArchiveEnabled).toBe(false);
 	});
 
-	it("backfills default statuses rather than leaving a board with no columns", () => {
-		const { value, issues } = parseWorkspace({ name: "W" }, { path });
-		expect(value.statuses.length).toBeGreaterThan(0);
-		expect(issues.some((i) => /No statuses defined/.test(i))).toBe(true);
+	it("leaves statuses empty rather than backfilling defaults", () => {
+		const { value } = parseWorkspace({ name: "W" }, { path });
+		expect(value.statuses).toEqual([]);
+		expect(value.priorities).toEqual([]);
+		expect(value.taskTypes).toEqual([]);
+		/* defaultNewTaskStatus is `null` when there are no statuses, so new
+		 * tasks fall back to an unset status instead of a phantom id that would
+		 * render as "…(removed)". */
+		expect(value.defaultNewTaskStatus).toBeNull();
+	});
+
+	it("round-trips a workspace with an explicitly empty taxonomy", () => {
+		const workspace: WorkspaceConfig = {
+			type: "workspace",
+			name: "Blank",
+			icon: "circle",
+			idPrefix: "TST",
+			archiving: { autoArchiveEnabled: false, autoArchiveDays: 30 },
+			defaultNewTaskStatus: "queue",
+			estimateUnitLabel: null,
+			deletedAt: null,
+			statuses: [],
+			priorities: [],
+			taskTypes: [],
+			labels: [],
+			people: [],
+			root: "W",
+		};
+		const frontmatter = serializeWorkspace(workspace);
+		// Empty taxonomies are compacted away entirely, so the blank `_workspace.md`
+		// carries none of them.
+		for (const key of ["statuses", "priorities", "taskTypes", "labels", "people"]) {
+			expect(
+				Object.prototype.hasOwnProperty.call(frontmatter, key),
+				`should omit "${key}"`,
+			).toBe(false);
+		}
+		// And re-parsing keeps them empty (no default backfill).
+		const { value } = parseWorkspace(frontmatter, { path });
+		expect(value.statuses).toEqual([]);
+		expect(value.priorities).toEqual([]);
+		expect(value.taskTypes).toEqual([]);
+		expect(value.labels).toEqual([]);
 	});
 
 	it("repairs a status with an unknown category instead of dropping it", () => {

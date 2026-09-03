@@ -144,8 +144,15 @@ export function instantiateTemplate(
 	if (options.selfPersonName) seedSelfPerson(workspace, options.selfPersonName);
 
 	// `createWorkspaceConfig` defaults `defaultNewTaskStatus` to the default
-	// backlog status id, which a taxonomy override may have removed.
-	if (!workspace.statuses.some((s) => s.id === workspace.defaultNewTaskStatus)) {
+	// backlog status id, which a taxonomy override may have removed. A template
+	// may also leave `statuses` empty (a blank workspace's override); with no
+	// statuses there's nothing to default to, so `defaultNewTaskStatus` becomes
+	// `null` and new tasks/projects carry no status rather than a phantom id.
+	if (workspace.statuses.length === 0) {
+		workspace.defaultNewTaskStatus = null;
+	} else if (
+		!workspace.statuses.some((s) => s.id === workspace.defaultNewTaskStatus)
+	) {
 		workspace.defaultNewTaskStatus = workspace.statuses[0].id;
 	}
 

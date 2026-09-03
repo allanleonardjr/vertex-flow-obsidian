@@ -11,7 +11,8 @@ import { createPortal } from "react-dom";
 import { scopeOf, subtaskProgress } from "../../core/hierarchy";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { EvaluatedView } from "../../core/views";
-import { renderedHiddenFields, toggleColumnCollapsed } from "../../core/views";
+import { layoutIcon, renderedHiddenFields, toggleColumnCollapsed } from "../../core/views";
+import { EmptyView } from "../components/EmptyView";
 import {
   emptyProgress,
   type SavedView,
@@ -71,6 +72,27 @@ export function BoardView({
 
   const [board, setBoard] = useState<HTMLDivElement | null>(null);
   useScrollFocusIntoView(board);
+
+  // A blank workspace has no tasks and often no configured statuses at all.
+  // Rather than an empty board body, show the same friendly empty state the
+  // List/Calendar/Timeline views use.
+  if (evaluated.total === 0) {
+    const filtered = evaluated.filteredOut > 0;
+    return (
+      <EmptyView
+        icon={view.icon}
+        iconFallback={layoutIcon(view.viewType)}
+        title={filtered ? "No tasks match this filter" : "Nothing here yet."}
+        note={
+          filtered ? undefined : (
+            <>
+              Press <kbd>c</kbd> <kbd>t</kbd> to create a task.
+            </>
+          )
+        }
+      />
+    );
+  }
 
   return (
     <div className="vf-board" ref={setBoard}>

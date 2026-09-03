@@ -21,8 +21,8 @@ import {
 
 export interface EntityParseOptions {
 	path: string;
-	/** Used when the note omits `status`, same as for Tasks. */
-	defaultStatus: string;
+	/** Used when the note omits `status`, same as for Tasks. `null` when the workspace has no statuses. */
+	defaultStatus: string | null;
 }
 
 export function parseProject(

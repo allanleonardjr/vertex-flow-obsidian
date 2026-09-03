@@ -147,7 +147,8 @@ export interface Task {
 	id: string;
 	title: string;
 	taskType: string | null;
-	status: string;
+	/** Status id. `null` when the workspace has no configured status. */
+	status: string | null;
 	priority: string | null;
 	/** LexoRank — global default order. Always present. */
 	rank: string;
@@ -211,8 +212,8 @@ export interface Project {
 	title: string;
 	/** Curated icon id (see `ui/components/Icon.tsx`); optional, falls back at render. */
 	icon?: string;
-	/** Reuses the Task status taxonomy — no separate system. */
-	status: string;
+	/** Reuses the Task status taxonomy — no separate system. `null` is "None". */
+	status: string | null;
 	/** Reuses the Task priority taxonomy — no separate system. `null` is "None". */
 	priority: string | null;
 	/** Reuses the Task label taxonomy/engine, multi-select. */
@@ -267,8 +268,8 @@ export interface WorkspaceConfig {
 	/** Must be unique vault-wide, not just per-workspace. */
 	idPrefix: string;
 	archiving: ArchivingConfig;
-	/** Configurable independently of status category. */
-	defaultNewTaskStatus: string;
+	/** Configurable independently of status category. `null` when no status is defined. */
+	defaultNewTaskStatus: string | null;
 	/** Cosmetic suffix only — the plugin never calculates on estimates. */
 	estimateUnitLabel: string | null;
 
