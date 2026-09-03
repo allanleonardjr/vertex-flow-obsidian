@@ -136,6 +136,15 @@ export function Sidebar({
         </button>
       </div>
 
+      <button
+        className="vf-nav-close"
+        title="Close navigation"
+        aria-label="Close navigation"
+        onClick={() => closeDrawers()}
+      >
+        <PanelLeftClose size={16} />
+      </button>
+
       {!minimized && (
         <>
           <WorkspacesSection snapshot={snapshot} />

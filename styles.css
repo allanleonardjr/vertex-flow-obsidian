@@ -1943,6 +1943,10 @@ body.vf-dragging {
     padding: 6px 10px;
     background: var(--background-secondary);
     border-bottom: 1px solid var(--vf-border);
+    /* Stay above the open drawers (sidebar 60, editor rail 55) so the toggles
+       double as the drawer close buttons and are never covered by one. */
+    position: relative;
+    z-index: 70;
   }
 
   .vf-shell .vf-compact-toggle-gap {
@@ -1974,10 +1978,35 @@ body.vf-dragging {
 
   /* The shared backdrop behind whichever drawer is open. */
   .vf-shell .vf-compact-backdrop {
+    display: block;
     position: absolute;
     inset: 0;
     z-index: 50;
     background: rgb(0 0 0 / 35%);
+  }
+
+  .vf-shell .vf-nav-close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 5;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none !important;
+    border-radius: var(--vf-radius);
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--vf-muted);
+    cursor: pointer;
+  }
+
+  .vf-shell .vf-nav-close:hover {
+    background: var(--background-modifier-hover) !important;
+    color: var(--text-normal);
   }
 
   /* The task/project properties rail becomes a right overlay drawer: always
@@ -2016,7 +2045,8 @@ body.vf-dragging {
 /* Wide panes: the toggle strip is hidden. (Lower specificity than the
    container block's `.vf-shell .vf-compact-toggle`, so compact still shows it.) */
 .vf-compact-toggle,
-.vf-compact-backdrop {
+.vf-compact-backdrop,
+.vf-nav-close {
   display: none;
 }
 
