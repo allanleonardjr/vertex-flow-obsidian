@@ -1903,10 +1903,13 @@ body.vf-dragging {
 @container vf-shell (max-width: 520px) {
   /* The sidebar becomes a left overlay drawer: pulled out of the flex flow
      (absolute) and translated off-screen until opened. Its width stays the
-     inline one (`--vf-sidebar-w` holds the JS width) — clamped on the pane. */
+     inline one (`--vf-sidebar-w` holds the JS width) — clamped on the pane.
+     It starts below the fixed-height toggle strip (`top: 40px`) so the strip
+     remains a visible header above the drawer instead of covering its first
+     nav row. */
   .vf-shell .vf-sidebar {
     position: absolute;
-    top: 0;
+    top: 40px;
     bottom: 0;
     left: 0;
     z-index: 60;
@@ -1947,6 +1950,11 @@ body.vf-dragging {
        double as the drawer close buttons and are never covered by one. */
     position: relative;
     z-index: 70;
+    /* Fixed height so the drawers and backdrop below it can start at an exact
+       offset (`top: 40px`) and never cover the strip — keeping the pane's first
+       nav row (e.g. the WORKSPACES collapsible header) visible. */
+    height: 40px;
+    box-sizing: border-box;
   }
 
   .vf-shell .vf-compact-toggle-gap {
@@ -1976,11 +1984,14 @@ body.vf-dragging {
     color: var(--interactive-accent);
   }
 
-  /* The shared backdrop behind whichever drawer is open. */
+  /* The shared backdrop behind whichever drawer is open. It dims only the
+     content area below the toggle strip, so the strip (above it) stays bright
+     and its toggles remain the drawer close buttons. */
   .vf-shell .vf-compact-backdrop {
     display: block;
     position: absolute;
     inset: 0;
+    top: 40px;
     z-index: 50;
     background: rgb(0 0 0 / 35%);
   }
