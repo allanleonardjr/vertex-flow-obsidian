@@ -5,6 +5,29 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.9 — 2026-09-05
+
+### Added
+- The color picker is now a shared app-wide component and ships a much richer palette: a reordered 48-color **Spectrum Matrix** (8 columns of vertical color families — neutrals, then Reds · Oranges · Yellows · Limes/Greens · Teals/Cyans · Blues · Indigos/Purples · Pinks/Magentas across five intensity rows) rendered in the taxonomy settings (statuses, priorities, task types) and the label editor.
+- A **Custom Color** row below the swatch grid lets advanced users pick any raw color via the native color wheel or a typed hex code, styled as a matching square swatch; the popover stays open while dragging the native picker and commits the choice on dismissal.
+- Hovering a color swatch now shows Obsidian's styled tooltip with its friendly name and hex (e.g. "Soft Red · #fca5a5"); the custom-color wheel shows the same when its hex lands on a preset, otherwise just the hex.
+
+### Changed
+- The **New workspace** screen's config step and the workspace **Settings → General** screen now let you pick the workspace's icon with the same searchable picker the Edit-workspace dialog already had — so you can set the icon at creation time or change it any time afterwards, not just via the edit-modal path.
+- Renamed `TAXONOMY_PALETTE` to `COLOR_PALETTE` and moved it out of taxonomy scope into a shared `src/core/color.ts` module (all importers updated).
+- Standardized the spelling of "Color" (was "Colour") across the UI and comments.
+- Greatly widened the color popover and tightened its swatch grid so the 8 columns fit comfortably inside the box, with the inner trigger swatch properly centered.
+- Removed every `!important` from `styles.css` (224 → 0). Button-chrome resets are now element-scoped (`button.vf-nav-row` instead of `.vf-nav-row`), multi-tag resets (`.vf-browse-card-body`, `.vf-crumb`, `.vf-filter-tag-face`) split so only their `<button>` form fights the base button rule, `<input>` chrome resets use `input.`, and the compact-mode drawers keep their exact widths without a forced override (sidebar clamps via `max-width`; the properties rail drops its inline width while drawn).
+- The **New view**, **New dashboard**, and **New project** buttons — both in the sidebar ("+") and the browse hubs — now behave like **New label**/**New person**: pressing them opens the name + icon modal first, and the item is only created once you confirm, instead of pre-creating a blank item and opening its tab before asking what to call it.
+- The **New view**, **New dashboard**, and **New project** create dialogs now also collect a **Description** — the app-wide Markdown control with its Live Preview/Source toggle — persisted to the view/dashboard frontmatter (or the project note body) when you confirm. The **Label** create/edit dialogs and the inline chip editor use the same Description control instead of a plain textarea. In dialogs the field is boxed and vertically resizable, so where it starts and stops is always clear; the pane-level Description sections keep the borderless, fixed-height note surface.
+
+### Fixed
+- The label description textarea used to be freely resizeable in both directions, letting users drag its right edge outside the dialog; it now resizes vertically only, keeping the dialog margins constant.
+- Realigned the palette matrix so every column holds a single consistent color family (cyan/teal, blue, purple, and pink/magenta columns no longer mix hues).
+- Color swatch hovers no longer show a duplicate browser `title` tooltip next to Obsidian's styled one (the palette's `aria-label` container label that could flash a stray "Color" tooltip near the Custom Color row was also removed).
+- Resolved the Obsidian repo-checker source warnings: an unused `SortDirection` import, a stray `usePlugin()` call, and three legacy `createEl` shorthands in the caret-position/embedded-editor helpers.
+- Fixed regressions from the `!important` removal: the label editor's **Custom Color** swatch (a `<label>`, not a `<button>`) renders again; the Trash **Restore** button and every **New …** `.mod-cta` action regain their pointer cursor; the **Delete Forever** menu row no longer shows red-on-red (its hover fill now flips the text to the on-accent colour).
+
 ## 1.0.8 — 2026-09-03
 
 ### Added

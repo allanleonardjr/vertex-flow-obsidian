@@ -10,11 +10,14 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { IconField } from "../components/Icon";
+import { DescriptionDialogField } from "../components/DescriptionSection";
 
 export function NamedIconDialog({
 	title,
 	initialName,
 	initialIcon,
+	initialDescription,
+	descriptionSourcePath,
 	iconFallback,
 	confirmLabel,
 	validateName,
@@ -25,6 +28,14 @@ export function NamedIconDialog({
 	title: string;
 	initialName: string;
 	initialIcon?: string;
+	/**
+	 * When provided, the dialog also collects a description for the thing being
+	 * created, using the app-wide Description control (Markdown + source toggle).
+	 */
+	initialDescription?: string;
+	/** Where `[[links]]` in that description resolve against — needed when
+	 * `initialDescription` is provided. */
+	descriptionSourcePath?: string;
 	iconFallback?: string;
 	confirmLabel: string;
 	/**
@@ -34,7 +45,11 @@ export function NamedIconDialog({
 	 * collision treatment in the workspace-creation dialog.
 	 */
 	validateName?: (name: string) => string | null;
-	onConfirm: (name: string, icon: string | undefined) => void;
+	onConfirm: (
+		name: string,
+		icon: string | undefined,
+		description?: string,
+	) => void;
 	/**
 	 * Called when the dialog is dismissed *without* confirming (Cancel button or
 	 * backdrop click) — not after a successful confirm. Callers that pre-create
@@ -45,6 +60,7 @@ export function NamedIconDialog({
 }) {
 	const [name, setName] = useState(initialName);
 	const [icon, setIcon] = useState<string | undefined>(initialIcon);
+	const [description, setDescription] = useState(initialDescription ?? "");
 
 	const nameError = validateName?.(name) ?? null;
 	const valid = name.trim().length > 0 && !nameError;
@@ -56,7 +72,7 @@ export function NamedIconDialog({
 
 	const submit = () => {
 		if (!valid) return;
-		onConfirm(name.trim(), icon);
+		onConfirm(name.trim(), icon, description.trim() || undefined);
 		onClose();
 	};
 
@@ -95,6 +111,14 @@ export function NamedIconDialog({
 						)}
 					</label>
 				</div>
+
+				{initialDescription !== undefined && (
+					<DescriptionDialogField
+						value={description}
+						onChange={setDescription}
+						sourcePath={descriptionSourcePath ?? ""}
+					/>
+				)}
 
 				<div className="vf-dialog-actions">
 					<button onClick={cancel}>Cancel</button>

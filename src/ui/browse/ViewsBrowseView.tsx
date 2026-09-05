@@ -22,28 +22,18 @@ import {
   BrowseList,
 } from "./shared";
 
-type DialogState =
-  | { mode: "create"; view: SavedView }
-  | { mode: "edit"; view: SavedView }
-  | null;
+type DialogState = { mode: "edit"; view: SavedView } | null;
 
 export function ViewsBrowseView({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   const plugin = usePlugin();
   const { openView } = useTabs();
 
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const [dialog, setDialog] = useState<DialogState>(null);
   const [deleting, setDeleting] = useState<SavedView | null>(null);
 
   const views = snapshot.views.filter((v) => !isSystemViewId(v.id));
-
-  const create = () => {
-    const view = newView(newConfigId("view"), "New view", "list");
-    void plugin.mutations.addView(snapshot, view).then(() => {
-      openView(view.id);
-      setDialog({ mode: "create", view });
-    });
-  };
 
   const duplicate = (view: SavedView) => {
     const copy: SavedView = {
@@ -62,7 +52,7 @@ export function ViewsBrowseView({ snapshot }: { snapshot: WorkspaceSnapshot }) {
         count={views.length}
         idPrefix={snapshot.workspace.idPrefix}
         actionLabel="New view"
-        onAction={create}
+        onAction={() => setCreating(true)}
       />
 
       {views.length === 0 ? (
@@ -133,27 +123,43 @@ export function ViewsBrowseView({ snapshot }: { snapshot: WorkspaceSnapshot }) {
         />
       )}
 
+      {creating && (
+        <NamedIconDialog
+          title="New view"
+          initialName="New view"
+          initialIcon={layoutIcon("list")}
+          initialDescription=""
+          descriptionSourcePath={`${snapshot.workspace.root}/Untitled`}
+          iconFallback={layoutIcon("list")}
+          confirmLabel="Create"
+          onConfirm={(name, icon, description) => {
+            const view = {
+              ...newView(newConfigId("view"), "New view", "list"),
+              name,
+              icon,
+              description: description?.trim() || undefined,
+            };
+            void plugin.mutations.addView(snapshot, view).then(() =>
+              openView(view.id),
+            );
+          }}
+          onClose={() => setCreating(false)}
+        />
+      )}
+
       {dialog && (
         <NamedIconDialog
-          title={dialog.mode === "create" ? "Name your view" : "Edit view"}
+          title="Edit view"
           initialName={dialog.view.name}
           initialIcon={dialog.view.icon}
           iconFallback={layoutIcon(dialog.view.viewType)}
-          confirmLabel={dialog.mode === "create" ? "Create" : "Save"}
+          confirmLabel="Save"
           onConfirm={(name, icon) =>
             void plugin.mutations.updateView(snapshot, {
               ...dialog.view,
               name,
               icon,
             })
-          }
-          // Cancelling the "name your new view" step discards the view that
-          // was auto-created to open it; App's `pruneViews` then closes its
-          // tab.
-          onCancel={
-            dialog.mode === "create"
-              ? () => void plugin.mutations.deleteView(snapshot, dialog.view.id)
-              : undefined
           }
           onClose={() => setDialog(null)}
         />

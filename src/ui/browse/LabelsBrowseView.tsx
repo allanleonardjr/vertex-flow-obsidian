@@ -206,6 +206,7 @@ export function LabelsBrowseView({ snapshot }: { snapshot: WorkspaceSnapshot }) 
 				<LabelDialog
 					title="New label"
 					initialName="New label"
+					descriptionSourcePath={`${snapshot.workspace.root}/Untitled`}
 					confirmLabel="Create"
 					onConfirm={(name, color, description) =>
 						plugin.mutations
@@ -222,6 +223,7 @@ export function LabelsBrowseView({ snapshot }: { snapshot: WorkspaceSnapshot }) 
 					initialName={editLabel.name}
 					initialColor={editLabel.color}
 					initialDescription={editLabel.description}
+					descriptionSourcePath={`${snapshot.workspace.root}/Untitled`}
 					confirmLabel="Save"
 					onConfirm={(name, color, description) =>
 						plugin.mutations.updateLabel(snapshot, editLabel.id, {

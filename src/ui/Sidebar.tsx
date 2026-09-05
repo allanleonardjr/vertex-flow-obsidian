@@ -633,10 +633,7 @@ function PermanentViewRow({
 
 /* ------------------------------------------------------------------ views -- */
 
-type ViewDialogState =
-  | { mode: "create"; view: SavedView }
-  | { mode: "edit"; view: SavedView }
-  | null;
+type ViewDialogState = { mode: "edit"; view: SavedView } | null;
 
 function ViewsSection({
   snapshot,
@@ -650,20 +647,13 @@ function ViewsSection({
   const plugin = usePlugin();
   const { openScreen } = useTabs();
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const [dialog, setDialog] = useState<ViewDialogState>(null);
   const [deleting, setDeleting] = useState<SavedView | null>(null);
 
   // The two System Views (All Tasks, Untriaged) render as their own bare rows
   // above this section — never in the list, never in the count.
   const userViews = snapshot.views.filter((v) => !isSystemViewId(v.id));
-
-  const create = () => {
-    const view = newView(newConfigId("view"), "New view", "list");
-    void plugin.mutations.addView(snapshot, view).then(() => {
-      onSelectView(view.id);
-      setDialog({ mode: "create", view });
-    });
-  };
 
   const duplicate = (view: SavedView) => {
     const copy: SavedView = {
@@ -688,7 +678,7 @@ function ViewsSection({
       id="views"
       title="Views"
       count={userViews.length}
-      action={<AddButton title="New view" onClick={create} />}
+      action={<AddButton title="New view" onClick={() => setCreating(true)} />}
       onOpenHub={() => openScreen("views")}
     >
       {userViews.length === 0 && (
@@ -763,26 +753,43 @@ function ViewsSection({
         />
       )}
 
+      {creating && (
+        <NamedIconDialog
+          title="New view"
+          initialName="New view"
+          initialIcon={layoutIcon("list")}
+          initialDescription=""
+          descriptionSourcePath={`${snapshot.workspace.root}/Untitled`}
+          iconFallback={layoutIcon("list")}
+          confirmLabel="Create"
+          onConfirm={(name, icon, description) => {
+            const view = {
+              ...newView(newConfigId("view"), "New view", "list"),
+              name,
+              icon,
+              description: description?.trim() || undefined,
+            };
+            void plugin.mutations.addView(snapshot, view).then(() =>
+              onSelectView(view.id),
+            );
+          }}
+          onClose={() => setCreating(false)}
+        />
+      )}
+
       {dialog && (
         <NamedIconDialog
-          title={dialog.mode === "create" ? "Name your view" : "Edit view"}
+          title="Edit view"
           initialName={dialog.view.name}
           initialIcon={dialog.view.icon}
           iconFallback={layoutIcon(dialog.view.viewType)}
-          confirmLabel={dialog.mode === "create" ? "Create" : "Save"}
+          confirmLabel="Save"
           onConfirm={(name, icon) =>
             void plugin.mutations.updateView(snapshot, {
               ...dialog.view,
               name,
               icon,
             })
-          }
-          // Cancelling the "name your new view" step discards the view that was
-          // auto-created to open it; App's `pruneViews` then closes its tab.
-          onCancel={
-            dialog.mode === "create"
-              ? () => void plugin.mutations.deleteView(snapshot, dialog.view.id)
-              : undefined
           }
           onClose={() => setDialog(null)}
         />
@@ -793,15 +800,13 @@ function ViewsSection({
 
 /* ------------------------------------------------------------- dashboards -- */
 
-type DashboardDialogState =
-  | { mode: "create"; dashboard: DashboardConfig }
-  | { mode: "edit"; dashboard: DashboardConfig }
-  | null;
+type DashboardDialogState = { mode: "edit"; dashboard: DashboardConfig } | null;
 
 function DashboardsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   const plugin = usePlugin();
   const { activeTab, openDashboard, openScreen } = useTabs();
   const [menuId, setMenuId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const [dialog, setDialog] = useState<DashboardDialogState>(null);
   const [deleting, setDeleting] = useState<DashboardConfig | null>(null);
 
@@ -810,16 +815,6 @@ function DashboardsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   );
   const activeDashboardId =
     activeTab?.kind === "dashboard" ? activeTab.dashboardId : null;
-
-  // Mirror the "new view" flow: create with a default name, then open the
-  // name + icon modal to finish it.
-  const create = () => {
-    const dashboard = newDashboard(newConfigId("dashboard"), "New dashboard");
-    void plugin.mutations.addDashboard(snapshot, dashboard).then(() => {
-      openDashboard(dashboard.id);
-      setDialog({ mode: "create", dashboard });
-    });
-  };
 
   const duplicate = (id: string) => {
     const source = snapshot.dashboards.find((d) => d.id === id);
@@ -840,7 +835,7 @@ function DashboardsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
       id="dashboards"
       title="Dashboards"
       count={dashboards.length}
-      action={<AddButton title="New dashboard" onClick={create} />}
+      action={<AddButton title="New dashboard" onClick={() => setCreating(true)} />}
       onOpenHub={() => openScreen("dashboards")}
     >
       {dashboards.length === 0 ? (
@@ -897,33 +892,43 @@ function DashboardsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
         ))
       )}
 
+      {creating && (
+        <NamedIconDialog
+          title="New dashboard"
+          initialName="New dashboard"
+          initialIcon="layout-dashboard"
+          initialDescription=""
+          descriptionSourcePath={`${snapshot.workspace.root}/Untitled`}
+          iconFallback="layout-dashboard"
+          confirmLabel="Create"
+          onConfirm={(name, icon, description) => {
+            const dashboard = {
+              ...newDashboard(newConfigId("dashboard"), "New dashboard"),
+              name,
+              icon,
+              description: description?.trim() || undefined,
+            };
+            void plugin.mutations
+              .addDashboard(snapshot, dashboard)
+              .then(() => openDashboard(dashboard.id));
+          }}
+          onClose={() => setCreating(false)}
+        />
+      )}
+
       {dialog && (
         <NamedIconDialog
-          title={
-            dialog.mode === "create" ? "Name your dashboard" : "Edit dashboard"
-          }
+          title="Edit dashboard"
           initialName={dialog.dashboard.name}
           initialIcon={dialog.dashboard.icon}
           iconFallback="layout-dashboard"
-          confirmLabel={dialog.mode === "create" ? "Create" : "Save"}
+          confirmLabel="Save"
           onConfirm={(name, icon) =>
             void plugin.mutations.updateDashboard(snapshot, {
               ...dialog.dashboard,
               name,
               icon,
             })
-          }
-          // Cancelling the "name your new dashboard" step discards the dashboard
-          // that was auto-created to open it; App's `pruneDashboards` then
-          // closes its tab.
-          onCancel={
-            dialog.mode === "create"
-              ? () =>
-                  void plugin.mutations.deleteDashboard(
-                    snapshot,
-                    dialog.dashboard.id,
-                  )
-              : undefined
           }
           onClose={() => setDialog(null)}
         />
@@ -1045,15 +1050,17 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
           title="New project"
           initialName="New project"
           initialIcon="folder"
+          initialDescription=""
+          descriptionSourcePath={`${snapshot.workspace.root}/Untitled`}
           confirmLabel="Create"
           validateName={(name) =>
             isProjectTitleTaken(snapshot.projects, name)
               ? `A project named "${name.trim()}" already exists`
               : null
           }
-          onConfirm={(name, icon) =>
+          onConfirm={(name, icon, description) =>
             void plugin.mutations
-              .createProject(snapshot, name, icon)
+              .createProject(snapshot, name, icon, description)
               .then((file) => tabs.openProject(withoutExtension(file.path)))
           }
           onClose={() => setCreating(false)}
@@ -1190,6 +1197,7 @@ function LabelsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
         <LabelDialog
           title="New label"
           initialName="New label"
+          descriptionSourcePath={`${snapshot.workspace.root}/Untitled`}
           confirmLabel="Create"
           onConfirm={(name, color, description) =>
             plugin.mutations
@@ -1206,6 +1214,7 @@ function LabelsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
           initialName={editLabel.name}
           initialColor={editLabel.color}
           initialDescription={editLabel.description}
+          descriptionSourcePath={`${snapshot.workspace.root}/Untitled`}
           confirmLabel="Save"
           onConfirm={(name, color, description) =>
             plugin.mutations.updateLabel(snapshot, editLabel.id, {

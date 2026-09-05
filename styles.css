@@ -122,21 +122,21 @@ body.vf-text-comfortable {
   padding: 0;
 }
 
-.vf-sidebar-minimize {
+button.vf-sidebar-minimize {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 4px;
-  border: none !important;
+  border: none;
   border-radius: 4px;
-  background: transparent !important;
-  box-shadow: none !important;
+  background: transparent;
+  box-shadow: none;
   color: var(--vf-muted);
   cursor: pointer;
 }
 
-.vf-sidebar-minimize:hover {
-  background: var(--background-modifier-hover) !important;
+button.vf-sidebar-minimize:hover {
+  background: var(--background-modifier-hover);
   color: var(--text-normal);
 }
 
@@ -203,40 +203,40 @@ body.vf-text-comfortable {
 
 /* Chevron and title are two sibling buttons (a button can't nest in a button).
    Shared reset; the chevron hugs its glyph, the title takes the rest. */
-.vf-section-chevron-btn,
-.vf-section-title-btn {
+button.vf-section-chevron-btn,
+button.vf-section-title-btn {
   display: flex;
   align-items: center;
 
   /* Obsidian's base `button` centers its content — force left. */
-  justify-content: flex-start !important;
+  justify-content: flex-start;
   padding: 4px 6px;
-  border: none !important;
-  background: transparent !important;
-  box-shadow: none !important;
+  border: none;
+  background: transparent;
+  box-shadow: none;
   color: var(--vf-muted);
   font-size: var(--font-ui-smaller);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  text-align: left !important;
+  text-align: left;
   cursor: pointer;
 }
 
-.vf-section-chevron-btn {
+button.vf-section-chevron-btn {
   flex: 0 0 auto;
   padding-right: 0;
 }
 
-.vf-section-title-btn {
+button.vf-section-title-btn {
   gap: 3px;
   flex: 1;
   min-width: 0;
   padding-left: 3px;
 }
 
-.vf-section-chevron-btn:hover,
-.vf-section-title-btn:hover {
+button.vf-section-chevron-btn:hover,
+button.vf-section-title-btn:hover {
   color: var(--text-normal);
 }
 
@@ -272,11 +272,11 @@ body.vf-text-comfortable {
   align-items: center;
 }
 
-.vf-section-add {
+button.vf-section-add {
   padding: 0 6px;
-  border: none !important;
-  background: transparent !important;
-  box-shadow: none !important;
+  border: none;
+  background: transparent;
+  box-shadow: none;
   color: var(--vf-muted);
   font-size: 15px;
   line-height: 1;
@@ -306,25 +306,25 @@ body.vf-text-comfortable {
   position: relative;
 }
 
-.vf-nav-row {
+button.vf-nav-row {
   display: flex;
   align-items: center;
   gap: 6px;
   width: 100%;
   height: 26px;
   padding: 0 22px 0 20px;
-  border: none !important;
+  border: none;
   border-radius: var(--vf-radius);
-  background: transparent !important;
-  box-shadow: none !important;
+  background: transparent;
+  box-shadow: none;
   color: var(--text-normal);
   font-size: var(--font-ui-small);
   text-align: left;
   cursor: pointer;
 }
 
-.vf-nav-row:hover {
-  background: var(--background-modifier-hover) !important;
+button.vf-nav-row:hover {
+  background: var(--background-modifier-hover);
 }
 
 .vf-nav-icon {
@@ -361,16 +361,16 @@ body.vf-text-comfortable {
 }
 
 /* Per-row options menu (⋯) — revealed on row hover. */
-.vf-nav-row-menu {
+button.vf-nav-row-menu {
   position: absolute;
   top: 50%;
   right: 4px;
   transform: translateY(-50%);
   padding: 0 4px;
-  border: none !important;
+  border: none;
   border-radius: 4px;
-  background: transparent !important;
-  box-shadow: none !important;
+  background: transparent;
+  box-shadow: none;
   color: var(--vf-muted);
   font-size: 13px;
   line-height: 1;
@@ -378,8 +378,8 @@ body.vf-text-comfortable {
   cursor: pointer;
 }
 
-.vf-nav-row-menu:hover {
-  background: var(--background-modifier-hover) !important;
+button.vf-nav-row-menu:hover {
+  background: var(--background-modifier-hover);
   color: var(--text-normal);
 }
 
@@ -527,7 +527,7 @@ body.vf-text-comfortable {
   gap: 0;
 }
 
-.vf-row-open {
+button.vf-row-open {
   display: flex;
   flex: 1;
   align-items: center;
@@ -535,10 +535,10 @@ body.vf-text-comfortable {
   min-width: 0;
   height: 100%;
   padding: 0 14px;
-  border: none !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   color: var(--text-normal);
   font-size: inherit;
   text-align: left;
@@ -660,7 +660,7 @@ body.vf-text-comfortable {
 /* Unlinking is not deleting — it clears a `parent` field or drops a path from
    `relations`, and the task survives. So: no error tint, no red. */
 .vf-row-unlink:hover {
-  opacity: 1 !important;
+  opacity: 1;
   background: var(--background-modifier-hover);
   border-color: var(--vf-border);
   color: var(--text-normal);
@@ -668,7 +668,7 @@ body.vf-text-comfortable {
 
 /* Linear subtle error highlight on direct icon hover */
 .vf-row-remove:hover {
-  opacity: 1 !important;
+  opacity: 1;
   background: var(--background-modifier-error-hover, rgb(239 68 68 / 15%));
   border-color: var(--text-error, rgb(239 68 68 / 30%));
   color: var(--text-error, #ef4444);
@@ -784,10 +784,10 @@ button.vf-list-group-toggle:hover {
   width: 16px;
 }
 
-.vf-nest-chevron {
-  border: none !important;
-  background: transparent !important;
-  box-shadow: none !important;
+button.vf-nest-chevron {
+  border: none;
+  background: transparent;
+  box-shadow: none;
   outline: none;
   color: var(--vf-muted);
   cursor: pointer;
@@ -988,25 +988,25 @@ body.vf-dragging .vf-card {
   margin-bottom: 4px;
 }
 
-.vf-card-parent {
+button.vf-card-parent {
   display: flex;
   align-items: center;
   gap: 4px;
   max-width: 100%;
   margin-bottom: 4px;
   padding: 1px 4px;
-  border: none !important;
+  border: none;
   border-radius: 4px;
   outline: none;
-  background: transparent !important;
-  box-shadow: none !important;
+  background: transparent;
+  box-shadow: none;
   color: var(--vf-muted);
   font-size: var(--font-ui-smaller);
   cursor: pointer;
 }
 
-.vf-card-parent:hover {
-  background: var(--background-modifier-hover) !important;
+button.vf-card-parent:hover {
+  background: var(--background-modifier-hover);
   color: var(--text-normal);
 }
 
@@ -1209,7 +1209,7 @@ body.vf-dragging {
   position: relative;
 }
 
-.vf-icon-select-trigger {
+button.vf-icon-select-trigger {
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -1217,23 +1217,23 @@ body.vf-dragging {
   width: 100%;
   min-height: 26px;
   padding: 3px 6px;
-  border: 1px solid var(--background-modifier-border) !important;
+  border: 1px solid var(--background-modifier-border);
   border-radius: 4px;
 
   /* Same surface as the <select>/<input> fields in the rest of the rail. */
-  background: var(--background-modifier-form-field) !important;
-  box-shadow: none !important;
+  background: var(--background-modifier-form-field);
+  box-shadow: none;
   color: var(--text-normal);
   font-size: var(--font-ui-smaller);
   text-align: left;
   cursor: pointer;
 }
 
-.vf-icon-select-trigger:hover {
+button.vf-icon-select-trigger:hover {
   background: var(
     --background-modifier-form-field-highlighted,
     var(--background-modifier-hover)
-  ) !important;
+  );
 }
 
 .vf-icon-select-caret {
@@ -1326,10 +1326,10 @@ body.vf-dragging {
   display: flex;
   min-width: 0;
   margin-right: auto;
-  padding: 0 !important;
-  border: none !important;
-  background: transparent !important;
-  box-shadow: none !important;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
   cursor: pointer;
 }
 
@@ -1372,17 +1372,17 @@ body.vf-dragging {
   padding-right: 20px;
 }
 
-.vf-label-editor-caret {
+button.vf-label-editor-caret {
   position: absolute;
   top: 0;
   right: 0;
   bottom: 0;
   display: flex;
   align-items: center;
-  padding: 0 5px !important;
-  border: none !important;
-  background: transparent !important;
-  box-shadow: none !important;
+  padding: 0 5px;
+  border: none;
+  background: transparent;
+  box-shadow: none;
   color: var(--vf-muted);
   font-size: 10px;
   line-height: 1;
@@ -1411,20 +1411,37 @@ body.vf-dragging {
 /* Label dialog: colour swatch grid. */
 .vf-swatch-grid {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
+  grid-template-columns: repeat(8, minmax(0, 1fr));
   gap: 6px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
+/* Shared swatch box — the palette grid is <button>s, the custom wheel is a
+   <label> that wraps a hidden <input type="color">, so the layout props live
+   on the plain class and only the button-chrome reset is element-scoped
+   (below). */
 .vf-swatch {
   aspect-ratio: 1;
-  border: 2px solid transparent !important;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  box-sizing: border-box;
+  border: 2px solid transparent;
   border-radius: 5px;
-  box-shadow: none !important;
   cursor: pointer;
 }
 
-.vf-swatch.is-on {
-  border-color: var(--text-normal) !important;
+/* The palette <button>s otherwise pick up the base `button:not(.clickable-
+   icon)` raised box-shadow over their inline colour. */
+button.vf-swatch {
+  background: transparent;
+  box-shadow: none;
+}
+
+.vf-swatch.is-on,
+button.vf-swatch.is-on {
+  border-color: var(--text-normal);
 }
 
 /* Delete dialog: reassign-vs-remove choice. */
@@ -1759,6 +1776,17 @@ body.vf-dragging {
 
 .vf-field-description textarea {
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+/* The dialog description field pairs the label with a source toggle in one row,
+   so undo the block/stacking `.vf-field span` applies to plain field labels. */
+.vf-field-description .vf-description-head .vf-description-label {
+  display: inline;
+  flex: 1;
+  margin-bottom: 0;
 }
 
 .vf-icon-field {
@@ -1766,23 +1794,23 @@ body.vf-dragging {
   display: inline-flex;
 }
 
-.vf-icon-trigger {
+button.vf-icon-trigger {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 32px;
-  padding: 0 !important;
-  border: 1px solid var(--vf-border) !important;
+  padding: 0;
+  border: 1px solid var(--vf-border);
   border-radius: var(--vf-radius);
-  background: var(--background-primary) !important;
-  box-shadow: none !important;
+  background: var(--background-primary);
+  box-shadow: none;
   color: var(--text-normal);
   cursor: pointer;
 }
 
-.vf-icon-trigger:hover,
-.vf-icon-trigger.is-on {
-  background: var(--background-modifier-hover) !important;
+button.vf-icon-trigger:hover,
+button.vf-icon-trigger.is-on {
+  background: var(--background-modifier-hover);
   color: var(--text-accent);
 }
 
@@ -1826,57 +1854,59 @@ body.vf-dragging {
   text-align: center;
 }
 
-.vf-icon-option {
+button.vf-icon-option {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   aspect-ratio: 1;
-  padding: 0 !important;
-  border: none !important;
+  padding: 0;
+  border: none;
   border-radius: 4px;
-  background: transparent !important;
-  box-shadow: none !important;
+  background: transparent;
+  box-shadow: none;
   color: var(--vf-muted);
   cursor: pointer;
 }
 
-.vf-icon-option:hover {
-  background: var(--background-modifier-hover) !important;
+button.vf-icon-option:hover {
+  background: var(--background-modifier-hover);
   color: var(--text-normal);
 }
 
-.vf-icon-option.is-on {
-  background: var(--background-modifier-hover) !important;
+button.vf-icon-option.is-on {
+  background: var(--background-modifier-hover);
   color: var(--text-accent);
 }
 
-/* -- Colour field: a swatch trigger opening the palette grid ------------- */
+/* -- Color field: a swatch trigger opening the palette grid ---------------- */
 
 .vf-color-field {
   position: relative;
   display: inline-flex;
 }
 
-.vf-color-trigger {
+button.vf-color-trigger {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 32px;
   height: 32px;
-  padding: 0 !important;
-  border: 1px solid var(--vf-border) !important;
+  padding: 0;
+  border: 1px solid var(--vf-border);
   border-radius: var(--vf-radius);
-  background: var(--background-primary) !important;
-  box-shadow: none !important;
+  background: var(--background-primary);
+  box-shadow: none;
   cursor: pointer;
 }
 
-.vf-color-trigger:hover,
-.vf-color-trigger.is-on {
-  background: var(--background-modifier-hover) !important;
+button.vf-color-trigger:hover,
+button.vf-color-trigger.is-on {
+  background: var(--background-modifier-hover);
 }
 
 .vf-color-trigger-swatch {
+  flex: 0 0 auto;
+  display: block;
   width: 18px;
   height: 18px;
   border-radius: 4px;
@@ -1887,13 +1917,56 @@ body.vf-dragging {
   top: calc(100% + 5px);
   left: 0;
   z-index: 50;
-  width: 216px;
+  width: 288px;
   max-width: 80vw;
   padding: 8px;
   border: 1px solid var(--vf-border);
   border-radius: var(--vf-radius);
   background: var(--background-primary);
   box-shadow: 0 12px 30px rgb(0 0 0 / 32%);
+}
+
+/* -- Color field: custom / hex escape hatch ----------------------------- */
+
+.vf-color-custom-label {
+  margin: 12px 0 6px;
+  font-size: var(--font-ui-smaller);
+  color: var(--vf-muted);
+  text-align: center;
+}
+
+.vf-color-custom-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.vf-color-custom-wheel {
+  position: relative;
+  flex: 0 0 32px;
+  width: 32px;
+  max-width: 32px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.vf-color-custom-wheel > input[type="color"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.vf-color-custom-hex {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+  max-width: 100%;
 }
 
 /* ------------------------------------------------------------ Compact mode --
@@ -1917,7 +1990,8 @@ body.vf-dragging {
     bottom: 0;
     left: 0;
     z-index: 60;
-    width: min(var(--vf-sidebar-w, 280px), 82vw) !important;
+    width: auto;
+    max-width: min(var(--vf-sidebar-w, 280px), 82vw);
     transform: translateX(-100%);
     transition: transform 0.18s ease;
     box-shadow: 0 0 40px rgb(0 0 0 / 25%);
@@ -1970,17 +2044,17 @@ body.vf-dragging {
     align-items: center;
     gap: 6px;
     padding: 4px 8px;
-    border: none !important;
+    border: none;
     border-radius: var(--vf-radius);
-    background: transparent !important;
-    box-shadow: none !important;
+    background: transparent;
+    box-shadow: none;
     color: var(--vf-muted);
     font-size: var(--font-ui-small);
     cursor: pointer;
   }
 
   .vf-shell .vf-compact-toggle-btn:hover {
-    background: var(--background-modifier-hover) !important;
+    background: var(--background-modifier-hover);
     color: var(--text-normal);
   }
 
@@ -2027,16 +2101,16 @@ body.vf-dragging {
     width: 32px;
     height: 32px;
     padding: 0;
-    border: none !important;
+    border: none;
     border-radius: var(--vf-radius);
-    background: transparent !important;
-    box-shadow: none !important;
+    background: transparent;
+    box-shadow: none;
     color: var(--vf-muted);
     cursor: pointer;
   }
 
   .vf-shell .vf-nav-close:hover {
-    background: var(--background-modifier-hover) !important;
+    background: var(--background-modifier-hover);
     color: var(--text-normal);
   }
 
@@ -2053,7 +2127,7 @@ body.vf-dragging {
     right: 0;
     bottom: 0;
     z-index: 55;
-    width: min(84vw, 320px) !important;
+    width: min(84vw, 320px);
     transform: translateX(100%);
     transition: transform 0.18s ease;
     box-shadow: 0 0 40px rgb(0 0 0 / 25%);
@@ -2120,7 +2194,7 @@ body.vf-dragging {
   box-shadow: 0 8px 20px rgb(0 0 0 / 24%);
 }
 
-.vf-menu-item {
+button.vf-menu-item {
   display: flex;
   align-items: center;
 
@@ -2132,19 +2206,20 @@ body.vf-dragging {
   padding: 6px 8px;
   border-radius: 4px;
 
-  /* `!important`: these are <button>s and Obsidian's theme button chrome
-     (border + raised box-shadow) otherwise wins, giving every row a box. */
-  border: none !important;
-  background: transparent !important;
-  box-shadow: none !important;
+  /* These are <button>s and Obsidian's theme button chrome (border + raised
+     box-shadow) otherwise wins, giving every row a box. `button.` raises the
+     selector above the base `button:not(.clickable-icon)` rule. */
+  border: none;
+  background: transparent;
+  box-shadow: none;
   color: var(--text-normal);
   font-size: var(--font-ui-smaller);
   text-align: left;
   cursor: pointer;
 }
 
-.vf-menu-item:hover {
-  background: var(--background-modifier-hover) !important;
+button.vf-menu-item:hover {
+  background: var(--background-modifier-hover);
 }
 
 .vf-tab-menu .vf-menu-item {
@@ -2154,7 +2229,7 @@ body.vf-dragging {
 .vf-tab-menu .vf-menu-item:disabled {
   opacity: 0.45;
   cursor: default;
-  background: transparent !important;
+  background: transparent;
 }
 
 /* The section "+" menu anchors to a tiny button, so pin it to the right edge
@@ -2170,8 +2245,8 @@ body.vf-dragging {
 
 /* Keyboard/pointer highlight — "what Enter would pick", distinct from
    .is-active's "what the field currently holds". The two can coexist. */
-.vf-menu-item.is-highlighted {
-  background: var(--background-modifier-hover) !important;
+button.vf-menu-item.is-highlighted {
+  background: var(--background-modifier-hover);
 }
 
 /* "No matches" / "Every label is already added" — a note, not a row. */
@@ -2183,15 +2258,19 @@ body.vf-dragging {
 
 /* Destructive row (e.g. "Delete workspace") — ruled off above via
    .vf-menu-divider, then tinted with the theme's error colour. */
-.vf-menu-item-danger {
+button.vf-menu-item-danger {
   color: var(--text-error);
 }
 
-.vf-menu-item-danger:hover {
+/* Hover flips to the theme's solid error fill; the text swaps to the on-accent
+   colour (matching Obsidian's own `.mod-warning` buttons) so the row stays
+   readable instead of red-on-red. */
+button.vf-menu-item-danger:hover {
   background: var(
     --background-modifier-error-hover,
     var(--background-modifier-hover)
-  ) !important;
+  );
+  color: var(--text-on-accent);
 }
 
 /* Mark the current value, the way a native <select> shows a tick. */
@@ -2502,18 +2581,24 @@ body.vf-dragging {
   gap: 4px;
   max-width: 220px;
   padding: 2px 5px;
-  border: none !important;
   border-radius: 4px;
   outline: none;
-  background: transparent !important;
-  box-shadow: none !important;
   color: var(--vf-muted);
   font-size: var(--font-ui-smaller);
   cursor: pointer;
 }
 
+/* The crumb is also a <span> (the current-task chip), so the button chrome
+   reset is scoped to its <button> form — where the base `button:not(.clickable-
+   icon)` background/shadow would otherwise win. */
+button.vf-crumb {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
 button.vf-crumb:hover {
-  background: var(--background-modifier-hover) !important;
+  background: var(--background-modifier-hover);
   color: var(--text-normal);
 }
 
@@ -2586,16 +2671,16 @@ button.vf-crumb:hover {
   border-top: 1px solid var(--vf-border);
 }
 
-.vf-rail-section-toggle {
+button.vf-rail-section-toggle {
   display: flex;
   align-items: center;
   justify-content: flex-start;
   gap: 6px;
   width: 100%;
-  padding: 2px 0 !important;
-  border: none !important;
-  background: transparent !important;
-  box-shadow: none !important;
+  padding: 2px 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
   color: var(--vf-muted);
   font-size: 11px;
   font-weight: 600;
@@ -2604,7 +2689,7 @@ button.vf-crumb:hover {
   cursor: pointer;
 }
 
-.vf-rail-section-toggle:hover {
+button.vf-rail-section-toggle:hover {
   color: var(--text-normal);
 }
 
@@ -2870,14 +2955,14 @@ button.vf-crumb:hover {
   gap: 4px;
 }
 
-.vf-chip-button {
-  background: transparent !important;
-  box-shadow: none !important;
+button.vf-chip-button {
+  background: transparent;
+  box-shadow: none;
   cursor: pointer;
 }
 
-.vf-chip-button.is-on {
-  background: var(--background-modifier-hover) !important;
+button.vf-chip-button.is-on {
+  background: var(--background-modifier-hover);
   color: var(--text-normal);
 }
 
@@ -3048,16 +3133,22 @@ button.vf-crumb:hover {
   min-width: 0;
   height: 100%;
   padding: 0 14px;
-  border: none !important;
   border-radius: 0;
-  background: transparent !important;
-  box-shadow: none !important;
 
   /* Obsidian's base `button` centers flex content — force left, matching
      .vf-section-title-btn (views-and-ux.md §9.6). */
-  justify-content: flex-start !important;
+  justify-content: flex-start;
   text-align: left;
   cursor: pointer;
+}
+
+/* The body is a <div> in non-clickable cards, so the button-chrome reset
+   (base `button:not(.clickable-icon)` background/shadow) is scoped to its
+   <button> form. */
+button.vf-browse-card-body {
+  border: none;
+  background: transparent;
+  box-shadow: none;
 }
 
 .vf-browse-card-trailing {
@@ -3070,12 +3161,27 @@ button.vf-crumb:hover {
   display: inline-flex;
 }
 
-.vf-browse-card-menu {
+/* The Trash row's always-visible "Restore" action. */
+button.vf-browse-card-restore {
+  color: var(--text-accent);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+}
+
+/* Native Obsidian `.mod-cta` buttons (the "New …" actions, save/confirm in
+   dialogs, the EmptyState CTA) inherit the base `button` `cursor: var(--cursor)`
+   default. Restore the expected pointer so every primary action reads as
+   clickable. */
+button.mod-cta {
+  cursor: pointer;
+}
+
+button.vf-browse-card-menu {
   padding: 2px 6px;
-  border: none !important;
+  border: none;
   border-radius: 4px;
-  background: transparent !important;
-  box-shadow: none !important;
+  background: transparent;
+  box-shadow: none;
   color: var(--vf-muted);
   font-size: 13px;
   line-height: 1;
@@ -3083,13 +3189,13 @@ button.vf-crumb:hover {
   cursor: pointer;
 }
 
-.vf-browse-card-menu:hover {
-  background: var(--background-modifier-hover) !important;
+button.vf-browse-card-menu:hover {
+  background: var(--background-modifier-hover);
   color: var(--text-normal);
 }
 
-.vf-browse-card-menu:focus-visible,
-.vf-browse-card-menu[aria-expanded="true"],
+button.vf-browse-card-menu:focus-visible,
+button.vf-browse-card-menu[aria-expanded="true"],
 .vf-browse-card:hover .vf-browse-card-menu {
   opacity: 1;
 }
@@ -3213,7 +3319,7 @@ button.vf-crumb:hover {
 /* The name reads as plain text — no border, no focus ring, no fill, ever. You
    click into it and type; the blinking caret is the only cue. `size` on the
    element grows it with the text, so `width` must not be forced to 100%. */
-.vf-editable-title-input {
+input.vf-editable-title-input {
   flex: 0 1 auto;
   width: auto;
   max-width: 100%;
@@ -3222,11 +3328,11 @@ button.vf-crumb:hover {
   /* Exact fit where supported; the `size` attribute is the fallback. */
   field-sizing: content;
   padding: 0;
-  border: none !important;
+  border: none;
   border-radius: 0;
-  outline: none !important;
-  background: transparent !important;
-  box-shadow: none !important;
+  outline: none;
+  background: transparent;
+  box-shadow: none;
   color: var(--text-normal);
   font-size: var(--font-ui-medium);
   font-weight: 600;
@@ -3253,18 +3359,18 @@ button.vf-crumb:hover {
 }
 
 /* Chrome-less icon trigger for the header — clickable, no box. */
-.vf-title-icon .vf-icon-trigger {
+.vf-title-icon button.vf-icon-trigger {
   width: auto;
-  padding: 2px !important;
-  border: none !important;
-  background: transparent !important;
-  box-shadow: none !important;
+  padding: 2px;
+  border: none;
+  background: transparent;
+  box-shadow: none;
   color: var(--vf-muted);
 }
 
-.vf-title-icon .vf-icon-trigger:hover,
-.vf-title-icon .vf-icon-trigger.is-on {
-  background: transparent !important;
+.vf-title-icon button.vf-icon-trigger:hover,
+.vf-title-icon button.vf-icon-trigger.is-on {
+  background: transparent;
   color: var(--text-normal);
 }
 
@@ -3412,6 +3518,29 @@ button.vf-crumb:hover {
   left: 0;
 }
 
+/* Description fields inside dialogs (create/edit forms) keep the base Markdown
+   field's bordered box — via `vf-description-dialog` instead of the panes'
+   borderless `vf-description-plain` — so the user can see where the field
+   starts and stops. The base rules already supply the border, radius,
+   background and focus ring; only the dialog-scale metrics need restating. */
+.vf-description-dialog .vf-markdown-native,
+.vf-description-dialog .vf-markdown-edit {
+  min-height: 64px;
+}
+
+/* Let the user drag the bottom edge to fit more prose (the pane sections
+   deliberately don't — this is a form field, not a note surface). */
+.vf-description-dialog .vf-markdown-native {
+  resize: vertical;
+  overflow: auto;
+}
+
+.vf-description-dialog .vf-markdown-edit {
+  color: var(--text-normal);
+  font-size: var(--font-text-size);
+  line-height: var(--line-height-normal, 1.5);
+}
+
 /* A Saved View's description sits below the control bar. Expanded, its
    height is drag-controlled (inline style); collapsed, it's just the
    toggle. Scrolls internally — the Board/List below takes the rest. The
@@ -3533,17 +3662,6 @@ button.vf-crumb:hover {
   align-items: center;
   gap: 8px;
   padding: 4px 0;
-}
-
-.vf-color-swatch {
-  width: 22px;
-  height: 22px;
-  flex-shrink: 0;
-  padding: 0;
-  border: 1px solid var(--vf-border);
-  border-radius: 5px;
-  background: none;
-  cursor: pointer;
 }
 
 .vf-taxonomy-name {
@@ -3686,23 +3804,21 @@ button.vf-crumb:hover {
 }
 
 /* One flat clickable unit — a bit of text that reveals a faint hover fill.
-   `!important` on the reset: these are <button>s, and Obsidian's own button
-   chrome (border + raised box-shadow) otherwise wins the specificity fight,
-   same as `.vf-row-open` above. */
-.vf-bar-item,
-.vf-layout-opt,
-.vf-add-filter,
-.vf-filter-tag-face,
-.vf-filter-tag-x,
-.vf-bar-dir {
+   `button.` raises each reset above Obsidian's own `button:not(.clickable-icon)`
+   chrome (border + raised box-shadow) by tying the specificity fight to the
+   element, same basis as `.vf-row-open` above. */
+button.vf-bar-item,
+button.vf-layout-opt,
+button.vf-add-filter,
+button.vf-bar-dir {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   padding: 3px 7px;
-  border: none !important;
+  border: none;
   border-radius: 4px;
-  background: transparent !important;
-  box-shadow: none !important;
+  background: transparent;
+  box-shadow: none;
   color: var(--text-normal);
   font-size: var(--font-ui-smaller);
   white-space: nowrap;
@@ -3710,11 +3826,11 @@ button.vf-crumb:hover {
 }
 
 .vf-bar-label,
-.vf-add-filter {
+button.vf-add-filter {
   color: var(--vf-muted);
 }
 
-.vf-layout-opt {
+button.vf-layout-opt {
   /* Icon-only: no label to space out from, so drop the gap and tighten the
      box to roughly the icon plus a hair each side. */
   gap: 0;
@@ -3722,12 +3838,12 @@ button.vf-crumb:hover {
   color: var(--vf-muted);
 }
 
-.vf-bar-item:hover,
-.vf-bar-item.is-on,
-.vf-layout-opt:hover,
-.vf-add-filter:hover,
-.vf-add-filter.is-on {
-  background: var(--background-modifier-hover) !important;
+button.vf-bar-item:hover,
+button.vf-bar-item.is-on,
+button.vf-layout-opt:hover,
+button.vf-add-filter:hover,
+button.vf-add-filter.is-on {
+  background: var(--background-modifier-hover);
 }
 
 .vf-bar-icon {
@@ -3757,7 +3873,7 @@ button.vf-crumb:hover {
   gap: 1px;
 }
 
-.vf-layout-opt.is-on {
+button.vf-layout-opt.is-on {
   color: var(--text-accent);
   font-weight: 500;
   background: var(--background-modifier-hover);
@@ -3769,20 +3885,20 @@ button.vf-crumb:hover {
   align-items: center;
 }
 
-.vf-bar-dir {
+button.vf-bar-dir {
   padding: 3px 5px;
   color: var(--text-accent);
 }
 
 /* Unsaved-changes actions. Save reads as accent so it's clearly the next step;
    Reset stays quiet so discarding is never the eye-catching option. */
-.vf-bar-save {
-  color: var(--text-accent) !important;
+button.vf-bar-save {
+  color: var(--text-accent);
   font-weight: 500;
 }
 
-.vf-bar-reset {
-  color: var(--vf-muted) !important;
+button.vf-bar-reset {
+  color: var(--vf-muted);
 }
 
 /* Filters: flat tags, no outline. The ✕ appears on hover. */
@@ -3814,17 +3930,27 @@ button.vf-crumb:hover {
   cursor: pointer;
 }
 
+/* The face is a <span> in readonly tags, so the chrome reset is scoped to its
+   <button> form — beating base `button:not(.clickable-icon)` without acting on
+   the span variant. */
+button.vf-filter-tag-face {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
 .vf-filter-tag-face strong {
   color: var(--text-accent);
   font-weight: 600;
 }
 
-.vf-filter-tag-x {
+button.vf-filter-tag-x {
   width: 0;
   padding: 3px 0;
   border: none;
   border-radius: 0 4px 4px 0;
   background: transparent;
+  box-shadow: none;
   color: var(--vf-muted);
   font-size: 9px;
   overflow: hidden;
@@ -3832,7 +3958,7 @@ button.vf-crumb:hover {
   transition: width 80ms ease;
 }
 
-.vf-filter-tag-x:hover {
+button.vf-filter-tag-x:hover {
   color: var(--text-normal);
 }
 
@@ -3900,12 +4026,12 @@ button.vf-crumb:hover {
   margin-left: 2px;
 }
 
-.vf-query-fix {
-  padding: 0 4px !important;
-  border: none !important;
+button.vf-query-fix {
+  padding: 0 4px;
+  border: none;
   border-radius: 3px;
-  background: var(--background-modifier-hover) !important;
-  box-shadow: none !important;
+  background: var(--background-modifier-hover);
+  box-shadow: none;
   color: var(--text-accent);
   font-family: var(--font-monospace);
   font-size: inherit;
@@ -4246,22 +4372,22 @@ button.vf-crumb:hover {
 }
 
 /* The "+ Add … relation" trigger — a quiet dashed affordance. */
-.vf-add-relation {
-  padding: 4px 8px !important;
-  border: 1px dashed var(--vf-border) !important;
+button.vf-add-relation {
+  padding: 4px 8px;
+  border: 1px dashed var(--vf-border);
   border-radius: var(--vf-radius);
-  background: transparent !important;
-  box-shadow: none !important;
+  background: transparent;
+  box-shadow: none;
   color: var(--vf-muted);
   font-size: var(--font-ui-smaller);
   cursor: pointer;
 }
 
-.vf-add-relation:hover,
-.vf-add-relation.is-on {
-  border-style: solid !important;
-  border-color: var(--background-modifier-border-hover) !important;
-  background: var(--background-modifier-hover) !important;
+button.vf-add-relation:hover,
+button.vf-add-relation.is-on {
+  border-style: solid;
+  border-color: var(--background-modifier-border-hover);
+  background: var(--background-modifier-hover);
   color: var(--text-normal);
 }
 
@@ -4280,30 +4406,30 @@ button.vf-crumb:hover {
 }
 
 /* One field per row: eye icon, name, and an optional hint pinned right. */
-.vf-field-row {
+button.vf-field-row {
   display: flex;
   align-items: center;
-  justify-content: flex-start !important;
+  justify-content: flex-start;
   gap: 8px;
   width: 100%;
-  padding: 4px 6px !important;
-  border: none !important;
+  padding: 4px 6px;
+  border: none;
   border-radius: 4px;
-  background: transparent !important;
-  box-shadow: none !important;
+  background: transparent;
+  box-shadow: none;
   color: var(--vf-muted);
   font-size: var(--font-ui-small);
   text-align: left;
   cursor: pointer;
 }
 
-.vf-field-row:hover {
-  background: var(--background-modifier-hover) !important;
+button.vf-field-row:hover {
+  background: var(--background-modifier-hover);
 }
 
 /* Shown state is accent *text*, not a filled background — the fill is what the
    hover uses, and reusing it here made the two indistinguishable. */
-.vf-field-row.is-on {
+button.vf-field-row.is-on {
   color: var(--text-accent);
 }
 
@@ -4336,24 +4462,24 @@ button.vf-crumb:hover {
   border-top: 1px solid var(--vf-border);
 }
 
-.vf-field-bulk {
-  padding: 2px 6px !important;
-  border: none !important;
+button.vf-field-bulk {
+  padding: 2px 6px;
+  border: none;
   border-radius: 4px;
-  background: transparent !important;
-  box-shadow: none !important;
+  background: transparent;
+  box-shadow: none;
   color: var(--vf-muted);
   font-size: var(--font-ui-smaller);
   cursor: pointer;
 }
 
-.vf-field-bulk:disabled {
+button.vf-field-bulk:disabled {
   opacity: 0.4;
   cursor: default;
 }
 
-.vf-field-bulk:hover:not(:disabled) {
-  background: var(--background-modifier-hover) !important;
+button.vf-field-bulk:hover:not(:disabled) {
+  background: var(--background-modifier-hover);
   color: var(--text-normal);
 }
 
@@ -4367,24 +4493,24 @@ button.vf-crumb:hover {
 
 /* A small circular help glyph dropped inline next to a label ("Query", a field
    name, a toggle). Clicking opens the Help screen on a specific topic/section. */
-.vf-inline-help {
+button.vf-inline-help {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
   width: 18px;
   height: 18px;
-  padding: 0 !important;
-  border: none !important;
+  padding: 0;
+  border: none;
   border-radius: 50%;
-  background: transparent !important;
-  box-shadow: none !important;
+  background: transparent;
+  box-shadow: none;
   color: var(--vf-muted);
   cursor: help;
 }
 
-.vf-inline-help:hover {
-  background: var(--background-modifier-hover) !important;
+button.vf-inline-help:hover {
+  background: var(--background-modifier-hover);
   color: var(--text-accent);
 }
 
@@ -4419,63 +4545,63 @@ button.vf-crumb:hover {
   width: 100%;
 }
 
-.vf-help-topic-toggle {
+button.vf-help-topic-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
   width: 16px;
   height: 26px;
-  padding: 0 !important;
-  border: none !important;
-  background: transparent !important;
-  box-shadow: none !important;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
   color: var(--vf-muted);
   cursor: pointer;
   transition: transform 100ms ease;
 }
 
-.vf-help-topic-toggle.is-open {
+button.vf-help-topic-toggle.is-open {
   transform: rotate(90deg);
 }
 
-.vf-help-topic-toggle.is-spacer {
+button.vf-help-topic-toggle.is-spacer {
   visibility: hidden;
   cursor: default;
 }
 
-.vf-help-topic-label {
+button.vf-help-topic-label {
   display: flex;
   align-items: center;
 
   /* Obsidian's base `button` centers its content — force left, like every
      other row in the sidebars. */
-  justify-content: flex-start !important;
+  justify-content: flex-start;
   gap: 6px;
   flex: 1;
   min-width: 0;
   height: 26px;
   padding: 0 8px;
   overflow: hidden;
-  border: none !important;
+  border: none;
   border-radius: var(--vf-radius);
-  background: transparent !important;
-  box-shadow: none !important;
+  background: transparent;
+  box-shadow: none;
   color: var(--text-normal);
   font-size: var(--font-ui-small);
-  text-align: left !important;
+  text-align: left;
   white-space: nowrap;
   text-overflow: ellipsis;
   cursor: pointer;
 }
 
-.vf-help-topic-label:hover {
-  background: var(--background-modifier-hover) !important;
+button.vf-help-topic-label:hover {
+  background: var(--background-modifier-hover);
 }
 
 /* Active reads as accent text only — no persistent fill, matching how an
    active view row reads in the main sidebar. */
-.vf-help-topic-label.is-active {
+button.vf-help-topic-label.is-active {
   color: var(--text-accent);
   font-weight: 500;
 }
@@ -4526,18 +4652,18 @@ button.vf-crumb:hover {
   opacity: 0.5;
 }
 
-.vf-help-crumb-link {
+button.vf-help-crumb-link {
   display: inline-flex;
   padding: 0;
-  border: none !important;
-  background: transparent !important;
-  box-shadow: none !important;
+  border: none;
+  background: transparent;
+  box-shadow: none;
   color: var(--text-muted);
   font-size: var(--font-ui-smaller);
   cursor: pointer;
 }
 
-.vf-help-crumb-link:hover {
+button.vf-help-crumb-link:hover {
   color: var(--text-accent);
 }
 
@@ -4569,19 +4695,19 @@ button.vf-crumb:hover {
   text-transform: uppercase;
 }
 
-.vf-help-index-item {
+button.vf-help-index-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   width: 100%;
   padding: 7px 4px;
-  border: none !important;
+  border: none;
   border-radius: var(--vf-radius);
-  background: transparent !important;
-  box-shadow: none !important;
+  background: transparent;
+  box-shadow: none;
   color: var(--text-normal);
-  text-align: left !important;
+  text-align: left;
   cursor: pointer;
 }
 
@@ -4610,11 +4736,11 @@ button.vf-crumb:hover {
   transition: transform 100ms ease;
 }
 
-.vf-help-index-item:hover {
-  background: var(--background-modifier-hover) !important;
+button.vf-help-index-item:hover {
+  background: var(--background-modifier-hover);
 }
 
-.vf-help-index-item:hover .vf-help-index-item-chevron {
+button.vf-help-index-item:hover .vf-help-index-item-chevron {
   opacity: 1;
   color: var(--text-accent);
   transform: translateX(2px);
@@ -4662,25 +4788,25 @@ button.vf-crumb:hover {
   gap: 1px;
 }
 
-.vf-timeline-zoom-opt {
+button.vf-timeline-zoom-opt {
   padding: 3px 8px;
-  border: none !important;
+  border: none;
   border-radius: 4px;
-  background: transparent !important;
-  box-shadow: none !important;
+  background: transparent;
+  box-shadow: none;
   color: var(--vf-muted);
   font-size: var(--font-ui-smaller);
   cursor: pointer;
 }
 
-.vf-timeline-zoom-opt:hover {
-  background: var(--background-modifier-hover) !important;
+button.vf-timeline-zoom-opt:hover {
+  background: var(--background-modifier-hover);
 }
 
-.vf-timeline-zoom-opt.is-on {
+button.vf-timeline-zoom-opt.is-on {
   color: var(--text-accent);
   font-weight: 500;
-  background: var(--background-modifier-hover) !important;
+  background: var(--background-modifier-hover);
 }
 
 /* Body: chart region + optional lower pane, with a draggable separator. */
@@ -4747,31 +4873,31 @@ button.vf-crumb:hover {
   justify-content: center;
 }
 
-.vf-timeline-row-label {
-  display: flex !important;
+button.vf-timeline-row-label {
+  display: flex;
   align-items: center;
-  justify-content: flex-start !important;
+  justify-content: flex-start;
   gap: 6px;
   width: 100%;
   height: var(--vf-tl-row-h);
-  padding: 0 12px !important;
-  border: none !important;
-  border-bottom: 1px solid var(--vf-border) !important;
-  border-radius: 0 !important;
-  background: var(--background-primary) !important;
-  box-shadow: none !important;
+  padding: 0 12px;
+  border: none;
+  border-bottom: 1px solid var(--vf-border);
+  border-radius: 0;
+  background: var(--background-primary);
+  box-shadow: none;
   text-align: left;
   white-space: nowrap;
   overflow: hidden;
   cursor: pointer;
 }
 
-.vf-timeline-row-label:hover {
-  background: var(--background-modifier-hover) !important;
+button.vf-timeline-row-label:hover {
+  background: var(--background-modifier-hover);
 }
 
 .vf-timeline.is-left-collapsed .vf-timeline-row-label {
-  padding: 0 !important;
+  padding: 0;
 }
 
 .vf-timeline-row-label.is-focused,
@@ -5048,19 +5174,19 @@ body.vf-bar-dragging .vf-timeline-bar {
   height: auto;
 }
 
-.vf-timeline-lower-head {
+button.vf-timeline-lower-head {
   flex: none;
-  display: flex !important;
+  display: flex;
   align-items: center;
-  justify-content: flex-start !important;
+  justify-content: flex-start;
   gap: 6px;
   width: 100%;
   height: 28px;
-  padding: 0 12px !important;
-  border: none !important;
-  border-radius: 0 !important;
-  background: var(--background-secondary) !important;
-  box-shadow: none !important;
+  padding: 0 12px;
+  border: none;
+  border-radius: 0;
+  background: var(--background-secondary);
+  box-shadow: none;
   color: var(--vf-muted);
   font-size: 10px;
   text-transform: uppercase;
@@ -5068,8 +5194,8 @@ body.vf-bar-dragging .vf-timeline-bar {
   cursor: pointer;
 }
 
-.vf-timeline-lower-head:hover {
-  background: var(--background-modifier-hover) !important;
+button.vf-timeline-lower-head:hover {
+  background: var(--background-modifier-hover);
 }
 
 .vf-timeline-lower-hint {
@@ -5149,25 +5275,25 @@ body.vf-bar-dragging .vf-timeline-bar {
   gap: 1px;
 }
 
-.vf-calendar-datefield-opt {
+button.vf-calendar-datefield-opt {
   padding: 3px 8px;
-  border: none !important;
+  border: none;
   border-radius: 4px;
-  background: transparent !important;
-  box-shadow: none !important;
+  background: transparent;
+  box-shadow: none;
   color: var(--vf-muted);
   font-size: var(--font-ui-smaller);
   cursor: pointer;
 }
 
-.vf-calendar-datefield-opt:hover {
-  background: var(--background-modifier-hover) !important;
+button.vf-calendar-datefield-opt:hover {
+  background: var(--background-modifier-hover);
 }
 
-.vf-calendar-datefield-opt.is-on {
+button.vf-calendar-datefield-opt.is-on {
   color: var(--text-accent);
   font-weight: 500;
-  background: var(--background-modifier-hover) !important;
+  background: var(--background-modifier-hover);
 }
 
 /* One scroll container holds the weekday header and the grid, so the two
@@ -5256,17 +5382,17 @@ body.vf-bar-dragging .vf-timeline-bar {
   min-width: 0;
 }
 
-.vf-cal-chip {
-  display: flex !important;
+button.vf-cal-chip {
+  display: flex;
   align-items: center;
-  justify-content: flex-start !important;
+  justify-content: flex-start;
   gap: 5px;
   width: 100%;
-  padding: 2px 5px !important;
-  border: none !important;
+  padding: 2px 5px;
+  border: none;
   border-radius: 4px;
-  background: var(--background-secondary) !important;
-  box-shadow: none !important;
+  background: var(--background-secondary);
+  box-shadow: none;
   color: var(--text-normal);
   font-size: var(--font-ui-smaller);
   line-height: 1.3;
@@ -5275,14 +5401,14 @@ body.vf-bar-dragging .vf-timeline-bar {
   cursor: grab;
 }
 
-.vf-cal-chip:hover {
-  background: var(--background-modifier-hover) !important;
+button.vf-cal-chip:hover {
+  background: var(--background-modifier-hover);
 }
 
-.vf-cal-chip.is-focused,
-.vf-cal-chip.is-selected {
+button.vf-cal-chip.is-focused,
+button.vf-cal-chip.is-selected {
   color: var(--text-accent);
-  box-shadow: inset 0 0 0 1px var(--interactive-accent) !important;
+  box-shadow: inset 0 0 0 1px var(--interactive-accent);
 }
 
 .vf-cal-chip.is-archived {
@@ -5301,20 +5427,20 @@ body.vf-bar-dragging .vf-timeline-bar {
   color: var(--vf-muted, currentColor);
 }
 
-.vf-cal-more {
+button.vf-cal-more {
   align-self: flex-start;
-  padding: 1px 5px !important;
-  border: none !important;
-  background: transparent !important;
-  box-shadow: none !important;
+  padding: 1px 5px;
+  border: none;
+  background: transparent;
+  box-shadow: none;
   color: var(--vf-muted);
   font-size: 10px;
   cursor: pointer;
 }
 
-.vf-cal-more:hover {
+button.vf-cal-more:hover {
   color: var(--text-accent);
-  background: var(--background-modifier-hover) !important;
+  background: var(--background-modifier-hover);
 }
 
 .vf-calendar-more-list {
@@ -5368,19 +5494,19 @@ body.vf-bar-dragging .vf-timeline-bar {
   margin: -3px 0;
 }
 
-.vf-calendar-unscheduled-head {
+button.vf-calendar-unscheduled-head {
   flex: none;
-  display: flex !important;
+  display: flex;
   align-items: center;
-  justify-content: flex-start !important;
+  justify-content: flex-start;
   gap: 6px;
   width: 100%;
   height: 28px;
-  padding: 0 12px !important;
-  border: none !important;
-  border-radius: 0 !important;
-  background: var(--background-secondary) !important;
-  box-shadow: none !important;
+  padding: 0 12px;
+  border: none;
+  border-radius: 0;
+  background: var(--background-secondary);
+  box-shadow: none;
   color: var(--vf-muted);
   font-size: 10px;
   text-transform: uppercase;
@@ -5388,8 +5514,8 @@ body.vf-bar-dragging .vf-timeline-bar {
   cursor: pointer;
 }
 
-.vf-calendar-unscheduled-head:hover {
-  background: var(--background-modifier-hover) !important;
+button.vf-calendar-unscheduled-head:hover {
+  background: var(--background-modifier-hover);
 }
 
 .vf-calendar-unscheduled-hint {
@@ -5639,18 +5765,18 @@ body.vf-bar-dragging .vf-timeline-bar {
 /* Reads as plain text, exactly like the Saved View / Project header title
    (`.vf-editable-title-input`): no border, no fill, no focus ring — the caret
    is the only cue that it's editable. */
-.vf-dash-widget-title {
+input.vf-dash-widget-title {
   flex: 0 1 auto;
   width: auto;
   max-width: 100%;
   min-width: 2ch;
   field-sizing: content;
   padding: 0;
-  border: none !important;
+  border: none;
   border-radius: 0;
-  outline: none !important;
-  background: transparent !important;
-  box-shadow: none !important;
+  outline: none;
+  background: transparent;
+  box-shadow: none;
   font-size: var(--font-ui-small);
   font-weight: 600;
   color: var(--text-normal);
@@ -5942,33 +6068,30 @@ body.vf-bar-dragging .vf-timeline-bar {
   cursor: pointer;
 }
 
-/* Quiet text button — reset Obsidian's base `button` chrome with `!important`,
-   same pattern as `.vf-browse-card-body` / `.vf-link-button`. */
-.vf-recover-card-delete {
+/* Quiet text button — reset Obsidian's base `button` chrome via the `button.`
+   selector, same pattern as `.vf-browse-card-body` / `.vf-link-button`. */
+button.vf-recover-card-delete {
   padding: 4px 8px;
-  border: none !important;
-  box-shadow: none !important;
-  background: transparent !important;
+  border: none;
+  box-shadow: none;
+  background: transparent;
   color: var(--vf-muted);
   cursor: pointer;
 }
 
-.vf-recover-card-delete:hover {
+button.vf-recover-card-delete:hover {
   color: var(--text-error);
-  background: var(--background-modifier-hover) !important;
+  background: var(--background-modifier-hover);
 }
 
-/* Secondary "Create a new workspace instead" link. `!important` resets —
+/* Secondary "Create a new workspace instead" link. The `button.` reset —
    Obsidian's base `button` background was leaking through, the same bug
    already fixed on `.vf-browse-card-body`. */
-.vf-link-button {
+button.vf-link-button {
   padding: 6px 8px;
-
-  /* border: none !important; */
-
-  /* box-shadow: none !important; */
-
-  /* background: transparent !important; */
+  border: none;
+  box-shadow: none;
+  background: transparent;
   color: var(--text-accent);
   cursor: pointer;
 }

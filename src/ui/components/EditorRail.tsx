@@ -66,7 +66,10 @@ export function EditorRail({ children }: { children: ReactNode }) {
 					void plugin.saveSettings();
 				}}
 			/>
-			<aside className="vf-editor-rail" style={{ width }}>
+			<aside
+				className="vf-editor-rail"
+				style={propertiesOpen ? undefined : { width }}
+			>
 				<div className="vf-editor-rail-head">
 					<button
 						type="button"

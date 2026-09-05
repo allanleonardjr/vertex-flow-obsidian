@@ -28,8 +28,8 @@ import {
 	DEFAULT_PRIORITIES,
 	DEFAULT_STATUSES,
 	DEFAULT_TASK_TYPES,
-	TAXONOMY_PALETTE,
 } from "../../taxonomy/defaults";
+import { COLOR_PALETTE } from "../../color";
 import {
 	STATUS_CATEGORIES,
 	type DashboardGroupingField,
@@ -131,7 +131,7 @@ function splitShorthand(raw: string): { name: string; parts: string[] } {
 const HEX_RE = /^#[0-9a-fA-F]{3,8}$/;
 
 /**
- * Colour for a status that didn't name one — taken from its *category*, not its
+ * Color for a status that didn't name one — taken from its *category*, not its
  * position.
  *
  * Position is the wrong signal here: cycling the shared palette hands the first
@@ -144,12 +144,12 @@ const HEX_RE = /^#[0-9a-fA-F]{3,8}$/;
 function statusCategoryColor(category: StatusCategory): string {
 	return (
 		DEFAULT_STATUSES.find((s) => s.category === category)?.color ??
-		TAXONOMY_PALETTE[0]
+		COLOR_PALETTE[0]
 	);
 }
 
 /**
- * Colour for a non-status value that didn't name one. Deterministic by
+ * Color for a non-status value that didn't name one. Deterministic by
  * position: the defaults are reused where a taxonomy has one of matching length
  * (so a four-priority template lands on the familiar default colours),
  * otherwise the shared palette cycles.
@@ -162,7 +162,7 @@ function paletteColor(
 	if (kind === "priority" && total === DEFAULT_PRIORITIES.length) {
 		return DEFAULT_PRIORITIES[index].color;
 	}
-	return TAXONOMY_PALETTE[index % TAXONOMY_PALETTE.length];
+	return COLOR_PALETTE[index % COLOR_PALETTE.length];
 }
 
 function assertUniqueIds(

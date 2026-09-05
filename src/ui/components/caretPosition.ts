@@ -50,7 +50,7 @@ export function getCaretCoordinates(
 	el: HTMLTextAreaElement,
 	position: number,
 ): CaretCoordinates {
-	const div = createEl("div");
+	const div = createDiv();
 	div.id = "vf-caret-mirror";
 	document.body.appendChild(div);
 
@@ -75,7 +75,7 @@ export function getCaretCoordinates(
 
 	div.textContent = el.value.slice(0, position);
 
-	const span = createEl("span");
+	const span = createSpan();
 	// A trailing marker character ensures the span has real dimensions even
 	// when the caret sits at the very end of the text.
 	span.textContent = el.value.slice(position) || ".";

@@ -13,8 +13,8 @@ import { findTaxonomyUsage, workspaceTaxonomies } from "../core/taxonomy";
 import type { WorkspaceSnapshot } from "../core/types";
 import { DescriptionSection } from "./components/DescriptionSection";
 import { LabelChip } from "./components/TaskBits";
-import { usePlugin } from "./context";
 import { useTabs } from "./tabs-context";
+import { usePlugin } from "./context";
 import { labelView } from "./App";
 import { TaskViewport } from "./views/TaskViewport";
 
@@ -35,7 +35,6 @@ export function LabelDetailView({
 	active: boolean;
 	onSelectView: (id: string) => void;
 }) {
-	const plugin = usePlugin();
 	const { closeActive } = useTabs();
 
 	const label =

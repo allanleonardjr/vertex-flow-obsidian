@@ -12,10 +12,11 @@
  * property of one task (see `descriptionSourceMode` in `settings/types.ts`).
  */
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Code2, Eye } from "lucide-react";
 import { MarkdownField } from "./Markdown";
 import { useDebouncedSave } from "./fields";
+import { usePlugin } from "../context";
 
 export function DescriptionSection({
 	collapsed,
@@ -114,5 +115,62 @@ function DescriptionEditor({
 			placeholder="Add a description… [[wikilinks]], #tags and ![[embeds]] all work"
 			forceRawSource={sourceMode}
 		/>
+	);
+}
+
+/**
+ * The same Markdown editor + source toggle as `DescriptionSection`, but fully
+ * controlled for dialogs: nothing is written anywhere until the dialog's
+ * Confirm runs, so the text lives in the caller's local state (via `onChange`)
+ * instead of a debounced save. Source mode stays plugin-global the same way
+ * the editing surfaces do — it's a way of working, not per-row state.
+ */
+export function DescriptionDialogField({
+	value,
+	onChange,
+	sourcePath,
+}: {
+	value: string;
+	onChange: (value: string) => void;
+	sourcePath: string;
+}): ReactNode {
+	const plugin = usePlugin();
+	const [sourceMode, setSourceMode] = useState(
+		plugin.settings.descriptionSourceMode,
+	);
+
+	const toggleSourceMode = () => {
+		const next = !sourceMode;
+		setSourceMode(next);
+		plugin.settings.descriptionSourceMode = next;
+		void plugin.saveSettings();
+	};
+
+	return (
+		<div className="vf-field vf-field-description">
+			<div className="vf-description-head">
+				<span className="vf-description-label">Description</span>
+				<button
+					type="button"
+					className={`vf-icon-button vf-description-source-toggle${
+						sourceMode ? " is-on" : ""
+					}`}
+					aria-pressed={sourceMode}
+					title={sourceMode ? "Show Live Preview" : "Show raw source"}
+					aria-label={sourceMode ? "Show Live Preview" : "Show raw source"}
+					onClick={toggleSourceMode}
+				>
+					{sourceMode ? <Eye size={14} /> : <Code2 size={14} />}
+				</button>
+			</div>
+			<MarkdownField
+				className="vf-editor-description vf-description-dialog"
+				value={value}
+				onChange={onChange}
+				sourcePath={sourcePath}
+				placeholder="Add a description… [[wikilinks]], #tags and ![[embeds]] all work"
+				forceRawSource={sourceMode}
+			/>
+		</div>
 	);
 }
