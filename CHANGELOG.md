@@ -11,6 +11,7 @@ This project uses [Semantic Versioning](https://semver.org/).
 - Hovering a color swatch now shows Obsidian's styled tooltip with its friendly name and hex (e.g. "Soft Red · #fca5a5"); the custom-color wheel shows the same when its hex lands on a preset, otherwise just the hex.
 
 ### Changed
+- The **New workspace** screen's config step and the workspace **Settings → General** screen now let you pick the workspace's icon with the same searchable picker the Edit-workspace dialog already had — so you can set the icon at creation time or change it any time afterwards, not just via the edit-modal path.
 - Renamed `TAXONOMY_PALETTE` to `COLOR_PALETTE` and moved it out of taxonomy scope into a shared `src/core/color.ts` module (all importers updated).
 - Standardized the spelling of "Color" (was "Colour") across the UI and comments.
 - Greatly widened the color popover and tightened its swatch grid so the 8 columns fit comfortably inside the box, with the inner trigger swatch properly centered.

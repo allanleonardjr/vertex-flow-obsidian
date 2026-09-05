@@ -20,7 +20,7 @@ import {
 import { joinPath, sanitizeFileName } from "../core/links";
 import { suggestPrefix } from "../core/ids";
 import { SYSTEM_VIEW_ALL_TASKS_ID } from "../core/views";
-import { Icon } from "./components/Icon";
+import { Icon, IconField } from "./components/Icon";
 import { usePlugin, useSetActiveWorkspace } from "./context";
 import { FolderSuggestModal } from "./modals/FolderSuggestModal";
 
@@ -238,6 +238,7 @@ function ConfigStep({
 	const setActiveWorkspace = useSetActiveWorkspace();
 
 	const [name, setName] = useState(template.name);
+	const [icon, setIcon] = useState(template.icon);
 	const [location, setLocation] = useState(plugin.settings.defaultWorkspaceFolder);
 	// The prefix tracks the name until the user types their own — then it sticks.
 	// Clearing the field re-links it to the name.
@@ -303,7 +304,7 @@ function ConfigStep({
 				name: name.trim(),
 				root,
 				idPrefix: prefix.trim() || undefined,
-				icon: template.icon,
+				icon,
 				includeExampleContent:
 					template.supportsExampleContent !== false && populate,
 				selfPersonName: selfName.trim() || undefined,
@@ -326,21 +327,26 @@ function ConfigStep({
 				← All templates
 			</button>
 
-			<header className="vf-template-config-head">
-				<Icon id={template.icon} fallback="layers" size={18} />
-				<h1>{template.name}</h1>
-			</header>
+			<div className="vf-icon-name-row">
+				<div className="vf-field vf-field-icon">
+					<span>Icon</span>
+					<IconField
+						value={icon}
+						fallback="layers"
+						onChange={setIcon}
+					/>
+				</div>
+				<label className="vf-field vf-field-name">
+					<span>Name</span>
+					<input
+						type="text"
+						value={name}
+						autoFocus
+						onChange={(event) => setName(event.target.value)}
+					/>
+				</label>
+			</div>
 			<p className="vf-template-sub">{template.description}</p>
-
-			<label className="vf-field">
-				<span>Name</span>
-				<input
-					type="text"
-					value={name}
-					autoFocus
-					onChange={(event) => setName(event.target.value)}
-				/>
-			</label>
 
 			<label className="vf-field">
 				<span>Location</span>
