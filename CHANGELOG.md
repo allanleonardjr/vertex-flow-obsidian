@@ -14,16 +14,13 @@ This project uses [Semantic Versioning](https://semver.org/).
 - Renamed `TAXONOMY_PALETTE` to `COLOR_PALETTE` and moved it out of taxonomy scope into a shared `src/core/color.ts` module (all importers updated).
 - Standardized the spelling of "Color" (was "Colour") across the UI and comments.
 - Greatly widened the color popover and tightened its swatch grid so the 8 columns fit comfortably inside the box, with the inner trigger swatch properly centered.
+- Removed every `!important` from `styles.css` (224 → 0). Button-chrome resets are now element-scoped (`button.vf-nav-row` instead of `.vf-nav-row`), multi-tag resets (`.vf-browse-card-body`, `.vf-crumb`, `.vf-filter-tag-face`) split so only their `<button>` form fights the base button rule, `<input>` chrome resets use `input.`, and the compact-mode drawers keep their exact widths without a forced override (sidebar clamps via `max-width`; the properties rail drops its inline width while drawn).
+- The **New view**, **New dashboard**, and **New project** buttons — both in the sidebar ("+") and the browse hubs — now behave like **New label**/**New person**: pressing them opens the name + icon modal first, and the item is only created once you confirm, instead of pre-creating a blank item and opening its tab before asking what to call it.
 
 ### Fixed
 - The label description textarea used to be freely resizeable in both directions, letting users drag its right edge outside the dialog; it now resizes vertically only, keeping the dialog margins constant.
 - Realigned the palette matrix so every column holds a single consistent color family (cyan/teal, blue, purple, and pink/magenta columns no longer mix hues).
 - Color swatch hovers no longer show a duplicate browser `title` tooltip next to Obsidian's styled one (the palette's `aria-label` container label that could flash a stray "Color" tooltip near the Custom Color row was also removed).
-
-### Changed
-- Removed every `!important` from `styles.css` (224 → 0). Button-chrome resets are now element-scoped (`button.vf-nav-row` instead of `.vf-nav-row`), multi-tag resets (`.vf-browse-card-body`, `.vf-crumb`, `.vf-filter-tag-face`) split so only their `<button>` form fights the base button rule, `<input>` chrome resets use `input.`, and the compact-mode drawers keep their exact widths without a forced override (sidebar clamps via `max-width`; the properties rail drops its inline width while drawn).
-
-### Fixed
 - Resolved the Obsidian repo-checker source warnings: an unused `SortDirection` import, a stray `usePlugin()` call, and three legacy `createEl` shorthands in the caret-position/embedded-editor helpers.
 - Fixed regressions from the `!important` removal: the label editor's **Custom Color** swatch (a `<label>`, not a `<button>`) renders again; the Trash **Restore** button and every **New …** `.mod-cta` action regain their pointer cursor; the **Delete Forever** menu row no longer shows red-on-red (its hover fill now flips the text to the on-accent colour).
 

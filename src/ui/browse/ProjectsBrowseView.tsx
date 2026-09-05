@@ -27,7 +27,6 @@ import type {
 import { computeWidgetData } from "../../core/dashboards";
 import { snapshotContext } from "../../core/views";
 import { withoutExtension } from "../../obsidian/note-io";
-import { useCreateProject } from "../actions";
 import { usePlugin } from "../context";
 import { WidgetChart } from "../dashboards/charts/WidgetChart";
 import { DeleteEntityDialog } from "../DeleteEntityDialog";
@@ -74,11 +73,11 @@ export function ProjectsBrowseView({
   taxonomies: WorkspaceTaxonomies;
 }) {
   const plugin = usePlugin();
-  const createProject = useCreateProject();
   const tabs = useTabs();
 
   const [showHeroCharts, setShowHeroCharts] = useState(true);
   const [menuPath, setMenuPath] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Project | null>(null);
   const [deletePlan, setDeletePlan] = useState<DeletionPlan | null>(null);
 
@@ -106,7 +105,7 @@ export function ProjectsBrowseView({
         count={snapshot.projects.length}
         idPrefix={snapshot.workspace.idPrefix}
         actionLabel="New project"
-        onAction={() => void createProject(snapshot)}
+        onAction={() => setCreating(true)}
       >
         <button
           type="button"
@@ -213,6 +212,26 @@ export function ProjectsBrowseView({
           snapshot={snapshot}
           plan={deletePlan}
           onClose={() => setDeletePlan(null)}
+        />
+      )}
+
+      {creating && (
+        <NamedIconDialog
+          title="New project"
+          initialName="New project"
+          initialIcon="folder"
+          confirmLabel="Create"
+          validateName={(name) =>
+            isProjectTitleTaken(snapshot.projects, name)
+              ? `A project named "${name.trim()}" already exists`
+              : null
+          }
+          onConfirm={(name, icon) =>
+            void plugin.mutations
+              .createProject(snapshot, name, icon)
+              .then((file) => tabs.openProject(withoutExtension(file.path)))
+          }
+          onClose={() => setCreating(false)}
         />
       )}
 

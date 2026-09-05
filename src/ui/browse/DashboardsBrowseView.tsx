@@ -22,10 +22,7 @@ import {
 	BrowseList,
 } from "./shared";
 
-type DialogState =
-	| { mode: "create"; dashboard: DashboardConfig }
-	| { mode: "edit"; dashboard: DashboardConfig }
-	| null;
+type DialogState = { mode: "edit"; dashboard: DashboardConfig } | null;
 
 export function DashboardsBrowseView({
 	snapshot,
@@ -36,20 +33,13 @@ export function DashboardsBrowseView({
 	const { openDashboard } = useTabs();
 
 	const [menuId, setMenuId] = useState<string | null>(null);
+	const [creating, setCreating] = useState(false);
 	const [dialog, setDialog] = useState<DialogState>(null);
 	const [deleting, setDeleting] = useState<DashboardConfig | null>(null);
 
 	const dashboards = [...snapshot.dashboards].sort((a, b) =>
 		a.name.localeCompare(b.name),
 	);
-
-	const create = () => {
-		const dashboard = newDashboard(newConfigId("dashboard"), "New dashboard");
-		void plugin.mutations.addDashboard(snapshot, dashboard).then(() => {
-			openDashboard(dashboard.id);
-			setDialog({ mode: "create", dashboard });
-		});
-	};
 
 	const duplicate = (dashboard: DashboardConfig) => {
 		const copy: DashboardConfig = {
@@ -71,7 +61,7 @@ export function DashboardsBrowseView({
 				count={dashboards.length}
 				idPrefix={snapshot.workspace.idPrefix}
 				actionLabel="New dashboard"
-				onAction={create}
+				onAction={() => setCreating(true)}
 			/>
 
 			{dashboards.length === 0 ? (
@@ -128,35 +118,40 @@ export function DashboardsBrowseView({
 				</BrowseList>
 			)}
 
+			{creating && (
+				<NamedIconDialog
+					title="New dashboard"
+					initialName="New dashboard"
+					initialIcon="layout-dashboard"
+					iconFallback="layout-dashboard"
+					confirmLabel="Create"
+					onConfirm={(name, icon) => {
+						const dashboard = {
+							...newDashboard(newConfigId("dashboard"), "New dashboard"),
+							name,
+							icon,
+						};
+						void plugin.mutations
+							.addDashboard(snapshot, dashboard)
+							.then(() => openDashboard(dashboard.id));
+					}}
+					onClose={() => setCreating(false)}
+				/>
+			)}
+
 			{dialog && (
 				<NamedIconDialog
-					title={
-						dialog.mode === "create"
-							? "Name your dashboard"
-							: "Edit dashboard"
-					}
+					title="Edit dashboard"
 					initialName={dialog.dashboard.name}
 					initialIcon={dialog.dashboard.icon}
 					iconFallback="layout-dashboard"
-					confirmLabel={dialog.mode === "create" ? "Create" : "Save"}
+					confirmLabel="Save"
 					onConfirm={(name, icon) =>
 						void plugin.mutations.updateDashboard(snapshot, {
 							...dialog.dashboard,
 							name,
 							icon,
 						})
-					}
-					// Cancelling the "name your new dashboard" step discards the
-					// dashboard that was auto-created to open it; App's
-					// `pruneDashboards` then closes its tab.
-					onCancel={
-						dialog.mode === "create"
-							? () =>
-									void plugin.mutations.deleteDashboard(
-										snapshot,
-										dialog.dashboard.id,
-									)
-							: undefined
 					}
 					onClose={() => setDialog(null)}
 				/>
