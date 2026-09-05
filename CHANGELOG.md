@@ -5,6 +5,8 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.9 — 2026-09-05
+
 ### Added
 - The color picker is now a shared app-wide component and ships a much richer palette: a reordered 48-color **Spectrum Matrix** (8 columns of vertical color families — neutrals, then Reds · Oranges · Yellows · Limes/Greens · Teals/Cyans · Blues · Indigos/Purples · Pinks/Magentas across five intensity rows) rendered in the taxonomy settings (statuses, priorities, task types) and the label editor.
 - A **Custom Color** row below the swatch grid lets advanced users pick any raw color via the native color wheel or a typed hex code, styled as a matching square swatch; the popover stays open while dragging the native picker and commits the choice on dismissal.
