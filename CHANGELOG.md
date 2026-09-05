@@ -20,6 +20,13 @@ This project uses [Semantic Versioning](https://semver.org/).
 - Realigned the palette matrix so every column holds a single consistent color family (cyan/teal, blue, purple, and pink/magenta columns no longer mix hues).
 - Color swatch hovers no longer show a duplicate browser `title` tooltip next to Obsidian's styled one (the palette's `aria-label` container label that could flash a stray "Color" tooltip near the Custom Color row was also removed).
 
+### Changed
+- Removed every `!important` from `styles.css` (224 → 0). Button-chrome resets are now element-scoped (`button.vf-nav-row` instead of `.vf-nav-row`), multi-tag resets (`.vf-browse-card-body`, `.vf-crumb`, `.vf-filter-tag-face`) split so only their `<button>` form fights the base button rule, `<input>` chrome resets use `input.`, and the compact-mode drawers keep their exact widths without a forced override (sidebar clamps via `max-width`; the properties rail drops its inline width while drawn).
+
+### Fixed
+- Resolved the Obsidian repo-checker source warnings: an unused `SortDirection` import, a stray `usePlugin()` call, and three legacy `createEl` shorthands in the caret-position/embedded-editor helpers.
+- Fixed regressions from the `!important` removal: the label editor's **Custom Color** swatch (a `<label>`, not a `<button>`) renders again; the Trash **Restore** button and every **New …** `.mod-cta` action regain their pointer cursor; the **Delete Forever** menu row no longer shows red-on-red (its hover fill now flips the text to the on-accent colour).
+
 ## 1.0.8 — 2026-09-03
 
 ### Added

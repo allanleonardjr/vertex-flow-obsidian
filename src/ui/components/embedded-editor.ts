@@ -127,7 +127,7 @@ function resolveEditorConstructor(app: App): InternalEditorCtor | null {
 		const createEmbed = registry?.embedByExtension?.md;
 		if (typeof createEmbed !== "function") throw new Error("no markdown embed factory");
 
-		const probeEl = createEl("div");
+		const probeEl = createDiv();
 		const probe: InternalEmbed = createEmbed(
 			{ app, containerEl: probeEl },
 			null,

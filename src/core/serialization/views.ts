@@ -18,7 +18,6 @@ import {
 	type EmptyColumnBehavior,
 	type GroupByField,
 	type SavedView,
-	type SortDirection,
 	type SortField,
 	type SubtaskDisplay,
 	type ViewCalendarState,
