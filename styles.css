@@ -1411,12 +1411,18 @@ body.vf-dragging {
 /* Label dialog: colour swatch grid. */
 .vf-swatch-grid {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
+  grid-template-columns: repeat(8, minmax(0, 1fr));
   gap: 6px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .vf-swatch {
   aspect-ratio: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  box-sizing: border-box;
   border: 2px solid transparent !important;
   border-radius: 5px;
   box-shadow: none !important;
@@ -1759,6 +1765,9 @@ body.vf-dragging {
 
 .vf-field-description textarea {
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
 }
 
 .vf-icon-field {
@@ -1850,7 +1859,7 @@ body.vf-dragging {
   color: var(--text-accent);
 }
 
-/* -- Colour field: a swatch trigger opening the palette grid ------------- */
+/* -- Color field: a swatch trigger opening the palette grid ---------------- */
 
 .vf-color-field {
   position: relative;
@@ -1877,6 +1886,8 @@ body.vf-dragging {
 }
 
 .vf-color-trigger-swatch {
+  flex: 0 0 auto;
+  display: block;
   width: 18px;
   height: 18px;
   border-radius: 4px;
@@ -1887,13 +1898,56 @@ body.vf-dragging {
   top: calc(100% + 5px);
   left: 0;
   z-index: 50;
-  width: 216px;
+  width: 288px;
   max-width: 80vw;
   padding: 8px;
   border: 1px solid var(--vf-border);
   border-radius: var(--vf-radius);
   background: var(--background-primary);
   box-shadow: 0 12px 30px rgb(0 0 0 / 32%);
+}
+
+/* -- Color field: custom / hex escape hatch ----------------------------- */
+
+.vf-color-custom-label {
+  margin: 12px 0 6px;
+  font-size: var(--font-ui-smaller);
+  color: var(--vf-muted);
+  text-align: center;
+}
+
+.vf-color-custom-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.vf-color-custom-wheel {
+  position: relative;
+  flex: 0 0 32px;
+  width: 32px;
+  max-width: 32px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.vf-color-custom-wheel > input[type="color"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.vf-color-custom-hex {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+  max-width: 100%;
 }
 
 /* ------------------------------------------------------------ Compact mode --
@@ -3533,17 +3587,6 @@ button.vf-crumb:hover {
   align-items: center;
   gap: 8px;
   padding: 4px 0;
-}
-
-.vf-color-swatch {
-  width: 22px;
-  height: 22px;
-  flex-shrink: 0;
-  padding: 0;
-  border: 1px solid var(--vf-border);
-  border-radius: 5px;
-  background: none;
-  cursor: pointer;
 }
 
 .vf-taxonomy-name {

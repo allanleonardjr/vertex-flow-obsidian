@@ -18,7 +18,7 @@ import type {
 } from "../types";
 import type { ViewContext } from "../views/context";
 import { displayColor } from "../taxonomy/engine";
-import { TAXONOMY_PALETTE } from "../taxonomy/defaults";
+import { COLOR_PALETTE } from "../color";
 import { linksMatch } from "../links";
 import { valueLabel } from "./title";
 
@@ -84,11 +84,11 @@ function colorFor(
 	) {
 		return (
 			displayColor(context.taxonomies[field], key) ??
-			TAXONOMY_PALETTE[index % TAXONOMY_PALETTE.length]
+			COLOR_PALETTE[index % COLOR_PALETTE.length]
 		);
 	}
 	// assignee / project have no taxonomy colour — cycle the taxonomy palette.
-	return TAXONOMY_PALETTE[index % TAXONOMY_PALETTE.length];
+	return COLOR_PALETTE[index % COLOR_PALETTE.length];
 }
 
 /** Taxonomy display order for ordered taxonomies, else "biggest bar first". */
@@ -269,7 +269,7 @@ export function computeWidgetData(
 				: valueLabel(mapping.groupBy as DashboardGroupingField, key, context),
 		color:
 			key === "__all__"
-				? TAXONOMY_PALETTE[10]
+				? COLOR_PALETTE[10]
 				: colorFor(mapping.groupBy as DashboardGroupingField, key, index, context),
 	}));
 

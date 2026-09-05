@@ -20,7 +20,6 @@ import {
 	type Taxonomy,
 	type TaxonomyDeletionPlan,
 	type TaxonomyUsage,
-	TAXONOMY_PALETTE,
 } from "../../core/taxonomy";
 import {
 	STATUS_CATEGORIES,
@@ -31,6 +30,8 @@ import {
 } from "../../core/types";
 import { withTaxonomy } from "../../core/taxonomy";
 import { usePlugin } from "../context";
+import { ColorField } from "../components/ColorField";
+import { COLOR_PALETTE } from "../../core/color";
 import { ReplaceValueDialog } from "./ReplaceValueDialog";
 import { ConfirmDeleteDialog } from "../components/ConfirmDeleteDialog";
 
@@ -215,13 +216,7 @@ function TaxonomyRow({
 
 	return (
 		<div className="vf-taxonomy-row">
-			<input
-				type="color"
-				className="vf-color-swatch"
-				value={value.color}
-				title="Colour"
-				onChange={(event) => onRecolor(event.target.value)}
-			/>
+			<ColorField value={value.color} onChange={(color) => onRecolor(color)} />
 
 			<input
 				type="text"
@@ -289,7 +284,7 @@ function AddValueRow({
 }) {
 	const [name, setName] = useState("");
 	const [color, setColor] = useState(
-		() => TAXONOMY_PALETTE[Math.floor(Math.random() * TAXONOMY_PALETTE.length)],
+		() => COLOR_PALETTE[Math.floor(Math.random() * COLOR_PALETTE.length)],
 	);
 	const [category, setCategory] = useState<StatusCategory>("backlog");
 
@@ -298,18 +293,12 @@ function AddValueRow({
 		if (!trimmed) return;
 		onAdd(trimmed, color, categorized ? category : undefined);
 		setName("");
-		setColor(TAXONOMY_PALETTE[Math.floor(Math.random() * TAXONOMY_PALETTE.length)]);
+		setColor(COLOR_PALETTE[Math.floor(Math.random() * COLOR_PALETTE.length)]);
 	};
 
 	return (
 		<div className="vf-taxonomy-row vf-taxonomy-add">
-			<input
-				type="color"
-				className="vf-color-swatch"
-				value={color}
-				title="Colour"
-				onChange={(event) => setColor(event.target.value)}
-			/>
+			<ColorField value={color} onChange={setColor} />
 			<input
 				type="text"
 				className="vf-input vf-taxonomy-name"

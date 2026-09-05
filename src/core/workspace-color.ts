@@ -1,4 +1,4 @@
-import { TAXONOMY_PALETTE } from "./taxonomy";
+import { COLOR_PALETTE } from "./color";
 
 /**
  * Deterministic accent color for a workspace, derived from its `root` path.
@@ -12,6 +12,6 @@ export function workspaceAccentColor(root: string): string {
     hash = (hash << 5) - hash + root.charCodeAt(i);
     hash |= 0; // force 32-bit int
   }
-  const index = Math.abs(hash) % TAXONOMY_PALETTE.length;
-  return TAXONOMY_PALETTE[index];
+  const index = Math.abs(hash) % COLOR_PALETTE.length;
+  return COLOR_PALETTE[index];
 }

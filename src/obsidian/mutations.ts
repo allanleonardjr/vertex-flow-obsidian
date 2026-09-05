@@ -51,7 +51,7 @@ import {
   type TaxonomyDeletionPlan,
 } from "../core/taxonomy";
 import { withTaxonomy } from "../core/taxonomy";
-import { TAXONOMY_PALETTE } from "../core/taxonomy/defaults";
+import { COLOR_PALETTE } from "../core/color";
 import {
   emptyRelations,
   type Comment,
@@ -549,9 +549,9 @@ export class Mutations {
   private nextLabelColor(snapshot: WorkspaceSnapshot): string {
     const used = new Set(snapshot.workspace.labels.map((l) => l.color));
     return (
-      TAXONOMY_PALETTE.find((c) => !used.has(c)) ??
-      TAXONOMY_PALETTE[
-        snapshot.workspace.labels.length % TAXONOMY_PALETTE.length
+      COLOR_PALETTE.find((c) => !used.has(c)) ??
+      COLOR_PALETTE[
+        snapshot.workspace.labels.length % COLOR_PALETTE.length
       ]
     );
   }

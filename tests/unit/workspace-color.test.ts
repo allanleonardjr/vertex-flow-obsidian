@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { workspaceAccentColor } from "../../src/core/workspace-color";
-import { TAXONOMY_PALETTE } from "../../src/core/taxonomy";
+import { COLOR_PALETTE } from "../../src/core/color";
 
 describe("workspaceAccentColor", () => {
 	it("is deterministic for a given root", () => {
@@ -17,7 +17,7 @@ describe("workspaceAccentColor", () => {
 			"Clients/Acme Corp",
 			"深い/ワークスペース",
 		]) {
-			expect(TAXONOMY_PALETTE).toContain(workspaceAccentColor(root));
+			expect(COLOR_PALETTE).toContain(workspaceAccentColor(root));
 		}
 	});
 
