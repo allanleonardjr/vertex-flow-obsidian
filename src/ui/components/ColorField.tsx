@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { COLOR_PALETTE } from "../../core/color";
+import { COLOR_PALETTE, COLOR_PALETTE_NAMES } from "../../core/color";
 
 const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
@@ -52,6 +52,15 @@ export function ColorField({
 	const hexValid = HEX_RE.test(hex);
 	const normalized = hexValid ? normalizeHex(hex) : null;
 
+	// When the custom hex happens to land on a preset, name it in the tooltip
+	// (`COLOR_PALETTE` is one-to-one with `COLOR_PALETTE_NAMES` by index).
+	const customName =
+		normalized != null
+			? COLOR_PALETTE_NAMES[COLOR_PALETTE.indexOf(normalized)] ?? null
+			: null;
+	const customTooltip =
+		customName != null ? `${customName} · ${normalized}` : (normalized ?? "");
+
 	const select = (next: string) => {
 		onChange(next);
 		setOpen(false);
@@ -62,7 +71,6 @@ export function ColorField({
 			<button
 				type="button"
 				className={`vf-color-trigger${open ? " is-on" : ""}`}
-				title="Choose a color"
 				aria-label="Choose a color"
 				aria-expanded={open}
 				onClick={(event) => {
@@ -84,14 +92,14 @@ export function ColorField({
 					<div
 						className="vf-swatch-grid"
 						role="listbox"
-						aria-label="Color"
 					>
-						{COLOR_PALETTE.map((swatch) => (
+						{COLOR_PALETTE.map((swatch, i) => (
 							<button
 								key={swatch}
 								type="button"
 								role="option"
 								aria-selected={value === swatch}
+								aria-label={`${COLOR_PALETTE_NAMES[i]} · ${swatch}`}
 								className={`vf-swatch${value === swatch ? " is-on" : ""}`}
 								style={{ backgroundColor: swatch }}
 								onClick={() => select(swatch)}
@@ -105,8 +113,7 @@ export function ColorField({
 						<label
 							className={`vf-swatch vf-color-custom-wheel${normalized === value ? " is-on" : ""}`}
 							style={{ backgroundColor: normalized ?? "#000000" }}
-							title="Pick a custom color"
-							aria-label="Pick a custom color"
+							aria-label={customTooltip || "Pick a custom color"}
 						>
 							<input
 								type="color"
