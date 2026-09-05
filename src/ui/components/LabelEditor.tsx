@@ -281,11 +281,14 @@ export function LabelEditor({
 					title="Edit label"
 					initialName={editingLabel.name}
 					initialColor={editingLabel.color}
+					initialDescription={editingLabel.description}
+					descriptionSourcePath={`${snapshot.workspace.root}/Untitled`}
 					confirmLabel="Save"
-					onConfirm={(name, color) =>
+					onConfirm={(name, color, description) =>
 						plugin.mutations.updateLabel(snapshot, editingLabel.id, {
 							name,
 							color,
+							description,
 						})
 					}
 					onClose={() => setEditingId(null)}

@@ -123,13 +123,16 @@ export function DashboardsBrowseView({
 					title="New dashboard"
 					initialName="New dashboard"
 					initialIcon="layout-dashboard"
+					initialDescription=""
+					descriptionSourcePath={`${snapshot.workspace.root}/Untitled`}
 					iconFallback="layout-dashboard"
 					confirmLabel="Create"
-					onConfirm={(name, icon) => {
+					onConfirm={(name, icon, description) => {
 						const dashboard = {
 							...newDashboard(newConfigId("dashboard"), "New dashboard"),
 							name,
 							icon,
+							description: description?.trim() || undefined,
 						};
 						void plugin.mutations
 							.addDashboard(snapshot, dashboard)

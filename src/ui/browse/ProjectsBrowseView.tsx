@@ -220,15 +220,17 @@ export function ProjectsBrowseView({
           title="New project"
           initialName="New project"
           initialIcon="folder"
+          initialDescription=""
+          descriptionSourcePath={`${snapshot.workspace.root}/Untitled`}
           confirmLabel="Create"
           validateName={(name) =>
             isProjectTitleTaken(snapshot.projects, name)
               ? `A project named "${name.trim()}" already exists`
               : null
           }
-          onConfirm={(name, icon) =>
+          onConfirm={(name, icon, description) =>
             void plugin.mutations
-              .createProject(snapshot, name, icon)
+              .createProject(snapshot, name, icon, description)
               .then((file) => tabs.openProject(withoutExtension(file.path)))
           }
           onClose={() => setCreating(false)}

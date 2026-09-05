@@ -758,13 +758,16 @@ function ViewsSection({
           title="New view"
           initialName="New view"
           initialIcon={layoutIcon("list")}
+          initialDescription=""
+          descriptionSourcePath={`${snapshot.workspace.root}/Untitled`}
           iconFallback={layoutIcon("list")}
           confirmLabel="Create"
-          onConfirm={(name, icon) => {
+          onConfirm={(name, icon, description) => {
             const view = {
               ...newView(newConfigId("view"), "New view", "list"),
               name,
               icon,
+              description: description?.trim() || undefined,
             };
             void plugin.mutations.addView(snapshot, view).then(() =>
               onSelectView(view.id),
@@ -894,13 +897,16 @@ function DashboardsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
           title="New dashboard"
           initialName="New dashboard"
           initialIcon="layout-dashboard"
+          initialDescription=""
+          descriptionSourcePath={`${snapshot.workspace.root}/Untitled`}
           iconFallback="layout-dashboard"
           confirmLabel="Create"
-          onConfirm={(name, icon) => {
+          onConfirm={(name, icon, description) => {
             const dashboard = {
               ...newDashboard(newConfigId("dashboard"), "New dashboard"),
               name,
               icon,
+              description: description?.trim() || undefined,
             };
             void plugin.mutations
               .addDashboard(snapshot, dashboard)
@@ -1044,15 +1050,17 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
           title="New project"
           initialName="New project"
           initialIcon="folder"
+          initialDescription=""
+          descriptionSourcePath={`${snapshot.workspace.root}/Untitled`}
           confirmLabel="Create"
           validateName={(name) =>
             isProjectTitleTaken(snapshot.projects, name)
               ? `A project named "${name.trim()}" already exists`
               : null
           }
-          onConfirm={(name, icon) =>
+          onConfirm={(name, icon, description) =>
             void plugin.mutations
-              .createProject(snapshot, name, icon)
+              .createProject(snapshot, name, icon, description)
               .then((file) => tabs.openProject(withoutExtension(file.path)))
           }
           onClose={() => setCreating(false)}
@@ -1189,6 +1197,7 @@ function LabelsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
         <LabelDialog
           title="New label"
           initialName="New label"
+          descriptionSourcePath={`${snapshot.workspace.root}/Untitled`}
           confirmLabel="Create"
           onConfirm={(name, color, description) =>
             plugin.mutations
@@ -1205,6 +1214,7 @@ function LabelsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
           initialName={editLabel.name}
           initialColor={editLabel.color}
           initialDescription={editLabel.description}
+          descriptionSourcePath={`${snapshot.workspace.root}/Untitled`}
           confirmLabel="Save"
           onConfirm={(name, color, description) =>
             plugin.mutations.updateLabel(snapshot, editLabel.id, {

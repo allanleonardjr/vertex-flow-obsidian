@@ -128,13 +128,16 @@ export function ViewsBrowseView({ snapshot }: { snapshot: WorkspaceSnapshot }) {
           title="New view"
           initialName="New view"
           initialIcon={layoutIcon("list")}
+          initialDescription=""
+          descriptionSourcePath={`${snapshot.workspace.root}/Untitled`}
           iconFallback={layoutIcon("list")}
           confirmLabel="Create"
-          onConfirm={(name, icon) => {
+          onConfirm={(name, icon, description) => {
             const view = {
               ...newView(newConfigId("view"), "New view", "list"),
               name,
               icon,
+              description: description?.trim() || undefined,
             };
             void plugin.mutations.addView(snapshot, view).then(() =>
               openView(view.id),

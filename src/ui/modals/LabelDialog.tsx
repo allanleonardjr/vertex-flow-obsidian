@@ -7,12 +7,14 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { ColorField } from "../components/ColorField";
+import { DescriptionDialogField } from "../components/DescriptionSection";
 
 export function LabelDialog({
 	title,
 	initialName,
 	initialColor,
 	initialDescription,
+	descriptionSourcePath,
 	confirmLabel,
 	onConfirm,
 	onClose,
@@ -21,6 +23,9 @@ export function LabelDialog({
 	initialName: string;
 	initialColor?: string;
 	initialDescription?: string;
+	/** Where `[[links]]` in the description resolve against (labels live in the
+	 * workspace taxonomy file, so there's no note of their own). */
+	descriptionSourcePath: string;
 	confirmLabel: string;
 	onConfirm: (name: string, color: string, description?: string) => Promise<void>;
 	onClose: () => void;
@@ -76,14 +81,11 @@ export function LabelDialog({
 					</label>
 				</div>
 
-				<label className="vf-field vf-field-description">
-					<span>Description</span>
-					<textarea
-						rows={2}
-						value={description}
-						onChange={(event) => setDescription(event.target.value)}
-					/>
-				</label>
+				<DescriptionDialogField
+					value={description}
+					onChange={setDescription}
+					sourcePath={descriptionSourcePath}
+				/>
 
 				{error && <p className="vf-error">{error}</p>}
 

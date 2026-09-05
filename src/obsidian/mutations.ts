@@ -841,6 +841,7 @@ export class Mutations {
     snapshot: WorkspaceSnapshot,
     title: string,
     icon?: string,
+    description?: string,
   ): Promise<TFile> {
     // Titles are unique per workspace — a collision would make
     // `project:` filters and links ambiguous. Block it here rather than let
@@ -879,8 +880,9 @@ export class Mutations {
         path,
       }),
       // The body is the project's description, edited in the plugin's own
-      // Project editor — created empty, like a Task note.
-      "",
+      // Project editor — created empty, like a Task note, unless the creation
+      // dialog collected one.
+      description ? withProjectDescription(description) : "",
     );
     await this.index.rebuild();
     return file;

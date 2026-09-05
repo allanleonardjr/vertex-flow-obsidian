@@ -1781,6 +1781,14 @@ button.vf-swatch.is-on {
   resize: vertical;
 }
 
+/* The dialog description field pairs the label with a source toggle in one row,
+   so undo the block/stacking `.vf-field span` applies to plain field labels. */
+.vf-field-description .vf-description-head .vf-description-label {
+  display: inline;
+  flex: 1;
+  margin-bottom: 0;
+}
+
 .vf-icon-field {
   position: relative;
   display: inline-flex;
@@ -3508,6 +3516,29 @@ input.vf-editable-title-input {
 .vf-description-plain .vf-markdown-placeholder {
   top: 0;
   left: 0;
+}
+
+/* Description fields inside dialogs (create/edit forms) keep the base Markdown
+   field's bordered box — via `vf-description-dialog` instead of the panes'
+   borderless `vf-description-plain` — so the user can see where the field
+   starts and stops. The base rules already supply the border, radius,
+   background and focus ring; only the dialog-scale metrics need restating. */
+.vf-description-dialog .vf-markdown-native,
+.vf-description-dialog .vf-markdown-edit {
+  min-height: 64px;
+}
+
+/* Let the user drag the bottom edge to fit more prose (the pane sections
+   deliberately don't — this is a form field, not a note surface). */
+.vf-description-dialog .vf-markdown-native {
+  resize: vertical;
+  overflow: auto;
+}
+
+.vf-description-dialog .vf-markdown-edit {
+  color: var(--text-normal);
+  font-size: var(--font-text-size);
+  line-height: var(--line-height-normal, 1.5);
 }
 
 /* A Saved View's description sits below the control bar. Expanded, its
