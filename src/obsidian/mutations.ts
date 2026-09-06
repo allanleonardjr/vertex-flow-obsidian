@@ -80,6 +80,13 @@ import {
 import { FOLDERS, VaultIndex, WORKSPACE_NOTE } from "./index-store";
 import { NoteIO, withExtension, withoutExtension } from "./note-io";
 import { liveFolder, trashFolder } from "./trash-paths";
+import { HistoryLog } from "./history-log";
+import {
+  diffProjectFields,
+  diffTaskFields,
+  workspaceConfigChanges,
+} from "../core/history/diff";
+import type { HistoryChange, HistoryTarget } from "../core/types";
 
 export interface NewTaskInput {
   /** Optional — a task is untitled until the user types a name. */
@@ -102,6 +109,7 @@ export class Mutations {
     private readonly app: App,
     private readonly io: NoteIO,
     private readonly index: VaultIndex,
+    private readonly history: HistoryLog,
   ) {}
 
   // -- Tasks ----------------------------------------------------------------
@@ -161,14 +169,31 @@ export class Mutations {
 
     const file = await this.io.create(path, serializeTask(task), body);
     await this.index.rebuild();
+
+    this.history.record(workspace, {
+      action: "task.create",
+      targets: [{ kind: "task", id, path }],
+      changes: task.title ? [{ field: "title", to: task.title }] : [],
+    });
     return file;
   }
 
   /**
    * Patch a task's frontmatter. `updatedAt` is stamped here rather than by
    * each caller, so no code path can forget it.
+   *
+   * Also the choke point for history: every single-task frontmatter edit —
+   * the field setters below and the UI's direct `updateTask(...)` callers
+   * alike — funnels through here and logs a `task.update` with the *actual*
+   * field deltas. Multi-write flows pass `{ suppressHistory: true }` and log
+   * their own, richer entries (`task.bulk-update`, `task.move`, taxonomy
+   * reassignment), so a single user action never double-logs.
    */
-  async updateTask(task: Task, patch: Partial<Task>): Promise<void> {
+  async updateTask(
+    task: Task,
+    patch: Partial<Task>,
+    options?: { suppressHistory?: boolean },
+  ): Promise<void> {
     const file = this.requireFile(task.path);
     const merged: Task = {
       ...task,
@@ -176,6 +201,25 @@ export class Mutations {
       updatedAt: new Date().toISOString(),
     };
     await this.io.replaceFrontmatter(file, serializeTask(merged));
+    this.logUpdate(task, merged, options);
+  }
+
+  /** Record a `task.update` when a frontmatter edit actually changed fields. */
+  private logUpdate(
+    before: Task,
+    after: Task,
+    options?: { suppressHistory?: boolean },
+  ): void {
+    if (options?.suppressHistory) return;
+    const changes = diffTaskFields(before, after);
+    if (changes.length === 0) return;
+    const workspace = this.index.workspaceFor(before.path)?.workspace;
+    if (!workspace) return;
+    this.history.record(workspace, {
+      action: "task.update",
+      targets: [this.taskTarget(after)],
+      changes,
+    });
   }
 
   async setStatus(task: Task, status: string): Promise<void> {
@@ -226,6 +270,11 @@ export class Mutations {
   /**
    * Apply a drag. `siblings` is the destination column verbatim; the ranking
    * engine handles whether this is a reorder or a cross-column move.
+   *
+   * One purposeful asymmetry: a pure reorder (only `rank` changed, e.g. a
+   * within-column drag) still logs, because the *placement* is the event —
+   * but `rank` itself is never a `change`, so the ledger says "moved" without
+   * ever exposing LexoRank strings.
    */
   async moveTask(
     task: Task,
@@ -234,13 +283,53 @@ export class Mutations {
     fieldEdit?: Partial<Task>,
   ): Promise<void> {
     const assignment = planReorder(task, siblings, toIndex);
-    await this.updateTask(task, { rank: assignment.rank, ...fieldEdit });
+    const after: Task = {
+      ...task,
+      ...fieldEdit,
+      rank: assignment.rank,
+      updatedAt: new Date().toISOString(),
+    };
+    await this.updateTask(task, { rank: assignment.rank, ...fieldEdit }, { suppressHistory: true });
+
+    const workspace = this.index.workspaceFor(task.path)?.workspace;
+    if (workspace) {
+      this.history.record(workspace, {
+        action: "task.move",
+        targets: [this.taskTarget(after)],
+        changes: diffTaskFields(task, after),
+      });
+    }
   }
 
-  /** Bulk edit across a multi-selection. */
+  /**
+   * Bulk edit across a multi-selection. Logged as a single `task.bulk-update`
+   * carrying every target; the hub collapses the per-task deltas into counts,
+   * so a 40-task "set priority" lands as one entry, not forty.
+   */
   async bulkUpdate(tasks: Task[], patch: Partial<Task>): Promise<void> {
+    if (tasks.length === 0) {
+      new Notice("Updated 0 tasks");
+      return;
+    }
+
+    const changes: HistoryChange[] = [];
     for (const task of tasks) {
-      await this.updateTask(task, patch);
+      const after: Task = {
+        ...task,
+        ...patch,
+        updatedAt: new Date().toISOString(),
+      };
+      await this.updateTask(task, patch, { suppressHistory: true });
+      changes.push(...diffTaskFields(task, after));
+    }
+
+    const workspace = this.index.workspaceFor(tasks[0].path)?.workspace;
+    if (workspace) {
+      this.history.record(workspace, {
+        action: "task.bulk-update",
+        targets: tasks.map((task) => this.taskTarget(task)),
+        changes,
+      });
     }
     new Notice(`Updated ${tasks.length} task${tasks.length === 1 ? "" : "s"}`);
   }
@@ -291,6 +380,17 @@ export class Mutations {
     });
     // Stamp `updatedAt`; the body write doesn't touch frontmatter.
     await this.updateTask(task, {});
+
+    const workspace = this.index.workspaceFor(task.path)?.workspace;
+    if (workspace) {
+      this.history.record(workspace, {
+        action: "task.update",
+        targets: [this.taskTarget(task)],
+        // The body diff is deliberately not captured ("unsavoury" in the
+        // format rules) — the event is recorded, not the prose.
+        changes: [{ field: "description" }],
+      });
+    }
   }
 
   // -- Comments -------------------------------------------------------------
@@ -309,6 +409,17 @@ export class Mutations {
       return withComments(content, [...comments, comment]);
     });
     await this.updateTask(task, {});
+
+    const workspace = this.index.workspaceFor(task.path)?.workspace;
+    if (workspace) {
+      this.history.record(workspace, {
+        action: "comment.add",
+        targets: [this.taskTarget(task)],
+        // No id captured here — the comment's id is minted inside the body
+        // transform above. The entry records the event, not the id.
+        changes: [{ field: "comment" }],
+      });
+    }
   }
 
   async deleteComment(task: Task, commentId: string): Promise<void> {
@@ -319,6 +430,15 @@ export class Mutations {
         parseComments(content).filter((comment) => comment.id !== commentId),
       ),
     );
+
+    const workspace = this.index.workspaceFor(task.path)?.workspace;
+    if (workspace) {
+      this.history.record(workspace, {
+        action: "comment.delete",
+        targets: [this.taskTarget(task)],
+        changes: [{ field: "comment", from: commentId }],
+      });
+    }
   }
 
   async toggleReaction(
@@ -338,6 +458,15 @@ export class Mutations {
       });
       return withComments(content, comments);
     });
+
+    const workspace = this.index.workspaceFor(task.path)?.workspace;
+    if (workspace) {
+      this.history.record(workspace, {
+        action: "comment.update",
+        targets: [this.taskTarget(task)],
+        changes: [{ field: "reaction", to: emoji }],
+      });
+    }
   }
 
   // -- Trash --------------------------------------------------------------
@@ -393,6 +522,11 @@ export class Mutations {
     const file = this.io.getFile(item.entity.path);
     if (file) await this.restoreFromTrash(snapshot, file, item.kind);
     await this.index.rebuild();
+
+    this.history.record(snapshot.workspace, {
+      action: `${item.kind}.restore`,
+      targets: [this.entityTarget(item)],
+    });
   }
 
   /**
@@ -407,6 +541,27 @@ export class Mutations {
     const file = this.io.getFile(item.entity.path);
     if (file) await this.io.trash(file);
     await this.index.rebuild();
+
+    // `permanentlyDeleteItem` has no snapshot at hand (it's reached straight
+    // from the Trash hub) — resolve the workspace from the pre-delete index.
+    const workspace = this.index.workspaceFor(item.entity.path)?.workspace;
+    if (workspace) {
+      // Note: after `io.trash` the file is already gone from `index.get`, but
+      // the *config* unchanged — `workspace` above is resolved fine.
+      this.history.record(workspace, {
+        action: `${item.kind}.delete-forever`,
+        targets: [this.entityTarget(item)],
+      });
+    }
+  }
+
+  /** A trashed entity as a history target, using its stored identity. */
+  private entityTarget(item: TrashedItem): HistoryTarget {
+    const entity = item.entity;
+    if (item.kind === "task") return this.taskTarget(entity as Task);
+    if (item.kind === "project") return this.projectTarget(entity as Project);
+    const named = entity as SavedView | DashboardConfig;
+    return { kind: item.kind, id: named.name ?? named.id, path: named.path };
   }
 
   // -- Deletion ------------------------------------------------------
@@ -462,6 +617,24 @@ export class Mutations {
     }
 
     await this.index.rebuild();
+
+    // One entry for the *confirmed* deletion. Cascaded children each get their
+    // own Trash row through `restoreItem`/`permanentlyDeleteItem` when a human
+    // touches them later — they aren't re-logged here, or a cascade would
+    // flood the feed with the same event a dozen times.
+    const primary = plan.kind === "project"
+      ? snapshot.projects
+          .filter((p) => p.path === plan.path)
+          .map((p) => this.projectTarget(p))
+      : snapshot.tasks
+          .filter((t) => t.path === plan.path)
+          .map((t) => this.taskTarget(t));
+    if (primary.length > 0) {
+      this.history.record(snapshot.workspace, {
+        action: `${plan.kind}.delete`,
+        targets: primary,
+      });
+    }
     return outcome.followUps;
   }
 
@@ -507,22 +680,26 @@ export class Mutations {
       // Multi-select only (labels): just strip the value everywhere.
       for (const task of snapshot.tasks) {
         if (!task.labels.includes(plan.valueId)) continue;
-        await this.updateTask(task, {
-          labels: task.labels.filter((id) => id !== plan.valueId),
-        });
+        await this.updateTask(
+          task,
+          { labels: task.labels.filter((id) => id !== plan.valueId) },
+          { suppressHistory: true },
+        );
       }
     } else if (to) {
       for (const task of snapshot.tasks) {
         if (kind === "label") {
           const labels = reassignValues(task.labels, plan.valueId, to);
-          if (labels !== task.labels) await this.updateTask(task, { labels });
+          if (labels !== task.labels) {
+            await this.updateTask(task, { labels }, { suppressHistory: true });
+          }
           continue;
         }
 
         const current = task[kind];
         const next = reassignValue(current, plan.valueId, to);
         if (next !== current) {
-          await this.updateTask(task, { [kind]: next });
+          await this.updateTask(task, { [kind]: next }, { suppressHistory: true });
         }
       }
 
@@ -541,7 +718,23 @@ export class Mutations {
 
     await this.saveWorkspaceConfig(
       withTaxonomy(snapshot.workspace, result.taxonomy),
+      { skipHistory: true },
     );
+
+    // One entry for the whole reassignment — the per-task writes above were
+    // suppressed so the sweep surfaces as a single taxonomy event, not a
+    // row per affected task.
+    this.history.record(snapshot.workspace, {
+      action: `taxonomy.${kind}.delete`,
+      targets: [this.workspaceTarget(snapshot.workspace)],
+      changes: [
+        {
+          field: `${kind}.${plan.valueId}`,
+          from: plan.valueId,
+          to: result.replacementId,
+        },
+      ],
+    });
   }
 
   // -- Labels — fluid: created and edited outside Settings ----------
@@ -669,12 +862,32 @@ export class Mutations {
 
   // -- Config notes ---------------------------------------------------------
 
-  async saveWorkspaceConfig(workspace: WorkspaceConfig): Promise<void> {
+  async saveWorkspaceConfig(
+    workspace: WorkspaceConfig,
+    options?: { skipHistory?: boolean },
+  ): Promise<void> {
     const path = joinPath(workspace.root, WORKSPACE_NOTE);
     const file = this.io.getFile(path);
     if (!file) throw new Error(`Missing workspace note at "${path}"`);
+    // Capture the pre-write config while the index still holds it — the
+    // rebuild below would otherwise hand the *new* config back and the diff
+    // would always come out empty.
+    const before = options?.skipHistory
+      ? undefined
+      : this.index.get(workspace.root)?.workspace;
     await this.io.replaceFrontmatter(file, serializeWorkspace(workspace));
     await this.index.rebuild();
+
+    if (before && !options?.skipHistory) {
+      const changes = workspaceConfigChanges(before, workspace);
+      if (changes.length > 0) {
+        this.history.record(workspace, {
+          action: "workspace.config.update",
+          targets: [this.workspaceTarget(workspace)],
+          changes,
+        });
+      }
+    }
   }
 
   /** The vault path of a view's backing note, `<root>/Views/<id>`. */
@@ -699,6 +912,13 @@ export class Mutations {
       serializeView(view),
     );
     await this.index.rebuild();
+
+    // Views churn their *content* constantly (column drags, filter tweaks) —
+    // only the create/trash events are history. `updateView` stays silent.
+    this.history.record(snapshot.workspace, {
+      action: "view.create",
+      targets: [{ kind: "view", id: view.id, path: view.path }],
+    });
   }
 
   /**
@@ -725,6 +945,10 @@ export class Mutations {
     const file = this.io.getFile(path);
     if (file) await this.moveToTrash(snapshot, file, "view");
     await this.index.rebuild();
+    this.history.record(snapshot.workspace, {
+      action: "view.delete",
+      targets: [{ kind: "view", id, path }],
+    });
   }
 
   // -- Dashboards (§Dashboards Phase 1) ------------------------------------
@@ -753,6 +977,10 @@ export class Mutations {
       serializeDashboard(dashboard),
     );
     await this.index.rebuild();
+    this.history.record(snapshot.workspace, {
+      action: "dashboard.create",
+      targets: [{ kind: "dashboard", id: dashboard.id, path: dashboard.path }],
+    });
   }
 
   /** Replace one dashboard by id — the Save from the dashboard view. */
@@ -777,6 +1005,10 @@ export class Mutations {
     const file = this.io.getFile(path);
     if (file) await this.moveToTrash(snapshot, file, "dashboard");
     await this.index.rebuild();
+    this.history.record(snapshot.workspace, {
+      action: "dashboard.delete",
+      targets: [{ kind: "dashboard", id, path }],
+    });
   }
 
   /** Apply a widget-list transform to one live dashboard and write only that file. */
@@ -843,6 +1075,7 @@ export class Mutations {
     title: string,
     icon?: string,
     description?: string,
+    options?: { suppressHistory?: boolean },
   ): Promise<TFile> {
     // Titles are unique per workspace — a collision would make
     // `project:` filters and links ambiguous. Block it here rather than let
@@ -886,6 +1119,13 @@ export class Mutations {
       description ? withProjectDescription(description) : "",
     );
     await this.index.rebuild();
+    if (!options?.suppressHistory) {
+      this.history.record(snapshot.workspace, {
+        action: "project.create",
+        targets: [{ kind: "project", id: title, path }],
+        changes: [{ field: "title", to: title }],
+      });
+    }
     return file;
   }
 
@@ -906,8 +1146,9 @@ export class Mutations {
       `${project.title} copy`,
     );
     // `createProject` rebuilds the index, so the new project is resolvable
-    // straight after.
-    const file = await this.createProject(snapshot, title, project.icon);
+    // straight after. The three writes below surface as a single
+    // `project.duplicate` entry rather than a create + two updates.
+    const file = await this.createProject(snapshot, title, project.icon, undefined, { suppressHistory: true });
     const created = this.index
       .workspaceFor(file.path)
       ?.projects.find((p) => p.path === withoutExtension(file.path));
@@ -916,10 +1157,17 @@ export class Mutations {
       // the (still blank) `created`, so the field patch has to land after it.
       const source = await this.readProjectDocument(project);
       if (source.description) {
-        await this.setProjectDescription(created, source.description);
+        await this.setProjectDescription(created, source.description, true);
       }
-      await this.updateProject(created, projectDuplicatePatch(project));
+      await this.updateProject(created, projectDuplicatePatch(project), {
+        suppressHistory: true,
+      });
     }
+    this.history.record(snapshot.workspace, {
+      action: "project.duplicate",
+      targets: [{ kind: "project", id: title, path: withoutExtension(file.path) }],
+      changes: [{ field: "source", from: project.path }],
+    });
     return file;
   }
 
@@ -949,13 +1197,27 @@ export class Mutations {
    * `updatedAt` is re-stamped via frontmatter, matching Task's `setDescription`
    * (and, like it, without forcing a full index rebuild).
    */
-  async setProjectDescription(project: Project, text: string): Promise<void> {
+  async setProjectDescription(
+    project: Project,
+    text: string,
+    skipHistory = false,
+  ): Promise<void> {
     const file = this.requireFile(project.path);
     await this.io.processBody(file, () => withProjectDescription(text));
     await this.io.replaceFrontmatter(
       file,
       serializeProject({ ...project, updatedAt: new Date().toISOString() }),
     );
+    if (!skipHistory) {
+      const workspace = this.index.workspaceFor(project.path)?.workspace;
+      if (workspace) {
+        this.history.record(workspace, {
+          action: "project.update",
+          targets: [this.projectTarget({ ...project, path: project.path })],
+          changes: [{ field: "description" }],
+        });
+      }
+    }
   }
 
   /**
@@ -966,6 +1228,7 @@ export class Mutations {
   async updateProject(
     project: Project,
     patch: Partial<Project>,
+    options?: { suppressHistory?: boolean },
   ): Promise<void> {
     const file = this.requireFile(project.path);
 
@@ -988,6 +1251,20 @@ export class Mutations {
     };
     await this.io.replaceFrontmatter(file, serializeProject(merged));
     await this.index.rebuild();
+
+    if (!options?.suppressHistory) {
+      const changes = diffProjectFields(project, merged);
+      if (changes.length > 0) {
+        const workspace = this.index.workspaceFor(project.path)?.workspace;
+        if (workspace) {
+          this.history.record(workspace, {
+            action: "project.update",
+            targets: [this.projectTarget(merged)],
+            changes,
+          });
+        }
+      }
+    }
   }
 
   // -- Workspaces -----------------------------------------------------
@@ -1004,6 +1281,10 @@ export class Mutations {
     idPrefix?: string;
     icon?: string;
     includeExampleContent: boolean;
+    /** Overrides the template's `history:` frontmatter when set — the
+     *  workspace-creation UI's toggle ships the template's own value as the
+     *  default and only passes this when the user flips it. */
+    enableHistory?: boolean;
     /** Seeds a `people` entry flagged `isSelf` so "Assigned to Me" works
      *  from the first task. Blank/undefined leaves the register as the
      *  template defines it. */
@@ -1021,6 +1302,7 @@ export class Mutations {
       idPrefix: prefix,
       icon: input.icon,
       includeExampleContent: input.includeExampleContent,
+      enableHistory: input.enableHistory,
       selfPersonName: input.selfPersonName,
     });
 
@@ -1031,6 +1313,14 @@ export class Mutations {
 
     for (const note of generated.notes) {
       await this.io.create(note.path, note.frontmatter, note.body);
+    }
+
+    // Demo history for this new workspace, if the template seeded any.
+    // Fire-and-forget like `record()`: it lands on the log chain and flushes
+    // before any History read; a demo-log write failing must not fail
+    // workspace creation.
+    if (generated.history && generated.history.length > 0) {
+      void this.history.seed(generated.workspace.root, generated.history);
     }
 
     await this.index.rebuild();
@@ -1073,6 +1363,10 @@ export class Mutations {
     }
 
     await this.index.rebuild();
+    this.history.record(snapshot.workspace, {
+      action: "workspace.delete",
+      targets: [this.workspaceTarget(snapshot.workspace)],
+    });
     new Notice(`Deleted workspace "${snapshot.workspace.name}"`);
   }
 
@@ -1087,6 +1381,10 @@ export class Mutations {
       });
     }
     await this.index.rebuild();
+    this.history.record(snapshot.workspace, {
+      action: "workspace.restore",
+      targets: [this.workspaceTarget(snapshot.workspace)],
+    });
   }
 
   /**
@@ -1110,6 +1408,24 @@ export class Mutations {
     const file = this.io.getFile(path);
     if (!file) throw new Error(`Note not found: "${path}"`);
     return file;
+  }
+
+  // -- History targets ------------------------------------------------------
+
+  private taskTarget(task: Task): HistoryTarget {
+    return { kind: "task", id: task.id, path: task.path };
+  }
+
+  private projectTarget(project: Project): HistoryTarget {
+    return { kind: "project", id: project.title, path: project.path };
+  }
+
+  private workspaceTarget(workspace: WorkspaceConfig): HistoryTarget {
+    return {
+      kind: "workspace",
+      id: workspace.root,
+      path: joinPath(workspace.root, WORKSPACE_NOTE),
+    };
   }
 
   async open(path: string, newLeaf = false): Promise<void> {

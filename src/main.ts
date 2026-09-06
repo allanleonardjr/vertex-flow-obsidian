@@ -12,6 +12,7 @@ import { Notice, Plugin, WorkspaceLeaf } from "obsidian";
 import { VaultIndex } from "./obsidian/index-store";
 import { Mutations } from "./obsidian/mutations";
 import { NoteIO } from "./obsidian/note-io";
+import { HistoryLog } from "./obsidian/history-log";
 import { VertexFlowSettingTab } from "./settings/SettingTab";
 import {
 	DEFAULT_SETTINGS,
@@ -26,6 +27,7 @@ export default class VertexFlowPlugin extends Plugin {
 	io!: NoteIO;
 	index!: VaultIndex;
 	mutations!: Mutations;
+	history!: HistoryLog;
 
 	/** One-shot: consumed by the next `file-open`, then cleared. See `suppressNextRedirect`. */
 	private redirectSuppressed = false;
@@ -53,7 +55,8 @@ export default class VertexFlowPlugin extends Plugin {
 
 		this.io = new NoteIO(this.app);
 		this.index = new VaultIndex(this.app, this.io);
-		this.mutations = new Mutations(this.app, this.io, this.index);
+		this.history = new HistoryLog(this.io);
+		this.mutations = new Mutations(this.app, this.io, this.index, this.history);
 
 		this.registerView(
 			VERTEX_VIEW_TYPE,

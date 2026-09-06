@@ -33,6 +33,7 @@ const BROWSE_ICON: Record<BrowseKind, string> = {
 	trash: "🗑",
 	labels: "🏷",
 	people: "👤",
+	history: "🕘",
 };
 
 const BROWSE_LABEL: Record<BrowseKind, string> = {
@@ -45,6 +46,7 @@ const BROWSE_LABEL: Record<BrowseKind, string> = {
 	trash: "Trash",
 	labels: "Labels",
 	people: "People",
+	history: "History",
 };
 
 function browseLabel(kind: BrowseKind): string {

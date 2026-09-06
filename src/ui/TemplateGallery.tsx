@@ -245,6 +245,12 @@ function ConfigStep({
 	const [prefixOverride, setPrefixOverride] = useState<string | null>(null);
 	const [selfName, setSelfName] = useState("");
 	const [populate, setPopulate] = useState(false);
+	// The template decides its own default (`history: true` in frontmatter
+	// opts the workspace in); the creator can flip it here. Mirrors the
+	// config-creation pattern of `populate`.
+	const [enableHistory, setEnableHistory] = useState(
+		template.workspace?.history?.enabled ?? false,
+	);
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
@@ -307,6 +313,7 @@ function ConfigStep({
 				icon,
 				includeExampleContent:
 					template.supportsExampleContent !== false && populate,
+				enableHistory,
 				selfPersonName: selfName.trim() || undefined,
 			});
 			// Nothing keeps a tab open on a new workspace's behalf — open All
@@ -440,6 +447,21 @@ function ConfigStep({
 					</span>
 				</label>
 			)}
+
+			<label className="vf-template-toggle">
+				<input
+					type="checkbox"
+					checked={enableHistory}
+					onChange={(event) => setEnableHistory(event.target.checked)}
+				/>
+				<span>
+					Start with activity history on
+					<small>
+						Tracks who changed what, and when, in a plain Markdown log under{" "}
+						<code>History/</code>. You can change this later in Settings.
+					</small>
+				</span>
+			</label>
 
 			{error && <p className="vf-error">{error}</p>}
 

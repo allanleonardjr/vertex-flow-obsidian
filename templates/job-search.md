@@ -6,6 +6,7 @@ name: Job Search
 description: Track applications as Projects moving from Wishlist to Offer, with the tasks to advance each one underneath.
 icon: target
 supportsExampleContent: true
+history: true
 
 statuses: ["Wishlist (backlog, #94a3b8) - Companies to reach when they open roles", "Applied (unstarted, #60a5fa) - Application sent, waiting to hear", "Phone Screen (started, #fbbf24) - Recruiter screen done or scheduled", "Interviewing (started, #f59e0b) - In the middle of an interview loop", "Offer (completed, #34d399) - An offer is in hand", "Rejected (canceled, #f87171) - Did not advance"]
 taskTypes: ["Application (#3b82f6) - Submitting materials and following the process", "Interview (#ef4444) - Screens, rounds, and reference calls", "Prep (#a855f7) - Practice and research before a round", "Follow-up (#f97316) - Thank-yous and status nudges", "Negotiation (#22c55e) - Salary, equity, and the offer"]

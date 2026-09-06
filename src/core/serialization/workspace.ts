@@ -156,6 +156,7 @@ export function parseWorkspace(
 	const name = asString(fm.name) ?? (root ? root.split("/").pop() ?? root : "Workspace");
 
 	const archiving = asRecord(fm.archiving);
+	const history = asRecord(fm.history);
 
 	const statuses = parseTaxonomyList(fm.statuses, log, "statuses", {
 		ordered: true,
@@ -205,6 +206,10 @@ export function parseWorkspace(
 			autoArchiveEnabled: asBoolean(archiving.autoArchiveEnabled, false),
 			autoArchiveDays: asNumber(archiving.autoArchiveDays) ?? 30,
 		},
+		history: {
+			// Off until a workspace opts in — see `HistoryConfig.enabled`.
+			enabled: asBoolean(history.enabled, false),
+		},
 		defaultNewTaskStatus,
 		estimateUnitLabel: asString(fm.estimateUnitLabel),
 		deletedAt: asDateTime(fm.deletedAt),
@@ -230,6 +235,9 @@ export function serializeWorkspace(
 		archiving: {
 			autoArchiveEnabled: workspace.archiving.autoArchiveEnabled,
 			autoArchiveDays: workspace.archiving.autoArchiveDays,
+		},
+		history: {
+			enabled: workspace.history.enabled,
 		},
 		defaultNewTaskStatus: workspace.defaultNewTaskStatus,
 		estimateUnitLabel: workspace.estimateUnitLabel,
@@ -293,6 +301,7 @@ export function createWorkspaceConfig(
 		icon,
 		idPrefix: idPrefix.toUpperCase(),
 		archiving: { autoArchiveEnabled: false, autoArchiveDays: 30 },
+		history: { enabled: false },
 		defaultNewTaskStatus: DEFAULT_NEW_TASK_STATUS,
 		estimateUnitLabel: null,
 		deletedAt: null,

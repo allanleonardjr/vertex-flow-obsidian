@@ -24,7 +24,12 @@ import type {
 export type TemplateWorkspaceOverrides = Partial<
 	Pick<
 		WorkspaceConfig,
-		"statuses" | "priorities" | "taskTypes" | "labels" | "people"
+		| "statuses"
+		| "priorities"
+		| "taskTypes"
+		| "labels"
+		| "people"
+		| "history"
 	>
 >;
 

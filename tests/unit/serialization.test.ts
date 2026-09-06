@@ -597,6 +597,7 @@ describe("parseWorkspace", () => {
 			icon: "circle",
 			idPrefix: "TST",
 			archiving: { autoArchiveEnabled: false, autoArchiveDays: 30 },
+			history: { enabled: false },
 			defaultNewTaskStatus: "queue",
 			estimateUnitLabel: null,
 			deletedAt: null,

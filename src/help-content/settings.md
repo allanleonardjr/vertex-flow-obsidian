@@ -31,6 +31,8 @@ Inside a workspace, in the workspace's settings (reachable with `g` `s`):
   (`isSelf`) for `me` / `self` filters.
 - **Archiving** — the optional **auto-archive** for inactive tasks, off by
   default.
+- **Activity history** — the optional, opt-in log of this workspace's changes
+  (`g` `e`), off by default.
 
 Everything here is per-workspace, never shared across workspaces, and stored in
 the workspace's own note.

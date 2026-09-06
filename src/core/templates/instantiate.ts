@@ -24,9 +24,11 @@ import {
 	serializeWorkspace,
 } from "../serialization/workspace";
 import { defaultViews, isSystemViewId } from "../views/defaults";
+import { seedHistory } from "../history/seed";
 import type {
 	Comment,
 	DashboardConfig,
+	HistoryEntry,
 	SavedView,
 	WorkspaceConfig,
 	WorkspaceSnapshot,
@@ -52,6 +54,11 @@ export interface GeneratedWorkspace {
 	notes: GeneratedNote[];
 	/** The same content as a ready-to-use in-memory snapshot, for tests. */
 	snapshot: WorkspaceSnapshot;
+	/** Onboarding demo entries, when the workspace ships with history enabled
+	 *  *and* example content — the glue layer appends these to `History/` so a
+	 *  brand-new workspace opens the hub on a lived-in log, not an empty one.
+	 *  `undefined` otherwise (history off, or a populated-less workspace). */
+	history?: HistoryEntry[];
 }
 
 export interface InstantiateOptions {
@@ -69,6 +76,10 @@ export interface InstantiateOptions {
 	 * what makes `self` filters — "Assigned to Me" / "Mentions Me" —
 	 *  resolve in a freshly created workspace. */
 	selfPersonName?: string;
+	/** When set, forces the workspace's activity-history state, overriding
+	 *  whatever the template defined. When omitted, the template's own value
+	 *  stands (a frontmatter `history: true` opts the workspace in). */
+	enableHistory?: boolean;
 	/** Injectable clock so generated fixtures are deterministic in tests. */
 	now?: Date;
 }
@@ -129,6 +140,8 @@ function applyOverrides(
 		base.taskTypes = overrides.taskTypes.map((v) => ({ ...v }));
 	if (overrides.labels) base.labels = overrides.labels.map((v) => ({ ...v }));
 	if (overrides.people) base.people = overrides.people.map((v) => ({ ...v }));
+	if (overrides.history)
+		base.history = { enabled: Boolean(overrides.history.enabled) };
 }
 
 export function instantiateTemplate(
@@ -161,6 +174,9 @@ export function instantiateTemplate(
 	const workspace = createWorkspaceConfig(name, idPrefix, root, options.icon);
 	applyOverrides(workspace, template.workspace);
 	applyOverrides(workspace, content?.workspace);
+	// An explicit creator choice outranks the template's own `history:` value.
+	if (options.enableHistory !== undefined)
+		workspace.history = { enabled: options.enableHistory };
 	if (options.selfPersonName) seedSelfPerson(workspace, options.selfPersonName);
 
 	// `createWorkspaceConfig` defaults `defaultNewTaskStatus` to the default
@@ -226,6 +242,22 @@ export function instantiateTemplate(
 
 	const projects = content?.projects ?? [];
 	const tasks = content?.tasks ?? [];
+
+	// A history-enabled, example-content workspace opens on a seeded log (see
+	// `seedHistory`) so the hub demonstrates itself on first visit. History off
+	// (or no content to narrate) leaves it `undefined` and the folder empty.
+	// System views aren't scaffolded notes, so they don't get seeded either.
+	const history =
+		workspace.history.enabled && content
+			? seedHistory({
+					workspace,
+					views: views.filter((view) => !isSystemViewId(view.id)),
+					dashboards,
+					tasks,
+					projects,
+					now,
+				})
+			: undefined;
 	const commentsByPath = content?.comments ?? new Map<string, Comment[]>();
 	const descriptions = content?.descriptions ?? new Map<string, string>();
 	const projectDescriptions =
@@ -261,6 +293,7 @@ export function instantiateTemplate(
 		root,
 		workspace,
 		notes,
+		history,
 		snapshot: { workspace, tasks, projects, views, dashboards, trash: [] },
 	};
 }

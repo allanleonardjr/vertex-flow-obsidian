@@ -26,6 +26,7 @@ import { LabelsBrowseView } from "./browse/LabelsBrowseView";
 import { PeopleBrowseView } from "./browse/PeopleBrowseView";
 import { DashboardsBrowseView } from "./browse/DashboardsBrowseView";
 import { TrashBrowseView } from "./browse/TrashBrowseView";
+import { HistoryBrowseView } from "./browse/HistoryBrowseView";
 import { DashboardView } from "./dashboards/DashboardView";
 import { Sidebar } from "./Sidebar";
 import { WorkspaceSettingsView } from "./settings/WorkspaceSettingsView";
@@ -267,6 +268,8 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
           />
         ) : activeTab.kind === "trash" ? (
           <TrashBrowseView snapshot={snapshot} taxonomies={active.taxonomies} />
+        ) : activeTab.kind === "history" ? (
+          <HistoryBrowseView snapshot={snapshot} />
         ) : activeTab.kind === "dashboard" ? (
           <DashboardView
             key={activeTab.dashboardId}

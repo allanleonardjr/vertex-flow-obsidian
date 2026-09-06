@@ -58,6 +58,14 @@ export class NoteIO {
 		return folder instanceof TFolder ? folder : null;
 	}
 
+	/** Direct children of a folder (files only), by bare path. Empty when the
+	 *  folder doesn't exist. Used by the history log to list a month's files. */
+	listFiles(folderPath: string): TFile[] {
+		const folder = this.getFolder(folderPath);
+		if (!folder) return [];
+		return folder.children.filter((child): child is TFile => child instanceof TFile);
+	}
+
 	// -- Writing --------------------------------------------------------------
 
 	async ensureFolder(path: string): Promise<void> {
@@ -179,6 +187,26 @@ export class NoteIO {
 			const prefix = match ? match[0] : "";
 			return `${prefix}${mutate(content.slice(prefix.length))}`;
 		});
+	}
+
+	/**
+	 * Append text to a note, creating it (and its folders) if it doesn't exist.
+	 * Appends through `vault.process` so they take the vault lock; the history
+	 * log is the only consumer, and its entries must not interleave.
+	 */
+	async append(path: string, text: string): Promise<void> {
+		const target = withExtension(normalizePath(path));
+		const existing = this.app.vault.getAbstractFileByPath(target);
+		if (existing instanceof TFile) {
+			await this.app.vault.process(existing, (content) => content + text);
+			return;
+		}
+		if (existing) {
+			throw new Error(`"${target}" exists and is not a file`);
+		}
+		const folder = target.split("/").slice(0, -1).join("/");
+		if (folder) await this.ensureFolder(folder);
+		await this.app.vault.create(target, text);
 	}
 
 	/**

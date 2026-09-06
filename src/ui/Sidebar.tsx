@@ -197,11 +197,20 @@ export function Sidebar({
           <div className="vf-sidebar-sep" aria-hidden />
 
           <NavRow
+            icon="history"
+            label="History"
+            active={activeId === "history"}
+            onClick={() => openScreen("history")}
+          />
+
+          <NavRow
             icon="trash-2"
             label="Trash"
             active={activeId === "trash"}
             onClick={() => openScreen("trash")}
           />
+
+          <div className="vf-sidebar-sep" aria-hidden />
 
           <NavRow
             icon="circle-help"

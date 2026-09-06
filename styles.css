@@ -162,8 +162,10 @@ button.vf-sidebar-minimize:hover {
   flex: 1;
 }
 
-/* Divider above the pinned Help / Settings rows at the bottom of the sidebar,
-   and fencing the All Tasks / Inbox band near the top. */
+/* Dividers at the bottom of the sidebar: one above the workspace records
+   band (History / Trash) and one splitting that band from the app-level
+   Help / Settings rows, plus the band fencing the All Tasks / Inbox rows
+   near the top. */
 .vf-sidebar-sep {
   flex: 0 0 auto;
   height: 1px;
@@ -6100,4 +6102,258 @@ button.vf-link-button {
   background: transparent;
   color: var(--text-accent);
   cursor: pointer;
+}
+
+/* ==========================================================================
+   Activity History hub (HistoryBrowseView)
+   --------------------------------------------------------------------------
+   The opt-in per-workspace log. The pane mirrors the browse screens (same
+   toolbar + scroll list) but the feed entries are read-only cards, not
+   clickable browse rows — they describe what already happened, so the only
+   interactive bits inside are live-target chips, the bulk-expand toggle and
+   the filter chips.
+   ========================================================================== */
+
+/* Feed / Ledger mode toggle, lived in the toolbar like ViewControls. */
+.vf-history-mode {
+  display: inline-flex;
+  gap: 2px;
+}
+
+button.vf-history-mode-btn {
+  padding: 4px 10px;
+  border-radius: 6px;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+}
+
+button.vf-history-mode-btn:hover {
+  background: var(--background-modifier-hover);
+}
+
+button.vf-history-mode-btn.is-on {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+/* "Open log file" — a ghost action, like the raw-source escape hatches. */
+button.vf-history-open {
+  color: var(--text-accent);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+}
+
+/* Disabled-state explainer. */
+.vf-history-off {
+  padding: 14px;
+  max-width: 46ch;
+}
+
+.vf-history-off p:first-child {
+  margin-top: 0;
+  color: var(--text-normal);
+}
+
+.vf-history-off code {
+  font-family: var(--font-monospace);
+}
+
+.vf-history-off-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+/* Top filter row (only rendered while there are entries to show). Feels like
+   the Saved-View chip filters: chip toggles, one row per group. */
+.vf-history-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--vf-border);
+}
+
+.vf-history-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+/* A chip is either a <button> (live target, filter) or a plain <span>
+   (dead target, "±N more", passive workspace/kind label). Both share the
+   face; only the button form gets hover/active treatment. */
+.vf-history-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+  font-size: var(--font-ui-smaller);
+  vertical-align: middle;
+}
+
+button.vf-history-chip {
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+button.vf-history-chip:hover {
+  background: var(--background-modifier-hover);
+}
+
+button.vf-history-chip.is-on {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.vf-history-chip.is-dead {
+  color: var(--vf-muted);
+  background: transparent;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.vf-history-chip-more {
+  background: transparent;
+  color: var(--vf-muted);
+}
+
+/* Actor/kind-filter chips carry a tiny initial avatar. */
+.vf-history-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.vf-history-avatar-sm {
+  width: 16px;
+  height: 16px;
+  font-size: 9px;
+}
+
+/* One feed entry: an action line, then the observed deltas beneath. */
+.vf-history-entry {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--vf-border);
+}
+
+.vf-history-entry:last-child {
+  border-bottom: none;
+}
+
+.vf-history-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.vf-history-who {
+  font-weight: 600;
+  font-size: var(--font-ui-small);
+}
+
+.vf-history-verb {
+  color: var(--vf-muted);
+  font-size: var(--font-ui-small);
+}
+
+.vf-history-count {
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  white-space: nowrap;
+}
+
+.vf-history-targets {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.vf-history-time {
+  margin-left: auto;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  white-space: nowrap;
+}
+
+.vf-history-changes {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+  padding-left: 30px;
+}
+
+.vf-history-change {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+button.vf-history-expand {
+  align-self: flex-start;
+  color: var(--text-accent);
+  font-size: var(--font-ui-smaller);
+  padding: 0;
+  cursor: pointer;
+}
+
+/* Ledger mode — a literal mono reading of the log file. */
+.vf-ledger-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: baseline;
+  padding: 4px 14px;
+  border-bottom: 1px solid var(--vf-border);
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+}
+
+.vf-ledger-line:last-child {
+  border-bottom: none;
+}
+
+.vf-ledger-ts {
+  color: var(--vf-muted);
+  white-space: nowrap;
+}
+
+.vf-ledger-who {
+  color: var(--text-normal);
+  font-weight: 600;
+}
+
+.vf-ledger-action {
+  color: var(--vf-muted);
+}
+
+.vf-ledger-target {
+  color: var(--text-normal);
+}
+
+.vf-ledger-changes {
+  color: var(--text-muted);
+}
+
+.vf-ledger-more {
+  color: var(--vf-muted);
 }

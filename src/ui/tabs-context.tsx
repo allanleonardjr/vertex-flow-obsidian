@@ -41,7 +41,8 @@ export type BrowseKind =
 	| "views"
 	| "trash"
 	| "labels"
-	| "people";
+	| "people"
+	| "history";
 
 export type Tab =
 	| { id: BrowseKind; kind: BrowseKind }
@@ -171,6 +172,7 @@ export function tabAccentRoot(
 		case "people":
 		case "trash":
 		case "settings":
+		case "history":
 			return activeRoot;
 		case "help":
 		case "new-workspace":

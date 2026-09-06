@@ -6,6 +6,7 @@ name: Agency / Client Management
 description: Run a solo shop or small agency - one Project per client, cross-cutting business labels, and dashboards for the whole book of business.
 icon: briefcase-business
 supportsExampleContent: true
+history: true
 
 statuses: ["Backlog (backlog) - Parked until someone picks it up", "To Do (unstarted) - Next up, ready to start", "In Progress (started, #fbbf24) - Actively being worked on", "Waiting on Client (started, #f59e0b) - Blocked until the client responds", "Done (completed, #34d399) - Finished and shipped to the client", "Canceled (canceled, #f87171) - Will not happen"]
 taskTypes: ["Onboarding (#3b82f6) - Standing up a new client, or their first pieces of work", "Deliverable (#ec4899) - Client-facing work with a deadline", "Admin (#94a3b8) - Internal chores with no client deliverable", "Billing (#22c55e) - Invoices, chasing payments, fees", "Meeting (#a855f7) - Calls, check-ins, kickoffs"]

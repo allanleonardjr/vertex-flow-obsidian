@@ -1137,6 +1137,10 @@ export function parseTemplateMarkdown(source: string): ParsedTemplate {
 	if (taskTypes) workspaceOverrides.taskTypes = taskTypes;
 	if (labels) workspaceOverrides.labels = labels;
 	if (people) workspaceOverrides.people = people;
+	// Opt-in activity history: templates opt the workspace *in* (the default
+	// is off). A flat boolean in the frontmatter maps to the configured shape.
+	const history = optionalBoolean(data, "history");
+	if (history !== undefined) workspaceOverrides.history = { enabled: history };
 
 	const meta: TemplateMeta = {
 		id: requireString(data, "id"),

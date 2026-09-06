@@ -260,6 +260,74 @@ export interface ArchivingConfig {
 	autoArchiveDays: number;
 }
 
+/**
+ * Per-workspace opt-in activity history. Lives on the workspace config (like
+ * `archiving`) because recording is a property of the *workspace*, not of any
+ * single entity. The log itself is append-only Markdown under the workspace's
+ * own `History/` folder — see `src/core/history/` and the `HistoryLog` glue.
+ */
+export interface HistoryConfig {
+	/**
+	 * Off by default, and phrasing around this is deliberate: the log is
+	 * "activity history", not a formal audit log — it's a hand-editable local
+	 * file, so it can't borrow compliance authority.
+	 */
+	enabled: boolean;
+}
+
+/**
+ * Who performed an action. A person is resolved from the workspace `people`
+ * entry flagged `isSelf` (there's no login, so "the person holding the mouse").
+ * `system` is reserved for machine-initiated writes — the auto-archive sweep,
+ * a future recurring-task engine — never a human action wearing a costume.
+ */
+export type HistoryActor =
+	| { kind: "person"; id: string; name: string }
+	| { kind: "system"; name: string };
+
+/** What an action touched. Kinds mirror the entity/`EntityType` taxonomy; the
+ *  extra `"workspace"` covers the config note itself. */
+export type HistoryTargetKind = EntityKind | "workspace";
+
+export interface HistoryTarget {
+	kind: HistoryTargetKind;
+	/** Task id, view/dashboard id, project title, or workspace root. */
+	id: string;
+	/** Vault path at the time of the action (a trashed path for a delete). */
+	path: string;
+}
+
+/** One observed field delta in an entry's `changes`. `from`/`to` are JSON-ish
+ *  values (strings, numbers, booleans, arrays); omitted when unsavoury (e.g. a
+ *  body diff, or the LexoRank juggling behind a drag). */
+export interface HistoryChange {
+	field: string;
+	from?: unknown;
+	to?: unknown;
+}
+
+/**
+ * One appended, immutable line in a workspace's history log. `seq` is a
+ * monotonically increasing per-month ordinal (1, 2, …), assigned by the
+ * writer; it's ordering candy, not an id, so a duplicate after a sync or a
+ * hand edit is cosmetic.
+ */
+export interface HistoryEntry {
+	seq: number;
+	/** ISO datetime the action happened. */
+	ts: IsoDate;
+	actor: HistoryActor;
+	action: string;
+	/**
+	 * The workspace root at the time of the action — the file already lives
+	 * under that root's `History/` folder, so this is belt-and-braces for a
+	 * log that gets copied somewhere or viewed out of context.
+	 */
+	workspace: string;
+	targets: HistoryTarget[];
+	changes?: HistoryChange[];
+}
+
 export interface WorkspaceConfig {
 	type: "workspace";
 	name: string;
@@ -268,6 +336,7 @@ export interface WorkspaceConfig {
 	/** Must be unique vault-wide, not just per-workspace. */
 	idPrefix: string;
 	archiving: ArchivingConfig;
+	history: HistoryConfig;
 	/** Configurable independently of status category. `null` when no status is defined. */
 	defaultNewTaskStatus: string | null;
 	/** Cosmetic suffix only — the plugin never calculates on estimates. */
