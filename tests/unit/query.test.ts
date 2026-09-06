@@ -68,7 +68,10 @@ describe("round-trip (Invariant A)", () => {
 		["archived only", withFilters({ archived: "only" })],
 		["openOnly", withFilters({ openOnly: true })],
 		["unscheduled", withFilters({ unscheduled: true })],
+		["recurring filter", withFilters({ recurring: true })],
+		["recurring preview", def({ recurringPreview: true })],
 		["both is: flags", withFilters({ openOnly: true, unscheduled: true })],
+
 		["text", withFilters({ text: "login" })],
 		["text with spaces", withFilters({ text: "login screen" })],
 		["text with a colon", withFilters({ text: "status:todo" })],
@@ -102,6 +105,7 @@ describe("round-trip (Invariant A)", () => {
 				emptyColumnBehavior: "auto-hide",
 				hiddenFields: ["type", "progress"],
 				subtaskDisplay: "nested",
+				recurringPreview: true,
 				filters: {
 					status: ["todo", "in-progress"],
 					priority: ["high", NONE],
@@ -115,6 +119,7 @@ describe("round-trip (Invariant A)", () => {
 					archived: "included",
 					openOnly: true,
 					unscheduled: true,
+					recurring: true,
 				},
 			}),
 		],
@@ -258,7 +263,8 @@ describe("canonicalisation", () => {
 	it("viewDefinition drops identity and column state", () => {
 		expect(Object.keys(viewDefinition(defaultViews()[0])).sort()).toEqual([
 			"calendarDateField", "emptyColumnBehavior", "filters", "groupBy",
-			"hiddenFields", "sortBy", "sortDirection", "subtaskDisplay", "viewType",
+			"hiddenFields", "recurringPreview", "sortBy", "sortDirection",
+			"subtaskDisplay", "viewType",
 		]);
 	});
 
@@ -484,6 +490,16 @@ describe("resolution", () => {
 		expect(parsed.definition.filters.unscheduled).toBe(true);
 		expect(printQuery(parsed.definition, ctx)).toBe(
 			"is:open is:unscheduled group:none sort:rank",
+		);
+	});
+
+	it("parses is:recurring and show:recurring and round-trips them", () => {
+		const parsed = parseQuery("is:recurring show:recurring", ctx);
+		expect(parsed.ok).toBe(true);
+		expect(parsed.definition.filters.recurring).toBe(true);
+		expect(parsed.definition.recurringPreview).toBe(true);
+		expect(printQuery(parsed.definition, ctx)).toBe(
+			"is:recurring show:recurring group:none sort:rank",
 		);
 	});
 

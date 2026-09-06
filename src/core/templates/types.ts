@@ -93,6 +93,8 @@ export interface TemplateContent {
 	 *  sharing one map: the two are written through different serializers and a
 	 *  single map would invite a Task body being handed to a Project note. */
 	projectDescriptions?: Map<string, string>;
+	/** The `people` id a template's `"Name*"` marks as "me", when it claims one. */
+	mePersonId?: string;
 }
 
 export interface WorkspaceTemplate extends TemplateMeta {
@@ -103,6 +105,8 @@ export interface WorkspaceTemplate extends TemplateMeta {
 	/** Extra Saved Views, appended after the built-in "All Tasks" view. Applied
 	 *  whether or not example content is included. */
 	views?: SavedView[];
+	/** The `people` id this template marks as "me" (`"Name*"`), if any. */
+	mePersonId?: string;
 	/** Called only when the user opts to populate with example content. */
 	buildExampleContent(ctx: TemplateBuildContext): TemplateContent;
 }

@@ -61,8 +61,8 @@ const labels: LabelValue[] = [
 ];
 
 const people: Person[] = [
-	{ id: "alice", name: "Alice", aliases: ["al"], isSelf: true },
-	{ id: "bob", name: "Bob", aliases: [], isSelf: false },
+	{ id: "alice", name: "Alice", aliases: ["al"] },
+	{ id: "bob", name: "Bob", aliases: [] },
 ];
 
 const sprintBoard = makeView("sprint-board", "Sprint Board", {

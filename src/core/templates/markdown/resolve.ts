@@ -548,6 +548,7 @@ export function resolveTemplateContent(
 		descriptions: descriptions.size > 0 ? descriptions : undefined,
 		projectDescriptions:
 			projectDescriptions.size > 0 ? projectDescriptions : undefined,
+		mePersonId: parsed.mePersonId,
 	};
 }
 

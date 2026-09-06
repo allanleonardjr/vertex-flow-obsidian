@@ -46,10 +46,10 @@ export interface SeedHistoryInput {
 
 /**
  * Build the onboarding log for a workspace created with history enabled and
- * example content. Entries are oldest-first, `seq` is 1..N, and timestamps
- * run strictly chronologically — a single running cursor, so no template's
- * count of views/projects/tasks can ever interleave the timeline. The whole
- * batch appends straight into a fresh month file unchanged.
+ * example content. Entries are oldest-first with strictly chronological,
+ * second-distinct timestamps — a single running cursor, so no template's count
+ * of views/projects/tasks can ever interleave the timeline. The whole batch
+ * appends straight into the creating device's stream file unchanged.
  */
 export function seedHistory(input: SeedHistoryInput): HistoryEntry[] {
 	const { workspace, now } = input;
@@ -84,16 +84,13 @@ export function seedHistory(input: SeedHistoryInput): HistoryEntry[] {
 	});
 
 	const entries: HistoryEntry[] = [];
-	let seq = 0;
 	let t = 0; // monotonic second-cursor shared by every group below
 	const push = (
 		action: string,
 		targets: HistoryTarget[],
 		changes?: HistoryChange[],
 	) => {
-		seq += 1;
 		entries.push({
-			seq,
 			ts: at(t++),
 			actor: SYSTEM_ACTOR,
 			action,

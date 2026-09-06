@@ -15,7 +15,9 @@ import {
   suggestPrefix,
 } from "../core/ids";
 import { formatLink, joinPath, sanitizeFileName } from "../core/links";
-import { planReorder, rankForNewTask } from "../core/ranking";
+import { planReorder, rankAfter, rankForNewTask, rankForPosition, sortTasksByRank } from "../core/ranking";
+import { reconcilePlans, recurrenceNodesInChain } from "../core/recurrence";
+import type { OccurrencePlan } from "../core/recurrence";
 import { instantiateTemplate, type WorkspaceTemplate } from "../core/templates";
 import {
   nextCommentId,
@@ -58,6 +60,8 @@ import {
   type DashboardConfig,
   type DashboardWidget,
   type EntityKind,
+  type LinkTarget,
+  type MeBinding,
   type Project,
   type ProjectDocument,
   type SavedView,
@@ -90,6 +94,12 @@ import {
 } from "../core/history/diff";
 import type { HistoryChange, HistoryTarget } from "../core/types";
 
+/** Callbacks into plugin-owned state the mutation layer must not hold. */
+export interface MutationsHooks {
+	/** Persist the app-level "who am I" pointer adopted at workspace creation. */
+	setMePerson?: (me: MeBinding) => void;
+}
+
 export interface NewTaskInput {
   /** Optional — a task is untitled until the user types a name. */
   title?: string;
@@ -112,7 +122,22 @@ export class Mutations {
     private readonly io: NoteIO,
     private readonly index: VaultIndex,
     private readonly history: HistoryLog,
+    private readonly hooks: MutationsHooks = {},
   ) {}
+
+  // -- Recurring-task reconcile state -------------------------------------
+  //
+  // Reconcile is a post-rebuild engine (never an `updateTask` hook), so these
+  // flags keep the async lifecycle honest: one pass at a time, no plotting
+  // against a half-written batch, and a silent skip while a taxonomy
+  // deletion is mid-flight (reassigning statuses must not resume chains).
+
+  private reconciling = false;
+  private reconcileQueued = false;
+  private spawning = false;
+  /** Set when a status reassignment is being applied; consumed by the next
+   *  reconcile request, which skips that one pass. */
+  private suppressNextReconcile = false;
 
   // -- Tasks ----------------------------------------------------------------
 
@@ -153,11 +178,13 @@ export class Mutations {
       rank: rankForNewTask(siblings),
       project,
       parent: input.parent ?? null,
+      recurringFrom: null,
       assignee: input.assignee ?? null,
       estimate: input.estimate ?? null,
       labels: input.labels ?? [],
       startDate: input.startDate ?? null,
       dueDate: input.dueDate ?? null,
+      recurrence: null,
       archived: false,
       archivedAt: null,
       relations: emptyRelations(),
@@ -178,6 +205,152 @@ export class Mutations {
       changes: task.title ? [{ field: "title", to: task.title }] : [],
     });
     return file;
+  }
+
+  // -- Recurring tasks --------------------------------------------------
+
+  /**
+   * One reconcile pass: ask the engine what every workspace wants spawned
+   * today, write those occurrences, and rebuild once. Safe to call from the
+   * index subscription after every rebuild — a pass that spawns nothing is a
+   * no-op, and a pass that did spawn is followed by another pass that sees
+   * the completed chain and stops (flood-proof by construction).
+   */
+  async reconcileRecurrences(): Promise<void> {
+    if (this.spawning || this.reconciling) {
+      this.reconcileQueued = true;
+      return;
+    }
+    if (this.suppressNextReconcile) {
+      this.suppressNextReconcile = false;
+      return;
+    }
+
+    this.reconciling = true;
+    try {
+      const today = localTodayIso();
+      let wrote = false;
+      for (const snapshot of this.index.list()) {
+        const plans = reconcilePlans(snapshot, today);
+        if (plans.size === 0) continue;
+        this.spawning = true;
+        try {
+          await this.spawnOccurrences(snapshot, plans);
+        } finally {
+          this.spawning = false;
+        }
+        wrote = true;
+      }
+      if (wrote) await this.index.rebuild();
+    } finally {
+      this.reconciling = false;
+    }
+
+    // A request that arrived mid-pass (e.g. a rebuild fired by our own
+    // writes) is honored as one trailing pass, never lost.
+    if (this.reconcileQueued) {
+      this.reconcileQueued = false;
+      void this.reconcileRecurrences();
+    }
+  }
+
+  /**
+   * Stop a whole series. Non-destructive: every chain member keeps its
+   * `recurringFrom` ancestry (the history reads), only the live recurrence
+   * block is cleared. `recurrenceNodesInChain` covers the members that
+   * still carry one, so a twice-stopped chain is a cheap no-op.
+   */
+  async stopRecurrence(task: Task): Promise<void> {
+    const snapshot = this.index.workspaceFor(task.path);
+    if (!snapshot) return;
+    for (const node of recurrenceNodesInChain(snapshot, task)) {
+      await this.updateTask(node, { recurrence: null });
+    }
+  }
+
+  /**
+   * Write one batch of occurrences. Successor notes are siblings of their
+   * source (never sub-tasks), ranked right after it, so a backfilled series
+   * reads oldest → newest down the list. The batch chains `recurringFrom`:
+   * the first successor points at the source, each later one at its direct
+   * predecessor, keeping the chain walkable one hop at a time.
+   */
+  private async spawnOccurrences(
+    snapshot: WorkspaceSnapshot,
+    plansBySource: Map<LinkTarget, OccurrencePlan[]>,
+  ): Promise<void> {
+    const workspace = snapshot.workspace;
+    const takenIds = new Set(snapshot.tasks.map((task) => task.id));
+    const now = new Date().toISOString();
+
+    for (const [sourcePath, plans] of plansBySource) {
+      const source = snapshot.tasks.find((task) => task.path === sourcePath);
+      if (!source) continue;
+
+      const file = this.io.getFile(source.path);
+      const body = file ? await this.io.readBody(file) : "";
+      const description = parseDescription(body);
+
+      const siblings = sortTasksByRank(
+        snapshot.tasks.filter((task) => task.parent === source.parent),
+      );
+      const within = siblings.map((task) => task.rank);
+      const sourceIndex = siblings.findIndex((task) => task.path === source.path);
+      let rank =
+        sourceIndex === -1
+          ? rankForNewTask(siblings)
+          : rankForPosition(within, sourceIndex + 1);
+
+      let predecessor: Task = source;
+      for (const plan of plans) {
+        const id = nextTaskId(workspace.idPrefix, takenIds);
+        takenIds.add(id);
+        const path = joinPath(workspace.root, FOLDERS.tasks, id);
+
+        const task: Task = {
+          type: "task",
+          id,
+          title: source.title,
+          taskType: source.taskType,
+          status:
+            source.recurrence?.newStatus ?? workspace.defaultNewTaskStatus,
+          priority: source.priority,
+          rank,
+          project: source.project,
+          parent: source.parent,
+          recurringFrom: predecessor.path,
+          assignee: source.assignee,
+          estimate: source.estimate,
+          labels: source.labels,
+          startDate: plan.startDate,
+          dueDate: plan.dueDate,
+          recurrence: plan.recurrence,
+          archived: false,
+          archivedAt: null,
+          relations: emptyRelations(),
+          createdAt: now,
+          updatedAt: now,
+          path,
+          mentions: [],
+        };
+
+        await this.io.create(
+          path,
+          serializeTask(task),
+          serializeDescription(description),
+        );
+        this.history.record(workspace, {
+          action: "task.create",
+          targets: [{ kind: "task", id, path }],
+          changes: source.title
+            ? [{ field: "title", to: source.title }]
+            : [],
+        });
+
+        predecessor = task;
+        rank = rankAfter(rank);
+      }
+    }
   }
 
   /**
@@ -674,6 +847,9 @@ export class Mutations {
     plan: TaxonomyDeletionPlan,
     replacementId: string | null,
   ): Promise<void> {
+    // Reassigned statuses must not resume a chain mid-sweep — the next
+    // reconcile request skips one pass, then bookkeeping proceeds normally.
+    this.suppressNextReconcile = true;
     const result = applyTaxonomyDeletion(taxonomy, plan, replacementId);
     const kind = taxonomy.schema.kind;
     const to = result.replacementId;
@@ -800,8 +976,9 @@ export class Mutations {
    * Delete a person, reassigning (or, with `replacementId: null`, clearing)
    * every `assignee`/`owner` that referenced them before removing them from the
    * register. `reassignValue` is the same generic single-select rewrite the
-   * taxonomy engine uses — no taxonomy coupling in its body. `isSelf` stays
-   * edited only from Settings' `PeopleSection`, so it never needs handling here.
+   * taxonomy engine uses — no taxonomy coupling in its body. The app-level
+   * `mePerson` pointer is cleared by the People settings UI when the person it
+   * names is deleted here.
    */
   async deletePerson(
     snapshot: WorkspaceSnapshot,
@@ -843,7 +1020,7 @@ export class Mutations {
       ...snapshot.workspace,
       people: [
         ...snapshot.workspace.people,
-        { id, name, aliases, isSelf: false },
+        { id, name, aliases },
       ],
     });
     return id;
@@ -1319,9 +1496,14 @@ export class Mutations {
      *  workspace-creation UI's toggle ships the template's own value as the
      *  default and only passes this when the user flips it. */
     enableHistory?: boolean;
-    /** Seeds a `people` entry flagged `isSelf` so "Assigned to Me" works
-     *  from the first task. Blank/undefined leaves the register as the
-     *  template defines it. */
+    /** When set, ensures the `people` register holds this person (by exact id,
+     *  appending if missing) and records them as the app-level `me`. The
+     *  workspace-creation UI passes the plugin's existing `mePerson` here so a
+     *  fresh workspace adopts the creator without prompting for a name. */
+    me?: MeBinding;
+    /** Seeds the register's "me" person by name (used when no `me` exists yet)
+     *  and records it as the app-level `me`. Blank/undefined leaves the
+     *  register as the template defines it. */
     selfPersonName?: string;
   }): Promise<WorkspaceConfig> {
     const desired =
@@ -1337,8 +1519,15 @@ export class Mutations {
       icon: input.icon,
       includeExampleContent: input.includeExampleContent,
       enableHistory: input.enableHistory,
+      me: input.me,
       selfPersonName: input.selfPersonName,
     });
+
+    // Creating a workspace (re)states who "me" is — either the user's existing
+    // identity adopted by this workspace, or the name they typed at creation.
+    if (generated.mePerson) {
+      this.hooks.setMePerson?.(generated.mePerson);
+    }
 
     await this.io.ensureFolder(input.root);
     for (const folder of Object.values(FOLDERS)) {
@@ -1479,4 +1668,16 @@ export class Mutations {
     if (!file) return;
     await this.app.workspace.getLeaf(newLeaf).openFile(file);
   }
+}
+
+/**
+ * Today's date in the user's own calendar, as the same `YYYY-MM-DD` strings
+ * tasks carry in frontmatter. Recurrence compares local days (closing a daily
+ * task late in the evening must not wait for UTC to catch up), so this is
+ * deliberately not `nowIso()`.
+ */
+function localTodayIso(): string {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }

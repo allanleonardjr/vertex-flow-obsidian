@@ -13,6 +13,7 @@ import { VaultIndex } from "./obsidian/index-store";
 import { Mutations } from "./obsidian/mutations";
 import { NoteIO } from "./obsidian/note-io";
 import { HistoryLog } from "./obsidian/history-log";
+import { deviceId } from "./obsidian/device-id";
 import { VertexFlowSettingTab } from "./settings/SettingTab";
 import {
 	DEFAULT_SETTINGS,
@@ -55,8 +56,17 @@ export default class VertexFlowPlugin extends Plugin {
 
 		this.io = new NoteIO(this.app);
 		this.index = new VaultIndex(this.app, this.io);
-		this.history = new HistoryLog(this.io);
-		this.mutations = new Mutations(this.app, this.io, this.index, this.history);
+		this.history = new HistoryLog(
+			this.io,
+			deviceId(),
+			() => this.settings.mePerson,
+		);
+		this.mutations = new Mutations(this.app, this.io, this.index, this.history, {
+			setMePerson: (me) => {
+				this.settings.mePerson = me;
+				void this.saveSettings();
+			},
+		});
 
 		this.registerView(
 			VERTEX_VIEW_TYPE,
@@ -81,6 +91,15 @@ export default class VertexFlowPlugin extends Plugin {
 		// before then would read an empty vault.
 		this.app.workspace.onLayoutReady(() => {
 			this.index.watch((unsubscribe) => this.register(unsubscribe));
+			// Recurrence reconcile is a post-rebuild engine: every rebuild
+			// (initial load, vault watcher, manual "Rebuild index") offers the
+			// next pass a chance to spawn. A pass that spawns nothing is a
+			// no-op, so this subscription is cheap to keep hooked up.
+			this.register(
+				this.index.subscribe(() => {
+					void this.mutations.reconcileRecurrences();
+				}),
+			);
 			void this.index.rebuild().then(() => this.registerTaskRedirect());
 		});
 	}

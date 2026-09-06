@@ -335,6 +335,7 @@ export function labelView(snapshot: WorkspaceSnapshot, labelId: string): SavedVi
     hiddenFields: [],
     subtaskDisplay: "flat",
     calendarDateField: "dueDate",
+    recurringPreview: false,
   };
 }
 
@@ -359,6 +360,7 @@ export function personView(
     hiddenFields: [],
     subtaskDisplay: "flat",
     calendarDateField: "dueDate",
+    recurringPreview: false,
   };
 }
 
@@ -383,6 +385,7 @@ export function projectView(project: Project): SavedView {
     hiddenFields: [],
     subtaskDisplay: "nested",
     calendarDateField: "dueDate",
+    recurringPreview: false,
   };
 }
 

@@ -29,7 +29,7 @@ export type QueryIssueCode =
 	| "unterminated-quote"
 	/** The same field given twice — values are merged. */
 	| "duplicate-field"
-	/** `me` used in a workspace where nobody is flagged `isSelf`. */
+	/** `me` used where the app's `mePerson` isn't in this workspace's roster. */
 	| "self-unconfigured";
 
 export interface QueryIssue {

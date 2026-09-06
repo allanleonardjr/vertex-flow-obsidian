@@ -278,30 +278,34 @@ function parseFlatTaxonomy<T extends { id: string; name: string; color: string }
 	return values;
 }
 
-/** `"Name"`, `"Name*"`, `"Name (alias)"`, `"Name* (alias)"`. */
-function parsePeople(raw: unknown): Person[] | undefined {
+/** `"Name"`, `"Name*"`, `"Name (alias)"`, `"Name* (alias)"`. The trailing `*`
+ *  marks the person "me" is — the app-level identity a workspace created from
+ *  this template adopts (see `ParsedTemplate.mePersonId`). Templates that
+ *  don't mean to claim an identity just omit the star. */
+function parsePeople(
+	raw: unknown,
+): { people?: Person[]; mePersonId?: string } | undefined {
 	const entries = asStringArray(raw, "people");
 	if (!entries) return undefined;
 
+	const mePersonIds: string[] = [];
 	const people = entries.map((entry) => {
 		const { name: head, parts } = splitShorthand(entry);
 		const isSelf = head.endsWith("*");
 		const name = (isSelf ? head.slice(0, -1) : head).trim();
 		if (!name) fail(`A people entry has no name: "${entry}"`);
-		const aliases = parts.filter(Boolean);
-		return { id: slugifyPlain(name), name, aliases, isSelf };
+		const id = slugifyPlain(name);
+		if (isSelf) mePersonIds.push(id);
+		return { id, name, aliases: parts.filter(Boolean) };
 	});
 
-	const selves = people.filter((p) => p.isSelf);
-	if (selves.length > 1) {
+	if (mePersonIds.length > 1) {
 		fail(
-			`Only one person may be marked "*" (isSelf); found ${selves.length}: ${selves
-				.map((p) => p.name)
-				.join(", ")}`,
+			`Only one person may be marked "*" (the "me" person); found ${mePersonIds.length}`,
 		);
 	}
 	assertUniqueIds("people", people);
-	return people;
+	return { people, mePersonId: mePersonIds[0] };
 }
 
 /* --------------------------------------------------------- frontmatter ---- */
@@ -1129,7 +1133,9 @@ export function parseTemplateMarkdown(source: string): ParsedTemplate {
 		false,
 	);
 	const labels = parseFlatTaxonomy<LabelValue>(data.labels, "labels", "label", false);
-	const people = parsePeople(data.people);
+	const peopleResult = parsePeople(data.people);
+	const people = peopleResult?.people;
+	const mePersonId = peopleResult?.mePersonId;
 
 	const workspaceOverrides: TemplateWorkspaceOverrides = {};
 	if (statuses) workspaceOverrides.statuses = statuses;
@@ -1186,5 +1192,6 @@ export function parseTemplateMarkdown(source: string): ParsedTemplate {
 		projects,
 		tasks,
 		warnings,
+		mePersonId,
 	};
 }

@@ -43,7 +43,6 @@ const ALLAN = { kind: "person", id: "allan", name: "Allan" } as const;
 
 function entry(partial: Partial<HistoryEntry>): HistoryEntry {
 	return {
-		seq: 1,
 		ts: "2026-09-05T14:32:00Z",
 		actor: ALLAN,
 		action: "task.update",
@@ -62,11 +61,11 @@ describe("log location", () => {
 	});
 
 	it("lives under the workspace's own History/ folder", () => {
-		expect(historyPathFor("Product Team", "2026-09-05T14:32:00Z")).toBe(
-			"Product Team/History/2026-09.md",
+		expect(historyPathFor("Product Team", "2026-09-05T14:32:00Z", "test-device")).toBe(
+			"Product Team/History/2026-09.test-device.md",
 		);
 		expect(historyFolder("Product Team")).toBe("Product Team/History");
-		expect(historyPathFor("Product Team", "2026-09-05T14:32:00Z")).toContain(
+		expect(historyPathFor("Product Team", "2026-09-05T14:32:00Z", "test-device")).toContain(
 			`/${HISTORY_FOLDER}/`,
 		);
 	});
@@ -83,7 +82,6 @@ describe("serializeEntryLine / parseHistoryLog", () => {
 
 	it("round-trips an entry with changes and a system actor", () => {
 		const changy: HistoryEntry = entry({
-			seq: 7,
 			actor: { kind: "system", name: "auto-archive" },
 			action: "task.update",
 			targets: [
@@ -116,7 +114,7 @@ describe("serializeEntryLine / parseHistoryLog", () => {
 	});
 
 	it("drops just the mangled line, keeping the good ones", () => {
-		const good = serializeEntryLine(entry({ seq: 1 }));
+		const good = serializeEntryLine(entry({}));
 		const text = `${good}  - this line is not a valid entry: [\n${good}`;
 		expect(parseHistoryLog(text)).toHaveLength(2);
 	});
@@ -301,22 +299,21 @@ describe("workspaceConfigChanges", () => {
 		]);
 	});
 
-	it("records people edits, including the isSelf flag", () => {
+	it("records people edits", () => {
 		const from = ws({
-			people: [{ id: "allan", name: "Allan", aliases: [], isSelf: false }],
+			people: [{ id: "allan", name: "Allan", aliases: [] }],
 		});
 		const to = ws({
 			people: [
-				{ id: "allan", name: "Allan", aliases: [], isSelf: true },
-				{ id: "jo", name: "Jo", aliases: [], isSelf: false },
+				{ id: "allan", name: "Allan", aliases: [] },
+				{ id: "jo", name: "Jo", aliases: [] },
 			],
 		});
 		expect(workspaceConfigChanges(from, to)).toEqual([
 			{ field: "people", from: ["allan"], to: ["allan", "jo"] },
-			{ field: "people.allan.isSelf", from: false, to: true },
 			{
 				field: "people.jo",
-				to: { id: "jo", name: "Jo", aliases: [], isSelf: false },
+				to: { id: "jo", name: "Jo", aliases: [] },
 			},
 		]);
 	});
@@ -533,13 +530,11 @@ describe("demo history for a fresh workspace", () => {
 		expect(comment?.changes).toEqual([{ field: "comment" }]);
 	});
 
-	it("is strictly chronological with seq 1..N", () => {
+	it("is strictly chronological (monotonic ts)", () => {
 		const { history } = populated(true);
 		for (let i = 1; i < history!.length; i++) {
-			expect(history![i].seq).toBe(history![i - 1].seq + 1);
 			expect(history![i].ts >= history![i - 1].ts).toBe(true);
 		}
-		expect(history![0].seq).toBe(1);
 	});
 
 	it("still round-trips when written as lines", () => {

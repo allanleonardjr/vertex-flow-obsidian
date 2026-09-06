@@ -6,38 +6,51 @@
  * `src/core` — there is none; the format, parsing and month rotation all live
  * in `src/core/history/` and are unit-tested there.
  *
- * Two behaviours worth spelling out:
+ * Three behaviours worth spelling out:
  *
+ *   - **Each Obsidian install owns a stream file per month.** The month file
+ *     is `History/YYYY-MM.<device>.md`, where `<device>` is that install's own
+ *     random token (from `localStorage`, never synced). Two machines sharing a
+ *     synced vault therefore never rewrite the same file, so the classic
+ *     read-modify-write race that drops entries — both read, both append, one
+ *     write wins — disappears by construction. The reader merges every file in
+ *     the `History/` folder and orders by timestamp.
  *   - **Appends are promise-chained.** `record` enqueues onto a single chain,
- *     so entries are written strictly in call order and the per-month `seq`
- *     counter can never interleave. This is the one place in the plugin where
- *     a `void`-style call is deliberately serialized.
- *   - **`seq` seeds from the file on a session's first write to a month.**
- *     The counter is per-session in-memory; reading the file back lets a
- *     pre-existing month keep counting past wherever it stopped. Two OS
- *     processes racing a brand-new month both write `seq: 1` — fine, `seq` is
- *     ordering candy, not an id.
+ *     so entries are written strictly in call order and can never interleave.
+ *     This is the one place in the plugin where a `void`-style call is
+ *     deliberately serialized.
+ *   - **Timestamps are clamped monotonic per device.** There is no sequence
+ *     number (see `src/core/history/`); two entries must never carry the same
+ *     `ts` within one stream, or the file's order and the timeline could
+ *     disagree. Each write's timestamp is `max(now, last+1ms)`, so the file's
+ *     line order *is* the timeline even across a backward clock jump.
  */
 
-import { HistoryActor, HistoryChange, HistoryTarget, IsoDate, WorkspaceConfig } from "../core/types";
+import { HistoryActor, HistoryChange, HistoryTarget, IsoDate, MeBinding, WorkspaceConfig } from "../core/types";
 import type { HistoryEntry } from "../core/types";
 import {
 	UNKNOWN_ACTOR_NAME,
 	historyFolder,
 	historyPathFor,
-	monthKey,
 	parseHistoryLog,
 	serializeEntryLine,
 } from "../core/history";
 import { NoteIO } from "./note-io";
 
-function selfActor(workspace: WorkspaceConfig): HistoryActor {
-	const self = workspace.people.find((person) => person.isSelf);
-	if (self) return { kind: "person", id: self.id, name: self.name };
-	// A workspace that hasn't configured a self person still gets history; the
-	// entry just can't name the human in the chair. This is absence, not a
-	// costume — `kind: "system"` is reserved for machine writes, and a bracketed
-	// name keeps the Feed from reading it as a colleague.
+/** An entry as the hub reads it, tagged with the stream file it came from. */
+export interface LoggedEntry extends HistoryEntry {
+	/** Stream file name (`2026-09.<device>.md`) — cheap cross-device tiebreak. */
+	stream: string;
+}
+
+function selfActor(workspace: WorkspaceConfig, me: MeBinding | null): HistoryActor {
+	if (me) {
+		const person = workspace.people.find((p) => p.id === me.personId);
+		if (person) return { kind: "person", id: person.id, name: person.name };
+	}
+	// The app's `me` is unresolved in this workspace — no self person to credit.
+	// This is absence, not a costume: `kind: "system"` is reserved for machine
+	// writes, and a bracketed name keeps the Feed from reading it as a colleague.
 	return { kind: "system", name: UNKNOWN_ACTOR_NAME };
 }
 
@@ -51,15 +64,42 @@ interface RecordInput {
 }
 
 export class HistoryLog {
-  private chain: Promise<void> = Promise.resolve();
-  private readonly seq = new Map<string, number>();
-  private readonly listeners = new Set<() => void>();
-  private version = 0;
+	private chain: Promise<void> = Promise.resolve();
+	private lastTs = 0;
+	private initialized = false;
+	private readonly listeners = new Set<() => void>();
+	private version = 0;
 
 	constructor(
 		private readonly io: NoteIO,
+		/** This install's never-synced random token; owns its own stream files. */
+		readonly device: string,
+		private readonly me: () => MeBinding | null,
 		private readonly now: () => Date = () => new Date(),
 	) {}
+
+	/** Initialize lastTs from existing device stream files (lazy, one-time). */
+	private async ensureInitialized(root: string): Promise<void> {
+		if (this.initialized) return;
+		this.initialized = true;
+		for (const file of this.io.listFiles(historyFolder(root))) {
+			const fileName = file.path.slice(file.path.lastIndexOf("/") + 1);
+			if (!fileName.endsWith("." + this.device + ".md")) continue;
+			const text = await this.io.read(file);
+			for (const entry of parseHistoryLog(text)) {
+				const ts = new Date(entry.ts).getTime();
+				if (ts > this.lastTs) this.lastTs = ts;
+			}
+		}
+	}
+
+	/** `max(now, last+1ms)` so no two entries in a stream share a timestamp. */
+	private async nextTs(root: string): Promise<IsoDate> {
+		await this.ensureInitialized(root);
+		const millis = Math.max(this.now().getTime(), this.lastTs + 1);
+		this.lastTs = millis;
+		return new Date(millis).toISOString();
+	}
 
 	/**
 	 * Subscribe to log writes. The React layer uses this (via `revision`, the
@@ -91,96 +131,71 @@ export class HistoryLog {
 	record(workspace: WorkspaceConfig, input: RecordInput): void {
 		if (!workspace.history.enabled) return;
 
-		const ts = input.ts ?? this.now().toISOString();
-		const month = monthKey(ts);
-		const path = historyPathFor(workspace.root, ts);
-		const actor = input.actorOverride ?? selfActor(workspace);
+		const action = input.action;
+		const actor = input.actorOverride ?? selfActor(workspace, this.me());
+		const targets = input.targets ?? [];
+		const changes = input.changes;
 
-		// The entry is built *inside* the chain so both the `seq` counter and the
-		// serialized line reflect the file's true state at write time. Building it
-		// eagerly would freeze a placeholder `seq: 1` that the chain then re-rolls
-		// past whatever the month file already holds — the first burst of a
-		// session would misnumber and duplicate seqs.
+		// The entry is built *inside* the chain so its timestamp is stamped in
+		// write order, keeping the file's line order equal to its timeline.
 		this.chain = this.chain.then(async () => {
-			const next = (this.seq.get(month) ?? 0) + 1;
-			if (next === 1) {
-				// Fresh month for this session: make sure the counter starts
-				// above whatever the file already holds.
-				const existing = await this.readFile(path);
-				this.seq.set(month, existing + 1);
-			} else {
-				this.seq.set(month, next);
-			}
+			const ts = await this.nextTs(workspace.root);
 			const entry: HistoryEntry = {
-				seq: this.seq.get(month)!,
 				ts,
 				actor,
-				action: input.action,
+				action,
 				workspace: workspace.root,
-				targets: input.targets ?? [],
-				...(input.changes?.length ? { changes: input.changes } : {}),
+				targets,
+				...(changes?.length ? { changes } : {}),
 			};
-			await this.io.append(path, serializeEntryLine(entry));
+			await this.io.append(
+				historyPathFor(workspace.root, ts, this.device),
+				serializeEntryLine(entry),
+			);
 		});
 		this.touch();
 	}
 
-/**
-   * Write a pre-built set of entries in one flush — the onboarding demo log.
-   * Entries are appended oldest-first to the correct month files, each `seq`
-   * continuing past anything already on disk, and the session's per-month
-   * counter is left aligned so subsequent `record()` calls keep counting on
-   * (a re-scaffold over an existing month just keeps the file growing rather
-   * than clobbering). Fire-and-forget like `record()`: returns the chained
-   * promise for callers that want to await it, but workspace creation doesn't
-   * need to — the chain flushes before any `readEntries` resolves.
-   */
-  seed(root: string, entries: HistoryEntry[]): Promise<void> {
-    if (entries.length === 0) return Promise.resolve();
-    // Bump the revision now so a live History hub re-reads when the chain
-    // flushes — `readEntries` awaits the chain, so it sees the seeded batch.
-    this.touch();
-    return (this.chain = this.chain.then(async () => {
-      for (const entry of entries) {
-        const month = monthKey(entry.ts);
-        const next = (this.seq.get(month) ?? 0) + 1;
-        if (next === 1) {
-          // Fresh month for this session: continue past whatever's on disk
-          // rather than replaying seq 1 against an existing file.
-          const existing = await this.readFile(historyPathFor(root, entry.ts));
-          this.seq.set(month, existing + 1);
-        } else {
-          this.seq.set(month, next);
-        }
-        const seq = this.seq.get(month)!;
-        await this.io.append(
-          historyPathFor(root, entry.ts),
-          serializeEntryLine({ ...entry, seq }),
-        );
-      }
-    }));
-  }
+	/**
+	 * Write a pre-built set of entries in one flush — the onboarding demo log.
+	 * Entries are appended oldest-first into the creating device's stream files
+	 * (forward-dated into their own months), the parser's leniency absorbs any
+	 * overlap with an existing month, and timestamps are clamped monotonic just
+	 * like `record`. Fire-and-forget like `record()`: returns the chained
+	 * promise for callers that want to await it, but workspace creation doesn't
+	 * need to — the chain flushes before any `readEntries` resolves.
+	 */
+	seed(root: string, entries: HistoryEntry[]): Promise<void> {
+		return (this.chain = this.chain.then(async () => {
+			await this.ensureInitialized(root);
+			for (const entry of entries) {
+				const ts = await this.nextTs(root);
+				await this.io.append(
+					historyPathFor(root, ts, this.device),
+					serializeEntryLine({ ...entry, ts }),
+				);
+			}
+			this.touch();
+		}));
+	}
 
-  /**
-   * Every entry a workspace has ever recorded, oldest first. Flushes any
-   * chained writes first, so a just-completed mutation is always visible.
-   */
-	async readEntries(root: string): Promise<HistoryEntry[]> {
+	/**
+	 * Every entry a workspace has ever recorded, oldest first. Flushes any
+	 * chained writes first, so a just-completed mutation is always visible.
+	 */
+	async readEntries(root: string): Promise<LoggedEntry[]> {
 		await this.chain;
-		const entries: HistoryEntry[] = [];
+		const entries: LoggedEntry[] = [];
 		for (const file of this.io.listFiles(historyFolder(root))) {
-			entries.push(...parseHistoryLog(await this.io.read(file)));
+			const fileName = file.path.slice(file.path.lastIndexOf("/") + 1);
+			const stream = fileName.slice(0, fileName.lastIndexOf(".md")).split(".")[1] ?? fileName;
+			for (const entry of parseHistoryLog(await this.io.read(file))) {
+				entries.push({ ...entry, stream });
+			}
 		}
 		return entries.sort(
 			(a, b) =>
-				a.ts.localeCompare(b.ts) || String(a.seq).localeCompare(String(b.seq), undefined, { numeric: true }),
+				a.ts.localeCompare(b.ts) || a.stream.localeCompare(b.stream),
 		);
-	}
-
-	private async readFile(path: string): Promise<number> {
-		const file = this.io.getFile(path);
-		if (!file) return 0;
-		const entries = parseHistoryLog(await this.io.read(file));
-		return entries.reduce((max, entry) => Math.max(max, entry.seq), 0);
 	}
 }

@@ -74,7 +74,7 @@ export function unscheduledForCalendar(
 // ---------------------------------------------------------------------------
 
 /** Whole days from the epoch for the 1st of the month containing `day`. */
-function monthStartDay(day: number): number {
+export function monthStartDay(day: number): number {
 	const d = new Date(day * MS_PER_DAY);
 	return Math.round(
 		Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1) / MS_PER_DAY,
@@ -82,7 +82,7 @@ function monthStartDay(day: number): number {
 }
 
 /** `monthStartDay`, shifted by `n` whole months. */
-function addMonthsDay(day: number, n: number): number {
+export function addMonthsDay(day: number, n: number): number {
 	const d = new Date(day * MS_PER_DAY);
 	return Math.round(
 		Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + n, 1) / MS_PER_DAY,

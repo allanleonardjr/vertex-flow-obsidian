@@ -75,11 +75,13 @@ export function makeTask(
 		rank: nextRank(),
 		project: null,
 		parent: null,
+		recurringFrom: null,
 		assignee: null,
 		estimate: null,
 		labels: [],
 		startDate: null,
 		dueDate: null,
+		recurrence: null,
 		archived: false,
 		archivedAt: null,
 		relations: emptyRelations(),
@@ -122,6 +124,7 @@ export function makeView(
 		hiddenFields: [],
 		subtaskDisplay: partial.subtaskDisplay ?? "flat",
 		calendarDateField: "dueDate",
+		recurringPreview: false,
 	};
 }
 

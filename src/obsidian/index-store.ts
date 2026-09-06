@@ -373,6 +373,7 @@ export class VaultIndex {
 			const options = {
 				path,
 				defaultStatus: snapshot.workspace.defaultNewTaskStatus,
+				statuses: snapshot.workspace.statuses,
 			};
 
 			switch (kind) {
@@ -486,6 +487,7 @@ export class VaultIndex {
 		const options = {
 			path,
 			defaultStatus: snapshot.workspace.defaultNewTaskStatus,
+			statuses: snapshot.workspace.statuses,
 		};
 
 		const entity: TrashedItem["entity"] =

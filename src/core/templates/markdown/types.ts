@@ -179,4 +179,7 @@ export interface ParsedTemplate {
 	tasks: ParsedTask[];
 	/** Non-fatal notes (e.g. nesting deeper than markdown can express). */
 	warnings: string[];
+	/** The `people` id starred `"Name*"`, if the template claims one — the
+	 *  identity a workspace created from it should adopt app-wide. */
+	mePersonId?: string;
 }

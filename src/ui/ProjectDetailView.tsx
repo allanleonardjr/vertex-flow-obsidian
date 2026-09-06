@@ -292,6 +292,7 @@ function ProjectEditor({
               value={project.owner}
               onChange={(owner) => update({ owner })}
               noneLabel="No owner"
+              mePersonId={plugin.settings.mePerson?.personId}
             />
           </PropertyRow>
 

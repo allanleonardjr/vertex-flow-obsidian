@@ -222,6 +222,14 @@ export function printQuery(
 			`${FLAG_TOKENS.unscheduled.field}:${FLAG_TOKENS.unscheduled.value}`,
 		);
 	}
+	if (filters.recurring) {
+		parts.push(`${FLAG_TOKENS.recurring.field}:${FLAG_TOKENS.recurring.value}`);
+	}
+	if (canonical.recurringPreview) {
+		parts.push(
+			`${FLAG_TOKENS.recurringPreview.field}:${FLAG_TOKENS.recurringPreview.value}`,
+		);
+	}
 
 	// `layout` and `empty` only when they differ from the default; `group` and
 	// `sort` always, because they're always meaningful and printing them makes

@@ -236,6 +236,7 @@ function ConfigStep({
 }) {
 	const plugin = usePlugin();
 	const setActiveWorkspace = useSetActiveWorkspace();
+	const mePerson = plugin.settings.mePerson;
 
 	const [name, setName] = useState(template.name);
 	const [icon, setIcon] = useState(template.icon);
@@ -245,6 +246,7 @@ function ConfigStep({
 	const [prefixOverride, setPrefixOverride] = useState<string | null>(null);
 	const [selfName, setSelfName] = useState("");
 	const [populate, setPopulate] = useState(false);
+	const [showSelfName, setShowSelfName] = useState(!mePerson);
 	// The template decides its own default (`history: true` in frontmatter
 	// opts the workspace in); the creator can flip it here. Mirrors the
 	// config-creation pattern of `populate`.
@@ -314,7 +316,8 @@ function ConfigStep({
 				includeExampleContent:
 					template.supportsExampleContent !== false && populate,
 				enableHistory,
-				selfPersonName: selfName.trim() || undefined,
+				me: mePerson ?? undefined,
+				selfPersonName: showSelfName ? selfName.trim() || undefined : undefined,
 			});
 			// Nothing keeps a tab open on a new workspace's behalf — open All
 			// Tasks explicitly (it always has the most to show). The tab strip
@@ -418,6 +421,7 @@ function ConfigStep({
 				)}
 			</label>
 
+{showSelfName && (
 			<label className="vf-field">
 				<span>Your name (optional)</span>
 				<input
@@ -427,10 +431,11 @@ function ConfigStep({
 					onChange={(event) => setSelfName(event.target.value)}
 				/>
 				<small>
-					Adds you to the People register as “me”, so “Assigned to Me” and
-					“Mentions Me” work right away. You can change this later in Settings.
+					Adds you to the People register as "me", so "Assigned to Me" and
+					"Mentions Me" work right away. You can change this later in Settings.
 				</small>
 			</label>
+		)}
 
 			{template.supportsExampleContent !== false && (
 				<label className="vf-template-toggle">

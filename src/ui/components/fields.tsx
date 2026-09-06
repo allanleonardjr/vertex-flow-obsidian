@@ -463,15 +463,17 @@ export function TypeSelect(props: {
 
 /**
  * A person as they read everywhere else — initials avatar plus name. `hint`
- * marks the `isSelf` entry in the menu; the trigger leaves it off, where the
+ * marks the "me" entry in the menu; the trigger leaves it off, where the
  * caret already occupies the right edge.
  */
-function personNode(person: Person, hint: boolean): ReactNode {
+function personNode(person: Person, hint: boolean, mePersonId?: string): ReactNode {
 	return (
 		<>
 			<PersonAvatar name={person.name} />
 			<span className="vf-icon-select-name">{person.name}</span>
-			{hint && person.isSelf && <span className="vf-menu-hint">You</span>}
+			{hint && mePersonId && person.id === mePersonId && (
+				<span className="vf-menu-hint">You</span>
+			)}
 		</>
 	);
 }
@@ -485,13 +487,16 @@ export function PersonSelect({
 	value,
 	onChange,
 	noneLabel = "Unassigned",
+	mePersonId,
 }: {
 	people: Person[];
 	value: string | null;
 	onChange: (value: string | null) => void;
 	noneLabel?: string;
+	mePersonId?: string;
 }) {
 	const known = people.find((person) => person.id === value) ?? null;
+
 	// Someone dropped from the register still has to show and stay selectable,
 	// or opening the editor would silently drop the assignment. The id is all
 	// that's left of them, so it stands in for the name.
@@ -513,7 +518,7 @@ export function PersonSelect({
 		},
 		...people.map((person) => ({
 			value: person.id,
-			node: personNode(person, true),
+			node: personNode(person, true, mePersonId),
 			// Aliases match but don't show: they exist so `@mentions`
 			// resolve, not as a second display name.
 			search: [person.name, ...(person.aliases ?? [])].join(" "),
@@ -532,7 +537,7 @@ export function PersonSelect({
 			searchPlaceholder="Search people…"
 			trigger={
 				known ? (
-					personNode(known, false)
+					personNode(known, false, mePersonId)
 				) : unknownNode ? (
 					unknownNode
 				) : (
@@ -542,7 +547,6 @@ export function PersonSelect({
 		/>
 	);
 }
-
 export interface Option {
 	value: string;
 	label: string;

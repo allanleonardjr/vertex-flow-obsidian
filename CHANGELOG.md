@@ -5,6 +5,16 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Changed
+- **Activity history log format redesigned for sync-safe multi-device vaults** — each Obsidian install now owns its own per-device stream files (`History/YYYY-MM.<device>.md`, device token in localStorage, never synced), eliminating the read-modify-write race that could drop entries when two machines share a synced vault (iCloud, Dropbox, iDrive). The reader merges all stream files sorted by `(timestamp, stream)`.
+- **Sequence numbers removed** — per-stream timestamps are clamped monotonic (`max(now, last+1ms)`) so no two entries in a stream share a timestamp; ordering is by timestamp then stream.
+- **"Who am I" moved to global plugin settings** — `mePerson` (the MeBinding) is a single human identity in `data.json`, shared across all workspaces. The People register in `_workspace.md` is now plain (no `isSelf` flag). `me` / `self` filters resolve via the global `mePerson`; deleting the me-person clears the setting. UI shows a callout: "This is a global setting that affects all workspaces."
+- Template `Person (...)*` star marker now designates the `mePerson` for the created workspace (surfaced via `mePersonId` in template content).
+
+### Fixed
+- Activity history hub now populates instantly (write-through chained appends retained; no debounce/batch).
+- History log continues monotonic timestamps across sessions by reading existing device stream files on first write.
+
 ### Added
 - Every **workspace template** now ships with short descriptions for its content: each Task, Project, Saved View, Dashboard, and taxonomy value (Status, Priority, Type, Label) explains itself in a sentence, so a freshly created workspace reads like a finished example rather than a bare scaffold.
 - Template descriptions are authored entirely in the template's own markdown: taxonomy values use a `"Name (category, #hex) - description"` shorthand in the frontmatter, and Task/Project/View/Dashboard descriptions are written straight into the template body. The Getting Started and Agency templates also demonstrate `[[internal wikilinks]]`, external Markdown links, and sub-headings inside a description.

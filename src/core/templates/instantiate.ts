@@ -29,6 +29,7 @@ import type {
 	Comment,
 	DashboardConfig,
 	HistoryEntry,
+	MeBinding,
 	SavedView,
 	WorkspaceConfig,
 	WorkspaceSnapshot,
@@ -59,6 +60,13 @@ export interface GeneratedWorkspace {
 	 *  brand-new workspace opens the hub on a lived-in log, not an empty one.
 	 *  `undefined` otherwise (history off, or a populated-less workspace). */
 	history?: HistoryEntry[];
+	/**
+	 * The app-level "who am I" this workspace seeds — either the passed-in
+	 * `me` adopted by-id, or the name-created person from `selfPersonName`.
+	 * `null/undefined` when neither was given. The glue layer persists it to
+	 * plugin settings so `self` filters and the history actor resolve.
+	 */
+	mePerson?: MeBinding | null;
 }
 
 export interface InstantiateOptions {
@@ -70,11 +78,17 @@ export interface InstantiateOptions {
 	/** When false, the workspace gets the template's taxonomy/views but no
 	 *  Projects or Tasks. */
 	includeExampleContent: boolean;
-	/** When set, ensures the `people` register has an entry for this name
-	 *  flagged `isSelf` (matching an existing entry by name if there is one,
-	 *  otherwise appending a new one and clearing `isSelf` elsewhere). This is
-	 * what makes `self` filters — "Assigned to Me" / "Mentions Me" —
-	 *  resolve in a freshly created workspace. */
+	/**
+	 * Adopt an existing app-level identity into this workspace: ensures the
+	 * `people` register holds `me.personId` (appending if missing) so `self`
+	 * filters — "Assigned to Me" / "Mentions Me" — and the history actor
+	 * resolve from the first moment. Takes precedence over `selfPersonName`.
+	 */
+	me?: MeBinding;
+	/** When set (and no `me` given), creates the "me" person by this name —
+	 *  matching an existing register entry if there is one, otherwise appending
+	 *  a new one — and surfaces it as the generated workspace's `mePerson`.
+	 *  This is what lets a brand-new workspace name its creator. */
 	selfPersonName?: string;
 	/** When set, forces the workspace's activity-history state, overriding
 	 *  whatever the template defined. When omitted, the template's own value
@@ -84,27 +98,42 @@ export interface InstantiateOptions {
 	now?: Date;
 }
 
-/** Fold the creator's own name into the `people` register as `isSelf`. */
-function seedSelfPerson(workspace: WorkspaceConfig, rawName: string): void {
+/**
+ * Seed the register's "me" person from the creator's name — matching an
+ * existing entry by name if there is one, otherwise appending a new one — and
+ * return the binding a freshly created workspace should record app-wide.
+ */
+function seedSelfPersonName(
+	workspace: WorkspaceConfig,
+	rawName: string,
+): MeBinding | null {
 	const name = rawName.trim();
-	if (!name) return;
+	if (!name) return null;
 
 	const existing = workspace.people.find(
 		(person) => person.name.toLowerCase() === name.toLowerCase(),
 	);
-	if (existing) {
-		workspace.people = workspace.people.map((person) => ({
-			...person,
-			isSelf: person.id === existing.id,
-		}));
-		return;
-	}
+	if (existing) return { personId: existing.id, name: existing.name };
 
 	const id = slugify(name, workspace.people.map((person) => person.id));
-	workspace.people = [
-		...workspace.people.map((person) => ({ ...person, isSelf: false })),
-		{ id, name, aliases: [], isSelf: true },
-	];
+	workspace.people = [...workspace.people, { id, name, aliases: [] }];
+	return { personId: id, name };
+}
+
+/**
+ * Adopt an existing app-level identity by exact id — the case where the user
+ * already knows who they are, so a fresh workspace just mirrors them into its
+ * register (appending only if this workspace's roster has never met them).
+ */
+function adoptSelfPerson(workspace: WorkspaceConfig, me: MeBinding): MeBinding {
+	const known = workspace.people.some((person) => person.id === me.personId);
+	if (!known) {
+		workspace.people = [
+			...workspace.people,
+			{ id: me.personId, name: me.name, aliases: [] },
+		];
+	}
+	return { personId: me.personId, name: me.name };
 }
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -177,7 +206,14 @@ export function instantiateTemplate(
 	// An explicit creator choice outranks the template's own `history:` value.
 	if (options.enableHistory !== undefined)
 		workspace.history = { enabled: options.enableHistory };
-	if (options.selfPersonName) seedSelfPerson(workspace, options.selfPersonName);
+	let mePerson: MeBinding | null = null;
+	if (options.me) mePerson = adoptSelfPerson(workspace, options.me);
+	else if (options.selfPersonName)
+		mePerson = seedSelfPersonName(workspace, options.selfPersonName);
+	else if (template.mePersonId) {
+		const person = workspace.people.find((p) => p.id === template.mePersonId);
+		if (person) mePerson = { personId: person.id, name: person.name };
+	}
 
 	// `createWorkspaceConfig` defaults `defaultNewTaskStatus` to the default
 	// backlog status id, which a taxonomy override may have removed. A template
@@ -294,6 +330,7 @@ export function instantiateTemplate(
 		workspace,
 		notes,
 		history,
+		mePerson,
 		snapshot: { workspace, tasks, projects, views, dashboards, trash: [] },
 	};
 }

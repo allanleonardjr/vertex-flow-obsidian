@@ -8,12 +8,21 @@
  *
  * ## Format
  *
- * Each workspace keeps an append-only log under its own `History/` folder, one
- * file per calendar month (`History/2026-09.md`). Each entry is a single line
- * of flow-style YAML — a `- { … }` sequence item — so appending is a true
- * O(1) file append and the whole month file parses back into the entry array:
+ * Each workspace keeps an append-only log under its own `History/` folder. The
+ * writer shards by device (`History/2026-09.<device>.md`) so a vault synced
+ * across machines never has two Obsidian instances rewriting the same file —
+ * each device appends only to its own stream, and the reader merges everything
+ * in the folder. Each entry is a single line of flow-style YAML — a
+ * `- { … }` sequence item — so appending is a true O(1) file append and the
+ * whole stream parses back into the entry array:
  *
- *     - { seq: 1, ts: 2026-09-05T14:32:00Z, actor: { kind: person, id: allan, name: Allan }, action: task.update, workspace: WS, targets: [ { kind: task, id: TSK-0104, path: WS/Tasks/TSK-0104} ], changes: [ { field: status, from: backlog, to: started} ] }
+ *     - { ts: 2026-09-05T14:32:00Z, actor: { kind: person, id: allan, name: Allan }, action: task.update, workspace: WS, targets: [ { kind: task, id: TSK-0104, path: WS/Tasks/TSK-0104} ], changes: [ { field: status, from: backlog, to: started} ] }
+ *
+ * There is deliberately **no sequence number**. Within a stream the writer
+ * stamps strictly increasing timestamps, so the file's line order *is* the
+ * timeline; across streams the reader sorts by `ts` and file name. A sequence
+ * ordinal would be per-stream anyway (every device would restart at 1) and
+ * buys nothing a monotonic timestamp doesn't.
  *
  * `yaml` is the one runtime dependency `src/core/` may take (the markdown
  * template parser already uses it), and its flow-style `stringify` quotes
@@ -41,8 +50,9 @@ export const HISTORY_FOLDER = "History";
 export const SYSTEM_ACTOR_NAME = "[system]";
 
 /**
- * A human action recorded when the workspace has no `isSelf` person to credit
- * it to. Also bracketed: absence of identity, not a colleague named "unknown".
+ * A human action recorded when the plugin's `mePerson` doesn't resolve into
+ * this workspace's roster. Also bracketed: absence of identity, not a
+ * colleague named "unknown".
  */
 export const UNKNOWN_ACTOR_NAME = "[unknown]";
 
@@ -51,12 +61,24 @@ export function monthKey(iso: string): string {
 	return iso.slice(0, 7);
 }
 
-/** The log file for the month `ts` falls in: `<root>/History/YYYY-MM.md`. */
-export function historyPathFor(root: string, ts: string): string {
-	return `${joinPath(root, HISTORY_FOLDER, monthKey(ts))}.md`;
+/**
+ * The log stream file for the device that owns this write: `<root>/History/
+ * YYYY-MM.<device>.md`. Each Obsidian install has its own random `device` token
+ * (never synced), so two synced machines never rewrite the same file — the
+ * read-modify-write race that would drop entries disappears by construction.
+ */
+export function historyPathFor(
+	root: string,
+	ts: string,
+	device: string,
+): string {
+	return `${joinPath(root, HISTORY_FOLDER, `${monthKey(ts)}.${device}`)}.md`;
 }
 
-/** `<root>/History` — the folder holding all of a workspace's log files. */
+/**
+ * `<root>/History` — the folder holding every device stream of the log.
+ * `readEntries` merges all of them.
+ */
 export function historyFolder(root: string): string {
 	return joinPath(root, HISTORY_FOLDER);
 }
@@ -82,12 +104,11 @@ export function serializeEntryLine(entry: HistoryEntry): string {
 }
 
 /**
- * Parse a month file back into entries. Order preserved (the files are written
- * oldest-first each month, so callers can sort reverse-chronologically for
- * display).
+ * Parse one stream file back into entries. Order preserved (a stream is
+ * written oldest-first, so callers can keep it and sort chronologically).
  *
  * Forgiving by design, one line at a time: each entry is one line, so a single
- * mangled line is dropped while the rest of the month survives. A whole file
+ * mangled line is dropped while the rest of the stream survives. A whole file
  * that isn't a log still yields `[]` instead of throwing — the log is a
  * best-effort record, never something that should take a view down because a
  * sync conflict or an over-zealous edit broke it.
@@ -116,7 +137,6 @@ function isHistoryEntry(raw: unknown): raw is HistoryEntry {
 	if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return false;
 	const entry = raw as Record<string, unknown>;
 	return (
-		typeof entry.seq === "number" &&
 		typeof entry.ts === "string" &&
 		typeof entry.action === "string" &&
 		typeof entry.workspace === "string" &&

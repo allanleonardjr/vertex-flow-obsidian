@@ -255,6 +255,7 @@ function parseViewValue(
 				log,
 				"calendarDateField",
 			),
+			recurringPreview: asBoolean(record.recurringPreview, false),
 			timeline: parseTimeline(record.timeline),
 			calendar: parseCalendar(record.calendar),
 	};
@@ -366,6 +367,8 @@ export function serializeView(view: SavedView): Record<string, unknown> {
 			view.calendarDateField === "dueDate"
 				? undefined
 				: view.calendarDateField,
+		// Omitted at the default; `compact` would keep a literal `false`.
+		recurringPreview: view.recurringPreview ? true : undefined,
 		timeline: view.timeline
 			? compact({
 					scale: view.timeline.scale,

@@ -174,7 +174,7 @@ const TAXONOMY_ATTRS: Readonly<Record<string, readonly string[]>> = {
 	labels: ["name", "color", "description"],
 };
 
-const PEOPLE_ATTRS: readonly string[] = ["name", "aliases", "isSelf"];
+const PEOPLE_ATTRS: readonly string[] = ["name", "aliases"];
 
 /**
  * The delta between two workspace configs, flattened to a change list:

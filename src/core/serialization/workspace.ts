@@ -114,27 +114,17 @@ function parsePeople(raw: unknown, log: IssueLog): Person[] {
 	}
 
 	const people: Person[] = [];
-	let selfSeen = false;
 
 	for (const entry of raw) {
 		const record = asRecord(entry);
 		const id = asString(record.id);
 		if (!id) continue;
 
-		const isSelf = asBoolean(record.isSelf, false);
-		if (isSelf && selfSeen) {
-			// `self` filters resolve to exactly one person; a second
-			// `isSelf` would make "Assigned to Me" ambiguous.
-			log.add(`More than one person is flagged isSelf; ignoring it on "${id}".`);
-		}
-
 		people.push({
 			id,
 			name: asString(record.name) ?? id,
 			aliases: asStringArray(record.aliases),
-			isSelf: isSelf && !selfSeen,
 		});
-		if (isSelf) selfSeen = true;
 	}
 
 	return people;
@@ -282,7 +272,6 @@ export function serializeWorkspace(
 				id: person.id,
 				name: person.name,
 				aliases: person.aliases,
-				isSelf: person.isSelf ?? false,
 			}),
 		),
 	});

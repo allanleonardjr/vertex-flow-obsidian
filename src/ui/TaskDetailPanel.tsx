@@ -278,6 +278,7 @@ export function TaskDetailPanel({
               people={snapshot.workspace.people}
               value={task.assignee}
               onChange={(assignee) => update({ assignee })}
+              mePersonId={plugin.settings.mePerson?.personId}
             />
           </PropertyRow>
 
@@ -747,9 +748,12 @@ function CommentList({
   const plugin = usePlugin();
   const [draft, setDraft] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const self = plugin
-    .activeWorkspace()
-    ?.workspace.people.find((person) => person.isSelf);
+  const mePerson = plugin.settings.mePerson;
+	const self = mePerson
+		? plugin
+				.activeWorkspace()
+				?.workspace.people.find((person) => person.id === mePerson.personId)
+		: null;
 
   const reload = async () => {
     const doc = await plugin.mutations.readDocument(task);

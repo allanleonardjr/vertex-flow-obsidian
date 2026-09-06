@@ -20,6 +20,7 @@
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { historyPathFor } from "../../core/history";
+import type { LoggedEntry } from "../../obsidian/history-log";
 import type {
   HistoryActor,
   HistoryChange,
@@ -281,13 +282,14 @@ export function HistoryBrowseView({ snapshot }: { snapshot: WorkspaceSnapshot })
   const plugin = usePlugin();
   const tabs = useTabs();
 
-  const [entries, setEntries] = useState<HistoryEntry[]>([]);
+  const [entries, setEntries] = useState<LoggedEntry[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [mode, setMode] = useState<Mode>("feed");
   const [actorFilter, setActorFilter] = useState<ActorFilter>({ kind: "all" });
   const [kindFilter, setKindFilter] = useState<KindFilter>("all");
   // Bulk-update entries render collapsed (a count) until expanded. Keyed by
-  // the entry's own `seq:ts`, which is stable per log line.
+  // `ts:stream`, which is stable per log line (timestamps are monotonic within
+  // a stream, and the stream file name separates equal timestamps).
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   const enabled = snapshot.workspace.history.enabled;
@@ -339,7 +341,7 @@ export function HistoryBrowseView({ snapshot }: { snapshot: WorkspaceSnapshot })
   );
 
   const feedDays = useMemo(() => {
-    const days: { key: string; label: string; entries: HistoryEntry[] }[] = [];
+    const days: { key: string; label: string; entries: LoggedEntry[] }[] = [];
     for (const e of [...filtered].reverse()) {
       const key = e.ts.slice(0, 10);
       const last = days[days.length - 1];
@@ -350,7 +352,7 @@ export function HistoryBrowseView({ snapshot }: { snapshot: WorkspaceSnapshot })
   }, [filtered]);
 
   const ledgerMonths = useMemo(() => {
-    const months: { key: string; label: string; entries: HistoryEntry[] }[] = [];
+    const months: { key: string; label: string; entries: LoggedEntry[] }[] = [];
     for (const e of filtered) {
       const key = monthKeyOf(e.ts);
       const last = months[months.length - 1];
@@ -382,13 +384,16 @@ export function HistoryBrowseView({ snapshot }: { snapshot: WorkspaceSnapshot })
   };
 
   const openLogFile = () => {
-    // The log lives in a single `History/Year-Month.md` per month. Land the
-    // user on the most recent one that has entries (or this month, if the
-    // log is empty but enabled).
+    // The log is one stream file per device per month
+    // (`History/2026-09.<device>.md`). Land the user on the most recent month
+    // this device has written (or this month, if the log is enabled but empty).
     const loggedMonths = [...new Set(entries.map((e) => monthKeyOf(e.ts)))].sort();
     const latest = loggedMonths.pop();
     const month = latest ?? new Date().toISOString().slice(0, 7);
-    void plugin.mutations.open(historyPathFor(snapshot.workspace.root, `${month}-01T00:00:00Z`), true);
+    void plugin.mutations.open(
+      historyPathFor(snapshot.workspace.root, `${month}-01T00:00:00Z`, plugin.history.device),
+      true,
+    );
   };
 
   // Chips stay visible even when a filter empties the list — that's the only
@@ -551,8 +556,8 @@ export function HistoryBrowseView({ snapshot }: { snapshot: WorkspaceSnapshot })
   );
 }
 
-function entryKey(e: HistoryEntry): string {
-  return `${e.seq}:${e.ts}`;
+function entryKey(e: LoggedEntry): string {
+  return `${e.ts}:${e.stream}`;
 }
 
 function actorFilterKey(filter: ActorFilter): string {

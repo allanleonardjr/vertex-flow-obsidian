@@ -94,6 +94,7 @@ export function parseQuery(
 	const hiddenFields: TaskField[] = [...DEFAULT_DEFINITION.hiddenFields];
 	let subtaskDisplay: SubtaskDisplay = DEFAULT_DEFINITION.subtaskDisplay;
 	let calendarDateField = DEFAULT_DEFINITION.calendarDateField;
+	let recurringPreview = DEFAULT_DEFINITION.recurringPreview;
 
 	const seen = new Set<string>();
 
@@ -164,6 +165,8 @@ export function parseQuery(
 				filters.openOnly = true;
 			} else if (lowered === FLAG_TOKENS.unscheduled.value) {
 				filters.unscheduled = true;
+			} else if (lowered === FLAG_TOKENS.recurring.value) {
+				filters.recurring = true;
 			} else {
 				fail("unknown-value", `"is:${lowered}" isn't a known flag`, token.span);
 			}
@@ -175,12 +178,17 @@ export function parseQuery(
 			if (!value) continue;
 			// `show:archived` and `show:archived-only` both set `filters.archived`,
 			// so a query with both is a real conflict — dedupe on that key.
-			noteDuplicate("archived", token.span);
+			// `show:recurring` is a separate presentation flag on the view.
 			const lowered = value.text.trim().toLowerCase();
 			if (lowered === FLAG_TOKENS.archivedIncluded.value) {
+				noteDuplicate("archived", token.span);
 				filters.archived = "included";
 			} else if (lowered === FLAG_TOKENS.archivedOnly.value) {
+				noteDuplicate("archived", token.span);
 				filters.archived = "only";
+			} else if (lowered === FLAG_TOKENS.recurringPreview.value) {
+				noteDuplicate("recurringPreview", token.span);
+				recurringPreview = true;
 			} else {
 				fail("unknown-value", `"show:${lowered}" isn't a known flag`, token.span);
 			}
@@ -317,6 +325,7 @@ export function parseQuery(
 		hiddenFields,
 		subtaskDisplay,
 		calendarDateField,
+		recurringPreview,
 	});
 
 	return {

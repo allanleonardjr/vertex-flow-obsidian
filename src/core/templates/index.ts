@@ -32,6 +32,7 @@ function markdownTemplates(): WorkspaceTemplate[] {
 			// The taxonomy applies whether or not example content is included, so
 			// it rides on the template itself rather than only on the content.
 			workspace: parsed.workspaceOverrides,
+			mePersonId: parsed.mePersonId,
 			buildExampleContent: (ctx) => resolveTemplateContent(parsed, ctx),
 		};
 	});

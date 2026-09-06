@@ -191,6 +191,8 @@ export const FLAG_TOKENS = {
 	archivedOnly: { field: "show", value: "archived-only", aliases: [] },
 	openOnly: { field: "is", value: "open", aliases: [] },
 	unscheduled: { field: "is", value: "unscheduled", aliases: [] },
+	recurring: { field: "is", value: "recurring", aliases: [] },
+	recurringPreview: { field: "show", value: "recurring", aliases: [] },
 } as const;
 
 /**

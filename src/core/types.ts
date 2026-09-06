@@ -117,13 +117,25 @@ export type LabelValue = TaxonomyValue;
 
 /**
  * Lightweight register for `@mentions` and `assignee`. No auth —
- * just names and aliases. At most one entry should carry `isSelf`.
+ * just names and aliases. *Who "me" is* is not stored here: it's a plugin-level
+ * `mePerson` setting (one human, global across workspaces) that resolves
+ * against this roster by id. A roster entry that `mePerson` points at may live
+ * in any workspace.
  */
 export interface Person {
 	id: string;
 	name: string;
 	aliases?: string[];
-	isSelf?: boolean;
+}
+
+/**
+ * The plugin's "who am I" — a plugin-setting pointer (one human, global across
+ * workspaces) into whichever workspace's `people` roster is on screen. `name`
+ * is a fallback for workspaces whose roster doesn't (yet) contain the id.
+ */
+export interface MeBinding {
+	personId: string;
+	name: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -140,6 +152,95 @@ export interface TaskRelations {
 
 export function emptyRelations(): TaskRelations {
 	return { blocks: [], blockedBy: [], related: [], duplicateOf: null };
+}
+
+// ---------------------------------------------------------------------------
+// Recurring tasks
+// ---------------------------------------------------------------------------
+
+/** When a series spawns its successor. */
+export type RecurrenceTrigger = "on-close" | "on-date";
+
+/** The cadence unit of a recurrence. */
+export type RecurrenceFrequency = "daily" | "weekly" | "monthly" | "yearly";
+
+/** Which date field an occurrence's day is anchored to. */
+export type RecurrenceAnchor = "dueDate" | "startDate";
+
+/**
+ * Lowercase short weekday names — the canonical encoding for a weekly
+ * cadence. `["mon", "wed", "fri"]` reads better in frontmatter than day
+ * numbers, and a human can hand-edit it without a decoder ring.
+ */
+export type Weekday =
+	| "sun"
+	| "mon"
+	| "tue"
+	| "wed"
+	| "thu"
+	| "fri"
+	| "sat";
+
+export const WEEKDAYS: readonly Weekday[] = [
+	"sun",
+	"mon",
+	"tue",
+	"wed",
+	"thu",
+	"fri",
+	"sat",
+] as const;
+
+/**
+ * The flat, durable recurrence definition — a data block with a documented
+ * frontmatter shape rather than an object graph, because it's carried forward,
+ * node by node, down a chain of spawned notes.
+ *
+ * `trigger` decides *what* fires the next occurrence, `freq`/`interval`/...
+ * decide *when* it lands, and `endsAfter`/`endsOn` decide when the series
+ * stops. `triggerStatus` is independent of frequency: a series can recur on a
+ * mid-flow status (e.g. "when Review lands") without ever being Completed.
+ */
+export interface RecurrenceConfig {
+	trigger: RecurrenceTrigger;
+	/**
+	 * For `on-close`: the status that fires the next occurrence. `null` means
+	 * "any status in the completed category". For `on-date`: unused (`null`).
+	 */
+	triggerStatus: string | null;
+	freq: RecurrenceFrequency;
+	/** Cadence multiplier — every `interval` days, weeks, months or years. */
+	interval: number;
+	/**
+	 * Weekly-only: the weekdays within each week that can carry an occurrence.
+	 * `[]` (the default) means the seed task's own weekday. Only honored at
+	 * `interval === 1`; a multi-week cadence steps whole weeks from the seed
+	 * (see `nextOccurrence`), so there's no week-block phase to drift.
+	 */
+	weekdays: Weekday[];
+	/** Monthly "on the Nth day of the month". Mutually exclusive with `weekdayOfMonth`. */
+	dayOfMonth: number | null;
+	/** Monthly "on the Nth <weekday> of the month" (1-based). */
+	weekdayOfMonth: number | null;
+	/** Yearly: the month an annual recurrence lands in (1–12). */
+	monthOfYear: number | null;
+	/**
+	 * Which date field the occurrence day drives. With both dates set, the
+	 * source's range is shifted so this field lands on the occurrence day.
+	 */
+	anchor: RecurrenceAnchor;
+	/** The status a spawned occurrence starts in; `null` = workspace default. */
+	newStatus: string | null;
+	/**
+	 * Total occurrences the series yields *including* the node carrying this
+	 * block. The chain halts once its length reaches this number.
+	 * `null` = open-ended.
+	 */
+	endsAfter: number | null;
+	/** No occurrence lands strictly after this date. `null` = no such limit. */
+	endsOn: IsoDate | null;
+	/** The next date this node should fire (On date) or land (On close) on. */
+	nextDate: IsoDate;
 }
 
 export interface Task {
@@ -161,6 +262,14 @@ export interface Task {
 	project: LinkTarget | null;
 	parent: LinkTarget | null;
 
+	/**
+	 * The task this occurrence was spawned from, when it's part of a recurring
+	 * series. `null` on a non-recurring task and on the series' first note.
+	 * This link is the chain: it never auto-updates, and a note keeps its
+	 * ancestry even after the series is stopped, so the history reads.
+	 */
+	recurringFrom: LinkTarget | null;
+
 	/** Single assignee only. A `Person.id`. */
 	assignee: string | null;
 	/** Plain optional number, no enforced meaning. */
@@ -168,6 +277,12 @@ export interface Task {
 	labels: string[];
 	startDate: IsoDate | null;
 	dueDate: IsoDate | null;
+	/**
+	 * The live recurrence schedule on this node. `null` on an ordinary task, on
+	 * a stopped node, and on the terminal occurrence of a finite series.
+	 * Successor occurrences carry an advanced copy of the block.
+	 */
+	recurrence: RecurrenceConfig | null;
 	/** Visibility flag, not a status and not a location. */
 	archived: boolean;
 	archivedAt: IsoDate | null;
@@ -277,9 +392,10 @@ export interface HistoryConfig {
 
 /**
  * Who performed an action. A person is resolved from the workspace `people`
- * entry flagged `isSelf` (there's no login, so "the person holding the mouse").
- * `system` is reserved for machine-initiated writes — the auto-archive sweep,
- * a future recurring-task engine — never a human action wearing a costume.
+ * roster by the plugin's app-level `mePerson` id (there's no login, so "the
+ * person holding the mouse"). `system` is reserved for machine-initiated
+ * writes — the auto-archive sweep, a future recurring-task engine — never a
+ * human action wearing a costume.
  */
 export type HistoryActor =
 	| { kind: "person"; id: string; name: string }
@@ -307,14 +423,13 @@ export interface HistoryChange {
 }
 
 /**
- * One appended, immutable line in a workspace's history log. `seq` is a
- * monotonically increasing per-month ordinal (1, 2, …), assigned by the
- * writer; it's ordering candy, not an id, so a duplicate after a sync or a
- * hand edit is cosmetic.
+ * One appended, immutable line in a workspace's history log. There is no
+ * sequence number: within a stream the writer enforces a strictly increasing
+ * `ts`, and across streams the reader orders by `ts` then file name — the
+ * timestamp is the timeline, and a shared log is at bottom a merge of clocks.
  */
 export interface HistoryEntry {
-	seq: number;
-	/** ISO datetime the action happened. */
+	/** ISO datetime the action happened — strictly increasing within a stream. */
 	ts: IsoDate;
 	actor: HistoryActor;
 	action: string;
@@ -405,7 +520,7 @@ export type SortDirection = "asc" | "desc";
 export const SUBTASK_DISPLAYS = ["nested", "flat", "hidden"] as const;
 export type SubtaskDisplay = (typeof SUBTASK_DISPLAYS)[number];
 
-/** Magic filter value resolving against the `people` entry with `isSelf`. */
+/** Magic filter value resolving against the app-level `mePerson` id. */
 export const SELF = "self";
 
 /** Magic filter value matching tasks where the field is unset. */
@@ -432,6 +547,8 @@ export interface ViewFilters {
 	openOnly?: boolean;
 	/** Only tasks with neither a dueDate nor a startDate set. */
 	unscheduled?: boolean;
+	/** Only tasks carrying a live recurrence definition. */
+	recurring?: boolean;
 }
 
 /** Per-Saved-View, not global. */
@@ -539,6 +656,14 @@ export interface SavedView {
 	 */
 	calendarDateField: "dueDate" | "startDate";
 	/**
+	 * Whether the Calendar and Timeline render this view's recurrences as
+	 * projected, not-yet-created future occurrences. Definitional — it changes
+	 * what the view shows — so it rides in `ViewDefinition` and the draft/Save
+	 * cycle rather than writing through like `calendar` chrome. Projections are
+	 * read-only: they preview, they never (and cannot) mutate the chain.
+	 */
+	recurringPreview: boolean;
+	/**
 	 * Timeline zoom/scroll chrome — present only once the view has been opened
 	 * as a timeline and panned or zoomed. Excluded from `ViewDefinition`, like
 	 * `columns`.
@@ -572,6 +697,7 @@ export type ViewDefinition = Pick<
 	| "hiddenFields"
 	| "subtaskDisplay"
 	| "calendarDateField"
+	| "recurringPreview"
 >;
 
 // ---------------------------------------------------------------------------
