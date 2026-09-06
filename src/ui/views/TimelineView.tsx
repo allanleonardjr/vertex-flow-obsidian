@@ -51,6 +51,7 @@ import type {
 } from "../../core/types";
 import { EmptyView } from "../components/EmptyView";
 import { TaskRowContent } from "../components/TaskRow";
+import { displayTitle } from "../components/TaskTitle";
 import { ResizeHandle } from "../components/ResizeHandle";
 import { useCreateTask } from "../actions";
 import { usePlugin } from "../context";
@@ -531,7 +532,7 @@ export function TimelineView({
                     task.archived ? " is-archived" : ""
                   }`}
                   data-task-path={task.path}
-                  title={leftCollapsed ? task.title : undefined}
+                  title={leftCollapsed ? displayTitle(task) : undefined}
                   onClick={(event) => openRow(event, task)}
                 >
                   {!leftCollapsed && (

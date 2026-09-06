@@ -2,7 +2,7 @@
  * The task detail panel — a dedicated editor for one task.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { resetAutoGrow } from "./components/autoGrow";
 import {
@@ -17,7 +17,7 @@ import { sortTasksByRank } from "../core/ranking";
 import { withExtension } from "../obsidian/note-io";
 import type { WorkspaceTaxonomies } from "../core/taxonomy";
 import type { Comment, Task, WorkspaceSnapshot } from "../core/types";
-import { NEW_TASK_TITLE } from "./actions";
+import { displayTitle, TaskTitle } from "./components/TaskTitle";
 import {
   DateField,
   NumberField,
@@ -403,21 +403,33 @@ function RawSourceSection({ task }: { task: Task }) {
 function TitleField({ task }: { task: Task }) {
   const plugin = usePlugin();
   const [title, setTitle] = useDebouncedSave(task.title, (value) => {
-    void plugin.mutations.updateTask(task, { title: value.trim() || task.id });
+    void plugin.mutations.updateTask(task, { title: value.trim() });
   });
 
-  const isPlaceholder = task.title === NEW_TASK_TITLE;
+  const titleField = useRef<HTMLTextAreaElement | null>(null);
+
+  // The auto-grow resize runs in the ref callback (commit phase); the caret
+  // must not. Landing on a brand-new task, `App` focuses the shell in its own
+  // layout effect, which would swallow a commit-phase focus here — so the
+  // parent-less place the title reliably wins is a passive effect, which runs
+  // after every layout effect on the same commit. Only the first time per
+  // mount: clearing a title later shouldn't yank focus back into the field.
+  const autoFocused = useRef(false);
+  useEffect(() => {
+    if (autoFocused.current) return;
+    autoFocused.current = true;
+    const el = titleField.current;
+    if (el && task.title.length === 0) el.focus();
+  }, [task]);
+
   const focusRef = useCallback(
     (element: HTMLTextAreaElement | null) => {
+      titleField.current = element;
       if (!element) return;
       resetAutoGrow(element);
       element.style.height = `${element.scrollHeight}px`;
-      if (isPlaceholder) {
-        element.focus();
-        element.select();
-      }
     },
-    [isPlaceholder],
+    [],
   );
 
   return (
@@ -526,7 +538,7 @@ function AddSubtaskTrigger({
 
       {tooDeep && (
         <ConfirmDeleteDialog
-          title={`Nest "${tooDeep.title}" ${depthUnder(
+          title={`Nest "${displayTitle(tooDeep)}" ${depthUnder(
             scopeOf(snapshot),
             task.path,
           )} levels deep?`}
@@ -562,7 +574,7 @@ function ReparentSubtaskDialog({
   onConfirm: () => void;
   onClose: () => void;
 }) {
-  const label = (task: Task) => `${task.id} ${task.title}`;
+  const label = (task: Task) => `${task.id} ${displayTitle(task)}`;
 
   return createPortal(
     <div className="vf-editor-backdrop" onClick={onClose}>
@@ -633,7 +645,7 @@ function ParentPicker({
     <PropertyRow label="Parent">
       {tooDeep && (
         <ConfirmDeleteDialog
-          title={`Nest "${task.title}" ${depthUnder(scopeOf(snapshot), tooDeep)} levels deep?`}
+          title={`Nest "${displayTitle(task)}" ${depthUnder(scopeOf(snapshot), tooDeep)} levels deep?`}
           body="Deeply nested sub-tasks get hard to scan. You can still move it."
           confirmLabel="Move anyway"
           onCancel={() => setTooDeep(null)}
@@ -667,7 +679,9 @@ function ParentPicker({
               <>
                 <StatusDot taxonomies={taxonomies} status={parentTask.status} />
                 <span className="vf-id">{parentTask.id}</span>
-                <span className="vf-icon-select-name">{parentTask.title}</span>
+                <span className="vf-icon-select-name">
+                  <TaskTitle task={parentTask} />
+                </span>
               </>
             ) : (
               <span className="vf-icon-select-name vf-prop-empty">

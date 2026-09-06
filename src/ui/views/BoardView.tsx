@@ -34,6 +34,7 @@ import {
   SubtaskProgress,
   TaxonomyChip,
 } from "../components/TaskBits";
+import { TaskTitle, displayTitle } from "../components/TaskTitle";
 import { useTabs, type TabsApi } from "../tabs-context";
 import { useScrollFocusIntoView, useSelection } from "../selection";
 import { useTaskDropHandler } from "./useDropHandler";
@@ -357,7 +358,7 @@ function CardContent({
         <button
           type="button"
           className="vf-card-parent"
-          title={`Sub-task of ${parent.id} ${parent.title}`}
+          title={`Sub-task of ${parent.id} ${displayTitle(parent)}`}
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => {
             event.stopPropagation();
@@ -366,7 +367,9 @@ function CardContent({
         >
           <span aria-hidden>↳</span>
           <span className="vf-id">{parent.id}</span>
-          <span className="vf-card-parent-name">{parent.title}</span>
+          <span className="vf-card-parent-name">
+            <TaskTitle task={parent} />
+          </span>
         </button>
       )}
 
@@ -389,7 +392,9 @@ function CardContent({
       )}
 
       {/* Prominent Task Title */}
-      <div className="vf-card-title">{task.title}</div>
+      <div className="vf-card-title">
+        <TaskTitle task={task} />
+      </div>
 
       {/* Sub-task Progress Bar (Wrapped for block spacing) */}
       {!off("progress") && progress.total > 0 && (

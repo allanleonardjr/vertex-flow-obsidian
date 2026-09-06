@@ -12,6 +12,7 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ### Changed
 - The workspace template gallery is **markdown-only** from now on: the last TypeScript-authored templates (`software-sprint`, `feedback-roadmap`, `personal-admin`) were removed, making `templates/*.md` the single authoring form.
+- A brand-new task is created **untitled** instead of carrying a placeholder ("New task") or displaying its ID as a name. The editor opens with the title field focused so the name can be typed immediately — no mouse needed — and any surface that shows a task's name (list rows, board cards, the timeline, tabs, breadcrumbs, and the trash/nest dialogs) renders a greyed **Untitled task** for one with no title yet. The task ID stays a separate identity badge and is never substituted for the name; clearing a title now leaves it empty rather than restoring the ID.
 
 ### Fixed
 - Task notes created from a workspace template no longer lose their description. They previously got a bare `## Description` heading, which the editor's description parser doesn't recognize — so freshly onboarded tasks showed an empty description even though the raw markdown was sitting in the file. Template ingestion now wraps the description in the same `PLUGIN_DESCRIPTION_START`/`PLUGIN_DESCRIPTION_END` block that notes created in-app (new-task dialog, description editor) use, keeps an author's sub-headings intact, and still appends the comments block beneath it.

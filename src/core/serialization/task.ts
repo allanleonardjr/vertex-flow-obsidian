@@ -82,7 +82,7 @@ export function parseTask(
 	const task: Task = {
 		type: "task",
 		id: fileId,
-		title: asString(fm.title) ?? fileId,
+		title: asString(fm.title) ?? "",
 		taskType: asString(fm.taskType),
 		status: status ?? options.defaultStatus,
 		priority: asString(fm.priority),
@@ -145,7 +145,7 @@ export function serializeTask(task: Task): Record<string, unknown> {
 		type: "task",
 		taskType: task.taskType,
 		id: task.id,
-		title: task.title,
+		title: task.title || undefined,
 		status: task.status,
 		priority: task.priority,
 		rank: task.rank,

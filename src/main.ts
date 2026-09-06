@@ -205,7 +205,7 @@ export default class VertexFlowPlugin extends Plugin {
 		}
 
 		try {
-			const file = await this.mutations.createTask(snapshot, { title: "New task" });
+			const file = await this.mutations.createTask(snapshot, {});
 			await this.requestEdit(file.path.replace(/\.md$/, ""));
 		} catch (cause) {
 			new Notice(

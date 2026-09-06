@@ -30,6 +30,7 @@ import {
 	StatusDot,
 	TaxonomyChip,
 } from "./TaskBits";
+import { TaskTitle } from "./TaskTitle";
 
 /**
  * The row's contents, with no interaction of its own — the caller supplies
@@ -73,7 +74,7 @@ export function TaskRowContent({
 							↳
 						</span>
 					)}
-					{task.title}
+					<TaskTitle task={task} />
 				</span>
 			</>
 		);
@@ -91,7 +92,7 @@ export function TaskRowContent({
 						↳
 					</span>
 				)}
-				{task.title}
+				<TaskTitle task={task} />
 			</span>
 
 			<span className="vf-row-meta">

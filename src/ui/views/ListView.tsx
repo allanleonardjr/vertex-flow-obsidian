@@ -33,6 +33,7 @@ import {
   type TaskListInteraction,
 } from "../components/TaskList";
 import { TaskRowContent } from "../components/TaskRow";
+import { displayTitle } from "../components/TaskTitle";
 import { DeleteEntityDialog } from "../DeleteEntityDialog";
 import { useTabs } from "../tabs-context";
 import { useSelection, useScrollFocusIntoView } from "../selection";
@@ -153,7 +154,7 @@ export function ListView({
     <button
       type="button"
       className="vf-icon-button vf-row-remove"
-      title={`Move "${task.title}" to Trash`}
+      title={`Move "${displayTitle(task)}" to Trash`}
       onClick={(e) => {
         e.stopPropagation();
         setDeletePlan(planDeletion(scopeOf(snapshot), task));

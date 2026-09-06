@@ -99,8 +99,15 @@ describe("parseTask", () => {
 		expect(issues[0]).toMatch(/Missing status/);
 	});
 
-	it("titles an untitled task with its id rather than leaving it blank", () => {
-		expect(parseTask({}, opts).value.title).toBe("PRD-0104");
+	it("leaves an untitled task's title blank — the id is not its name", () => {
+		const { value } = parseTask({}, opts);
+		expect(value.title).toBe("");
+		expect(value.id).toBe("PRD-0104");
+	});
+
+	it("serializes a blank title as an absent field, so notes stay clean", () => {
+		const fm = serializeTask(parseTask({}, opts).value);
+		expect(fm.title).toBeUndefined();
 	});
 
 	it("resets a corrupt rank instead of throwing", () => {

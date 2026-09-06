@@ -82,7 +82,8 @@ import { NoteIO, withExtension, withoutExtension } from "./note-io";
 import { liveFolder, trashFolder } from "./trash-paths";
 
 export interface NewTaskInput {
-  title: string;
+  /** Optional — a task is untitled until the user types a name. */
+  title?: string;
   status?: string;
   priority?: string | null;
   taskType?: string | null;
@@ -135,7 +136,7 @@ export class Mutations {
     const task: Task = {
       type: "task",
       id,
-      title: input.title.trim() || id,
+      title: (input.title ?? "").trim(),
       taskType: input.taskType ?? null,
       status: input.status ?? workspace.defaultNewTaskStatus,
       priority: input.priority ?? null,

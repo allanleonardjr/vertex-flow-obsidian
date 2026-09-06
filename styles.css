@@ -739,6 +739,12 @@ button.vf-list-group-toggle:hover {
   text-overflow: ellipsis;
 }
 
+/* A task with no title yet renders as the grayed "Untitled task" — the ID
+   is a separate identity badge, never the name. */
+.vf-untitled-title {
+  color: var(--text-faint);
+}
+
 /* Truncation basis where the title sits inside an option/action row: the
    flex-basis items need `min-width: 0` or the long title refuses to shrink. */
 .vf-trash-task-row .vf-row-title,

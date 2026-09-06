@@ -14,9 +14,6 @@ import { newView } from "../core/views";
 import { usePlugin } from "./context";
 import { useTabs } from "./tabs-context";
 
-/** Title given to a freshly created task, selected on open so it's replaceable. */
-export const NEW_TASK_TITLE = "New task";
-
 /**
  * Create a task and open it in its own internal tab.
  *
@@ -35,14 +32,10 @@ export function useCreateTask(): (
 	return useCallback(
 		async (snapshot, input = {}) => {
 			try {
-				const file = await plugin.mutations.createTask(snapshot, {
-					// A placeholder rather than an empty title: an untitled task
-					// falls back to displaying its ID, which reads as a bug in
-					// the list. The editor selects this text on open so typing
-					// replaces it.
-					title: NEW_TASK_TITLE,
-					...input,
-				});
+				// A brand-new task has no title until the user types one — the
+				// editor opens focused on the empty title field, and the title
+				// renders as the grayed "Untitled task" fallback meanwhile.
+				const file = await plugin.mutations.createTask(snapshot, input);
 				tabs.openTask(withoutExtension(file.path));
 			} catch (cause) {
 				new Notice(
@@ -56,7 +49,7 @@ export function useCreateTask(): (
 	);
 }
 
-/** Title given to a freshly created project, mirroring `NEW_TASK_TITLE`. */
+/** Title given to a freshly created project. */
 export const NEW_PROJECT_TITLE = "New project";
 
 /**

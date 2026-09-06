@@ -18,6 +18,7 @@ import { basename } from "../../core/links";
 import { useTabs } from "../tabs-context";
 import { Icon } from "./Icon";
 import { StatusDot } from "./TaskBits";
+import { TaskTitle } from "./TaskTitle";
 
 /** Ancestors past this many collapse to a "…" the reader can expand. */
 const COLLAPSE_ABOVE = 2;
@@ -76,7 +77,9 @@ export function TaskBreadcrumb({
 					>
 						<StatusDot taxonomies={taxonomies} status={ancestor.status} />
 						<span className="vf-id">{ancestor.id}</span>
-						<span className="vf-crumb-name">{ancestor.title}</span>
+						<span className="vf-crumb-name">
+							<TaskTitle task={ancestor} />
+						</span>
 					</button>
 					{collapse && index === 0 ? (
 						<>
