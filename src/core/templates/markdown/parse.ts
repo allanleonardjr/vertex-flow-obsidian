@@ -115,16 +115,32 @@ export function parseDateToken(raw: string, line: number): ParsedDate {
 
 /* ------------------------------------------------------ taxonomy shorthand */
 
-/** `"Name (category, #hex)"` / `"Name (#hex)"` / `"Name"`. */
-function splitShorthand(raw: string): { name: string; parts: string[] } {
-	const match = /^(.*?)\s*\(([^)]*)\)\s*$/.exec(raw.trim());
-	if (!match) return { name: raw.trim(), parts: [] };
+/**
+ * `"Name (category, #hex)"` / `"Name (#hex)"` / `"Name"`, plus an optional
+ * trailing ` - description` suffix: `"Name (category, #hex) - description"`.
+ *
+ * The greedy `.*` reaches for the *last* parenthesised group, so an extra
+ * parenthesised phrase inside the name (e.g. `"Research (IRB) (started,
+ * #94a3b8)"`) still resolves to the right name and parts. A description must
+ * not itself contain parentheses — the last paren group would swallow them —
+ * and it only parses when the entry has a paren group.
+ */
+function splitShorthand(raw: string): {
+	name: string;
+	parts: string[];
+	description?: string;
+} {
+	const text = raw.trim();
+	const match = /^(.*)\(([^)]*)\)\s*(.*)$/.exec(text);
+	if (!match) return { name: text, parts: [] };
+	const description = match[3].replace(/^-\s*/, "").trim();
 	return {
 		name: match[1].trim(),
 		parts: match[2]
 			.split(",")
 			.map((p) => p.trim())
 			.filter(Boolean),
+		...(description ? { description } : {}),
 	};
 }
 
@@ -197,7 +213,7 @@ function parseStatuses(raw: unknown): StatusValue[] | undefined {
 	if (!entries) return undefined;
 
 	const values = entries.map((entry, index) => {
-		const { name, parts } = splitShorthand(entry);
+		const { name, parts, description } = splitShorthand(entry);
 		if (!name) fail(`Status ${index + 1} has no name: "${entry}"`);
 
 		const categoryRaw = parts.find((p) => !HEX_RE.test(p));
@@ -221,6 +237,7 @@ function parseStatuses(raw: unknown): StatusValue[] | undefined {
 			name,
 			color: color ?? statusCategoryColor(category),
 			category,
+			description,
 			order: index + 1,
 		};
 	});
@@ -239,7 +256,7 @@ function parseFlatTaxonomy<T extends { id: string; name: string; color: string }
 	if (!entries) return undefined;
 
 	const values = entries.map((entry, index) => {
-		const { name, parts } = splitShorthand(entry);
+		const { name, parts, description } = splitShorthand(entry);
 		if (!name) fail(`${field} entry ${index + 1} has no name: "${entry}"`);
 		const color = parts.find((p) => HEX_RE.test(p));
 		const unknown = parts.find((p) => !HEX_RE.test(p));
@@ -248,10 +265,11 @@ function parseFlatTaxonomy<T extends { id: string; name: string; color: string }
 				`"${name}" in ${field} carries "(${unknown})" — only a #hex colour is allowed here`,
 			);
 		}
-		const base = {
+		const base: { id: string; name: string; color: string; description?: string } = {
 			id: slugifyPlain(name),
 			name,
 			color: color ?? paletteColor(kind, index, entries.length),
+			...(description ? { description } : {}),
 		};
 		return (withOrder ? { ...base, order: index + 1 } : base) as T;
 	});

@@ -3,6 +3,11 @@ import { instantiateTemplate } from "../../src/core/templates/instantiate";
 import { WORKSPACE_TEMPLATES, templateById } from "../../src/core/templates";
 import { sampleWorkspaceTemplate } from "../../src/core/templates/sample-workspace";
 import { serializeWorkspace } from "../../src/core/serialization/workspace";
+import {
+	DESCRIPTION_START_TAG,
+	parseDescription,
+} from "../../src/core/serialization/description";
+import { COMMENTS_START } from "../../src/core/serialization/comments";
 import { workspaceTaxonomies } from "../../src/core/taxonomy";
 import type { Task } from "../../src/core/types";
 
@@ -250,6 +255,114 @@ describe("blank workspace template", () => {
 				"defaultNewTaskStatus",
 			),
 		).toBe(false);
+	});
+});
+
+describe("instantiated task notes carry a parseable description block", () => {
+	const generated = instantiateTemplate({
+		...base,
+		name: "Demo",
+		template: gettingStartedTemplate,
+		includeExampleContent: true,
+		now: new Date("2026-08-26T12:00:00Z"),
+	});
+	const agencyGenerated = instantiateTemplate({
+		...base,
+		name: "Demo",
+		template: requireTemplate("agency-client-management"),
+		includeExampleContent: true,
+		now: new Date("2026-08-26T12:00:00Z"),
+	});
+	const noteFor = (
+		snapshot: typeof generated.snapshot,
+		notes: typeof generated.notes,
+		title: string,
+	) => {
+		const task = snapshot.tasks.find((t) => t.title === title);
+		expect(task).toBeDefined();
+		return notes.find((n) => n.path === task!.path)!;
+	};
+
+	it("wraps fenced descriptions in the plugin's description block", () => {
+		const note = noteFor(
+			generated.snapshot,
+			generated.notes,
+			"Open this task and write a description",
+		);
+		expect(note.body).toContain(DESCRIPTION_START_TAG);
+		expect(note.body).toContain("<!-- PLUGIN_DESCRIPTION_END -->");
+		// The structural heading is written exactly once — not doubled by the
+		// template fence's own `## Description`.
+		expect(note.body.match(/^## Description$/gm)).toHaveLength(1);
+		const desc = parseDescription(note.body);
+		expect(desc).toContain("[[Plan a weekend trip]]");
+		expect(desc).toContain("community.obsidian.md");
+	});
+
+	it("wraps bare-prose descriptions too", () => {
+		const note = noteFor(
+			generated.snapshot,
+			generated.notes,
+			"Give this task a due date",
+		);
+		expect(parseDescription(note.body)).toContain("Calendar and Timeline");
+	});
+
+	it("keeps an author's sub-headings and appends comments after the block", () => {
+		const note = noteFor(
+			agencyGenerated.snapshot,
+			agencyGenerated.notes,
+			"Monthly social content calendar",
+		);
+		expect(note.body).toContain(DESCRIPTION_START_TAG);
+		expect(note.body).toContain(COMMENTS_START);
+		expect(note.body.indexOf(DESCRIPTION_START_TAG)).toBeLessThan(
+			note.body.indexOf(COMMENTS_START),
+		);
+		const desc = parseDescription(note.body);
+		expect(desc).toContain("This month's calendar");
+		expect(desc).toContain("Client sign-off");
+		// Comment prose lives only in the comments block.
+		expect(desc).not.toContain("rounds of revisions");
+	});
+
+	it("round-trips descriptions the readDocument path relies on", () => {
+		for (const task of generated.snapshot.tasks) {
+			const note = generated.notes.find((n) => n.path === task.path)!;
+			if (note.body === "") continue;
+			// Whatever was authored, `parseDescription` must be able to find it —
+			// that's the exact call `mutations.readDocument` makes for the editor.
+			expect(
+				parseDescription(note.body),
+				`task "${task.title}"`,
+			).not.toBe("");
+		}
+	});
+
+	it("leaves tasks with no prose an empty body", () => {
+		const { snapshot, notes } = instantiateTemplate({
+			...base,
+			name: "Demo",
+			template: sampleWorkspaceTemplate,
+			includeExampleContent: true,
+		});
+		// The fixture only describes 4 of its 25 tasks — every other note must be
+		// emitted with no description block rather than an empty scaffold, and
+		// any non-empty body must start with a plugin-owned block.
+		expect(
+			snapshot.tasks.some(
+				(task) => notes.find((n) => n.path === task.path)!.body === "",
+			),
+		).toBe(true);
+		for (const task of snapshot.tasks) {
+			const body = notes.find((n) => n.path === task.path)!.body;
+			if (body === "") continue;
+			expect(
+				body.startsWith(DESCRIPTION_START_TAG) ||
+					body.startsWith(COMMENTS_START),
+				`unexpected body shape for "${task.title}"`,
+			).toBe(true);
+		}
 	});
 });
 

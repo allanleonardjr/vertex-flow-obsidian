@@ -5,10 +5,10 @@
  * `views.test.ts`, `taxonomy.test.ts`, and three tests in `templates.test.ts`.
  * Change it deliberately and update those tests alongside.
  *
- * This is a deliberate copy of the (still separately maintained, not-yet-
- * converted) `software-sprint.ts` gallery-candidate template, frozen here so
- * the two can evolve independently. Do NOT import this from `templates/index.ts`
- * or add it to `WORKSPACE_TEMPLATES` — it is test-only.
+ * This is a standalone frozen fixture - its content no longer mirrors any
+ * live template source, so edit it here alone, and update the tests that
+ * assert against it whenever you do. Do NOT import this from
+ * `templates/index.ts` or add it to `WORKSPACE_TEMPLATES` — it is test-only.
  */
 
 import { joinPath } from "../links";

@@ -5,6 +5,17 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Added
+- Every **workspace template** now ships with short descriptions for its content: each Task, Project, Saved View, Dashboard, and taxonomy value (Status, Priority, Type, Label) explains itself in a sentence, so a freshly created workspace reads like a finished example rather than a bare scaffold.
+- Template descriptions are authored entirely in the template's own markdown: taxonomy values use a `"Name (category, #hex) - description"` shorthand in the frontmatter, and Task/Project/View/Dashboard descriptions are written straight into the template body. The Getting Started and Agency templates also demonstrate `[[internal wikilinks]]`, external Markdown links, and sub-headings inside a description.
+- The markdown template parser now reconciles those descriptions onto the taxonomy engine's `TaxonomyValue.description`, so template-provided statuses, priorities, types, and labels surface their descriptions in the taxonomy settings and editor UI exactly like ones configured by hand.
+
+### Changed
+- The workspace template gallery is **markdown-only** from now on: the last TypeScript-authored templates (`software-sprint`, `feedback-roadmap`, `personal-admin`) were removed, making `templates/*.md` the single authoring form.
+
+### Fixed
+- Task notes created from a workspace template no longer lose their description. They previously got a bare `## Description` heading, which the editor's description parser doesn't recognize — so freshly onboarded tasks showed an empty description even though the raw markdown was sitting in the file. Template ingestion now wraps the description in the same `PLUGIN_DESCRIPTION_START`/`PLUGIN_DESCRIPTION_END` block that notes created in-app (new-task dialog, description editor) use, keeps an author's sub-headings intact, and still appends the comments block beneath it.
+
 ## 1.0.9 — 2026-09-05
 
 ### Added

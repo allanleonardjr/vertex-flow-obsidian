@@ -299,7 +299,7 @@ describe("sorting", () => {
 describe("grouping", () => {
 	it("emits a column for every status, even empty ones", () => {
 		const groups = groupTasks([], "status", context);
-		// The software-sprint fixture's status set — two `started` statuses
+		// The sample-workspace fixture's status set — two `started` statuses
 		// (In Progress, In Review) on purpose.
 		expect(groups.map((g) => g.key)).toEqual([
 			"backlog",

@@ -14,6 +14,7 @@
 import { joinPath } from "../links";
 import { formatTaskId, slugify } from "../ids";
 import { serializeComments } from "../serialization/comments";
+import { serializeDescription } from "../serialization/description";
 import { serializeProject } from "../serialization/entities";
 import { serializeTask } from "../serialization/task";
 import { serializeView } from "../serialization/views";
@@ -96,6 +97,25 @@ function seedSelfPerson(workspace: WorkspaceConfig, rawName: string): void {
 }
 
 const DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * Wrap a template's task description in the plugin's fenced `## Description`
+ * block — the only shape `parseDescription` (and therefore the editor) can
+ * read back, and the same shape `createTask`/`setDescription` produce for
+ * notes created after onboarding.
+ *
+ * Older template fences and the sample fixture carried the heading as part of
+ * their content; a leading `## Description` is structure, not prose, so it's
+ * dropped before serializing rather than letting it double up (mirroring how
+ * project bodies shed a stray `## Overview`, `extractProjectDescription`).
+ */
+function descriptionBlockFor(raw: string | undefined): string {
+	const content = (raw ?? "")
+		.replace(/\r\n/g, "\n")
+		.replace(/^\s*##\s+Description\s*\n?/i, "")
+		.trim();
+	return content ? serializeDescription(content) : "";
+}
 
 function applyOverrides(
 	base: WorkspaceConfig,
@@ -226,12 +246,13 @@ export function instantiateTemplate(
 			});
 		}
 		for (const task of tasks) {
-			const description = descriptions.get(task.path) ?? "";
+			const descriptionBlock = descriptionBlockFor(descriptions.get(task.path));
 			const block = serializeComments(commentsByPath.get(task.path) ?? []);
+			const body = [descriptionBlock, block].filter(Boolean).join("\n\n");
 			notes.push({
 				path: task.path,
 				frontmatter: serializeTask(task),
-				body: block ? `${description}\n${block}\n` : description,
+				body: body ? `${body}\n` : "",
 			});
 		}
 	}

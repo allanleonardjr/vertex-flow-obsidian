@@ -286,3 +286,61 @@ describe("template markdown — contradictory block relations", () => {
 		expect(beta.relations.blockedBy).toEqual([alpha.path]);
 	});
 });
+
+describe("template markdown — taxonomy descriptions", () => {
+	it("carries a trailing ` - description` on statuses", () => {
+		const parsed = parseTemplateMarkdown(
+			template(
+				HEADER +
+					'\nstatuses: ["To Do (unstarted) - not started yet", "Done (completed, #34d399) - finished work"]',
+			),
+		);
+		const [todo, done] = parsed.workspaceOverrides.statuses!;
+		expect(todo.description).toBe("not started yet");
+		expect(done.description).toBe("finished work");
+		expect(done.color).toBe("#34d399");
+	});
+
+	it("carries a description on labels and task types", () => {
+		const parsed = parseTemplateMarkdown(
+			template(
+				HEADER + "\nlabels: [Important (#ef4444) - real weight]",
+			),
+		);
+		expect(parsed.workspaceOverrides.labels![0].description).toBe("real weight");
+	});
+
+	it("leaves description unset for plain shorthand", () => {
+		const parsed = parseTemplateMarkdown(
+			template(HEADER + '\nlabels: ["Quick win (#22c55e)", "Waiting on someone (#f59e0b)"]'),
+		);
+		const [quick, waiting] = parsed.workspaceOverrides.labels!;
+		expect(quick.description).toBeUndefined();
+		expect(waiting.description).toBeUndefined();
+	});
+
+	it("keeps an extra paren group inside the name alongside a description", () => {
+		const parsed = parseTemplateMarkdown(
+			template(
+				HEADER +
+					'\nstatuses: ["Research (IRB) (started, #94a3b8) - ethics-approved study"]',
+			),
+		);
+		const [status] = parsed.workspaceOverrides.statuses!;
+		expect(status.name).toBe("Research (IRB)");
+		expect(status.category).toBe("started");
+		expect(status.color).toBe("#94a3b8");
+		expect(status.description).toBe("ethics-approved study");
+	});
+
+	it("survives resolution onto the generated workspace", () => {
+		const parsed = parseTemplateMarkdown(
+			template(HEADER + '\nlabels: [Needs Advisor Feedback (#f59e0b) - review before next step]'),
+		);
+		const { workspace } = resolveTemplateContent(parsed, context());
+		expect(workspace?.labels?.[0]).toMatchObject({
+			name: "Needs Advisor Feedback",
+			description: "review before next step",
+		});
+	});
+});
