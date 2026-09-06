@@ -13,8 +13,10 @@
 
 import { valuesDiffer } from "./index";
 import type {
+	DashboardConfig,
 	HistoryChange,
 	Project,
+	SavedView,
 	TaxonomyValue,
 	Task,
 	WorkspaceConfig,
@@ -94,6 +96,51 @@ export function diffProjectFields(
 		const b = to[field];
 		if (valuesDiffer(a, b)) {
 			changes.push({ field: field as string, from: a, to: b });
+		}
+	}
+	return changes;
+}
+
+/**
+ * Identity deltas for Saved Views. Views churn their *definition* constantly —
+ * column drags, filter tweaks, sort/group picks — and that state is not
+ * history. But what the view *is called* (and its icon/description) is, exactly
+ * like renaming a Task or a Project.
+ */
+const VIEW_IDENTITY_FIELDS: ReadonlyArray<keyof SavedView> = [
+	"name",
+	"icon",
+	"description",
+];
+
+export function viewIdentityChanges(
+	from: SavedView,
+	to: SavedView,
+): HistoryChange[] {
+	const changes: HistoryChange[] = [];
+	for (const field of VIEW_IDENTITY_FIELDS) {
+		if (valuesDiffer(from[field], to[field])) {
+			changes.push({ field: field as string, from: from[field], to: to[field] });
+		}
+	}
+	return changes;
+}
+
+/** Same idea for Dashboards; widgets/filters are churn, name/icon/description aren't. */
+const DASHBOARD_IDENTITY_FIELDS: ReadonlyArray<keyof DashboardConfig> = [
+	"name",
+	"icon",
+	"description",
+];
+
+export function dashboardIdentityChanges(
+	from: DashboardConfig,
+	to: DashboardConfig,
+): HistoryChange[] {
+	const changes: HistoryChange[] = [];
+	for (const field of DASHBOARD_IDENTITY_FIELDS) {
+		if (valuesDiffer(from[field], to[field])) {
+			changes.push({ field: field as string, from: from[field], to: to[field] });
 		}
 	}
 	return changes;

@@ -21,6 +21,7 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 - Task notes created from a workspace template no longer lose their description. They previously got a bare `## Description` heading, which the editor's description parser doesn't recognize — so freshly onboarded tasks showed an empty description even though the raw markdown was sitting in the file. Template ingestion now wraps the description in the same `PLUGIN_DESCRIPTION_START`/`PLUGIN_DESCRIPTION_END` block that notes created in-app (new-task dialog, description editor) use, keeps an author's sub-headings intact, and still appends the comments block beneath it.
+- Activity history no longer skips whole classes of events: creating a workspace with history on records a `workspace.create` entry, and renaming a Saved View or Dashboard (or swapping its icon or description) now logs a `view.update`/`dashboard.update` instead of staying silent. Two writer bugs were also fixed — a seeded log now bumps the store revision so an open Activity History hub repaints, and a burst of entries written on top of an existing month's file keeps a correct, non-colliding sequence number instead of restarting or duplicating.
 
 ## 1.0.9 — 2026-09-05
 

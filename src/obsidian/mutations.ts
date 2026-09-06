@@ -82,8 +82,10 @@ import { NoteIO, withExtension, withoutExtension } from "./note-io";
 import { liveFolder, trashFolder } from "./trash-paths";
 import { HistoryLog } from "./history-log";
 import {
+  dashboardIdentityChanges,
   diffProjectFields,
   diffTaskFields,
+  viewIdentityChanges,
   workspaceConfigChanges,
 } from "../core/history/diff";
 import type { HistoryChange, HistoryTarget } from "../core/types";
@@ -926,14 +928,30 @@ export class Mutations {
    * column state — straight to that view's own file, never touching any other
    * view. Writes the file even for a System View (its tweaks persist just like
    * a user view's); migration is the only path that must never create one.
+   *
+   * History is identity-only: a rename or an icon/description swap is logged
+   * as `view.update`; the column/filter/timeline churn a view undergoes while
+   * you work in it is not (see `addView`'s comment).
    */
   async updateView(
     snapshot: WorkspaceSnapshot,
     view: SavedView,
   ): Promise<void> {
-    const path = this.liveView(snapshot, view.id)?.path || this.viewPath(snapshot, view.id);
+    const prev = this.liveView(snapshot, view.id);
+    const path = prev?.path || this.viewPath(snapshot, view.id);
     await this.io.writeConfigNote(path, serializeView(view));
     await this.index.rebuild();
+
+    if (prev) {
+      const changes = viewIdentityChanges(prev, view);
+      if (changes.length > 0) {
+        this.history.record(snapshot.workspace, {
+          action: "view.update",
+          targets: [{ kind: "view", id: view.id, path }],
+          changes,
+        });
+      }
+    }
   }
 
   /**
@@ -983,16 +1001,32 @@ export class Mutations {
     });
   }
 
-  /** Replace one dashboard by id — the Save from the dashboard view. */
+  /**
+   * Replace one dashboard by id — the Save from the dashboard view. Widget and
+   * filter edits are view state, not history; a rename or icon/description swap
+   * is (mirrors `updateView`).
+   */
   async updateDashboard(
     snapshot: WorkspaceSnapshot,
     dashboard: DashboardConfig,
   ): Promise<void> {
+    const prev = this.liveDashboard(snapshot, dashboard.id);
     const path =
       this.liveDashboard(snapshot, dashboard.id)?.path ||
       this.dashboardPath(snapshot, dashboard.id);
     await this.io.writeConfigNote(path, serializeDashboard(dashboard));
     await this.index.rebuild();
+
+    if (prev) {
+      const changes = dashboardIdentityChanges(prev, dashboard);
+      if (changes.length > 0) {
+        this.history.record(snapshot.workspace, {
+          action: "dashboard.update",
+          targets: [{ kind: "dashboard", id: dashboard.id, path }],
+          changes,
+        });
+      }
+    }
   }
 
   /** Remove a dashboard — move its one file into `Trash/Dashboards/`. */
@@ -1315,6 +1349,19 @@ export class Mutations {
       await this.io.create(note.path, note.frontmatter, note.body);
     }
 
+    await this.index.rebuild();
+
+    // The workspace's own creation opens the log when history is on. It lands
+    // on the chain before the demo seed below, so a scaffolded workspace reads
+    // "created" then "history turned on" then the demo entries — coherent even
+    // though `record` and `seed` are both fire-and-forget.
+    if (generated.workspace.history.enabled) {
+      this.history.record(generated.workspace, {
+        action: "workspace.create",
+        targets: [this.workspaceTarget(generated.workspace)],
+      });
+    }
+
     // Demo history for this new workspace, if the template seeded any.
     // Fire-and-forget like `record()`: it lands on the log chain and flushes
     // before any History read; a demo-log write failing must not fail
@@ -1323,7 +1370,6 @@ export class Mutations {
       void this.history.seed(generated.workspace.root, generated.history);
     }
 
-    await this.index.rebuild();
     new Notice(`Created workspace "${generated.workspace.name}"`);
     return generated.workspace;
   }

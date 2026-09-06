@@ -18,15 +18,19 @@ import {
 	valuesDiffer,
 } from "../../src/core/history";
 import {
+	dashboardIdentityChanges,
 	diffProjectFields,
 	diffTaskFields,
+	viewIdentityChanges,
 	workspaceConfigChanges,
 } from "../../src/core/history/diff";
 import { parseTemplateMarkdown } from "../../src/core/templates/markdown/parse";
 import { instantiateTemplate, templateById } from "../../src/core/templates";
-import { SYSTEM_VIEW_ALL_TASKS_ID } from "../../src/core/views";
+import { newDashboard } from "../../src/core/dashboards";
+import { SYSTEM_VIEW_ALL_TASKS_ID, newView } from "../../src/core/views";
 import { createWorkspaceConfig } from "../../src/core/serialization/workspace";
 import type {
+	DashboardConfig,
 	HistoryEntry,
 	Project,
 	Task,
@@ -204,6 +208,40 @@ describe("diffProjectFields", () => {
 			path: "Product Team/Projects/Nope",
 		};
 		expect(diffProjectFields(base, next)).toEqual([]);
+	});
+});
+
+describe("viewIdentityChanges / dashboardIdentityChanges", () => {
+	it("records a view rename, icon swap and description", () => {
+		const from = newView("v1", "Backlog", "board", "tray");
+		const to = { ...from, name: "Backlog v2", icon: "grid", description: "for Q3" };
+		expect(viewIdentityChanges(from, to)).toEqual([
+			{ field: "name", from: "Backlog", to: "Backlog v2" },
+			{ field: "icon", from: "tray", to: "grid" },
+			{ field: "description", from: undefined, to: "for Q3" },
+		]);
+	});
+
+	it("stays silent when only definitional state churns", () => {
+		const from = newView("v1", "Backlog", "board", "tray");
+		const to = { ...from, filters: { status: ["started"] }, sortDirection: "asc" as const };
+		expect(viewIdentityChanges(from, to)).toEqual([]);
+	});
+
+	it("returns no changes for an untouched view", () => {
+		const from = newView("v1", "Backlog", "board", "tray");
+		expect(viewIdentityChanges(from, { ...from })).toEqual([]);
+	});
+
+	it("records a dashboard rename/icon, ignores widget churn", () => {
+		const from = newDashboard("d1", "Velocity", "activity");
+		const to = { ...from, name: "Team velocity", icon: "mascot" };
+		expect(dashboardIdentityChanges(from, to)).toEqual([
+			{ field: "name", from: "Velocity", to: "Team velocity" },
+			{ field: "icon", from: "activity", to: "mascot" },
+		]);
+		const churned = { ...from, widgets: [{ id: "w1" }] } as DashboardConfig;
+		expect(dashboardIdentityChanges(from, churned)).toEqual([]);
 	});
 });
 

@@ -93,29 +93,34 @@ export class HistoryLog {
 
 		const ts = input.ts ?? this.now().toISOString();
 		const month = monthKey(ts);
-		const entry: HistoryEntry = {
-			seq: this.seq.get(month) ?? 1,
-			ts,
-			actor: input.actorOverride ?? selfActor(workspace),
-			action: input.action,
-			workspace: workspace.root,
-			targets: input.targets ?? [],
-			...(input.changes?.length ? { changes: input.changes } : {}),
-		};
-
-		this.seq.set(month, entry.seq + 1);
 		const path = historyPathFor(workspace.root, ts);
-		const line = serializeEntryLine(entry);
+		const actor = input.actorOverride ?? selfActor(workspace);
 
+		// The entry is built *inside* the chain so both the `seq` counter and the
+		// serialized line reflect the file's true state at write time. Building it
+		// eagerly would freeze a placeholder `seq: 1` that the chain then re-rolls
+		// past whatever the month file already holds — the first burst of a
+		// session would misnumber and duplicate seqs.
 		this.chain = this.chain.then(async () => {
-			if (entry.seq === 1) {
+			const next = (this.seq.get(month) ?? 0) + 1;
+			if (next === 1) {
 				// Fresh month for this session: make sure the counter starts
 				// above whatever the file already holds.
 				const existing = await this.readFile(path);
 				this.seq.set(month, existing + 1);
-				entry.seq = existing + 1;
+			} else {
+				this.seq.set(month, next);
 			}
-			await this.io.append(path, line);
+			const entry: HistoryEntry = {
+				seq: this.seq.get(month)!,
+				ts,
+				actor,
+				action: input.action,
+				workspace: workspace.root,
+				targets: input.targets ?? [],
+				...(input.changes?.length ? { changes: input.changes } : {}),
+			};
+			await this.io.append(path, serializeEntryLine(entry));
 		});
 		this.touch();
 	}
@@ -132,6 +137,9 @@ export class HistoryLog {
    */
   seed(root: string, entries: HistoryEntry[]): Promise<void> {
     if (entries.length === 0) return Promise.resolve();
+    // Bump the revision now so a live History hub re-reads when the chain
+    // flushes — `readEntries` awaits the chain, so it sees the seeded batch.
+    this.touch();
     return (this.chain = this.chain.then(async () => {
       for (const entry of entries) {
         const month = monthKey(entry.ts);
@@ -151,7 +159,6 @@ export class HistoryLog {
         );
       }
     }));
-    this.touch();
   }
 
   /**
