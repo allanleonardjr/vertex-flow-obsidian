@@ -194,6 +194,15 @@ export function Sidebar({
 
           <PeopleSection snapshot={snapshot} />
 
+          <div className="vf-sidebar-sep" aria-hidden />
+
+          <NavRow
+            icon="repeat"
+            label="Recurring"
+            active={activeId === "recurring"}
+            onClick={() => openScreen("recurring")}
+          />
+
           <div className="vf-sidebar-spacer" />
 
           <div className="vf-sidebar-sep" aria-hidden />
@@ -210,13 +219,6 @@ export function Sidebar({
             label="Trash"
             active={activeId === "trash"}
             onClick={() => openScreen("trash")}
-          />
-
-          <NavRow
-            icon="repeat"
-            label="Recurring"
-            active={activeId === "recurring"}
-            onClick={() => openScreen("recurring")}
           />
 
           <div className="vf-sidebar-sep" aria-hidden />
@@ -792,9 +794,9 @@ function ViewsSection({
               icon,
               description: description?.trim() || undefined,
             };
-            void plugin.mutations.addView(snapshot, view).then(() =>
-              onSelectView(view.id),
-            );
+            void plugin.mutations
+              .addView(snapshot, view)
+              .then(() => onSelectView(view.id));
           }}
           onClose={() => setCreating(false)}
         />
@@ -858,7 +860,9 @@ function DashboardsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
       id="dashboards"
       title="Dashboards"
       count={dashboards.length}
-      action={<AddButton title="New dashboard" onClick={() => setCreating(true)} />}
+      action={
+        <AddButton title="New dashboard" onClick={() => setCreating(true)} />
+      }
       onOpenHub={() => openScreen("dashboards")}
     >
       {dashboards.length === 0 ? (

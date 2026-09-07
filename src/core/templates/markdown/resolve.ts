@@ -40,6 +40,8 @@ import type {
 	LinkTarget,
 	Person,
 	Project,
+	RecurrenceAnchor,
+	RecurrenceConfig,
 	SavedView,
 	TaxonomyValue,
 	Task,
@@ -47,6 +49,7 @@ import type {
 	ViewFilters,
 	WorkspaceConfig,
 } from "../../types";
+import { nextOccurrence } from "../../recurrence";
 import {
 	makeDashboard,
 	makeProject,
@@ -60,6 +63,7 @@ import {
 	TemplateParseError,
 	type ParsedDashboard,
 	type ParsedDate,
+	type ParsedRepeat,
 	type ParsedTask,
 	type ParsedTemplate,
 	type ParsedView,
@@ -164,6 +168,43 @@ function resolveArchived(
 	}
 	if (archived === true) return { archived: true, archivedAt: ctx.iso(0) };
 	return { archived: true, archivedAt: resolveDateTime(archived, ctx) };
+}
+
+/**
+ * ParsedRepeat + the task's own resolved dates → a full RecurrenceConfig.
+ * Mirrors the dialog's own `finalize()`: anchor to whichever date the task
+ * has (due first, then start), and when it has neither, seed one cadence
+ * step past today rather than today itself — the same fix that keeps a
+ * dateless on-date task from firing on the very next reconcile.
+ */
+function resolveRepeat(
+	repeat: ParsedRepeat,
+	dates: { startDate: IsoDate | null; dueDate: IsoDate | null },
+	ctx: TemplateBuildContext,
+): RecurrenceConfig {
+	const anchor: RecurrenceAnchor = dates.dueDate ? "dueDate" : "startDate";
+	const existing = anchor === "dueDate" ? dates.dueDate : dates.startDate;
+
+	const rule: RecurrenceConfig = {
+		trigger: repeat.onClose ? "on-close" : "on-date",
+		triggerStatus: null,
+		freq: repeat.freq,
+		interval: repeat.interval,
+		weekdays: [],
+		dayOfMonth: null,
+		weekdayOfMonth: null,
+		monthOfYear: null,
+		anchor,
+		newStatus: null,
+		endsAfter: null,
+		endsOn: null,
+		nextDate: existing ?? ctx.day(0),
+		copyFields: null,
+	};
+
+	if (!existing) rule.nextDate = nextOccurrence(rule, rule.nextDate);
+
+	return rule;
 }
 
 /* ------------------------------------------------------ query validation -- */
@@ -440,6 +481,9 @@ export function resolveTemplateContent(
 		const projectRef = inheritedProject(parsedTask);
 		const parentAnchor = parsedTask.parent ?? parsedTask.headingParent;
 
+		const startDate = parsedTask.start ? resolveDay(parsedTask.start, ctx) : null;
+		const dueDate = parsedTask.due ? resolveDay(parsedTask.due, ctx) : null;
+
 		const task = makeTask(ctx, index + 1, rank, {
 			title: parsedTask.title,
 			taskType: parsedTask.type ? resolveTaskType(parsedTask.type, line) : null,
@@ -456,8 +500,11 @@ export function resolveTemplateContent(
 				: null,
 			estimate: parsedTask.estimate ?? null,
 			labels: (parsedTask.labels ?? []).map((l) => resolveLabel(l, line)),
-			startDate: parsedTask.start ? resolveDay(parsedTask.start, ctx) : null,
-			dueDate: parsedTask.due ? resolveDay(parsedTask.due, ctx) : null,
+			startDate,
+			dueDate,
+			recurrence: parsedTask.repeat
+				? resolveRepeat(parsedTask.repeat, { startDate, dueDate }, ctx)
+				: null,
 			createdAt: parsedTask.created
 				? resolveDateTime(parsedTask.created, ctx)
 				: ctx.iso(-10),

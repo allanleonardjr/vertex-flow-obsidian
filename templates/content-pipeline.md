@@ -178,7 +178,7 @@ type: article | status: drafting | priority: low | created: -6d
 The shared calendar template needs a second-quarter column - housekeeping.
 
 ## Audit last quarter's top-performing posts
-type: article | status: idea | priority: medium | created: -3d
+type: article | status: idea | priority: medium | due: +21d | created: -3d | repeat: every 3 months
 
 Which formats and topics over-performed, to steer the next quarter.
 

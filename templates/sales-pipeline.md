@@ -64,7 +64,7 @@ project: Acme Corp - Enterprise Plan | status: won | priority: hot | labels: [In
 The proposal went out with the enterprise pricing - marked won when it landed.
 
 ## Follow up on the proposal
-project: Acme Corp - Enterprise Plan | status: proposal sent | priority: hot | due: +2d | created: -6d
+project: Acme Corp - Enterprise Plan | status: proposal sent | priority: hot | due: +2d | created: -6d | repeat: weekly
 
 Weekly follow-up until legal clears - the champion says that's the only hold.
 

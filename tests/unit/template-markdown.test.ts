@@ -344,3 +344,59 @@ describe("template markdown — taxonomy descriptions", () => {
 		});
 	});
 });
+
+describe("template markdown — repeat", () => {
+	const withTask = (fieldLine: string) =>
+		template(HEADER, `\n# Projects\n\n# Tasks\n\n## A task\n${fieldLine}\n`);
+
+	const resolveTask = (fieldLine: string) => {
+		const { tasks } = resolveTemplateContent(
+			parseTemplateMarkdown(withTask(fieldLine)),
+			context(),
+		);
+		return tasks[0];
+	};
+
+	it("a dateless `repeat: weekly` seeds one cadence step past today, on-date", () => {
+		const task = resolveTask("repeat: weekly");
+		expect(task.recurrence).toMatchObject({
+			trigger: "on-date",
+			freq: "weekly",
+			interval: 1,
+			anchor: "startDate",
+		});
+		// context()'s "today" is 2026-08-26 → first occurrence a week out.
+		expect(task.recurrence?.nextDate).toBe("2026-09-02");
+	});
+
+	it("`every 3 months` parses the interval", () => {
+		expect(resolveTask("repeat: every 3 months").recurrence).toMatchObject({
+			freq: "monthly",
+			interval: 3,
+			trigger: "on-date",
+		});
+	});
+
+	it("`monthly when completed` is the on-close trigger", () => {
+		expect(resolveTask("repeat: monthly when completed").recurrence).toMatchObject({
+			trigger: "on-close",
+			freq: "monthly",
+		});
+	});
+
+	it("anchors to the task's own due date when it has one", () => {
+		const task = resolveTask("repeat: weekly | due: +3d");
+		expect(task.recurrence).toMatchObject({
+			anchor: "dueDate",
+			nextDate: "2026-08-29",
+		});
+	});
+
+	it("rejects an unrecognized cadence with a line-numbered error", () => {
+		const error = expectFailure(
+			withTask("repeat: fortnightly"),
+			/Unrecognized "repeat" value "fortnightly"/,
+		);
+		expect(error.line).toBeGreaterThan(0);
+	});
+});

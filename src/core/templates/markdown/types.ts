@@ -18,6 +18,7 @@ import type {
 	DashboardTemporalField,
 	DashboardTimeBucket,
 	GroupByField,
+	RecurrenceFrequency,
 	SortDirection,
 	SortField,
 	ViewType,
@@ -86,10 +87,23 @@ export interface ParsedProject {
 	description?: string;
 }
 
+/** A minimal, human-authorable recurrence — "weekly", "every 2 weeks",
+ *  "monthly when completed". Deliberately covers only frequency, interval,
+ *  and the on-date/on-close trigger split; none of the richer
+ *  RecurrenceConfig knobs (specific weekdays, day-of-month patterns, a
+ *  specific triggerStatus, end conditions) are authorable from a template
+ *  today. */
+export interface ParsedRepeat {
+	freq: RecurrenceFrequency;
+	interval: number;
+	onClose: boolean;
+}
+
 export interface ParsedTask {
 	title: string;
 	anchor: string;
 	line: number;
+	repeat?: ParsedRepeat;
 	/** Heading depth (2 = top-level `##` under `# Tasks`). */
 	depth: number;
 	/** Anchor of the parent derived from heading nesting, if any. */

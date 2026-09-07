@@ -40,6 +40,7 @@ import {
 	type LabelValue,
 	type Person,
 	type PriorityValue,
+	type RecurrenceFrequency,
 	type SortField,
 	type StatusCategory,
 	type StatusValue,
@@ -58,6 +59,7 @@ import {
 	type ParsedDashboard,
 	type ParsedDate,
 	type ParsedProject,
+	type ParsedRepeat,
 	type ParsedTask,
 	type ParsedTemplate,
 	type ParsedView,
@@ -111,6 +113,56 @@ export function parseDateToken(raw: string, line: number): ParsedDate {
 		);
 	}
 	return { kind: "absolute", iso: date.toISOString() };
+}
+
+/* ------------------------------------------------------------- repeat ----- */
+
+const FREQ_WORDS: Record<string, RecurrenceFrequency> = {
+	day: "daily",
+	days: "daily",
+	daily: "daily",
+	week: "weekly",
+	weeks: "weekly",
+	weekly: "weekly",
+	month: "monthly",
+	months: "monthly",
+	monthly: "monthly",
+	year: "yearly",
+	years: "yearly",
+	yearly: "yearly",
+};
+
+const REPEAT_TRIGGER_RE = /\s+when\s+completed$/;
+const REPEAT_INTERVAL_RE = /^every\s+(\d+)\s+(.+)$/;
+
+/**
+ * "weekly", "every 2 weeks", "monthly when completed" → ParsedRepeat.
+ * Deliberately minimal — see ParsedRepeat's doc comment for what's
+ * intentionally left out.
+ */
+export function parseRepeatToken(raw: string, line: number): ParsedRepeat {
+	const trimmed = raw.trim().toLowerCase();
+	const onClose = REPEAT_TRIGGER_RE.test(trimmed);
+	const withoutTrigger = onClose
+		? trimmed
+				.slice(0, trimmed.length - trimmed.match(REPEAT_TRIGGER_RE)![0].length)
+				.trim()
+		: trimmed;
+
+	const everyMatch = REPEAT_INTERVAL_RE.exec(withoutTrigger);
+	const interval = everyMatch
+		? Math.max(1, Number.parseInt(everyMatch[1], 10))
+		: 1;
+	const freqWord = everyMatch ? everyMatch[2] : withoutTrigger;
+
+	const freq = FREQ_WORDS[freqWord];
+	if (!freq) {
+		fail(
+			`Unrecognized "repeat" value "${raw}" — expected e.g. "weekly", "every 2 weeks", or "monthly when completed"`,
+			line,
+		);
+	}
+	return { freq, interval, onClose };
 }
 
 /* ------------------------------------------------------ taxonomy shorthand */
@@ -621,6 +673,7 @@ const TASK_FIELDS = new Set([
 	"created",
 	"updated",
 	"archived",
+	"repeat",
 	"blocks",
 	"blockedby",
 	"related",
@@ -984,6 +1037,9 @@ function applyFields(
 				break;
 			case "archived":
 				node.archived = readArchived(value, line);
+				break;
+			case "repeat":
+				task.repeat = parseRepeatToken(value, line);
 				break;
 			case "owner":
 				project.owner = value;

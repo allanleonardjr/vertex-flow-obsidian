@@ -85,6 +85,16 @@ project: Getting Started | status: queue | labels: [Quick win]
 
 Swap the layout from the bar above the task list. Board, Calendar, and List all read the same tasks - nothing moves, only the lens changes.
 
+## Try setting this task to repeat
+project: Getting Started | status: queue | repeat: weekly
+
+Open this task's Repeat row and hit "Set up…" to see the schedule that created. This one recurs automatically once a week - no need to touch it again.
+
+## Watch this task repeat when you complete it
+project: Getting Started | status: queue | repeat: monthly when completed
+
+This one only creates its next copy once you mark it done, not on a calendar date - useful for anything that should wait for you, not the clock.
+
 ## Decide on travel dates {#travel-dates}
 project: Plan a weekend trip | type: chore | status: done | priority: high | labels: [Important] | due: -2d | created: -18d | blocks: [book-flights]
 

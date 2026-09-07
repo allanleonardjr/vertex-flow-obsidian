@@ -47,7 +47,9 @@ describe("every template's example content is a full feature showcase", () => {
 
 			it("generates ~25 tasks", () => {
 				expect(tasks.length).toBeGreaterThanOrEqual(24);
-				expect(tasks.length).toBeLessThanOrEqual(26);
+				// getting-started sits at the top of the range now that it also
+				// showcases both recurrence trigger types.
+				expect(tasks.length).toBeLessThanOrEqual(28);
 			});
 
 			it("has at least three projects", () => {
