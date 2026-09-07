@@ -138,7 +138,7 @@ export function getMePrefill(): MePrefill | null {
 		if (!raw) return null;
 		const parsed: unknown = JSON.parse(raw);
 		if (!parsed || typeof parsed !== "object") return null;
-		return parsed as MePrefill;
+		return parsed;
 	} catch {
 		return null;
 	}

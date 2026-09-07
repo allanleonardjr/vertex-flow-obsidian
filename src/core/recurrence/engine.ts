@@ -56,21 +56,6 @@ export function weekdayName(day: Weekday): string {
 	return WEEKDAY_NAMES[day];
 }
 
-const MONTH_NAMES = [
-	"January",
-	"February",
-	"March",
-	"April",
-	"May",
-	"June",
-	"July",
-	"August",
-	"September",
-	"October",
-	"November",
-	"December",
-];
-
 /** The weekday a bare/ISO date falls on. */
 export function weekdayOf(iso: IsoDate): Weekday {
 	const d = new Date(`${iso.slice(0, 10)}T00:00:00Z`);

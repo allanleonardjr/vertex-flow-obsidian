@@ -4402,8 +4402,7 @@ button.vf-query-fix {
 .vf-task-menu-grip.is-right {
   right: 0;
   cursor: nwse-resize;
-  -webkit-clip-path: polygon(100% 0, 100% 100%, 0 100%);
-  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+  border-top-left-radius: 6px;
   background: repeating-linear-gradient(
     -45deg,
     transparent 0 3px,
@@ -4414,8 +4413,7 @@ button.vf-query-fix {
 .vf-task-menu-grip.is-left {
   left: 0;
   cursor: nesw-resize;
-  -webkit-clip-path: polygon(0 0, 100% 100%, 0 100%);
-  clip-path: polygon(0 0, 100% 100%, 0 100%);
+  border-top-right-radius: 6px;
   background: repeating-linear-gradient(
     45deg,
     transparent 0 3px,
@@ -6774,13 +6772,7 @@ button.vf-history-expand {
   margin-top: 10px;
 }
 
-/* --- Recurring overview modal -------------------------------------------- */
-
-.vf-recurring-overview {
-  width: min(560px, 94vw);
-  max-height: 85vh;
-  overflow-y: auto;
-}
+/* --- Recurring overview -------------------------------------------------- */
 
 .vf-recurring-list {
   list-style: none;
@@ -6817,15 +6809,6 @@ button.vf-history-expand {
   display: inline-flex;
   gap: 8px;
   flex-shrink: 0;
-}
-
-.vf-recurring-overview .vf-dialog-actions {
-  margin-top: 16px;
-}
-
-.vf-recurring-overview .vf-dialog-actions button {
-  min-height: 32px;
-  padding: 6px 14px;
 }
 
 /* Recurring browse hub: the same row list as the modal, un-boxed and

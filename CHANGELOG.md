@@ -15,6 +15,9 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 - Recurrence spawn guard now correctly drops successors once a snapshot confirms they exist, preventing double-spawns across lagging trailing passes.
+- **Tab keyboard shortcuts restored** — `TabSwitcher` was imported but never mounted, so Option/Alt+Tab tab cycling, Option/Alt+1–9 tab jump, and Option/Alt+W close-all did nothing. It's now mounted in the workspace shell alongside `PrefixEngine`.
+- **Task-menu resize grips** — replaced the `clip-path: polygon()` triangles (only partially supported on the WebKit engine Obsidian Mobile/iOS uses) with a rounded-corner hatch square; the diagonal pattern and accent-on-hover are unchanged.
+- Cleared Obsidian plugin-review lint flags: unnecessary type assertions in `history/diff.ts` and `me-storage.ts`, an unsafe `any` assignment in `parseHistoryLog`, a dead `MONTH_NAMES` constant in the recurrence engine, and deleted the superseded `RecurringOverviewModal` (the `g r` chord and "Recurring overview" command already route to the tab-based Recurring screen).
 - **Recurring hub layout and actions** — the Recurring tab rendered as a fixed-width dialog card in the corner of the pane instead of a full-width browse hub; it now uses the shared `BrowseHeader`/`BrowseList`/`BrowseEmpty` layout like Trash, Labels, and History. "Open" on a row was passing the human-facing task ID to `openTask` (which expects a vault path) and now opens the correct task; "Stop" called a leftover `window.close()` and never ran the mutation — it now calls `plugin.mutations.stopRecurrence(...)` and closes the confirm. The `g r` chord and "Recurring overview" command still open the original modal, unchanged.
 
 ### Fixed

@@ -17,7 +17,6 @@ import type {
 	HistoryChange,
 	Project,
 	SavedView,
-	TaxonomyValue,
 	Task,
 	WorkspaceConfig,
 } from "../types";
@@ -69,14 +68,14 @@ export function diffTaskFields(
 	options: FieldDiffOptions = {},
 ): HistoryChange[] {
 	const seen = new Set<string>(TASK_DIFF_FIELDS);
-	options.skip?.forEach((f) => seen.delete(f as string));
+	options.skip?.forEach((f) => seen.delete(f));
 	const changes: HistoryChange[] = [];
 	for (const field of TASK_DIFF_FIELDS) {
-		if (!seen.has(field as string)) continue;
+		if (!seen.has(field)) continue;
 		const a = from[field];
 		const b = to[field];
 		if (valuesDiffer(a, b)) {
-			changes.push({ field: field as string, from: a, to: b });
+			changes.push({ field, from: a, to: b });
 		}
 	}
 	return changes;
@@ -88,14 +87,14 @@ export function diffProjectFields(
 	options: FieldDiffOptions = {},
 ): HistoryChange[] {
 	const seen = new Set<string>(PROJECT_DIFF_FIELDS);
-	options.skip?.forEach((f) => seen.delete(f as string));
+	options.skip?.forEach((f) => seen.delete(f));
 	const changes: HistoryChange[] = [];
 	for (const field of PROJECT_DIFF_FIELDS) {
-		if (!seen.has(field as string)) continue;
+		if (!seen.has(field)) continue;
 		const a = from[field];
 		const b = to[field];
 		if (valuesDiffer(a, b)) {
-			changes.push({ field: field as string, from: a, to: b });
+			changes.push({ field, from: a, to: b });
 		}
 	}
 	return changes;
@@ -120,7 +119,7 @@ export function viewIdentityChanges(
 	const changes: HistoryChange[] = [];
 	for (const field of VIEW_IDENTITY_FIELDS) {
 		if (valuesDiffer(from[field], to[field])) {
-			changes.push({ field: field as string, from: from[field], to: to[field] });
+			changes.push({ field, from: from[field], to: to[field] });
 		}
 	}
 	return changes;
@@ -140,7 +139,7 @@ export function dashboardIdentityChanges(
 	const changes: HistoryChange[] = [];
 	for (const field of DASHBOARD_IDENTITY_FIELDS) {
 		if (valuesDiffer(from[field], to[field])) {
-			changes.push({ field: field as string, from: from[field], to: to[field] });
+			changes.push({ field, from: from[field], to: to[field] });
 		}
 	}
 	return changes;
@@ -197,7 +196,7 @@ export function workspaceConfigChanges(
 	for (const field of CONFIG_SCALAR_FIELDS) {
 		if (valuesDiffer(from[field], to[field])) {
 			changes.push({
-				field: field as string,
+				field,
 				from: from[field],
 				to: to[field],
 			});
@@ -258,7 +257,7 @@ function pushKeyedItemDiffs(
 			// Removed whole item.
 			changes.push({
 				field: `${bareField}.${prev.id}`,
-				from: pickAttrs(prev as TaxonomyValue, attrs),
+				from: pickAttrs(prev, attrs),
 			});
 			continue;
 		}
@@ -278,7 +277,7 @@ function pushKeyedItemDiffs(
 		if (fromItems.some((item) => item.id === next.id)) continue;
 		changes.push({
 			field: `${bareField}.${next.id}`,
-			to: pickAttrs(next as TaxonomyValue, attrs),
+			to: pickAttrs(next, attrs),
 		});
 	}
 }

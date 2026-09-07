@@ -215,6 +215,7 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
       tabIndex={-1}
     >
       <PrefixEngine snapshot={snapshot} />
+      <TabSwitcher snapshot={snapshot} />
 <Sidebar
         snapshot={snapshot}
         activeViewId={activeViewId}

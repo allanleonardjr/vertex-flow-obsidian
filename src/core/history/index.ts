@@ -127,7 +127,9 @@ export function parseHistoryLog(text: string): HistoryEntry[] {
 		}
 		// A line is written as `- { … }` (a one-element sequence); a hand-edit
 		// may have stripped the dash, leaving a bare flow map. Accept both.
-		const item = Array.isArray(parsed) ? (parsed[0] ?? parsed) : parsed;
+		const item: unknown = Array.isArray(parsed)
+			? ((parsed as unknown[])[0] ?? parsed)
+			: parsed;
 		if (isHistoryEntry(item)) entries.push(item);
 	}
 	return entries;
