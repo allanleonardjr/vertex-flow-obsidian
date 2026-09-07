@@ -5,6 +5,9 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+
+## 1.0.11 — 2026-09-07
+
 ### Changed
 -   Moved the comment editor to above the list of comments so a user doesn't have to scroll to the bottom to add a comment.
 
