@@ -6828,6 +6828,13 @@ button.vf-history-expand {
   padding: 6px 14px;
 }
 
+/* Recurring browse hub: the same row list as the modal, un-boxed and
+   full-width inside `.vf-browse-list` (the `.vf-toolbar` gutter is 14px). */
+.vf-browse-list .vf-recurring-list {
+  margin: 0;
+  padding: 0 14px;
+}
+
 /* --- Projected (ghost) recurrence rows ----------------------------------- */
 
 .vf-row.is-projected,

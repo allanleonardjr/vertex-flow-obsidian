@@ -15,6 +15,7 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 - Recurrence spawn guard now correctly drops successors once a snapshot confirms they exist, preventing double-spawns across lagging trailing passes.
+- **Recurring hub layout and actions** — the Recurring tab rendered as a fixed-width dialog card in the corner of the pane instead of a full-width browse hub; it now uses the shared `BrowseHeader`/`BrowseList`/`BrowseEmpty` layout like Trash, Labels, and History. "Open" on a row was passing the human-facing task ID to `openTask` (which expects a vault path) and now opens the correct task; "Stop" called a leftover `window.close()` and never ran the mutation — it now calls `plugin.mutations.stopRecurrence(...)` and closes the confirm. The `g r` chord and "Recurring overview" command still open the original modal, unchanged.
 
 ### Fixed
 - Activity history hub now populates instantly (write-through chained appends retained; no debounce/batch).
