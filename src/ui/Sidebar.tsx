@@ -8,7 +8,14 @@
  * the workspace is the primary selection.
  */
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  Fragment,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import {
   SYSTEM_VIEW_ALL_TASKS_ID,
@@ -44,7 +51,6 @@ import type {
   Person,
   Project,
   SavedView,
-  TaxonomyValue,
   WorkspaceSnapshot,
 } from "../core/types";
 import { Icon } from "./components/Icon";
@@ -694,7 +700,10 @@ function ViewsSection({
 
   // The two System Views (All Tasks, Untriaged) render as their own bare rows
   // above this section — never in the list, never in the count.
-  const userViews = snapshot.views.filter((v) => !isSystemViewId(v.id));
+  const userViews = snapshot.views
+    .filter((v) => !isSystemViewId(v.id))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const tree = buildTree(userViews, (v) => v.name);
 
   const duplicate = (view: SavedView) => {
     const copy: SavedView = {
@@ -725,61 +734,64 @@ function ViewsSection({
       {userViews.length === 0 && (
         <p className="vf-section-empty">No custom views yet</p>
       )}
-      {userViews.map((view) => (
-        <NavRow
-          key={view.id}
-          label={view.name}
-          icon={view.icon}
-          iconFallback={layoutIcon(view.viewType)}
-          variant="view"
-          active={view.id === activeViewId}
-          onClick={() => onSelectView(view.id)}
-          trailing={
-            <RowMenu
-              open={menuOpenId === view.id}
-              onToggle={() =>
-                setMenuOpenId((current) =>
-                  current === view.id ? null : view.id,
-                )
-              }
-              onClose={() => setMenuOpenId(null)}
-            >
-              <button
-                className="vf-menu-item"
-                onClick={() => {
-                  setMenuOpenId(null);
-                  setDialog({ mode: "edit", view });
-                }}
+      <TreeList
+        nodes={tree}
+        depth={0}
+        groupKeyPrefix="view-group"
+        renderLeaf={(view, segment, depth) => (
+          <NavRow
+            key={view.id}
+            label={view.name}
+            displayLabel={segment}
+            indent={depth}
+            icon={view.icon}
+            iconFallback={layoutIcon(view.viewType)}
+            variant="view"
+            active={view.id === activeViewId}
+            onClick={() => onSelectView(view.id)}
+            trailing={
+              <RowMenu
+                open={menuOpenId === view.id}
+                onToggle={() =>
+                  setMenuOpenId((current) =>
+                    current === view.id ? null : view.id,
+                  )
+                }
+                onClose={() => setMenuOpenId(null)}
               >
-                Edit
-              </button>
-              <button
-                className="vf-menu-item"
-                onClick={() => {
-                  setMenuOpenId(null);
-                  duplicate(view);
-                }}
-              >
-                Duplicate
-              </button>
-              {!isSystemViewId(view.id) && (
-                <>
-                  <div className="vf-menu-divider" aria-hidden />
-                  <button
-                    className="vf-menu-item"
-                    onClick={() => {
-                      setMenuOpenId(null);
-                      setDeleting(view);
-                    }}
-                  >
-                    Move to Trash
-                  </button>
-                </>
-              )}
-            </RowMenu>
-          }
-        />
-      ))}
+                <button
+                  className="vf-menu-item"
+                  onClick={() => {
+                    setMenuOpenId(null);
+                    setDialog({ mode: "edit", view });
+                  }}
+                >
+                  Edit
+                </button>
+                <button
+                  className="vf-menu-item"
+                  onClick={() => {
+                    setMenuOpenId(null);
+                    duplicate(view);
+                  }}
+                >
+                  Duplicate
+                </button>
+                <div className="vf-menu-divider" aria-hidden />
+                <button
+                  className="vf-menu-item"
+                  onClick={() => {
+                    setMenuOpenId(null);
+                    setDeleting(view);
+                  }}
+                >
+                  Move to Trash
+                </button>
+              </RowMenu>
+            }
+          />
+        )}
+      />
 
       {deleting && (
         <ConfirmDeleteDialog
@@ -797,6 +809,7 @@ function ViewsSection({
       {creating && (
         <NamedIconDialog
           title="New view"
+          nameHint="Use / to nest under a group in the sidebar"
           initialName="New view"
           initialIcon={layoutIcon("list")}
           initialDescription=""
@@ -821,6 +834,7 @@ function ViewsSection({
       {dialog && (
         <NamedIconDialog
           title="Edit view"
+          nameHint="Use / to nest under a group in the sidebar"
           initialName={dialog.view.name}
           initialIcon={dialog.view.icon}
           iconFallback={layoutIcon(dialog.view.viewType)}
@@ -854,6 +868,7 @@ function DashboardsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   const dashboards = [...snapshot.dashboards].sort((a, b) =>
     a.name.localeCompare(b.name),
   );
+  const tree = buildTree(dashboards, (d) => d.name);
   const activeDashboardId =
     activeTab?.kind === "dashboard" ? activeTab.dashboardId : null;
 
@@ -884,60 +899,70 @@ function DashboardsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
       {dashboards.length === 0 ? (
         <p className="vf-section-empty">No dashboards yet</p>
       ) : (
-        dashboards.map((dashboard) => (
-          <NavRow
-            key={dashboard.id}
-            label={dashboard.name}
-            icon={dashboard.icon}
-            iconFallback="layout-dashboard"
-            variant="view"
-            active={activeDashboardId === dashboard.id}
-            onClick={() => openDashboard(dashboard.id)}
-            trailing={
-              <RowMenu
-                open={menuId === dashboard.id}
-                onToggle={() =>
-                  setMenuId((m) => (m === dashboard.id ? null : dashboard.id))
-                }
-                onClose={() => setMenuId(null)}
-              >
-                <button
-                  className="vf-menu-item"
-                  onClick={() => {
-                    setMenuId(null);
-                    setDialog({ mode: "edit", dashboard });
-                  }}
+        <TreeList
+          nodes={tree}
+          depth={0}
+          groupKeyPrefix="dashboard-group"
+          renderLeaf={(dashboard, segment, depth) => (
+            <NavRow
+              key={dashboard.id}
+              label={dashboard.name}
+              displayLabel={segment}
+              indent={depth}
+              icon={dashboard.icon}
+              iconFallback="layout-dashboard"
+              variant="view"
+              active={activeDashboardId === dashboard.id}
+              onClick={() => openDashboard(dashboard.id)}
+              trailing={
+                <RowMenu
+                  open={menuId === dashboard.id}
+                  onToggle={() =>
+                    setMenuId((m) =>
+                      m === dashboard.id ? null : dashboard.id,
+                    )
+                  }
+                  onClose={() => setMenuId(null)}
                 >
-                  Edit
-                </button>
-                <button
-                  className="vf-menu-item"
-                  onClick={() => {
-                    setMenuId(null);
-                    duplicate(dashboard.id);
-                  }}
-                >
-                  Duplicate
-                </button>
-                <div className="vf-menu-divider" aria-hidden />
-                <button
-                  className="vf-menu-item"
-                  onClick={() => {
-                    setMenuId(null);
-                    setDeleting(dashboard);
-                  }}
-                >
-                  Move to Trash
-                </button>
-              </RowMenu>
-            }
-          />
-        ))
+                  <button
+                    className="vf-menu-item"
+                    onClick={() => {
+                      setMenuId(null);
+                      setDialog({ mode: "edit", dashboard });
+                    }}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="vf-menu-item"
+                    onClick={() => {
+                      setMenuId(null);
+                      duplicate(dashboard.id);
+                    }}
+                  >
+                    Duplicate
+                  </button>
+                  <div className="vf-menu-divider" aria-hidden />
+                  <button
+                    className="vf-menu-item"
+                    onClick={() => {
+                      setMenuId(null);
+                      setDeleting(dashboard);
+                    }}
+                  >
+                    Move to Trash
+                  </button>
+                </RowMenu>
+              }
+            />
+          )}
+        />
       )}
 
       {creating && (
         <NamedIconDialog
           title="New dashboard"
+          nameHint="Use / to nest under a group in the sidebar"
           initialName="New dashboard"
           initialIcon="layout-dashboard"
           initialDescription=""
@@ -962,6 +987,7 @@ function DashboardsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
       {dialog && (
         <NamedIconDialog
           title="Edit dashboard"
+          nameHint="Use / to nest under a group in the sidebar"
           initialName={dialog.dashboard.name}
           initialIcon={dialog.dashboard.icon}
           iconFallback="layout-dashboard"
@@ -1006,6 +1032,7 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   const projects = [...snapshot.projects].sort((a, b) =>
     a.title.localeCompare(b.title),
   );
+  const tree = buildTree(projects, (p) => p.title);
 
   const activeProjectPath =
     tabs.activeTab?.kind === "project" ? tabs.activeTab.path : null;
@@ -1029,55 +1056,64 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
       {projects.length === 0 ? (
         <p className="vf-section-empty">No projects yet</p>
       ) : (
-        projects.map((project) => (
-          <NavRow
-            key={project.path}
-            label={project.title}
-            icon={project.icon}
-            iconFallback="folder"
-            variant="view"
-            active={activeProjectPath === project.path}
-            onClick={() => tabs.openProject(project.path)}
-            trailing={
-              <RowMenu
-                open={menuPath === project.path}
-                onToggle={() =>
-                  setMenuPath((p) => (p === project.path ? null : project.path))
-                }
-                onClose={() => setMenuPath(null)}
-              >
-                <button
-                  className="vf-menu-item"
-                  onClick={() => {
-                    setMenuPath(null);
-                    setEditing(project);
-                  }}
+        <TreeList
+          nodes={tree}
+          depth={0}
+          groupKeyPrefix="project-group"
+          renderLeaf={(project, segment, depth) => (
+            <NavRow
+              key={project.path}
+              label={project.title}
+              displayLabel={segment}
+              indent={depth}
+              icon={project.icon}
+              iconFallback="folder"
+              variant="view"
+              active={activeProjectPath === project.path}
+              onClick={() => tabs.openProject(project.path)}
+              trailing={
+                <RowMenu
+                  open={menuPath === project.path}
+                  onToggle={() =>
+                    setMenuPath((p) =>
+                      p === project.path ? null : project.path,
+                    )
+                  }
+                  onClose={() => setMenuPath(null)}
                 >
-                  Edit
-                </button>
-                <button
-                  className="vf-menu-item"
-                  onClick={() => {
-                    setMenuPath(null);
-                    duplicate(project);
-                  }}
-                >
-                  Duplicate
-                </button>
-                <div className="vf-menu-divider" aria-hidden />
-                <button
-                  className="vf-menu-item"
-                  onClick={() => {
-                    setMenuPath(null);
-                    setDeletePlan(planDeletion(scopeOf(snapshot), project));
-                  }}
-                >
-                  Move to Trash
-                </button>
-              </RowMenu>
-            }
-          />
-        ))
+                  <button
+                    className="vf-menu-item"
+                    onClick={() => {
+                      setMenuPath(null);
+                      setEditing(project);
+                    }}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="vf-menu-item"
+                    onClick={() => {
+                      setMenuPath(null);
+                      duplicate(project);
+                    }}
+                  >
+                    Duplicate
+                  </button>
+                  <div className="vf-menu-divider" aria-hidden />
+                  <button
+                    className="vf-menu-item"
+                    onClick={() => {
+                      setMenuPath(null);
+                      setDeletePlan(planDeletion(scopeOf(snapshot), project));
+                    }}
+                  >
+                    Move to Trash
+                  </button>
+                </RowMenu>
+              }
+            />
+          )}
+        />
       )}
 
       {deletePlan && (
@@ -1091,6 +1127,7 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
       {creating && (
         <NamedIconDialog
           title="New project"
+          nameHint="Use / to nest under a group in the sidebar"
           initialName="New project"
           initialIcon="folder"
           initialDescription=""
@@ -1113,6 +1150,7 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
       {editing && (
         <NamedIconDialog
           title="Edit project"
+          nameHint="Use / to nest under a group in the sidebar"
           initialName={editing.title}
           initialIcon={editing.icon}
           iconFallback="folder"
@@ -1135,42 +1173,64 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   );
 }
 
-/* ----------------------------------------------------------------- labels -- */
+/* ------------------------------------------------------ generic tree list -- */
 
 /**
- * A node in the sidebar's label tree. Labels whose `name` contains `/` are
- * split into nested folders — one level per segment — purely for rendering;
- * `TaxonomyValue.name` stays the full path everywhere else.
+ * A node in a sidebar tree. Items whose display name contains `/` are split
+ * into nested folders — one level per segment — purely for rendering; the
+ * item's stored name/title stays the full path everywhere else.
  */
-type LabelTreeNode =
-  | { kind: "label"; segment: string; value: TaxonomyValue }
+export type TreeNode<T> =
+  | { kind: "leaf"; segment: string; value: T }
   | {
       kind: "folder";
       segment: string;
       /** Full path from the root, e.g. `"Application/UI"`. */
       path: string;
-      children: LabelTreeNode[];
+      children: TreeNode<T>[];
     };
 
-type MutableFolder = {
+/**
+ * Alphabetical by segment, leaf before folder on a tie. This is today's
+ * only sort — exported so a future manual-order feature can fall back to
+ * it (e.g. "alphabetical unless a stored rank says otherwise") instead of
+ * re-deriving the tie-break rule.
+ */
+export function defaultTreeSort<T>(a: TreeNode<T>, b: TreeNode<T>): number {
+  const bySegment = a.segment.localeCompare(b.segment);
+  if (bySegment !== 0) return bySegment;
+  return (a.kind === "leaf" ? 0 : 1) - (b.kind === "leaf" ? 0 : 1);
+}
+
+type MutableFolder<T> = {
   path: string;
-  folders: Map<string, MutableFolder>;
-  labels: TaxonomyValue[];
+  folders: Map<string, MutableFolder<T>>;
+  leaves: T[];
 };
 
-/** Split each label name on `/` and walk/create folder nodes for every segment
- *  but the last. Folders and labels are sorted together by their own segment. */
-function buildLabelTree(values: TaxonomyValue[]): LabelTreeNode[] {
-  const root: MutableFolder = { path: "", folders: new Map(), labels: [] };
+/**
+ * Split each item's name on `/` and walk/create folder nodes for every
+ * segment but the last. Siblings at each depth are ordered by
+ * `compareSiblings` (defaults to `defaultTreeSort`) — a future manual-sort
+ * feature can pass a comparator that checks a stored rank first and falls
+ * back to `defaultTreeSort`, without buildTree's own logic changing.
+ */
+export function buildTree<T>(
+  items: T[],
+  getName: (item: T) => string,
+  options?: { compareSiblings?: (a: TreeNode<T>, b: TreeNode<T>) => number },
+): TreeNode<T>[] {
+  const compare = options?.compareSiblings ?? defaultTreeSort;
+  const root: MutableFolder<T> = { path: "", folders: new Map(), leaves: [] };
 
-  for (const value of values) {
-    const segments = value.name
+  for (const item of items) {
+    const segments = getName(item)
       .split("/")
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
 
     if (segments.length <= 1) {
-      root.labels.push(value);
+      root.leaves.push(item);
       continue;
     }
 
@@ -1181,17 +1241,17 @@ function buildLabelTree(values: TaxonomyValue[]): LabelTreeNode[] {
         next = {
           path: folder.path ? `${folder.path}/${segment}` : segment,
           folders: new Map(),
-          labels: [],
+          leaves: [],
         };
         folder.folders.set(segment, next);
       }
       folder = next;
     }
-    folder.labels.push(value);
+    folder.leaves.push(item);
   }
 
-  const convert = (folder: MutableFolder): LabelTreeNode[] => {
-    const nodes: LabelTreeNode[] = [];
+  const convert = (folder: MutableFolder<T>): TreeNode<T>[] => {
+    const nodes: TreeNode<T>[] = [];
     for (const [segment, child] of folder.folders) {
       nodes.push({
         kind: "folder",
@@ -1200,31 +1260,25 @@ function buildLabelTree(values: TaxonomyValue[]): LabelTreeNode[] {
         children: convert(child),
       });
     }
-    for (const value of folder.labels) {
-      const segments = value.name
+    for (const value of folder.leaves) {
+      const segments = getName(value)
         .split("/")
         .map((s) => s.trim())
         .filter((s) => s.length > 0);
       nodes.push({
-        kind: "label",
-        segment: segments[segments.length - 1] ?? value.name,
+        kind: "leaf",
+        segment: segments[segments.length - 1] ?? getName(value),
         value,
       });
     }
-    nodes.sort((a, b) => {
-      const bySegment = a.segment.localeCompare(b.segment);
-      // A bare label sorts before a folder sharing its segment name, so
-      // `Application` the label sits directly above the `Application/…` group.
-      if (bySegment !== 0) return bySegment;
-      return (a.kind === "label" ? 0 : 1) - (b.kind === "label" ? 0 : 1);
-    });
+    nodes.sort(compare);
     return nodes;
   };
 
   return convert(root);
 }
 
-function LabelGroupRow({
+function TreeGroupRow({
   segment,
   path,
   depth,
@@ -1240,7 +1294,7 @@ function LabelGroupRow({
 }) {
   return (
     <button
-      className="vf-label-group-row"
+      className="vf-tree-group-row"
       aria-expanded={!collapsed}
       onClick={onToggle}
       aria-label={path}
@@ -1257,80 +1311,42 @@ function LabelGroupRow({
   );
 }
 
-function LabelTreeList({
+/**
+ * Renders `nodes` as an indented, collapsible forest. `TreeList` owns only the
+ * folder recursion and per-folder collapse state (keyed
+ * `${groupKeyPrefix}:${node.path}` so each entity type has its own namespace in
+ * `useSidebarChrome().collapsed`); the caller's `renderLeaf` supplies the row
+ * for the leaf case, receiving the leaf value, its leaf segment, and its depth.
+ */
+function TreeList<T>({
   nodes,
   depth,
-  activeLabelId,
-  openLabel,
-  menuId,
-  setMenuId,
-  setEditing,
-  requestDelete,
+  groupKeyPrefix,
+  renderLeaf,
 }: {
-  nodes: LabelTreeNode[];
+  nodes: TreeNode<T>[];
   depth: number;
-  activeLabelId: string | null;
-  openLabel: (id: string) => void;
-  menuId: string | null;
-  setMenuId: React.Dispatch<React.SetStateAction<string | null>>;
-  setEditing: (id: string | null) => void;
-  requestDelete: (id: string) => void;
+  groupKeyPrefix: string;
+  renderLeaf: (value: T, segment: string, depth: number) => ReactNode;
 }) {
   const { collapsed: collapsedMap, toggleSection } = useSidebarChrome();
 
   return (
     <>
-      {nodes.map((node) => {
-        if (node.kind === "label") {
-          const label = node.value;
+      {nodes.map((node, i) => {
+        if (node.kind === "leaf") {
           return (
-            <NavRow
-              key={`label:${label.id}`}
-              label={label.name}
-              displayLabel={node.segment}
-              indent={depth}
-              chipColor={label.color}
-              active={activeLabelId === label.id}
-              variant="view"
-              onClick={() => openLabel(label.id)}
-              trailing={
-                <RowMenu
-                  open={menuId === label.id}
-                  onToggle={() =>
-                    setMenuId((m) => (m === label.id ? null : label.id))
-                  }
-                  onClose={() => setMenuId(null)}
-                >
-                  <button
-                    className="vf-menu-item"
-                    onClick={() => {
-                      setMenuId(null);
-                      setEditing(label.id);
-                    }}
-                  >
-                    Edit
-                  </button>
-                  <div className="vf-menu-divider" aria-hidden />
-                  <button
-                    className="vf-menu-item vf-menu-item-danger"
-                    onClick={() => {
-                      setMenuId(null);
-                      requestDelete(label.id);
-                    }}
-                  >
-                    Delete
-                  </button>
-                </RowMenu>
-              }
-            />
+            <Fragment key={`leaf:${i}:${node.segment}`}>
+              {renderLeaf(node.value, node.segment, depth)}
+            </Fragment>
           );
         }
 
-        const groupId = `label-group:${node.path}`;
+        const groupId = `${groupKeyPrefix}:${node.path}`;
         const isCollapsed = collapsedMap[groupId] === true;
         return (
-          <div className="vf-label-group" key={`folder:${node.path}`}>
-            <LabelGroupRow
+          <div className="vf-tree-group" key={`folder:${node.path}`}>
+            <TreeGroupRow
               segment={node.segment}
               path={node.path}
               depth={depth}
@@ -1338,15 +1354,11 @@ function LabelTreeList({
               onToggle={() => toggleSection(groupId)}
             />
             {!isCollapsed && (
-              <LabelTreeList
+              <TreeList
                 nodes={node.children}
                 depth={depth + 1}
-                activeLabelId={activeLabelId}
-                openLabel={openLabel}
-                menuId={menuId}
-                setMenuId={setMenuId}
-                setEditing={setEditing}
-                requestDelete={requestDelete}
+                groupKeyPrefix={groupKeyPrefix}
+                renderLeaf={renderLeaf}
               />
             )}
           </div>
@@ -1355,6 +1367,8 @@ function LabelTreeList({
     </>
   );
 }
+
+/* ----------------------------------------------------------------- labels -- */
 
 function LabelsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   const plugin = usePlugin();
@@ -1414,15 +1428,51 @@ function LabelsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
       {ordered.length === 0 ? (
         <p className="vf-section-empty">No labels yet</p>
       ) : (
-        <LabelTreeList
-          nodes={buildLabelTree(ordered)}
+        <TreeList
+          nodes={buildTree(ordered, (l) => l.name)}
           depth={0}
-          activeLabelId={activeLabelId}
-          openLabel={openLabel}
-          menuId={menuId}
-          setMenuId={setMenuId}
-          setEditing={setEditing}
-          requestDelete={requestDelete}
+          groupKeyPrefix="label-group"
+          renderLeaf={(label, segment, depth) => (
+            <NavRow
+              key={`label:${label.id}`}
+              label={label.name}
+              displayLabel={segment}
+              indent={depth}
+              chipColor={label.color}
+              active={activeLabelId === label.id}
+              variant="view"
+              onClick={() => openLabel(label.id)}
+              trailing={
+                <RowMenu
+                  open={menuId === label.id}
+                  onToggle={() =>
+                    setMenuId((m) => (m === label.id ? null : label.id))
+                  }
+                  onClose={() => setMenuId(null)}
+                >
+                  <button
+                    className="vf-menu-item"
+                    onClick={() => {
+                      setMenuId(null);
+                      setEditing(label.id);
+                    }}
+                  >
+                    Edit
+                  </button>
+                  <div className="vf-menu-divider" aria-hidden />
+                  <button
+                    className="vf-menu-item vf-menu-item-danger"
+                    onClick={() => {
+                      setMenuId(null);
+                      requestDelete(label.id);
+                    }}
+                  >
+                    Delete
+                  </button>
+                </RowMenu>
+              }
+            />
+          )}
         />
       )}
 

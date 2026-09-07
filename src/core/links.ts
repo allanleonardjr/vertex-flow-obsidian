@@ -74,7 +74,15 @@ export function dirname(target: LinkTarget): string {
  * layer and the workspace-creation UI so both derive the same folder name.
  */
 export function sanitizeFileName(name: string): string {
-	return name.replace(/[\\/:*?"<>|#^[\]]/g, "").trim() || "Untitled";
+	// A "/" in a title (e.g. a sidebar group like `Application/UI`) becomes a
+	// hyphen rather than being dropped, so both segments stay legible in the
+	// vault filename — the frontmatter `title` keeps the original "/".
+	return (
+		name
+			.replace(/\//g, "-")
+			.replace(/[\\:*?"<>|#^[\]]/g, "")
+			.trim() || "Untitled"
+	);
 }
 
 /** Join path segments, tolerating empty ones. */

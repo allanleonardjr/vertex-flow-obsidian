@@ -78,6 +78,9 @@ export function LabelDialog({
 								if (event.key === "Enter") void submit();
 							}}
 						/>
+						<small className="vf-field-hint">
+							Use / to nest under a group in the sidebar
+						</small>
 					</label>
 				</div>
 

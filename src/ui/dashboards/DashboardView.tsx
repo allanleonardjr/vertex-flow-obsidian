@@ -376,6 +376,7 @@ function DashboardBody({
       {dialog?.mode === "save-as" && (
         <NamedIconDialog
           title="Save dashboard as"
+          nameHint="Use / to nest under a group in the sidebar"
           initialName={`${dashboard.name} copy`}
           initialIcon={dashboard.icon}
           iconFallback="layout-dashboard"

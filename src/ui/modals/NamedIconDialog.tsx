@@ -20,6 +20,7 @@ export function NamedIconDialog({
 	descriptionSourcePath,
 	iconFallback,
 	confirmLabel,
+	nameHint,
 	validateName,
 	onConfirm,
 	onCancel,
@@ -38,6 +39,12 @@ export function NamedIconDialog({
 	descriptionSourcePath?: string;
 	iconFallback?: string;
 	confirmLabel: string;
+	/**
+	 * Optional one-line hint shown under the name field (when there's no
+	 * `nameError` in the same slot). Used to mention the sidebar's `/`-nesting
+	 * for Projects/Views/Dashboards.
+	 */
+	nameHint?: string;
 	/**
 	 * Extra validation on the typed name — returns a message to show under the
 	 * field (and block confirm), or `null` when it's fine. Used for the
@@ -106,8 +113,12 @@ export function NamedIconDialog({
 								if (event.key === "Enter") submit();
 							}}
 						/>
-						{nameError && (
+						{nameError ? (
 							<small className="vf-field-error">{nameError}</small>
+						) : (
+							nameHint && (
+								<small className="vf-field-hint">{nameHint}</small>
+							)
 						)}
 					</label>
 				</div>

@@ -362,14 +362,17 @@ button.vf-nav-row:hover {
   text-overflow: ellipsis;
 }
 
-/* -- Label folders: nested collapsible groups, one level per "/" ---------- */
+/* -- Sidebar tree: nested collapsible groups, one level per "/" ---------- */
+/* Generic `TreeList` — shared by the Labels, Projects, Views and Dashboards
+   sidebar sections. Items whose name/title contains "/" render as nested,
+   independently collapsible folders. */
 
-.vf-label-group {
+.vf-tree-group {
   display: flex;
   flex-direction: column;
 }
 
-button.vf-label-group-row {
+button.vf-tree-group-row {
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -388,7 +391,7 @@ button.vf-label-group-row {
   cursor: pointer;
 }
 
-button.vf-label-group-row:hover {
+button.vf-tree-group-row:hover {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
 }

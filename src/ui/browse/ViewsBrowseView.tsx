@@ -126,6 +126,7 @@ export function ViewsBrowseView({ snapshot }: { snapshot: WorkspaceSnapshot }) {
       {creating && (
         <NamedIconDialog
           title="New view"
+          nameHint="Use / to nest under a group in the sidebar"
           initialName="New view"
           initialIcon={layoutIcon("list")}
           initialDescription=""
@@ -150,6 +151,7 @@ export function ViewsBrowseView({ snapshot }: { snapshot: WorkspaceSnapshot }) {
       {dialog && (
         <NamedIconDialog
           title="Edit view"
+          nameHint="Use / to nest under a group in the sidebar"
           initialName={dialog.view.name}
           initialIcon={dialog.view.icon}
           iconFallback={layoutIcon(dialog.view.viewType)}

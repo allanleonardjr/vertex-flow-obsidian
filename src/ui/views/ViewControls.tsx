@@ -389,6 +389,7 @@ export function ViewControls({
       {savingAs && (
         <NamedIconDialog
           title="Save view as"
+          nameHint="Use / to nest under a group in the sidebar"
           initialName={
             permanentView
               ? "New view"

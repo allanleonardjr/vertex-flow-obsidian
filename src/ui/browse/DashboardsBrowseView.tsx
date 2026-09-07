@@ -121,6 +121,7 @@ export function DashboardsBrowseView({
 			{creating && (
 				<NamedIconDialog
 					title="New dashboard"
+					nameHint="Use / to nest under a group in the sidebar"
 					initialName="New dashboard"
 					initialIcon="layout-dashboard"
 					initialDescription=""
@@ -145,6 +146,7 @@ export function DashboardsBrowseView({
 			{dialog && (
 				<NamedIconDialog
 					title="Edit dashboard"
+					nameHint="Use / to nest under a group in the sidebar"
 					initialName={dialog.dashboard.name}
 					initialIcon={dialog.dashboard.icon}
 					iconFallback="layout-dashboard"
