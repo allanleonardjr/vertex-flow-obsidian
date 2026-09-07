@@ -5,6 +5,8 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.10 — 2026-09-07
+
 ### Changed
 - **Activity history log format redesigned for sync-safe multi-device vaults** — each Obsidian install now owns its own per-device stream files (`History/YYYY-MM.<device>.md`, device token in localStorage, never synced), eliminating the read-modify-write race that could drop entries when two machines share a synced vault (iCloud, Dropbox, iDrive). The reader merges all stream files sorted by `(timestamp, stream)`.
 - **Sequence numbers removed** — per-stream timestamps are clamped monotonic (`max(now, last+1ms)`) so no two entries in a stream share a timestamp; ordering is by timestamp then stream.
