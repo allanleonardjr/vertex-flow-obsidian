@@ -39,6 +39,15 @@ export function TaskPane({ path }: { path: string }) {
 		if (!task) close(path);
 	}, [task, close, path]);
 
+	// Mirror "the task in front" out to the plugin so native commands (Stop
+	// repeating…) can act on it. Cleared when this pane unmounts.
+	useEffect(() => {
+		plugin.activeTaskPath = path;
+		return () => {
+			if (plugin.activeTaskPath === path) plugin.activeTaskPath = null;
+		};
+	}, [plugin, path]);
+
 	// The `u` chord for the single-task editor, mirroring TaskViewport's:
 	// a bare `u` arms a one-second chord; the next key resolves it to a field
 	// picker (`u s`/`u p`/`u l`/`u t`/`u a`/`u r`/`u m`/`u e`/`u b`/`u d`)

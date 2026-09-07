@@ -99,8 +99,15 @@ describe("parseTask", () => {
 		expect(issues[0]).toMatch(/Missing status/);
 	});
 
-	it("titles an untitled task with its id rather than leaving it blank", () => {
-		expect(parseTask({}, opts).value.title).toBe("PRD-0104");
+	it("leaves an untitled task's title blank — the id is not its name", () => {
+		const { value } = parseTask({}, opts);
+		expect(value.title).toBe("");
+		expect(value.id).toBe("PRD-0104");
+	});
+
+	it("serializes a blank title as an absent field, so notes stay clean", () => {
+		const fm = serializeTask(parseTask({}, opts).value);
+		expect(fm.title).toBeUndefined();
 	});
 
 	it("resets a corrupt rank instead of throwing", () => {
@@ -553,8 +560,8 @@ describe("parseWorkspace", () => {
 				taskTypes: [{ id: "bug", name: "Bug", color: "#ef4444" }],
 				labels: [{ id: "performance", name: "Performance", color: "#f97316" }],
 				people: [
-					{ id: "alice", name: "Alice", isSelf: true },
-					{ id: "bob", name: "Bob", isSelf: false },
+					{ id: "alice", name: "Alice" },
+					{ id: "bob", name: "Bob" },
 				],
 			},
 			{ path },
@@ -564,7 +571,7 @@ describe("parseWorkspace", () => {
 		expect(value.name).toBe("Product Team");
 		expect(value.root).toBe("Product Team");
 		expect(value.statuses).toHaveLength(2);
-		expect(value.people.find((p) => p.isSelf)?.id).toBe("alice");
+		expect(value.people.find((p) => p.id === "alice")?.id).toBe("alice");
 	});
 
 	it("defaults auto-archive off", () => {
@@ -590,6 +597,7 @@ describe("parseWorkspace", () => {
 			icon: "circle",
 			idPrefix: "TST",
 			archiving: { autoArchiveEnabled: false, autoArchiveDays: 30 },
+			history: { enabled: false },
 			defaultNewTaskStatus: "queue",
 			estimateUnitLabel: null,
 			deletedAt: null,
@@ -636,20 +644,6 @@ describe("parseWorkspace", () => {
 		);
 		expect(value.defaultNewTaskStatus).toBe("a");
 		expect(issues.some((i) => /not a configured status/.test(i))).toBe(true);
-	});
-
-	it("allows only one isSelf", () => {
-		const { value, issues } = parseWorkspace(
-			{
-				people: [
-					{ id: "a", name: "A", isSelf: true },
-					{ id: "b", name: "B", isSelf: true },
-				],
-			},
-			{ path },
-		);
-		expect(value.people.filter((p) => p.isSelf)).toHaveLength(1);
-		expect(issues.some((i) => /more than one person/i.test(i))).toBe(true);
 	});
 
 	it("round-trips through serialize", () => {

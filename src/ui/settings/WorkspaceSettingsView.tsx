@@ -5,15 +5,31 @@
  * the content area shows.
  */
 
+import { useEffect, useRef } from "react";
 import { workspaceTaxonomies } from "../../core/taxonomy";
 import type { WorkspaceSnapshot } from "../../core/types";
+import { useTabs } from "../tabs-context";
 import { ArchivingSection } from "./ArchivingSection";
 import { GeneralSection } from "./GeneralSection";
+import { HistorySection } from "./HistorySection";
 import { PeopleSection } from "./PeopleSection";
 import { TaxonomySection } from "./TaxonomySection";
 
 export function WorkspaceSettingsView({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 	const taxonomies = workspaceTaxonomies(snapshot.workspace);
+	const { pendingScreenAnchor, clearPendingScreenAnchor } = useTabs();
+	const bodyRef = useRef<HTMLDivElement | null>(null);
+
+	// A deep-link into a specific section (e.g. the sidebar "me" banner → People).
+	// Consumed once; a manual scroll afterwards isn't disturbed.
+	useEffect(() => {
+		if (!pendingScreenAnchor) return;
+		const target = bodyRef.current?.querySelector<HTMLElement>(
+			`#${CSS.escape(pendingScreenAnchor)}`,
+		);
+		target?.scrollIntoView({ block: "start", behavior: "auto" });
+		clearPendingScreenAnchor();
+	}, [pendingScreenAnchor, clearPendingScreenAnchor]);
 
 	return (
 		<div className="vf-settings">
@@ -23,7 +39,7 @@ export function WorkspaceSettingsView({ snapshot }: { snapshot: WorkspaceSnapsho
 				</div>
 			</header>
 
-			<div className="vf-settings-body">
+			<div className="vf-settings-body" ref={bodyRef}>
 				<GeneralSection snapshot={snapshot} />
 
 				<TaxonomySection
@@ -51,8 +67,9 @@ export function WorkspaceSettingsView({ snapshot }: { snapshot: WorkspaceSnapsho
 				/>
 
 
-				<PeopleSection snapshot={snapshot} />
+				<PeopleSection snapshot={snapshot} id="vf-settings-people" />
 				<ArchivingSection snapshot={snapshot} />
+				<HistorySection snapshot={snapshot} />
 			</div>
 		</div>
 	);

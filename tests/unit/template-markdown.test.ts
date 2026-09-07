@@ -286,3 +286,117 @@ describe("template markdown — contradictory block relations", () => {
 		expect(beta.relations.blockedBy).toEqual([alpha.path]);
 	});
 });
+
+describe("template markdown — taxonomy descriptions", () => {
+	it("carries a trailing ` - description` on statuses", () => {
+		const parsed = parseTemplateMarkdown(
+			template(
+				HEADER +
+					'\nstatuses: ["To Do (unstarted) - not started yet", "Done (completed, #34d399) - finished work"]',
+			),
+		);
+		const [todo, done] = parsed.workspaceOverrides.statuses!;
+		expect(todo.description).toBe("not started yet");
+		expect(done.description).toBe("finished work");
+		expect(done.color).toBe("#34d399");
+	});
+
+	it("carries a description on labels and task types", () => {
+		const parsed = parseTemplateMarkdown(
+			template(
+				HEADER + "\nlabels: [Important (#ef4444) - real weight]",
+			),
+		);
+		expect(parsed.workspaceOverrides.labels![0].description).toBe("real weight");
+	});
+
+	it("leaves description unset for plain shorthand", () => {
+		const parsed = parseTemplateMarkdown(
+			template(HEADER + '\nlabels: ["Quick win (#22c55e)", "Waiting on someone (#f59e0b)"]'),
+		);
+		const [quick, waiting] = parsed.workspaceOverrides.labels!;
+		expect(quick.description).toBeUndefined();
+		expect(waiting.description).toBeUndefined();
+	});
+
+	it("keeps an extra paren group inside the name alongside a description", () => {
+		const parsed = parseTemplateMarkdown(
+			template(
+				HEADER +
+					'\nstatuses: ["Research (IRB) (started, #94a3b8) - ethics-approved study"]',
+			),
+		);
+		const [status] = parsed.workspaceOverrides.statuses!;
+		expect(status.name).toBe("Research (IRB)");
+		expect(status.category).toBe("started");
+		expect(status.color).toBe("#94a3b8");
+		expect(status.description).toBe("ethics-approved study");
+	});
+
+	it("survives resolution onto the generated workspace", () => {
+		const parsed = parseTemplateMarkdown(
+			template(HEADER + '\nlabels: [Needs Advisor Feedback (#f59e0b) - review before next step]'),
+		);
+		const { workspace } = resolveTemplateContent(parsed, context());
+		expect(workspace?.labels?.[0]).toMatchObject({
+			name: "Needs Advisor Feedback",
+			description: "review before next step",
+		});
+	});
+});
+
+describe("template markdown — repeat", () => {
+	const withTask = (fieldLine: string) =>
+		template(HEADER, `\n# Projects\n\n# Tasks\n\n## A task\n${fieldLine}\n`);
+
+	const resolveTask = (fieldLine: string) => {
+		const { tasks } = resolveTemplateContent(
+			parseTemplateMarkdown(withTask(fieldLine)),
+			context(),
+		);
+		return tasks[0];
+	};
+
+	it("a dateless `repeat: weekly` seeds one cadence step past today, on-date", () => {
+		const task = resolveTask("repeat: weekly");
+		expect(task.recurrence).toMatchObject({
+			trigger: "on-date",
+			freq: "weekly",
+			interval: 1,
+			anchor: "startDate",
+		});
+		// context()'s "today" is 2026-08-26 → first occurrence a week out.
+		expect(task.recurrence?.nextDate).toBe("2026-09-02");
+	});
+
+	it("`every 3 months` parses the interval", () => {
+		expect(resolveTask("repeat: every 3 months").recurrence).toMatchObject({
+			freq: "monthly",
+			interval: 3,
+			trigger: "on-date",
+		});
+	});
+
+	it("`monthly when completed` is the on-close trigger", () => {
+		expect(resolveTask("repeat: monthly when completed").recurrence).toMatchObject({
+			trigger: "on-close",
+			freq: "monthly",
+		});
+	});
+
+	it("anchors to the task's own due date when it has one", () => {
+		const task = resolveTask("repeat: weekly | due: +3d");
+		expect(task.recurrence).toMatchObject({
+			anchor: "dueDate",
+			nextDate: "2026-08-29",
+		});
+	});
+
+	it("rejects an unrecognized cadence with a line-numbered error", () => {
+		const error = expectFailure(
+			withTask("repeat: fortnightly"),
+			/Unrecognized "repeat" value "fortnightly"/,
+		);
+		expect(error.line).toBeGreaterThan(0);
+	});
+});

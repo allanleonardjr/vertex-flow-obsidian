@@ -27,6 +27,7 @@ If that destination is already open, Vertex Flow switches to its existing tab ra
 | `g` `l` | Labels |
 | `g` `m` | People |
 | `g` `t` | Trash |
+| `g` `e` | Activity History |
 | `g` `h` | Help |
 | `g` `s` | Settings |
 

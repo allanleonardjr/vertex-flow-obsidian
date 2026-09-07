@@ -23,6 +23,7 @@ import {
 import type { DashboardWidget, WorkspaceSnapshot } from "../../core/types";
 import { computeWidgetData } from "../../core/dashboards";
 import { snapshotContext } from "../../core/views";
+import { useMePersonId } from "../useMe";
 import { ConfirmDeleteDialog } from "../components/ConfirmDeleteDialog";
 import { WidgetChart } from "../dashboards/charts/WidgetChart";
 import { LabelDialog } from "../modals/LabelDialog";
@@ -101,7 +102,11 @@ export function LabelsBrowseView({ snapshot }: { snapshot: WorkspaceSnapshot }) 
 		setDeletion({ plan, usage });
 	};
 
-	const context = useMemo(() => snapshotContext(snapshot), [snapshot]);
+	const mePersonId = useMePersonId(snapshot.workspace.root);
+	const context = useMemo(
+		() => snapshotContext(snapshot, mePersonId),
+		[snapshot, mePersonId],
+	);
 	const labelData = useMemo(
 		() => computeWidgetData(HERO_LABEL_WIDGET, snapshot.tasks, context),
 		[snapshot.tasks, context],

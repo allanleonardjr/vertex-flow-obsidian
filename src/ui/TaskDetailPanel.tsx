@@ -2,7 +2,7 @@
  * The task detail panel — a dedicated editor for one task.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { resetAutoGrow } from "./components/autoGrow";
 import {
@@ -15,9 +15,10 @@ import {
 } from "../core/hierarchy";
 import { sortTasksByRank } from "../core/ranking";
 import { withExtension } from "../obsidian/note-io";
+import { useMePersonId } from "./useMe";
 import type { WorkspaceTaxonomies } from "../core/taxonomy";
 import type { Comment, Task, WorkspaceSnapshot } from "../core/types";
-import { NEW_TASK_TITLE } from "./actions";
+import { displayTitle, TaskTitle } from "./components/TaskTitle";
 import {
   DateField,
   NumberField,
@@ -42,6 +43,7 @@ import { TaskBreadcrumb } from "./components/TaskBreadcrumb";
 import { EmbeddedTaskList } from "./components/EmbeddedTaskList";
 import { LabelEditor } from "./components/LabelEditor";
 import { RelationsEditor } from "./components/RelationsEditor";
+import { RepeatRow } from "./components/RecurrenceEditor";
 import { TaskSelectMenu } from "./components/TaskSelectMenu";
 import { usePlugin } from "./context";
 
@@ -67,6 +69,9 @@ export function TaskDetailPanel({
   onCloseAllTasks,
 }: TaskDetailPanelProps) {
   const plugin = usePlugin();
+  // `snapshot` is always the task's own owning workspace (TaskPane resolves it
+  // via `index.workspaceFor`), so this is the right roster to read "me" from.
+  const mePersonId = useMePersonId(snapshot.workspace.root);
   const [comments, setComments] = useState<Comment[]>([]);
   const [description, setDescription] = useState<string | null>(null);
   const [descCollapsed, setDescCollapsed] = useState(
@@ -241,6 +246,7 @@ export function TaskDetailPanel({
             <CollapsibleSection id="comments" title="Comments">
               <CommentList
                 task={task}
+                snapshot={snapshot}
                 comments={comments}
                 onChanged={(next) => setComments(next)}
               />
@@ -278,6 +284,7 @@ export function TaskDetailPanel({
               people={snapshot.workspace.people}
               value={task.assignee}
               onChange={(assignee) => update({ assignee })}
+              mePersonId={mePersonId ?? undefined}
             />
           </PropertyRow>
 
@@ -320,6 +327,8 @@ export function TaskDetailPanel({
               onChange={(dueDate) => update({ dueDate })}
             />
           </PropertyRow>
+
+          <RepeatRow task={task} snapshot={snapshot} taxonomies={taxonomies} />
 
           <PropertyRow label="Archived">
             <label className="vf-toggle">
@@ -403,21 +412,33 @@ function RawSourceSection({ task }: { task: Task }) {
 function TitleField({ task }: { task: Task }) {
   const plugin = usePlugin();
   const [title, setTitle] = useDebouncedSave(task.title, (value) => {
-    void plugin.mutations.updateTask(task, { title: value.trim() || task.id });
+    void plugin.mutations.updateTask(task, { title: value.trim() });
   });
 
-  const isPlaceholder = task.title === NEW_TASK_TITLE;
+  const titleField = useRef<HTMLTextAreaElement | null>(null);
+
+  // The auto-grow resize runs in the ref callback (commit phase); the caret
+  // must not. Landing on a brand-new task, `App` focuses the shell in its own
+  // layout effect, which would swallow a commit-phase focus here — so the
+  // parent-less place the title reliably wins is a passive effect, which runs
+  // after every layout effect on the same commit. Only the first time per
+  // mount: clearing a title later shouldn't yank focus back into the field.
+  const autoFocused = useRef(false);
+  useEffect(() => {
+    if (autoFocused.current) return;
+    autoFocused.current = true;
+    const el = titleField.current;
+    if (el && task.title.length === 0) el.focus();
+  }, [task]);
+
   const focusRef = useCallback(
     (element: HTMLTextAreaElement | null) => {
+      titleField.current = element;
       if (!element) return;
       resetAutoGrow(element);
       element.style.height = `${element.scrollHeight}px`;
-      if (isPlaceholder) {
-        element.focus();
-        element.select();
-      }
     },
-    [isPlaceholder],
+    [],
   );
 
   return (
@@ -526,7 +547,7 @@ function AddSubtaskTrigger({
 
       {tooDeep && (
         <ConfirmDeleteDialog
-          title={`Nest "${tooDeep.title}" ${depthUnder(
+          title={`Nest "${displayTitle(tooDeep)}" ${depthUnder(
             scopeOf(snapshot),
             task.path,
           )} levels deep?`}
@@ -562,7 +583,7 @@ function ReparentSubtaskDialog({
   onConfirm: () => void;
   onClose: () => void;
 }) {
-  const label = (task: Task) => `${task.id} ${task.title}`;
+  const label = (task: Task) => `${task.id} ${displayTitle(task)}`;
 
   return createPortal(
     <div className="vf-editor-backdrop" onClick={onClose}>
@@ -633,7 +654,7 @@ function ParentPicker({
     <PropertyRow label="Parent">
       {tooDeep && (
         <ConfirmDeleteDialog
-          title={`Nest "${task.title}" ${depthUnder(scopeOf(snapshot), tooDeep)} levels deep?`}
+          title={`Nest "${displayTitle(task)}" ${depthUnder(scopeOf(snapshot), tooDeep)} levels deep?`}
           body="Deeply nested sub-tasks get hard to scan. You can still move it."
           confirmLabel="Move anyway"
           onCancel={() => setTooDeep(null)}
@@ -667,7 +688,9 @@ function ParentPicker({
               <>
                 <StatusDot taxonomies={taxonomies} status={parentTask.status} />
                 <span className="vf-id">{parentTask.id}</span>
-                <span className="vf-icon-select-name">{parentTask.title}</span>
+                <span className="vf-icon-select-name">
+                  <TaskTitle task={parentTask} />
+                </span>
               </>
             ) : (
               <span className="vf-icon-select-name vf-prop-empty">
@@ -723,19 +746,24 @@ function ProjectPicker({
 
 function CommentList({
   task,
+  snapshot,
   comments,
   onChanged,
 }: {
   task: Task;
+  snapshot: WorkspaceSnapshot;
   comments: Comment[];
   onChanged: (comments: Comment[]) => void;
 }) {
   const plugin = usePlugin();
   const [draft, setDraft] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const self = plugin
-    .activeWorkspace()
-    ?.workspace.people.find((person) => person.isSelf);
+  // The task's own workspace roster — not `plugin.activeWorkspace()`, which is
+  // the last-touched pane and can differ from the task being commented on.
+  const mePersonId = useMePersonId(snapshot.workspace.root);
+  const self = mePersonId
+    ? snapshot.workspace.people.find((person) => person.id === mePersonId) ?? null
+    : null;
 
   const reload = async () => {
     const doc = await plugin.mutations.readDocument(task);

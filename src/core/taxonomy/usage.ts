@@ -54,7 +54,14 @@ export function taskUsesValue(
 ): boolean {
 	switch (kind) {
 		case "status":
-			return task.status === valueId;
+			return (
+				task.status === valueId ||
+				// Recurrence blocks reference statuses too: deleting one would
+				// otherwise hollow out a series' trigger or spawn defaults in
+				// silence, so the guard must count those references as usage.
+				task.recurrence?.triggerStatus === valueId ||
+				task.recurrence?.newStatus === valueId
+			);
 		case "priority":
 			return task.priority === valueId;
 		case "taskType":

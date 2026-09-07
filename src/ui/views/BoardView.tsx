@@ -30,10 +30,12 @@ import {
   Estimate,
   ProjectChip,
   RelationBadge,
+  RepeatBadge,
   StartDate,
   SubtaskProgress,
   TaxonomyChip,
 } from "../components/TaskBits";
+import { TaskTitle, displayTitle } from "../components/TaskTitle";
 import { useTabs, type TabsApi } from "../tabs-context";
 import { useScrollFocusIntoView, useSelection } from "../selection";
 import { useTaskDropHandler } from "./useDropHandler";
@@ -266,8 +268,11 @@ function Card({
   const selection = useSelection();
   const tabs = useTabs();
 
-  const focused = selection.focusedPath === task.path;
-  const selected = selection.isSelected(task.path);
+  // A projected (ghost) occurrence — no drag, no selection; a click opens the
+  // repeating source task, not a note that doesn't exist yet.
+  const projected = task.projected === true;
+  const focused = !projected && selection.focusedPath === task.path;
+  const selected = !projected && selection.isSelected(task.path);
 
   return (
     <article
@@ -277,12 +282,22 @@ function Card({
         selected ? "is-selected" : "",
         drag.isDragging(task.path) ? "is-dragging" : "",
         task.archived ? "is-archived" : "",
+        projected ? "is-projected" : "",
       ]
         .filter(Boolean)
         .join(" ")}
-      data-task-path={task.path}
-      onPointerDown={(event) => drag.onPointerDown(event, task.path, groupKey)}
-      onClick={(event) => openOrSelect(event, task.path, drag, selection, tabs)}
+      data-task-path={projected ? undefined : task.path}
+      title={projected ? "Projected occurrence — opens the repeating task" : undefined}
+      onPointerDown={
+        projected
+          ? undefined
+          : (event) => drag.onPointerDown(event, task.path, groupKey)
+      }
+      onClick={
+        projected
+          ? () => tabs.openTask(task.recurringFrom ?? task.path)
+          : (event) => openOrSelect(event, task.path, drag, selection, tabs)
+      }
     >
       <CardContent
         task={task}
@@ -357,7 +372,7 @@ function CardContent({
         <button
           type="button"
           className="vf-card-parent"
-          title={`Sub-task of ${parent.id} ${parent.title}`}
+          title={`Sub-task of ${parent.id} ${displayTitle(parent)}`}
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => {
             event.stopPropagation();
@@ -366,7 +381,9 @@ function CardContent({
         >
           <span aria-hidden>↳</span>
           <span className="vf-id">{parent.id}</span>
-          <span className="vf-card-parent-name">{parent.title}</span>
+          <span className="vf-card-parent-name">
+            <TaskTitle task={parent} />
+          </span>
         </button>
       )}
 
@@ -381,6 +398,7 @@ function CardContent({
           />
         )}
         {!off("relations") && <RelationBadge task={task} />}
+        <RepeatBadge task={task} statuses={snapshot.workspace.statuses} />
         <ArchivedBadge task={task} />
       </div>
 
@@ -389,7 +407,9 @@ function CardContent({
       )}
 
       {/* Prominent Task Title */}
-      <div className="vf-card-title">{task.title}</div>
+      <div className="vf-card-title">
+        <TaskTitle task={task} />
+      </div>
 
       {/* Sub-task Progress Bar (Wrapped for block spacing) */}
       {!off("progress") && progress.total > 0 && (

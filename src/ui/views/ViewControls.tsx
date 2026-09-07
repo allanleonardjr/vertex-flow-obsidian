@@ -36,6 +36,7 @@ import {
 	LayoutToggle,
 	SortChip,
 	SubtasksChip,
+	RecurringPreviewChip,
 } from "./DisplayControls";
 import {
 	AddFilterTrigger,
@@ -238,6 +239,8 @@ export function ViewControls({
 					<SortChip view={view} onChange={editView} />
 					<span className="vf-bar-divider" />
 					<SubtasksChip view={view} onChange={editView} />
+					<span className="vf-bar-divider" />
+					<RecurringPreviewChip view={view} onChange={editView} />
 					<span className="vf-bar-divider" />
 					<FieldsControl view={view} onChange={editView} />
 					<span className="vf-bar-divider" />

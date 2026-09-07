@@ -27,10 +27,13 @@ Inside a workspace, in the workspace's settings (reachable with `g` `s`):
 - **Statuses** — rename, recolor, reorder; you must keep at least one.
 - **Priorities** — an ordered list, add or remove freely.
 - **Task Types** — names and colors, no ordering.
-- **People register** — names and aliases, plus marking one person as **you**
-  (`isSelf`) for `me` / `self` filters.
+- **People register** — names and aliases. "You" (the **me** person) is a
+   global setting in plugin Settings, so `me` / `self` filters work across
+   all workspaces. See **Settings → People** to pick who "me" is.
 - **Archiving** — the optional **auto-archive** for inactive tasks, off by
   default.
+- **Activity history** — the optional, opt-in log of this workspace's changes
+  (`g` `e`), off by default.
 
 Everything here is per-workspace, never shared across workspaces, and stored in
 the workspace's own note.

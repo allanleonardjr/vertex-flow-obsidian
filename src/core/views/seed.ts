@@ -51,8 +51,9 @@ export function seedFromFilters(
 	const taskType = onlyValue(filters.taskType);
 	if (taskType) seed.taskType = taskType;
 
-	// `assignee: [self]` on an "Assigned to Me" view seeds the self person, if
-	// the workspace has one flagged.
+	// `assignee: [self]` on an "Assigned to Me" view seeds the self person —
+	// resolved from `context.selfId` (the device's per-workspace "me"), so it
+	// only fires when the caller passes a context that has it.
 	const assignee = onlyValue(filters.assignee);
 	if (assignee) {
 		seed.assignee = assignee;

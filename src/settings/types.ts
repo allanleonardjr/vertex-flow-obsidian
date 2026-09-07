@@ -70,6 +70,10 @@ export interface VertexFlowSettings {
 	 * data, so it lives here rather than in `_workspace.md`.
 	 */
 	redirectTaskNotes: boolean;
+	// "Who me is" is deliberately NOT here. It's per-device and per-workspace,
+	// held in the app's own localStorage (never the vault) — see
+	// `src/obsidian/me-storage.ts`. A single global value in this synced file
+	// was a cross-collaborator correctness bug.
 }
 
 /**

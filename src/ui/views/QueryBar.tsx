@@ -33,6 +33,7 @@ import {
 } from "../../core/views";
 import type { SavedView, WorkspaceSnapshot } from "../../core/types";
 import { resetAutoGrow } from "../components/autoGrow";
+import { useMePersonId } from "../useMe";
 
 const COMMIT_DELAY_MS = 200;
 const MAX_COMMITS_PER_BURST = 5;
@@ -46,8 +47,15 @@ export function QueryBar({
 	view: SavedView;
 	onChange: (next: SavedView) => void;
 }) {
-	const qctx = useMemo(() => queryContext(snapshot), [snapshot]);
-	const viewCtx = useMemo(() => snapshotContext(snapshot), [snapshot]);
+	const mePersonId = useMePersonId(snapshot.workspace.root);
+	const qctx = useMemo(
+		() => queryContext(snapshot, mePersonId),
+		[snapshot, mePersonId],
+	);
+	const viewCtx = useMemo(
+		() => snapshotContext(snapshot, mePersonId),
+		[snapshot, mePersonId],
+	);
 
 	const [text, setText] = useState(() =>
 		printQuery(viewDefinition(view), qctx),

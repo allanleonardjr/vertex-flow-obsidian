@@ -40,6 +40,7 @@ import {
 	type LabelValue,
 	type Person,
 	type PriorityValue,
+	type RecurrenceFrequency,
 	type SortField,
 	type StatusCategory,
 	type StatusValue,
@@ -58,6 +59,7 @@ import {
 	type ParsedDashboard,
 	type ParsedDate,
 	type ParsedProject,
+	type ParsedRepeat,
 	type ParsedTask,
 	type ParsedTemplate,
 	type ParsedView,
@@ -113,18 +115,84 @@ export function parseDateToken(raw: string, line: number): ParsedDate {
 	return { kind: "absolute", iso: date.toISOString() };
 }
 
+/* ------------------------------------------------------------- repeat ----- */
+
+const FREQ_WORDS: Record<string, RecurrenceFrequency> = {
+	day: "daily",
+	days: "daily",
+	daily: "daily",
+	week: "weekly",
+	weeks: "weekly",
+	weekly: "weekly",
+	month: "monthly",
+	months: "monthly",
+	monthly: "monthly",
+	year: "yearly",
+	years: "yearly",
+	yearly: "yearly",
+};
+
+const REPEAT_TRIGGER_RE = /\s+when\s+completed$/;
+const REPEAT_INTERVAL_RE = /^every\s+(\d+)\s+(.+)$/;
+
+/**
+ * "weekly", "every 2 weeks", "monthly when completed" → ParsedRepeat.
+ * Deliberately minimal — see ParsedRepeat's doc comment for what's
+ * intentionally left out.
+ */
+export function parseRepeatToken(raw: string, line: number): ParsedRepeat {
+	const trimmed = raw.trim().toLowerCase();
+	const onClose = REPEAT_TRIGGER_RE.test(trimmed);
+	const withoutTrigger = onClose
+		? trimmed
+				.slice(0, trimmed.length - trimmed.match(REPEAT_TRIGGER_RE)![0].length)
+				.trim()
+		: trimmed;
+
+	const everyMatch = REPEAT_INTERVAL_RE.exec(withoutTrigger);
+	const interval = everyMatch
+		? Math.max(1, Number.parseInt(everyMatch[1], 10))
+		: 1;
+	const freqWord = everyMatch ? everyMatch[2] : withoutTrigger;
+
+	const freq = FREQ_WORDS[freqWord];
+	if (!freq) {
+		fail(
+			`Unrecognized "repeat" value "${raw}" — expected e.g. "weekly", "every 2 weeks", or "monthly when completed"`,
+			line,
+		);
+	}
+	return { freq, interval, onClose };
+}
+
 /* ------------------------------------------------------ taxonomy shorthand */
 
-/** `"Name (category, #hex)"` / `"Name (#hex)"` / `"Name"`. */
-function splitShorthand(raw: string): { name: string; parts: string[] } {
-	const match = /^(.*?)\s*\(([^)]*)\)\s*$/.exec(raw.trim());
-	if (!match) return { name: raw.trim(), parts: [] };
+/**
+ * `"Name (category, #hex)"` / `"Name (#hex)"` / `"Name"`, plus an optional
+ * trailing ` - description` suffix: `"Name (category, #hex) - description"`.
+ *
+ * The greedy `.*` reaches for the *last* parenthesised group, so an extra
+ * parenthesised phrase inside the name (e.g. `"Research (IRB) (started,
+ * #94a3b8)"`) still resolves to the right name and parts. A description must
+ * not itself contain parentheses — the last paren group would swallow them —
+ * and it only parses when the entry has a paren group.
+ */
+function splitShorthand(raw: string): {
+	name: string;
+	parts: string[];
+	description?: string;
+} {
+	const text = raw.trim();
+	const match = /^(.*)\(([^)]*)\)\s*(.*)$/.exec(text);
+	if (!match) return { name: text, parts: [] };
+	const description = match[3].replace(/^-\s*/, "").trim();
 	return {
 		name: match[1].trim(),
 		parts: match[2]
 			.split(",")
 			.map((p) => p.trim())
 			.filter(Boolean),
+		...(description ? { description } : {}),
 	};
 }
 
@@ -197,7 +265,7 @@ function parseStatuses(raw: unknown): StatusValue[] | undefined {
 	if (!entries) return undefined;
 
 	const values = entries.map((entry, index) => {
-		const { name, parts } = splitShorthand(entry);
+		const { name, parts, description } = splitShorthand(entry);
 		if (!name) fail(`Status ${index + 1} has no name: "${entry}"`);
 
 		const categoryRaw = parts.find((p) => !HEX_RE.test(p));
@@ -221,6 +289,7 @@ function parseStatuses(raw: unknown): StatusValue[] | undefined {
 			name,
 			color: color ?? statusCategoryColor(category),
 			category,
+			description,
 			order: index + 1,
 		};
 	});
@@ -239,7 +308,7 @@ function parseFlatTaxonomy<T extends { id: string; name: string; color: string }
 	if (!entries) return undefined;
 
 	const values = entries.map((entry, index) => {
-		const { name, parts } = splitShorthand(entry);
+		const { name, parts, description } = splitShorthand(entry);
 		if (!name) fail(`${field} entry ${index + 1} has no name: "${entry}"`);
 		const color = parts.find((p) => HEX_RE.test(p));
 		const unknown = parts.find((p) => !HEX_RE.test(p));
@@ -248,10 +317,11 @@ function parseFlatTaxonomy<T extends { id: string; name: string; color: string }
 				`"${name}" in ${field} carries "(${unknown})" — only a #hex colour is allowed here`,
 			);
 		}
-		const base = {
+		const base: { id: string; name: string; color: string; description?: string } = {
 			id: slugifyPlain(name),
 			name,
 			color: color ?? paletteColor(kind, index, entries.length),
+			...(description ? { description } : {}),
 		};
 		return (withOrder ? { ...base, order: index + 1 } : base) as T;
 	});
@@ -260,30 +330,34 @@ function parseFlatTaxonomy<T extends { id: string; name: string; color: string }
 	return values;
 }
 
-/** `"Name"`, `"Name*"`, `"Name (alias)"`, `"Name* (alias)"`. */
-function parsePeople(raw: unknown): Person[] | undefined {
+/** `"Name"`, `"Name*"`, `"Name (alias)"`, `"Name* (alias)"`. The trailing `*`
+ *  marks the person "me" is — the app-level identity a workspace created from
+ *  this template adopts (see `ParsedTemplate.mePersonId`). Templates that
+ *  don't mean to claim an identity just omit the star. */
+function parsePeople(
+	raw: unknown,
+): { people?: Person[]; mePersonId?: string } | undefined {
 	const entries = asStringArray(raw, "people");
 	if (!entries) return undefined;
 
+	const mePersonIds: string[] = [];
 	const people = entries.map((entry) => {
 		const { name: head, parts } = splitShorthand(entry);
 		const isSelf = head.endsWith("*");
 		const name = (isSelf ? head.slice(0, -1) : head).trim();
 		if (!name) fail(`A people entry has no name: "${entry}"`);
-		const aliases = parts.filter(Boolean);
-		return { id: slugifyPlain(name), name, aliases, isSelf };
+		const id = slugifyPlain(name);
+		if (isSelf) mePersonIds.push(id);
+		return { id, name, aliases: parts.filter(Boolean) };
 	});
 
-	const selves = people.filter((p) => p.isSelf);
-	if (selves.length > 1) {
+	if (mePersonIds.length > 1) {
 		fail(
-			`Only one person may be marked "*" (isSelf); found ${selves.length}: ${selves
-				.map((p) => p.name)
-				.join(", ")}`,
+			`Only one person may be marked "*" (the "me" person); found ${mePersonIds.length}`,
 		);
 	}
 	assertUniqueIds("people", people);
-	return people;
+	return { people, mePersonId: mePersonIds[0] };
 }
 
 /* --------------------------------------------------------- frontmatter ---- */
@@ -599,6 +673,7 @@ const TASK_FIELDS = new Set([
 	"created",
 	"updated",
 	"archived",
+	"repeat",
 	"blocks",
 	"blockedby",
 	"related",
@@ -963,6 +1038,9 @@ function applyFields(
 			case "archived":
 				node.archived = readArchived(value, line);
 				break;
+			case "repeat":
+				task.repeat = parseRepeatToken(value, line);
+				break;
 			case "owner":
 				project.owner = value;
 				break;
@@ -1111,7 +1189,9 @@ export function parseTemplateMarkdown(source: string): ParsedTemplate {
 		false,
 	);
 	const labels = parseFlatTaxonomy<LabelValue>(data.labels, "labels", "label", false);
-	const people = parsePeople(data.people);
+	const peopleResult = parsePeople(data.people);
+	const people = peopleResult?.people;
+	const mePersonId = peopleResult?.mePersonId;
 
 	const workspaceOverrides: TemplateWorkspaceOverrides = {};
 	if (statuses) workspaceOverrides.statuses = statuses;
@@ -1119,6 +1199,10 @@ export function parseTemplateMarkdown(source: string): ParsedTemplate {
 	if (taskTypes) workspaceOverrides.taskTypes = taskTypes;
 	if (labels) workspaceOverrides.labels = labels;
 	if (people) workspaceOverrides.people = people;
+	// Opt-in activity history: templates opt the workspace *in* (the default
+	// is off). A flat boolean in the frontmatter maps to the configured shape.
+	const history = optionalBoolean(data, "history");
+	if (history !== undefined) workspaceOverrides.history = { enabled: history };
 
 	const meta: TemplateMeta = {
 		id: requireString(data, "id"),
@@ -1164,5 +1248,6 @@ export function parseTemplateMarkdown(source: string): ParsedTemplate {
 		projects,
 		tasks,
 		warnings,
+		mePersonId,
 	};
 }

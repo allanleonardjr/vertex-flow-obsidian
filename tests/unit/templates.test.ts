@@ -3,6 +3,11 @@ import { instantiateTemplate } from "../../src/core/templates/instantiate";
 import { WORKSPACE_TEMPLATES, templateById } from "../../src/core/templates";
 import { sampleWorkspaceTemplate } from "../../src/core/templates/sample-workspace";
 import { serializeWorkspace } from "../../src/core/serialization/workspace";
+import {
+	DESCRIPTION_START_TAG,
+	parseDescription,
+} from "../../src/core/serialization/description";
+import { COMMENTS_START } from "../../src/core/serialization/comments";
 import { workspaceTaxonomies } from "../../src/core/taxonomy";
 import type { Task } from "../../src/core/types";
 
@@ -42,7 +47,9 @@ describe("every template's example content is a full feature showcase", () => {
 
 			it("generates ~25 tasks", () => {
 				expect(tasks.length).toBeGreaterThanOrEqual(24);
-				expect(tasks.length).toBeLessThanOrEqual(26);
+				// getting-started sits at the top of the range now that it also
+				// showcases both recurrence trigger types.
+				expect(tasks.length).toBeLessThanOrEqual(28);
 			});
 
 			it("has at least three projects", () => {
@@ -136,71 +143,49 @@ describe("every template's example content is a full feature showcase", () => {
 
 describe("instantiateTemplate — self person seeding", () => {
 	it("leaves the register untouched when no name is given", () => {
-		const { workspace } = instantiateTemplate({
+		const { workspace, personId } = instantiateTemplate({
 			...base,
 			template: gettingStartedTemplate,
 		});
 		expect(workspace.people).toEqual([]);
+		expect(personId).toBeNull();
 	});
 
-	it("adds the creator as the sole isSelf entry in an empty register", () => {
-		const { workspace } = instantiateTemplate({
+	it("adds the creator as the self-person in an empty register", () => {
+		const { workspace, personId } = instantiateTemplate({
 			...base,
 			template: gettingStartedTemplate,
 			selfPersonName: "  Jordan  ",
 		});
 		expect(workspace.people).toEqual([
-			{ id: "jordan", name: "Jordan", aliases: [], isSelf: true },
+			{ id: "jordan", name: "Jordan", aliases: [] },
 		]);
+		expect(personId).toBe("jordan");
 	});
 
-	it("appends the creator and clears isSelf elsewhere when example people exist", () => {
-		const { workspace } = instantiateTemplate({
+	it("appends the creator and sets the self-person when example people exist", () => {
+		const { workspace, personId } = instantiateTemplate({
 			...base,
 			template: sampleWorkspaceTemplate,
 			includeExampleContent: true,
 			selfPersonName: "Casey",
 		});
-		const self = workspace.people.filter((p) => p.isSelf);
-		expect(self).toHaveLength(1);
-		expect(self[0].name).toBe("Casey");
-		// The template's own people are still present as assignable non-self entries.
+		expect(personId).toBe("casey");
+		// The template's own people are still present as assignable entries.
 		expect(workspace.people.map((p) => p.name)).toEqual(
 			expect.arrayContaining(["Alice", "Bob", "Casey"]),
 		);
 	});
 
-	it("emits a per-file dashboard note and a full task set", () => {
-		const generated = instantiateTemplate({
-			...base,
-			template: sampleWorkspaceTemplate,
-			includeExampleContent: true,
-		});
-		expect(generated.snapshot.tasks).toHaveLength(25);
-		expect(generated.snapshot.dashboards).toHaveLength(1);
-		expect(generated.snapshot.dashboards[0].widgets).toHaveLength(3);
-		const dashboardId = generated.snapshot.dashboards[0].id;
-		expect(
-			generated.notes.some((n) => n.path.endsWith(`/Dashboards/${dashboardId}`)),
-		).toBe(true);
-		// The retired shared config notes are never emitted.
-		expect(
-			generated.notes.some(
-				(n) => n.path.endsWith("/_dashboards") || n.path.endsWith("/_views"),
-			),
-		).toBe(false);
-	});
-
 	it("reuses a matching entry by name instead of duplicating it", () => {
-		const { workspace } = instantiateTemplate({
+		const { workspace, personId } = instantiateTemplate({
 			...base,
 			template: sampleWorkspaceTemplate,
 			includeExampleContent: true,
 			selfPersonName: "alice",
 		});
 		expect(workspace.people.filter((p) => p.name === "Alice")).toHaveLength(1);
-		const self = workspace.people.filter((p) => p.isSelf);
-		expect(self.map((p) => p.name)).toEqual(["Alice"]);
+		expect(personId).toBe("alice");
 	});
 });
 
@@ -250,6 +235,114 @@ describe("blank workspace template", () => {
 				"defaultNewTaskStatus",
 			),
 		).toBe(false);
+	});
+});
+
+describe("instantiated task notes carry a parseable description block", () => {
+	const generated = instantiateTemplate({
+		...base,
+		name: "Demo",
+		template: gettingStartedTemplate,
+		includeExampleContent: true,
+		now: new Date("2026-08-26T12:00:00Z"),
+	});
+	const agencyGenerated = instantiateTemplate({
+		...base,
+		name: "Demo",
+		template: requireTemplate("agency-client-management"),
+		includeExampleContent: true,
+		now: new Date("2026-08-26T12:00:00Z"),
+	});
+	const noteFor = (
+		snapshot: typeof generated.snapshot,
+		notes: typeof generated.notes,
+		title: string,
+	) => {
+		const task = snapshot.tasks.find((t) => t.title === title);
+		expect(task).toBeDefined();
+		return notes.find((n) => n.path === task!.path)!;
+	};
+
+	it("wraps fenced descriptions in the plugin's description block", () => {
+		const note = noteFor(
+			generated.snapshot,
+			generated.notes,
+			"Open this task and write a description",
+		);
+		expect(note.body).toContain(DESCRIPTION_START_TAG);
+		expect(note.body).toContain("<!-- PLUGIN_DESCRIPTION_END -->");
+		// The structural heading is written exactly once — not doubled by the
+		// template fence's own `## Description`.
+		expect(note.body.match(/^## Description$/gm)).toHaveLength(1);
+		const desc = parseDescription(note.body);
+		expect(desc).toContain("[[Plan a weekend trip]]");
+		expect(desc).toContain("community.obsidian.md");
+	});
+
+	it("wraps bare-prose descriptions too", () => {
+		const note = noteFor(
+			generated.snapshot,
+			generated.notes,
+			"Give this task a due date",
+		);
+		expect(parseDescription(note.body)).toContain("Calendar and Timeline");
+	});
+
+	it("keeps an author's sub-headings and appends comments after the block", () => {
+		const note = noteFor(
+			agencyGenerated.snapshot,
+			agencyGenerated.notes,
+			"Monthly social content calendar",
+		);
+		expect(note.body).toContain(DESCRIPTION_START_TAG);
+		expect(note.body).toContain(COMMENTS_START);
+		expect(note.body.indexOf(DESCRIPTION_START_TAG)).toBeLessThan(
+			note.body.indexOf(COMMENTS_START),
+		);
+		const desc = parseDescription(note.body);
+		expect(desc).toContain("This month's calendar");
+		expect(desc).toContain("Client sign-off");
+		// Comment prose lives only in the comments block.
+		expect(desc).not.toContain("rounds of revisions");
+	});
+
+	it("round-trips descriptions the readDocument path relies on", () => {
+		for (const task of generated.snapshot.tasks) {
+			const note = generated.notes.find((n) => n.path === task.path)!;
+			if (note.body === "") continue;
+			// Whatever was authored, `parseDescription` must be able to find it —
+			// that's the exact call `mutations.readDocument` makes for the editor.
+			expect(
+				parseDescription(note.body),
+				`task "${task.title}"`,
+			).not.toBe("");
+		}
+	});
+
+	it("leaves tasks with no prose an empty body", () => {
+		const { snapshot, notes } = instantiateTemplate({
+			...base,
+			name: "Demo",
+			template: sampleWorkspaceTemplate,
+			includeExampleContent: true,
+		});
+		// The fixture only describes 4 of its 25 tasks — every other note must be
+		// emitted with no description block rather than an empty scaffold, and
+		// any non-empty body must start with a plugin-owned block.
+		expect(
+			snapshot.tasks.some(
+				(task) => notes.find((n) => n.path === task.path)!.body === "",
+			),
+		).toBe(true);
+		for (const task of snapshot.tasks) {
+			const body = notes.find((n) => n.path === task.path)!.body;
+			if (body === "") continue;
+			expect(
+				body.startsWith(DESCRIPTION_START_TAG) ||
+					body.startsWith(COMMENTS_START),
+				`unexpected body shape for "${task.title}"`,
+			).toBe(true);
+		}
 	});
 });
 

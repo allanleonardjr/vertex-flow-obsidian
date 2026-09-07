@@ -45,6 +45,7 @@ import { usePlugin } from "../context";
 import { ConfirmDeleteDialog } from "../components/ConfirmDeleteDialog";
 import { Icon } from "../components/Icon";
 import { PersonAvatar, StatusDot } from "../components/TaskBits";
+import { displayTitle } from "../components/TaskTitle";
 
 export type QuickPickerKind =
 	| "status"
@@ -584,7 +585,7 @@ export function QuickFieldPicker({
 
 			{confirmDepth && (
 				<ConfirmDeleteDialog
-					title={`Nest "${task.title}" ${confirmDepth} levels deep?`}
+					title={`Nest "${displayTitle(task)}" ${confirmDepth} levels deep?`}
 					body="Deeply nested sub-tasks get hard to scan. You can still move it."
 					confirmLabel="Move anyway"
 					onCancel={() => setConfirmParent(null)}

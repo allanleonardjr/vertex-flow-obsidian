@@ -6,11 +6,7 @@
  * `parent:` couldn't resolve). This shape is built for lookup in both directions.
  */
 
-import type {
-	LinkTarget,
-	Person,
-	WorkspaceSnapshot,
-} from "../types";
+import type { LinkTarget, Person, WorkspaceSnapshot } from "../types";
 import { workspaceTaxonomies, type WorkspaceTaxonomies } from "../taxonomy";
 
 export interface QueryEntity {
@@ -28,13 +24,19 @@ export interface QueryContext {
 	tasks: QueryEntity[];
 }
 
-export function queryContext(snapshot: WorkspaceSnapshot): QueryContext {
+export function queryContext(
+	snapshot: WorkspaceSnapshot,
+	me: string | null = null,
+): QueryContext {
+	const self = me
+		? snapshot.workspace.people.find((p) => p.id === me) ?? null
+		: null;
 	return {
 		taxonomies: workspaceTaxonomies(snapshot.workspace),
 		people: snapshot.workspace.people,
 		// Computed here rather than imported from `core/views`, so the query and
 		// view modules stay independent of one another.
-		selfId: snapshot.workspace.people.find((p) => p.isSelf)?.id ?? null,
+		selfId: self?.id ?? null,
 		projects: snapshot.projects.map((p) => ({ path: p.path, title: p.title })),
 		tasks: snapshot.tasks.map((t) => ({ path: t.path, title: t.id })),
 	};

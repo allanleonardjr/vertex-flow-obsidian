@@ -118,7 +118,8 @@ function candidatesFor(
 			// A bare basename is the friendliest form, and `linksMatch` resolves
 			// it — but only when it's unambiguous, which verification decides.
 			pretty.push(basename(entity.path));
-			if (entity.title !== basename(entity.path)) pretty.push(entity.title);
+			if (entity.title && entity.title !== basename(entity.path))
+				pretty.push(entity.title);
 		}
 		// For an entity the stored value is a full vault path — the ugliest
 		// rendering there is — so try the basename/title *first*. `printValue`
@@ -219,6 +220,14 @@ export function printQuery(
 	if (filters.unscheduled) {
 		parts.push(
 			`${FLAG_TOKENS.unscheduled.field}:${FLAG_TOKENS.unscheduled.value}`,
+		);
+	}
+	if (filters.recurring) {
+		parts.push(`${FLAG_TOKENS.recurring.field}:${FLAG_TOKENS.recurring.value}`);
+	}
+	if (canonical.recurringPreview) {
+		parts.push(
+			`${FLAG_TOKENS.recurringPreview.field}:${FLAG_TOKENS.recurringPreview.value}`,
 		);
 	}
 

@@ -26,6 +26,7 @@ import { LabelsBrowseView } from "./browse/LabelsBrowseView";
 import { PeopleBrowseView } from "./browse/PeopleBrowseView";
 import { DashboardsBrowseView } from "./browse/DashboardsBrowseView";
 import { TrashBrowseView } from "./browse/TrashBrowseView";
+import { HistoryBrowseView } from "./browse/HistoryBrowseView";
 import { DashboardView } from "./dashboards/DashboardView";
 import { Sidebar } from "./Sidebar";
 import { WorkspaceSettingsView } from "./settings/WorkspaceSettingsView";
@@ -36,6 +37,7 @@ import { TaskPane } from "./TaskPane";
 import { TaskViewport } from "./views/TaskViewport";
 import { PrefixEngine } from "./shortcuts/prefix-engine";
 import { TabSwitcher } from "./TabSwitcher";
+import { RecurringOverviewScreen } from "./RecurringOverviewScreen";
 import {
   CompactNavProvider,
   useCompactNav,
@@ -214,12 +216,11 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
     >
       <PrefixEngine snapshot={snapshot} />
       <TabSwitcher snapshot={snapshot} />
-      <Sidebar
+<Sidebar
         snapshot={snapshot}
         activeViewId={activeViewId}
         onSelectView={selectView}
       />
-
       {(navOpen || propertiesOpen) && (
         <div
           className="vf-compact-backdrop"
@@ -267,6 +268,8 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
           />
         ) : activeTab.kind === "trash" ? (
           <TrashBrowseView snapshot={snapshot} taxonomies={active.taxonomies} />
+        ) : activeTab.kind === "history" ? (
+          <HistoryBrowseView snapshot={snapshot} />
         ) : activeTab.kind === "dashboard" ? (
           <DashboardView
             key={activeTab.dashboardId}
@@ -294,6 +297,8 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
             active
             onSelectView={selectView}
           />
+        ) : activeTab.kind === "recurring" ? (
+          <RecurringOverviewScreen snapshot={snapshot} taxonomies={active.taxonomies} tabs={tabs} />
         ) : viewportView ? (
           <TaskViewport
             snapshot={snapshot}
@@ -332,6 +337,7 @@ export function labelView(snapshot: WorkspaceSnapshot, labelId: string): SavedVi
     hiddenFields: [],
     subtaskDisplay: "flat",
     calendarDateField: "dueDate",
+    recurringPreview: false,
   };
 }
 
@@ -356,6 +362,7 @@ export function personView(
     hiddenFields: [],
     subtaskDisplay: "flat",
     calendarDateField: "dueDate",
+    recurringPreview: false,
   };
 }
 
@@ -380,6 +387,7 @@ export function projectView(project: Project): SavedView {
     hiddenFields: [],
     subtaskDisplay: "nested",
     calendarDateField: "dueDate",
+    recurringPreview: false,
   };
 }
 

@@ -24,6 +24,7 @@ import {
 import { snapshotContext, type ViewContext, SYSTEM_VIEW_ALL_TASKS_ID } from "../core/views";
 import { workspaceTaxonomies, type WorkspaceTaxonomies } from "../core/taxonomy";
 import type { SavedView, WorkspaceSnapshot } from "../core/types";
+import { useMePersonId } from "./useMe";
 
 interface PluginContextValue {
 	plugin: VertexFlowPlugin;
@@ -140,6 +141,14 @@ export function useActiveWorkspace(): ActiveWorkspace | null {
 		);
 	}
 
+	const activeRoot =
+		(workspaces.find((w) => w.workspace.root === ctx.root) ?? workspaces[0])
+			?.workspace.root ?? "";
+	// Per-device, per-workspace "me" — this is what resolves `self` filters
+	// (the "Assigned to Me" / "Mentions Me" views). Reactive, so picking "me"
+	// in Settings repaints every filtered view without a reload.
+	const mePersonId = useMePersonId(activeRoot);
+
 	return useMemo(() => {
 		const snapshot =
 			workspaces.find((w) => w.workspace.root === ctx.root) ??
@@ -150,9 +159,9 @@ export function useActiveWorkspace(): ActiveWorkspace | null {
 		return {
 			snapshot,
 			taxonomies: workspaceTaxonomies(snapshot.workspace),
-			context: snapshotContext(snapshot),
+			context: snapshotContext(snapshot, mePersonId),
 		};
-	}, [workspaces, ctx.root]);
+	}, [workspaces, ctx.root, mePersonId]);
 }
 
 interface SidebarChromeCtxValue extends SidebarChromeState {

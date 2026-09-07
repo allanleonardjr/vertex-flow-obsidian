@@ -234,6 +234,11 @@ export function CalendarView({
 
   const openRow = (event: React.MouseEvent, task: Task) => {
     if (scheduleDrag.consumeDragClick()) return;
+    // A projected occurrence opens its repeating source, never selects.
+    if (task.projected) {
+      tabs.openTask(task.recurringFrom ?? task.path);
+      return;
+    }
     const toggle = event.metaKey || event.ctrlKey;
     const range = event.shiftKey;
     selection.select(task.path, { toggle, range });
@@ -242,18 +247,24 @@ export function CalendarView({
 
   const chipClass = (task: Task) =>
     `vf-cal-chip vf-row-open${
-      selection.focusedPath === task.path ? " is-focused" : ""
-    }${selection.isSelected(task.path) ? " is-selected" : ""}${
-      task.archived ? " is-archived" : ""
-    }${scheduleDrag.isDragging(task.path) ? " is-dragging" : ""}`;
+      !task.projected && selection.focusedPath === task.path ? " is-focused" : ""
+    }${
+      !task.projected && selection.isSelected(task.path) ? " is-selected" : ""
+    }${task.archived ? " is-archived" : ""}${
+      scheduleDrag.isDragging(task.path) ? " is-dragging" : ""
+    }${task.projected ? " is-projected" : ""}`;
 
   const renderChip = (task: Task) => (
     <button
       key={task.path}
       type="button"
       className={chipClass(task)}
-      data-task-path={task.path}
-      onPointerDown={(event) => scheduleDrag.onPointerDown(event, task.path)}
+      data-task-path={task.projected ? undefined : task.path}
+      onPointerDown={
+        task.projected
+          ? undefined
+          : (event) => scheduleDrag.onPointerDown(event, task.path)
+      }
       onClick={(event) => openRow(event, task)}
     >
       <TaskRowContent

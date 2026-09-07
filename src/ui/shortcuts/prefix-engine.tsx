@@ -23,6 +23,7 @@ import {
 	useCreateView,
 } from "../actions";
 import { useTabs } from "../tabs-context";
+import { usePlugin } from "../context";
 import { ShortcutsHelpDialog } from "./ShortcutsHelpDialog";
 
 /** How long a lone `g` / `c` waits for its second key before lapsing. */
@@ -40,6 +41,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
 
 export function PrefixEngine({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 	const tabs = useTabs();
+	const plugin = usePlugin();
 	const createTask = useCreateTask();
 	const createProject = useCreateProject();
 	const createDashboard = useCreateDashboard();
@@ -101,12 +103,18 @@ export function PrefixEngine({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 					case "t":
 						void tabs.openScreen("trash");
 						return true;
+					case "e":
+						void tabs.openScreen("history");
+						return true;
 					case "h":
 						void tabs.openScreen("help");
 						return true;
 					case "s":
 						void tabs.openScreen("settings");
 						return true;
+case "r":
+					void tabs.openScreen("recurring");
+					return true;
 					default:
 						return false;
 				}
@@ -131,7 +139,7 @@ export function PrefixEngine({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 					return false;
 			}
 		},
-		[tabs, createTask, createProject, createDashboard, createView],
+		[tabs, plugin, createTask, createProject, createDashboard, createView],
 	);
 
 	useEffect(() => {

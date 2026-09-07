@@ -39,6 +39,7 @@ export const DEFAULT_DEFINITION: ViewDefinition = {
 	hiddenFields: [],
 	subtaskDisplay: "flat",
 	calendarDateField: "dueDate",
+	recurringPreview: false,
 };
 
 function view(partial: Partial<SavedView> & Pick<SavedView, "id" | "name">): SavedView {

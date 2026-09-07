@@ -12,6 +12,14 @@ import { Notice, Plugin, WorkspaceLeaf } from "obsidian";
 import { VaultIndex } from "./obsidian/index-store";
 import { Mutations } from "./obsidian/mutations";
 import { NoteIO } from "./obsidian/note-io";
+import { HistoryLog } from "./obsidian/history-log";
+import { deviceId } from "./obsidian/device-id";
+import {
+	configureMeStorage,
+	getMePersonId,
+	setMePersonId,
+} from "./obsidian/me-storage";
+import { recurrenceNodesInChain } from "./core/recurrence";
 import { VertexFlowSettingTab } from "./settings/SettingTab";
 import {
 	DEFAULT_SETTINGS,
@@ -26,10 +34,20 @@ export default class VertexFlowPlugin extends Plugin {
 	io!: NoteIO;
 	index!: VaultIndex;
 	mutations!: Mutations;
+	history!: HistoryLog;
 
 	/** One-shot: consumed by the next `file-open`, then cleared. See `suppressNextRedirect`. */
 	private redirectSuppressed = false;
 
+	/**
+	 * The task whose editor tab is in front, mirrored out of the React tree so
+	 * native commands (Stop repeating…) can act on "the current task". Set by
+	 * `TaskPane`, cleared when it unmounts.
+	 */
+	activeTaskPath: string | null = null;
+
+	/** One-shot: the React tree opens the Recurring Overview modal when it sees this. */
+	
 	/**
 	 * The workspace most recently active in *any* pane this session. Used to
 	 * seed newly opened panes and to pick a workspace for Quick Capture, which
@@ -51,9 +69,20 @@ export default class VertexFlowPlugin extends Plugin {
 		await this.loadSettings();
 		applyUiTextSize(this.settings.uiTextSize);
 
+		// Stable per-vault id so per-device "me" storage can't collide across two
+		// vaults opened on the same machine.
+		configureMeStorage(
+			(this.app as unknown as { appId?: string }).appId,
+		);
+
 		this.io = new NoteIO(this.app);
 		this.index = new VaultIndex(this.app, this.io);
-		this.mutations = new Mutations(this.app, this.io, this.index);
+		this.history = new HistoryLog(this.io, deviceId(), (root) =>
+			getMePersonId(root),
+		);
+		this.mutations = new Mutations(this.app, this.io, this.index, this.history, {
+			setMePersonId: (root, personId) => setMePersonId(root, personId),
+		});
 
 		this.registerView(
 			VERTEX_VIEW_TYPE,
@@ -78,6 +107,15 @@ export default class VertexFlowPlugin extends Plugin {
 		// before then would read an empty vault.
 		this.app.workspace.onLayoutReady(() => {
 			this.index.watch((unsubscribe) => this.register(unsubscribe));
+			// Recurrence reconcile is a post-rebuild engine: every rebuild
+			// (initial load, vault watcher, manual "Rebuild index") offers the
+			// next pass a chance to spawn. A pass that spawns nothing is a
+			// no-op, so this subscription is cheap to keep hooked up.
+			this.register(
+				this.index.subscribe(() => {
+					void this.mutations.reconcileRecurrences();
+				}),
+			);
 			void this.index.rebuild().then(() => this.registerTaskRedirect());
 		});
 	}
@@ -116,6 +154,34 @@ export default class VertexFlowPlugin extends Plugin {
 			id: "rebuild-index",
 			name: "Rebuild index",
 			callback: () => void this.index.rebuild(),
+		});
+
+		// Acts on the task whose editor is in front. `checkCallback` keeps the
+		// command out of the palette unless that task is part of a live series.
+		this.addCommand({
+			id: "stop-recurrence",
+			name: "Stop repeating task",
+			checkCallback: (checking) => {
+				const path = this.activeTaskPath;
+				const task = path ? this.index.taskAt(path) : null;
+				const snapshot = path ? this.index.workspaceFor(path) : null;
+				const live =
+					task && snapshot
+						? recurrenceNodesInChain(snapshot, task).length > 0
+						: false;
+				if (live && !checking && task) {
+					void this.mutations.stopRecurrence(task);
+				}
+				return live;
+			},
+		});
+
+		this.addCommand({
+			id: "recurring-overview",
+			name: "Recurring overview",
+			callback: () => {
+				void this.activateView().then(() => this.index.touch());
+			},
 		});
 	}
 
@@ -205,7 +271,7 @@ export default class VertexFlowPlugin extends Plugin {
 		}
 
 		try {
-			const file = await this.mutations.createTask(snapshot, { title: "New task" });
+			const file = await this.mutations.createTask(snapshot, {});
 			await this.requestEdit(file.path.replace(/\.md$/, ""));
 		} catch (cause) {
 			new Notice(

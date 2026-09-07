@@ -51,6 +51,7 @@ import type {
 } from "../../core/types";
 import { EmptyView } from "../components/EmptyView";
 import { TaskRowContent } from "../components/TaskRow";
+import { displayTitle } from "../components/TaskTitle";
 import { ResizeHandle } from "../components/ResizeHandle";
 import { useCreateTask } from "../actions";
 import { usePlugin } from "../context";
@@ -420,6 +421,11 @@ export function TimelineView({
 
   const openRow = (event: React.MouseEvent, task: Task) => {
     if (barDrag.consumeDragClick() || scheduleDrag.consumeDragClick()) return;
+    // A projected occurrence opens its repeating source, never selects.
+    if (task.projected) {
+      tabs.openTask(task.recurringFrom ?? task.path);
+      return;
+    }
     const toggle = event.metaKey || event.ctrlKey;
     const range = event.shiftKey;
     selection.select(task.path, { toggle, range });
@@ -526,12 +532,18 @@ export function TimelineView({
                   key={task.path}
                   type="button"
                   className={`vf-timeline-row-label vf-row-open${
-                    selection.focusedPath === task.path ? " is-focused" : ""
-                  }${selection.isSelected(task.path) ? " is-selected" : ""}${
-                    task.archived ? " is-archived" : ""
+                    !task.projected && selection.focusedPath === task.path
+                      ? " is-focused"
+                      : ""
+                  }${
+                    !task.projected && selection.isSelected(task.path)
+                      ? " is-selected"
+                      : ""
+                  }${task.archived ? " is-archived" : ""}${
+                    task.projected ? " is-projected" : ""
                   }`}
-                  data-task-path={task.path}
-                  title={leftCollapsed ? task.title : undefined}
+                  data-task-path={task.projected ? undefined : task.path}
+                  title={leftCollapsed ? displayTitle(task) : undefined}
                   onClick={(event) => openRow(event, task)}
                 >
                   {!leftCollapsed && (
@@ -613,18 +625,21 @@ export function TimelineView({
                     key={task.path}
                     className={`vf-timeline-lane${
                       barDrag.isDragging(task.path) ? " is-dragging" : ""
-                    }`}
-                    data-task-path={task.path}
+                    }${task.projected ? " is-projected" : ""}`}
+                    data-task-path={task.projected ? undefined : task.path}
                     onClick={(event) => openRow(event, task)}
                   >
                     <BarShape
                       rowKey={task.path}
                       bar={bar}
                       color={statusColor(task)}
+                      projected={task.projected}
                       chartWidth={chartWidth}
                       dayOffset={dayOffset}
                       scale={scale}
-                      onBarPointerDown={barDrag.onPointerDown}
+                      onBarPointerDown={
+                        task.projected ? () => {} : barDrag.onPointerDown
+                      }
                     />
                   </div>
                 );
@@ -768,6 +783,7 @@ function BarShape({
   rowKey,
   bar,
   color,
+  projected,
   chartWidth,
   dayOffset,
   scale,
@@ -776,6 +792,7 @@ function BarShape({
   rowKey: string;
   bar: Bar;
   color: string | null;
+  projected?: boolean;
   chartWidth: number;
   dayOffset: (iso: string) => number;
   scale: number;
@@ -789,18 +806,27 @@ function BarShape({
   const down = (zone: BarDragZone) => (event: React.PointerEvent) =>
     onBarPointerDown(event, rowKey, bar, zone);
 
+  // A projected (ghost) bar carries the status hue on `color` (so the dashed
+  // border and the diagonal-stripe fill can derive from `currentColor`)
+  // rather than painting it as a solid `background` — mirroring the striped
+  // ghost cards on the Board.
+  const ghostClass = projected ? " is-projected" : "";
+
   if (bar.kind === "unscheduled") return null;
 
   if (bar.kind === "milestone") {
     return (
       <span
-        className="vf-timeline-milestone-wrap"
-        style={{ left: dayOffset(bar.date) + scale / 2 }}
+        className={`vf-timeline-milestone-wrap${ghostClass}`}
+        style={{
+          left: dayOffset(bar.date) + scale / 2,
+          ...(projected && color ? { color } : {}),
+        }}
         onPointerDown={down("body")}
       >
         <span
           className="vf-timeline-diamond"
-          style={color ? { background: color } : undefined}
+          style={!projected && color ? { background: color } : undefined}
           aria-hidden
         />
         <span className="vf-timeline-date-label is-solo">{bar.date}</span>
@@ -812,13 +838,17 @@ function BarShape({
     const left = dayOffset(bar.start);
     return (
       <div
-        className="vf-timeline-bar is-open"
+        className={`vf-timeline-bar is-open${ghostClass}`}
         style={{
           left,
           width: Math.max(scale, chartWidth - left),
-          background: color
-            ? `linear-gradient(to right, ${color} 0, ${color} 24px, transparent 100%)`
-            : undefined,
+          ...(projected
+            ? { color: color ?? undefined }
+            : {
+                background: color
+                  ? `linear-gradient(to right, ${color} 0, ${color} 24px, transparent 100%)`
+                  : undefined,
+              }),
         }}
         onPointerDown={down("body")}
       >
@@ -834,8 +864,14 @@ function BarShape({
   const barWidth = Math.max(scale, dayOffset(bar.end) - left + scale);
   return (
     <div
-      className="vf-timeline-bar is-range"
-      style={{ left, width: barWidth, background: color ?? undefined }}
+      className={`vf-timeline-bar is-range${ghostClass}`}
+      style={{
+        left,
+        width: barWidth,
+        ...(projected
+          ? { color: color ?? undefined }
+          : { background: color ?? undefined }),
+      }}
       onPointerDown={down("body")}
     >
       <span className="vf-timeline-date-label is-span">

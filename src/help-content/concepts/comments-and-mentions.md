@@ -19,10 +19,9 @@ register tags that person. Mentions drive two useful Saved Views out of the box
 
 ## The People register
 
-A workspace keeps a **People register**: a list of names and aliases, where you
-can mark one as **you** (the `isSelf` flag). That flag is what makes the `me` /
-`self` keyword in filters resolve to a real person, so filters like
-`assignee:me` just work.
+A workspace keeps a **People register**: a list of names and aliases. Who "you"
+(**me**) are is a global setting in plugin Settings — pick it once and `me` /
+`self` filters work across all workspaces. See **Settings → People** to set it.
 
 Deleting a person opens a **reassign or clear** dialog — you can move their
 tasks to someone else, or strip the assignment — mirroring the deletion guard

@@ -29,12 +29,14 @@ import {
 	SELF,
 	TASK_FIELDS,
 	emptyRelations,
+	type RecurrenceConfig,
 	type SavedView,
 	type Task,
 } from "../../src/core/types";
 
 const snapshot = sampleSnapshot();
-const context = snapshotContext(snapshot);
+const context = snapshotContext(snapshot, "alice");
+const anonymousContext = snapshotContext(snapshot, null);
 const view = (partial: Partial<SavedView> = {}): SavedView => ({
 	...newView("test", "Test", "board"),
 	...partial,
@@ -51,11 +53,13 @@ function task(overrides: Partial<Task> & { path: string }): Task {
 		rank: "0|i00000:",
 		project: null,
 		parent: null,
+		recurringFrom: null,
 		assignee: null,
 		estimate: null,
 		labels: [],
 		startDate: null,
 		dueDate: null,
+		recurrence: null,
 		archived: false,
 		archivedAt: null,
 		relations: emptyRelations(),
@@ -112,6 +116,39 @@ describe("filtering", () => {
 		]);
 	});
 
+	it("recurring keeps only tasks carrying a live recurrence", () => {
+		const recurrence = (
+			freq: RecurrenceConfig["freq"],
+			nextDate = "2026-09-01",
+		): RecurrenceConfig => ({
+			trigger: "on-close",
+			triggerStatus: null,
+			freq,
+			interval: 1,
+			weekdays: [],
+			dayOfMonth: null,
+			weekdayOfMonth: null,
+			monthOfYear: null,
+			anchor: "dueDate",
+			newStatus: null,
+			endsAfter: null,
+			endsOn: null,
+			nextDate,
+			copyFields: null,
+		});
+		const tasks = [
+			task({ path: "A" }),
+			task({ path: "B", recurrence: recurrence("weekly") }),
+			task({ path: "C", recurrence: recurrence("weekly") }),
+			task({ path: "D", recurringFrom: "A", recurrence: recurrence("daily") }),
+		];
+		expect(applyFilters(tasks, { recurring: true }, context).map((t) => t.id)).toEqual([
+			"B",
+			"C",
+			"D",
+		]);
+	});
+
 	it("ORs within one filter and ANDs across filters", () => {
 		const result = applyFilters(
 			snapshot.tasks,
@@ -132,23 +169,16 @@ describe("filtering", () => {
 		);
 	});
 
-	it("resolves `self` against the isSelf person (§7.6)", () => {
+	it("resolves `self` against the mePerson (§7.6)", () => {
 		const mine = applyFilters(snapshot.tasks, { assignee: [SELF] }, context);
 		expect(mine.length).toBeGreaterThan(0);
 		expect(mine.every((t) => t.assignee === "alice")).toBe(true);
 	});
 
-	it("matches nothing for `self` when no one is flagged isSelf", () => {
+	it("matches nothing for `self` when no mePerson is configured", () => {
 		// Honest beats convenient: "Assigned to Me" with no `me` configured must
 		// not silently degrade into "All Tasks".
-		const anonymous = snapshotContext({
-			...snapshot,
-			workspace: {
-				...snapshot.workspace,
-				people: snapshot.workspace.people.map((p) => ({ ...p, isSelf: false })),
-			},
-		});
-		expect(applyFilters(snapshot.tasks, { assignee: [SELF] }, anonymous)).toEqual([]);
+		expect(applyFilters(snapshot.tasks, { assignee: [SELF] }, anonymousContext)).toEqual([]);
 	});
 
 	it("resolves `self` for mentions", () => {
@@ -299,7 +329,7 @@ describe("sorting", () => {
 describe("grouping", () => {
 	it("emits a column for every status, even empty ones", () => {
 		const groups = groupTasks([], "status", context);
-		// The software-sprint fixture's status set — two `started` statuses
+		// The sample-workspace fixture's status set — two `started` statuses
 		// (In Progress, In Review) on purpose.
 		expect(groups.map((g) => g.key)).toEqual([
 			"backlog",
@@ -559,14 +589,14 @@ describe("seedFromFilters", () => {
 		expect(seedFromFilters({ assignee: [NONE], labels: [NONE] })).toEqual({});
 	});
 
-	it("resolves `self` for assignee against the isSelf person", () => {
+	it("resolves `self` for assignee against the mePerson", () => {
 		expect(seedFromFilters({ assignee: [SELF] }, context)).toEqual({
 			assignee: "alice",
 		});
 	});
 
-	it("drops `self` for assignee when no one is flagged isSelf", () => {
-		expect(seedFromFilters({ assignee: [SELF] })).toEqual({});
+	it("drops `self` for assignee when no mePerson is configured", () => {
+		expect(seedFromFilters({ assignee: [SELF] }, anonymousContext)).toEqual({});
 	});
 
 	it("lets a parent filter win over a project filter (single primary parent)", () => {

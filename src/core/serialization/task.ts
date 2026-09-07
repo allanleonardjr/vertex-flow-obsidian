@@ -8,7 +8,18 @@
 
 import { basename, formatLink, formatLinkList, parseLink, parseLinkList } from "../links";
 import { MIDDLE_RANK, isValidRank } from "../ranking/lexorank";
-import { emptyRelations, type Task, type TaskRelations } from "../types";
+import {
+  emptyRelations,
+  type RecurrenceAnchor,
+  type RecurrenceConfig,
+  type RecurrenceFrequency,
+  type RecurrenceTrigger,
+  type StatusValue,
+  type Task,
+  type TaskFieldKey,
+  type TaskRelations,
+  type Weekday,
+} from "../types";
 import {
 	IssueLog,
 	asBoolean,
@@ -30,6 +41,200 @@ export interface TaskParseOptions {
 	defaultStatus: string | null;
 	/** `Person.id`s @mentioned in the body — computed by the caller. */
 	mentions?: string[];
+	/**
+	 * The workspace's configured statuses. Used to validate recurrence
+	 * `triggerStatus`/`newStatus` references (an unknown one falls back with an
+	 * issue rather than silently never firing).
+	 */
+	statuses?: readonly StatusValue[];
+}
+
+const FREQUENCIES: readonly RecurrenceFrequency[] = [
+	"daily",
+	"weekly",
+	"monthly",
+	"yearly",
+];
+const TRIGGERS: readonly RecurrenceTrigger[] = ["on-close", "on-date"];
+
+const WEEKDAY_BY_NAME: Record<string, Weekday> = {
+	sun: "sun",
+	sunday: "sun",
+	mon: "mon",
+	monday: "mon",
+	tue: "tue",
+	tues: "tue",
+	tuesday: "tue",
+	wed: "wed",
+	wednesday: "wed",
+	thu: "thu",
+	thur: "thu",
+	thurs: "thu",
+	thursday: "thu",
+	fri: "fri",
+	friday: "fri",
+	sat: "sat",
+	saturday: "sat",
+};
+
+function parseWeekdays(raw: unknown, log: IssueLog): Weekday[] {
+	const out: Weekday[] = [];
+	let items: string[];
+	if (Array.isArray(raw)) {
+		items = raw.filter((item): item is string => typeof item === "string");
+	} else {
+		items = asString(raw)
+			?.split(/[\s,]+/)
+			.filter(Boolean) ?? [];
+	}
+	for (const item of items) {
+		const day = WEEKDAY_BY_NAME[item.trim().toLowerCase()];
+		if (day) {
+			if (!out.includes(day)) out.push(day);
+		} else {
+			log.add(`Recurrence weekday "${item}" is not a day name; ignoring it.`);
+		}
+	}
+	return out;
+}
+
+function clampInt(
+	raw: unknown,
+	min: number,
+	max: number,
+	log: IssueLog,
+	label: string,
+): number | null {
+	const value = asNumber(raw);
+	if (value == null) return null;
+	const clamped = Math.trunc(value);
+	if (clamped < min || clamped > max) {
+		log.add(`Recurrence ${label} ${value} is out of range; ignoring it.`);
+		return null;
+	}
+	return clamped;
+}
+
+/**
+ * Frontmatter → RecurrenceConfig. Forgiving: an unparseable or invalid
+ * recurrence is dropped (with an issue) rather than crashing the note, and
+ * unknown status references fall back the same way so a deleted status can't
+ * silently freeze a series. Returns `null` when the field is absent.
+ */
+export function parseRecurrence(
+	raw: unknown,
+	log: IssueLog,
+	statuses: readonly StatusValue[],
+): RecurrenceConfig | null {
+	if (raw == null) return null;
+	const record = asRecord(raw);
+
+	const freq = asString(record.freq) as RecurrenceFrequency | null;
+	if (!freq || !FREQUENCIES.includes(freq)) {
+		log.add("Recurrence dropped: unknown frequency.");
+		return null;
+	}
+
+	const trigger = asString(record.trigger) as RecurrenceTrigger | null;
+	if (trigger && !TRIGGERS.includes(trigger)) {
+		log.add(`Recurrence trigger "${trigger}" is invalid; dropped.`);
+		return null;
+	}
+
+	const nextDate = asDate(record.nextDate);
+	if (!nextDate) {
+		log.add("Recurrence dropped: missing nextDate.");
+		return null;
+	}
+
+	const intervalRaw = asNumber(record.interval);
+	const interval =
+		intervalRaw == null ? 1 : Math.max(1, Math.trunc(intervalRaw));
+	if (intervalRaw != null && intervalRaw < 1) {
+		log.add(`Recurrence interval ${intervalRaw} clamped to 1.`);
+	}
+
+	const endsAfterRaw = asNumber(record.endsAfter);
+	let endsAfter: number | null = null;
+	if (endsAfterRaw != null) {
+		if (endsAfterRaw >= 1) endsAfter = Math.trunc(endsAfterRaw);
+		else log.add(`Recurrence endsAfter ${endsAfterRaw} is invalid; ignoring it.`);
+	}
+
+	let triggerStatus = asString(record.triggerStatus);
+	if (triggerStatus && statuses.length > 0 && !statuses.some((s) => s.id === triggerStatus)) {
+		log.add(
+			`Recurrence triggerStatus "${triggerStatus}" is not a configured status; falling back to "any completed".`,
+		);
+		triggerStatus = null;
+	}
+
+	let newStatus = asString(record.newStatus);
+	if (newStatus && statuses.length > 0 && !statuses.some((s) => s.id === newStatus)) {
+		log.add(
+			`Recurrence newStatus "${newStatus}" is not a configured status; falling back to the workspace default.`,
+		);
+		newStatus = null;
+	}
+
+	const anchorRaw = asString(record.anchor);
+	let anchor: RecurrenceAnchor = "dueDate";
+	if (anchorRaw === "startDate") anchor = "startDate";
+	else if (anchorRaw && anchorRaw !== "dueDate") {
+		log.add(`Recurrence anchor "${anchorRaw}" is invalid; defaulting to dueDate.`);
+	}
+
+const dayOfMonth = clampInt(record.dayOfMonth, 1, 31, log, "dayOfMonth");
+ 	let weekdayOfMonth = clampInt(record.weekdayOfMonth, 1, 5, log, "weekdayOfMonth");
+ 	if (dayOfMonth != null && weekdayOfMonth != null) {
+ 		log.add(
+ 			"Recurrence has both dayOfMonth and weekdayOfMonth; using dayOfMonth.",
+ 		);
+ 		weekdayOfMonth = null;
+ 	}
+ 	const monthOfYear = clampInt(record.monthOfYear, 1, 12, log, "monthOfYear");
+
+ 	const copyFieldsRaw = asStringArray(record.copyFields);
+ 	const copyFields = (copyFieldsRaw && copyFieldsRaw.length > 0
+ 		? copyFieldsRaw
+ 		: null) as TaskFieldKey[] | null;
+
+ 	return {
+ 		trigger: trigger ?? "on-close",
+ 		triggerStatus,
+ 		freq,
+ 		interval,
+ 		weekdays: parseWeekdays(record.weekdays, log),
+ 		dayOfMonth,
+ 		weekdayOfMonth,
+ 		monthOfYear,
+ 		anchor,
+ 		newStatus,
+ 		endsAfter,
+ 		endsOn: asDate(record.endsOn),
+ 		nextDate,
+ 		copyFields,
+ 	};
+ }
+
+/** RecurrenceConfig → frontmatter object, with the empty guts compacted away. */
+export function serializeRecurrence(rule: RecurrenceConfig): Record<string, unknown> {
+	return compact({
+		trigger: rule.trigger,
+		triggerStatus: rule.triggerStatus,
+		freq: rule.freq,
+		interval: rule.interval,
+		weekdays: rule.weekdays.length > 0 ? rule.weekdays : undefined,
+		dayOfMonth: rule.dayOfMonth,
+		weekdayOfMonth: rule.weekdayOfMonth,
+		monthOfYear: rule.monthOfYear,
+		anchor: rule.anchor,
+		newStatus: rule.newStatus,
+		endsAfter: rule.endsAfter,
+		endsOn: rule.endsOn,
+		nextDate: rule.nextDate,
+		copyFields: rule.copyFields,
+	});
 }
 
 export function parseTask(
@@ -67,6 +272,12 @@ export function parseTask(
 
 	const project = parseLink(fm.project);
 	const parent = parseLink(fm.parent);
+	const recurringFrom = parseLink(fm.recurringFrom);
+	const recurrence = parseRecurrence(
+		fm.recurrence,
+		log,
+		options.statuses ?? [],
+	);
 
 	// `parent` and `project` are independent fields. A sub-task carries its own
 	// `project` link — seeded from its parent at creation, then maintained on
@@ -82,18 +293,20 @@ export function parseTask(
 	const task: Task = {
 		type: "task",
 		id: fileId,
-		title: asString(fm.title) ?? fileId,
+		title: asString(fm.title) ?? "",
 		taskType: asString(fm.taskType),
 		status: status ?? options.defaultStatus,
 		priority: asString(fm.priority),
 		rank,
 		project,
 		parent,
+		recurringFrom,
 		assignee: asString(fm.assignee),
 		estimate: asNumber(fm.estimate),
 		labels: asStringArray(fm.labels),
 		startDate: asDate(fm.startDate),
 		dueDate: asDate(fm.dueDate),
+		recurrence,
 		// `archivedAt` alone is enough to mean archived — either field alone
 		// counts, and a note carrying only the timestamp shouldn't reappear.
 		archived: archived || archivedAt != null,
@@ -145,17 +358,21 @@ export function serializeTask(task: Task): Record<string, unknown> {
 		type: "task",
 		taskType: task.taskType,
 		id: task.id,
-		title: task.title,
+		title: task.title || undefined,
 		status: task.status,
 		priority: task.priority,
 		rank: task.rank,
 		project: formatLink(task.project),
 		parent: formatLink(task.parent),
+		recurringFrom: formatLink(task.recurringFrom),
 		assignee: task.assignee,
 		estimate: task.estimate,
 		labels: task.labels,
 		startDate: task.startDate,
 		dueDate: task.dueDate,
+		recurrence: task.recurrence
+			? serializeRecurrence(task.recurrence)
+			: undefined,
 		archivedAt: task.archivedAt,
 		createdAt: task.createdAt,
 		updatedAt: task.updatedAt,
@@ -188,11 +405,13 @@ export const TASK_FIELD_ORDER: readonly string[] = [
 	"rank",
 	"project",
 	"parent",
+	"recurringFrom",
 	"assignee",
 	"estimate",
 	"labels",
 	"startDate",
 	"dueDate",
+	"recurrence",
 	"archived",
 	"archivedAt",
 	"relations",

@@ -169,6 +169,33 @@ export function SubtasksChip({
 }
 
 /**
+ * Whether the view previews upcoming occurrences of recurring tasks as ghost
+ * rows (`show:recurring` in the text query). Definitional — persists with the
+ * view — and off by default on every view.
+ */
+export function RecurringPreviewChip({
+	view,
+	onChange,
+}: {
+	view: SavedView;
+	onChange: (next: SavedView) => void;
+}) {
+	return (
+		<BarSelect
+			label="Upcoming"
+			value={view.recurringPreview ? "on" : "off"}
+			options={[
+				{ value: "off", label: "Hide recurring" },
+				{ value: "on", label: "Show recurring" },
+			]}
+			onSelect={(next: "on" | "off") =>
+				onChange({ ...view, recurringPreview: next === "on" })
+			}
+		/>
+	);
+}
+
+/**
  * Board-only: empty-column behavior. Previously reachable only through
  * the text query (`empty:auto-collapse`); this surfaces it on the bar like the
  * other display controls.

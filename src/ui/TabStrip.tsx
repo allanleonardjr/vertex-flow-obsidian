@@ -11,6 +11,7 @@ import { isSystemViewId, layoutIcon } from "../core/views";
 import type { WorkspaceSnapshot } from "../core/types";
 import { Icon } from "./components/Icon";
 import { StatusDot } from "./components/TaskBits";
+import { TaskTitle, displayTitle } from "./components/TaskTitle";
 import { usePlugin } from "./context";
 import {
 	tabAccentRoot,
@@ -32,6 +33,8 @@ const BROWSE_ICON: Record<BrowseKind, string> = {
 	trash: "🗑",
 	labels: "🏷",
 	people: "👤",
+	history: "🕘",
+	recurring: "↻",
 };
 
 const BROWSE_LABEL: Record<BrowseKind, string> = {
@@ -44,6 +47,8 @@ const BROWSE_LABEL: Record<BrowseKind, string> = {
 	trash: "Trash",
 	labels: "Labels",
 	people: "People",
+	history: "History",
+	recurring: "Recurring",
 };
 
 function browseLabel(kind: BrowseKind): string {
@@ -70,8 +75,8 @@ export function duplicateTaskTitles(
 		if (tab.kind !== "task") continue;
 		const task = plugin.index.taskAt(tab.path);
 		if (!task) continue;
-		if (seen.has(task.title)) duplicates.add(task.title);
-		seen.add(task.title);
+		if (seen.has(displayTitle(task))) duplicates.add(displayTitle(task));
+		seen.add(displayTitle(task));
 	}
 	return duplicates;
 }
@@ -360,12 +365,12 @@ export function tabContent(
 		if (!task || !owner) return null;
 		ownerName = owner.workspace.name;
 		icon = <StatusDot taxonomies={workspaceTaxonomies(owner.workspace)} status={task.status} />;
-		label = duplicateTaskTitles.has(task.title) ? (
+		label = duplicateTaskTitles.has(displayTitle(task)) ? (
 			<>
-				<span className="vf-tab-id">{task.id}</span> {task.title}
+				<span className="vf-tab-id">{task.id}</span> {displayTitle(task)}
 			</>
 		) : (
-			task.title
+			<TaskTitle task={task} />
 		);
 	} else if (tab.kind === "project") {
 		// Resolved fresh via the index, not the passed `snapshot` — right after a

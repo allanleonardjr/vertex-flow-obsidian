@@ -26,6 +26,7 @@ import type {
 } from "../../core/types";
 import { computeWidgetData } from "../../core/dashboards";
 import { snapshotContext } from "../../core/views";
+import { useMePersonId } from "../useMe";
 import { withoutExtension } from "../../obsidian/note-io";
 import { usePlugin } from "../context";
 import { WidgetChart } from "../dashboards/charts/WidgetChart";
@@ -87,7 +88,11 @@ export function ProjectsBrowseView({
       .then((file) => tabs.openProject(withoutExtension(file.path)));
   };
 
-  const context = useMemo(() => snapshotContext(snapshot), [snapshot]);
+  const mePersonId = useMePersonId(snapshot.workspace.root);
+  const context = useMemo(
+    () => snapshotContext(snapshot, mePersonId),
+    [snapshot, mePersonId],
+  );
   const statusData = useMemo(
     () => computeWidgetData(HERO_STATUS_WIDGET, snapshot.tasks, context),
     [snapshot.tasks, context],

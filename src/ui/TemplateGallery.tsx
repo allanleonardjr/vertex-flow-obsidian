@@ -22,6 +22,7 @@ import { suggestPrefix } from "../core/ids";
 import { SYSTEM_VIEW_ALL_TASKS_ID } from "../core/views";
 import { Icon, IconField } from "./components/Icon";
 import { usePlugin, useSetActiveWorkspace } from "./context";
+import { getMePrefill, setMePrefill } from "../obsidian/me-storage";
 import { FolderSuggestModal } from "./modals/FolderSuggestModal";
 
 export function TemplateGallery({ onClose }: { onClose?: () => void }) {
@@ -236,6 +237,9 @@ function ConfigStep({
 }) {
 	const plugin = usePlugin();
 	const setActiveWorkspace = useSetActiveWorkspace();
+	// A cross-workspace convenience default only — never a source of truth.
+	// Every new workspace seeds its own self-person independently.
+	const mePrefill = getMePrefill();
 
 	const [name, setName] = useState(template.name);
 	const [icon, setIcon] = useState(template.icon);
@@ -243,8 +247,14 @@ function ConfigStep({
 	// The prefix tracks the name until the user types their own — then it sticks.
 	// Clearing the field re-links it to the name.
 	const [prefixOverride, setPrefixOverride] = useState<string | null>(null);
-	const [selfName, setSelfName] = useState("");
+	const [selfName, setSelfName] = useState(mePrefill?.name ?? "");
 	const [populate, setPopulate] = useState(false);
+	// The template decides its own default (`history: true` in frontmatter
+	// opts the workspace in); the creator can flip it here. Mirrors the
+	// config-creation pattern of `populate`.
+	const [enableHistory, setEnableHistory] = useState(
+		template.workspace?.history?.enabled ?? false,
+	);
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
@@ -307,8 +317,13 @@ function ConfigStep({
 				icon,
 				includeExampleContent:
 					template.supportsExampleContent !== false && populate,
+				enableHistory,
 				selfPersonName: selfName.trim() || undefined,
 			});
+			// Remember what was typed so the next workspace prefills from it.
+			// `setMePersonId` for the new workspace is handled inside
+			// `createWorkspaceFromTemplate` (Phase 1 mutations wiring).
+			if (selfName.trim()) setMePrefill({ name: selfName.trim() });
 			// Nothing keeps a tab open on a new workspace's behalf — open All
 			// Tasks explicitly (it always has the most to show). The tab strip
 			// picks this up on its next mount / workspace switch.
@@ -420,8 +435,9 @@ function ConfigStep({
 					onChange={(event) => setSelfName(event.target.value)}
 				/>
 				<small>
-					Adds you to the People register as “me”, so “Assigned to Me” and
-					“Mentions Me” work right away. You can change this later in Settings.
+					Adds you to the People register as "me" for this workspace, so
+					"Assigned to Me" and "Mentions Me" work right away. Stored on this
+					device only — you can change it later in Settings.
 				</small>
 			</label>
 
@@ -440,6 +456,21 @@ function ConfigStep({
 					</span>
 				</label>
 			)}
+
+			<label className="vf-template-toggle">
+				<input
+					type="checkbox"
+					checked={enableHistory}
+					onChange={(event) => setEnableHistory(event.target.checked)}
+				/>
+				<span>
+					Start with activity history on
+					<small>
+						Tracks who changed what, and when, in a plain Markdown log under{" "}
+						<code>History/</code>. You can change this later in Settings.
+					</small>
+				</span>
+			</label>
 
 			{error && <p className="vf-error">{error}</p>}
 

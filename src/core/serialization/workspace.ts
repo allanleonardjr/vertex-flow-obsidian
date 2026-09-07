@@ -114,27 +114,17 @@ function parsePeople(raw: unknown, log: IssueLog): Person[] {
 	}
 
 	const people: Person[] = [];
-	let selfSeen = false;
 
 	for (const entry of raw) {
 		const record = asRecord(entry);
 		const id = asString(record.id);
 		if (!id) continue;
 
-		const isSelf = asBoolean(record.isSelf, false);
-		if (isSelf && selfSeen) {
-			// `self` filters resolve to exactly one person; a second
-			// `isSelf` would make "Assigned to Me" ambiguous.
-			log.add(`More than one person is flagged isSelf; ignoring it on "${id}".`);
-		}
-
 		people.push({
 			id,
 			name: asString(record.name) ?? id,
 			aliases: asStringArray(record.aliases),
-			isSelf: isSelf && !selfSeen,
 		});
-		if (isSelf) selfSeen = true;
 	}
 
 	return people;
@@ -156,6 +146,7 @@ export function parseWorkspace(
 	const name = asString(fm.name) ?? (root ? root.split("/").pop() ?? root : "Workspace");
 
 	const archiving = asRecord(fm.archiving);
+	const history = asRecord(fm.history);
 
 	const statuses = parseTaxonomyList(fm.statuses, log, "statuses", {
 		ordered: true,
@@ -205,6 +196,10 @@ export function parseWorkspace(
 			autoArchiveEnabled: asBoolean(archiving.autoArchiveEnabled, false),
 			autoArchiveDays: asNumber(archiving.autoArchiveDays) ?? 30,
 		},
+		history: {
+			// Off until a workspace opts in — see `HistoryConfig.enabled`.
+			enabled: asBoolean(history.enabled, false),
+		},
 		defaultNewTaskStatus,
 		estimateUnitLabel: asString(fm.estimateUnitLabel),
 		deletedAt: asDateTime(fm.deletedAt),
@@ -230,6 +225,9 @@ export function serializeWorkspace(
 		archiving: {
 			autoArchiveEnabled: workspace.archiving.autoArchiveEnabled,
 			autoArchiveDays: workspace.archiving.autoArchiveDays,
+		},
+		history: {
+			enabled: workspace.history.enabled,
 		},
 		defaultNewTaskStatus: workspace.defaultNewTaskStatus,
 		estimateUnitLabel: workspace.estimateUnitLabel,
@@ -274,7 +272,6 @@ export function serializeWorkspace(
 				id: person.id,
 				name: person.name,
 				aliases: person.aliases,
-				isSelf: person.isSelf ?? false,
 			}),
 		),
 	});
@@ -293,6 +290,7 @@ export function createWorkspaceConfig(
 		icon,
 		idPrefix: idPrefix.toUpperCase(),
 		archiving: { autoArchiveEnabled: false, autoArchiveDays: 30 },
+		history: { enabled: false },
 		defaultNewTaskStatus: DEFAULT_NEW_TASK_STATUS,
 		estimateUnitLabel: null,
 		deletedAt: null,

@@ -22,12 +22,12 @@ import {
 } from "../types";
 import type { ViewContext } from "./context";
 
-/** Expand the `self` sentinel against the workspace's `isSelf` person. */
+/** Expand the `self` sentinel against the device's per-workspace "me" personId. */
 function resolvePeople(values: string[], context: ViewContext): string[] {
 	const out: string[] = [];
 	for (const value of values) {
 		if (value === SELF) {
-			// No one is flagged `isSelf` yet — a `self` filter then matches
+			// No `me` is set in this workspace — a `self` filter then matches
 			// nothing, which is honest. Silently matching everything would make
 			// "Assigned to Me" look like "All Tasks".
 			if (context.selfId) out.push(context.selfId);
@@ -86,6 +86,7 @@ export function matchesFilters(
 		return false;
 	}
 	if (filters.unscheduled && (task.dueDate || task.startDate)) return false;
+	if (filters.recurring && !task.recurrence) return false;
 
 	if (!matchesSingle(task.status, filters.status)) return false;
 	if (!matchesSingle(task.priority, filters.priority)) return false;
@@ -138,7 +139,7 @@ export function applyFilters(
  */
 export type ArrayFilterKey = Exclude<
 	keyof ViewFilters,
-	"text" | "archived" | "openOnly" | "unscheduled"
+	"text" | "archived" | "openOnly" | "unscheduled" | "recurring"
 >;
 
 export const FILTER_ARRAY_FIELDS: readonly ArrayFilterKey[] = [
@@ -182,6 +183,7 @@ export function canonicalizeFilters(filters: ViewFilters): ViewFilters {
 	if (filters.archived) out.archived = filters.archived;
 	if (filters.openOnly) out.openOnly = true;
 	if (filters.unscheduled) out.unscheduled = true;
+	if (filters.recurring) out.recurring = true;
 
 	return out;
 }
@@ -242,6 +244,7 @@ export function viewDefinition(view: SavedView): ViewDefinition {
 		hiddenFields: view.hiddenFields,
 		subtaskDisplay: view.subtaskDisplay,
 		calendarDateField: view.calendarDateField,
+		recurringPreview: view.recurringPreview,
 	};
 }
 
@@ -258,6 +261,7 @@ export function canonicalizeDefinition(
 		hiddenFields: canonicalizeHiddenFields(definition.hiddenFields),
 		subtaskDisplay: definition.subtaskDisplay,
 		calendarDateField: definition.calendarDateField,
+		recurringPreview: definition.recurringPreview,
 	};
 }
 
@@ -280,6 +284,7 @@ export function isEmptyFilterSet(filters: ViewFilters): boolean {
 		!filters.parent?.length &&
 		!filters.mentions?.length &&
 		!filters.text?.trim() &&
+		!filters.recurring &&
 		filters.archived !== "only"
 	);
 }

@@ -25,6 +25,7 @@ import {
 } from "../core/hierarchy";
 import type { WorkspaceSnapshot } from "../core/types";
 import { usePlugin } from "./context";
+import { UNTITLED_TASK_LABEL } from "./components/TaskTitle";
 
 const NOUN: Record<DeletionPlan["kind"], string> = {
   task: "task",
@@ -108,7 +109,7 @@ export function DeleteEntityDialog({
         {phase === "confirm" ? (
           <>
             <h3>
-              Move {noun} "{current.title}" to Trash?
+              Move {noun} "{current.title || UNTITLED_TASK_LABEL}" to Trash?
             </h3>
             <p className="vf-dialog-lead">
               {current.hasChildren
@@ -132,7 +133,7 @@ export function DeleteEntityDialog({
         ) : (
           <>
             <h3>
-              The {childNoun}s of "{current.title}"
+              The {childNoun}s of "{current.title || UNTITLED_TASK_LABEL}"
             </h3>
             <p className="vf-dialog-lead">
               Move the {describePlanChildren(current)} to Trash too, or keep{" "}

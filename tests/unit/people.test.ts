@@ -9,7 +9,7 @@ import type { Person } from "../../src/core/types";
 import { project, task } from "./fixtures";
 
 const people: Person[] = [
-	{ id: "alice", name: "Alice", isSelf: true },
+	{ id: "alice", name: "Alice" },
 	{ id: "bob", name: "Bob" },
 	{ id: "carol", name: "Carol" },
 ];

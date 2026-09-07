@@ -25,10 +25,11 @@ import {
   seedFromFilters,
 } from "../../core/views";
 import type { ViewContext } from "../../core/views";
+import { localTodayIso } from "../../core/date";
 import { childTasks, primaryParent, scopeOf } from "../../core/hierarchy";
 import { sortTasksByRank } from "../../core/ranking";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
-import type { SavedView, WorkspaceSnapshot } from "../../core/types";
+import type { SavedView, Task, WorkspaceSnapshot } from "../../core/types";
 import { useCreateTask } from "../actions";
 import { usePlugin } from "../context";
 import { useUnsavedGuard } from "../components/useUnsavedGuard";
@@ -135,9 +136,12 @@ export function TaskViewport({
     });
   }, [draft, effective]);
 
+  // Pinned per render pass so every row in one evaluation projects against the
+  // same "today". Recomputes when the view or snapshot changes.
+  const today = localTodayIso();
   const evaluated = useMemo(
-    () => evaluateView(snapshot, effective, context),
-    [snapshot, context, effective],
+    () => evaluateView(snapshot, effective, context, today),
+    [snapshot, context, effective, today],
   );
 
   // Which parent rows have their subtree collapsed in the nested List view.
@@ -369,30 +373,39 @@ export function TaskViewport({
    * can't see.
    */
   const layout = useMemo<FocusLayout>(() => {
+    // Projected (ghost) rows are never focus/select/drag targets — they carry a
+    // synthetic path and open their source on click. Keep them out of every
+    // layout branch so j/k, shift-range, and select-all skip them.
+    const realPaths = (tasks: readonly Task[]) =>
+      tasks.filter((task) => !task.projected).map((task) => task.path);
+
     if (effective.viewType === "timeline") {
       const { scheduled, unscheduled } = partitionScheduled(evaluated.tasks);
-      return [[...scheduled, ...unscheduled].map((task) => task.path)];
+      return [realPaths([...scheduled, ...unscheduled])];
     }
 
     // Calendar renders on a day grid, not a linear column — j/k just walks
     // the filtered+sorted list, scheduled and unscheduled alike.
     if (effective.viewType === "calendar") {
-      return [evaluated.tasks.map((task) => task.path)];
+      return [realPaths(evaluated.tasks)];
     }
 
     // Nested List: walk the flattened forest, groups concatenated, ghosts and
     // collapsed subtrees excluded (they aren't focusable).
     if (nestedGroups) {
+      const real = new Set(realPaths(evaluated.tasks));
       return [
         nestedGroups
           .filter((group) => !group.hidden && !group.collapsed)
-          .flatMap((group) => focusableRowPaths(group.rows)),
+          .flatMap((group) =>
+            focusableRowPaths(group.rows).filter((path) => real.has(path)),
+          ),
       ];
     }
 
     const visible = evaluated.groups.filter((group) => !group.hidden);
     const paths = (group: (typeof visible)[number]) =>
-      group.collapsed ? [] : group.tasks.map((task) => task.path);
+      group.collapsed ? [] : realPaths(group.tasks);
 
     return effective.viewType === "board"
       ? visible.map(paths)
