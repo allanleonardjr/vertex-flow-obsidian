@@ -540,10 +540,12 @@ describe("describeRecurrence", () => {
 				statuses,
 			),
 		).toBe("when status is In Review");
-		expect(describeTrigger(rule({ trigger: "on-date" }), statuses)).toBe("on the due date");
+		expect(describeTrigger(rule({ trigger: "on-date" }), statuses)).toBe(
+			"automatically on the due date",
+		);
 		expect(
 			describeTrigger(rule({ trigger: "on-date", anchor: "startDate" }), statuses),
-		).toBe("on the start date");
+		).toBe("automatically on the start date");
 	});
 
 	it("combines cadence, trigger and end conditions into the summary line", () => {

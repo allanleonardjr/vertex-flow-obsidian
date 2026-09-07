@@ -94,8 +94,8 @@ export function describeTrigger(
 ): string {
 	if (rule.trigger === "on-date") {
 		return rule.anchor === "startDate"
-			? "on the start date"
-			: "on the due date";
+			? "automatically on the start date"
+			: "automatically on the due date";
 	}
 	if (rule.triggerStatus == null) return "when completed";
 	const status = statuses.find((value) => value.id === rule.triggerStatus);

@@ -227,38 +227,6 @@ function RecurrenceEditDialog({
       >
         <h3>Repeat</h3>
 
-        <Field label="When it repeats">
-          <Segmented
-            value={rule.trigger}
-            options={[
-              { value: "on-date", label: "On the date" },
-              { value: "on-close", label: "When closed" },
-            ]}
-            onChange={(trigger) => patch({ trigger })}
-          />
-        </Field>
-
-        {rule.trigger === "on-close" && (
-          <Field label="Fires when status becomes">
-            <StatusSelect
-              taxonomy={taxonomies.status}
-              value={rule.triggerStatus}
-              onChange={(triggerStatus) => patch({ triggerStatus })}
-            />
-            {rule.triggerStatus != null ? (
-              <button
-                type="button"
-                className="vf-linkish"
-                onClick={() => patch({ triggerStatus: null })}
-              >
-                Use any “done” status instead
-              </button>
-            ) : (
-              <p className="vf-dialog-hint">Fires on any status in the “done” category.</p>
-            )}
-          </Field>
-        )}
-
         <Field label="Frequency">
           <div className="vf-chip-group" role="group">
             {FREQUENCIES.map((freq) => (
@@ -387,7 +355,7 @@ function RecurrenceEditDialog({
           </Field>
         )}
 
-        <Field label="Move which date">
+        <Field label="Which date repeats">
           <Segmented
             value={rule.anchor}
             options={[
@@ -396,6 +364,46 @@ function RecurrenceEditDialog({
             ]}
             onChange={(anchor) => patch({ anchor })}
           />
+        </Field>
+
+        <Field label="Create the next occurrence">
+          <Segmented
+            value={rule.trigger}
+            options={[
+              { value: "on-date", label: "Automatically, on its date" },
+              { value: "on-close", label: "After I close this one" },
+            ]}
+            onChange={(trigger) => patch({ trigger })}
+          />
+          {rule.trigger === "on-close" && (
+            <div className="vf-recurrence-subfield">
+              <span className="vf-recurrence-subfield-label">
+                Counts as closed when status is
+              </span>
+              <StatusSelect
+                taxonomy={taxonomies.status}
+                value={rule.triggerStatus}
+                onChange={(triggerStatus) => patch({ triggerStatus })}
+              />
+              {rule.triggerStatus != null ? (
+                <button
+                  type="button"
+                  className="vf-linkish"
+                  onClick={() => patch({ triggerStatus: null })}
+                >
+                  Use any “done” status instead
+                </button>
+              ) : (
+                <p className="vf-dialog-hint">
+                  Any status in the “done” category counts.
+                </p>
+              )}
+            </div>
+          )}
+          <p className="vf-dialog-hint">
+            The schedule above sets each occurrence’s dates — this only sets when
+            the next copy appears.
+          </p>
         </Field>
 
         <Field label="Ends">
@@ -429,8 +437,9 @@ function RecurrenceEditDialog({
         <div className="vf-recurrence-preview">
           <strong>{describeRecurrence(finalize(), snapshot.workspace.statuses)}</strong>
           <span className="vf-dialog-hint">
-            Next: {preview.join(" · ") || "—"}
-            {rule.trigger === "on-close" && " (once closed)"}
+            {rule.trigger === "on-close"
+              ? `Next occurrence: ${preview[0] ?? "—"} — created once you close this one.`
+              : `Next occurrences: ${preview.join(" · ") || "—"}`}
           </span>
         </div>
 
