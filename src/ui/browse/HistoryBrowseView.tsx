@@ -95,6 +95,8 @@ function fieldLabel(field: string): string {
     startDate: "start date",
     dueDate: "due date",
     archived: "archived",
+    recurrence: "repeat",
+    recurringFrom: "spawned from",
     name: "name",
     icon: "icon",
     idPrefix: "id prefix",
@@ -189,6 +191,7 @@ function changeValueText(
       }
       break;
     case "parent":
+    case "recurringFrom":
       if (typeof value === "string") return taskIdAt(value) ?? value;
       break;
     // `statuses.<id>.name` / `labels.<id>.color` / `people.<id>.name` / …
@@ -207,6 +210,11 @@ function changeText(
 ): string {
   const label = fieldLabel(change.field);
   const txt = (v: unknown) => changeValueText(change.field, v, snapshot, taskIdAt);
+  if (change.field === "recurrence") {
+    if (change.to === undefined) return "repeat turned off";
+    if (change.from === undefined) return `repeat set: ${txt(change.to)}`;
+    return `repeat changed: ${txt(change.from)} → ${txt(change.to)}`;
+  }
   if (change.to === undefined) return `${label}: ${txt(change.from)} removed`;
   if (change.from === undefined) return `${label}: ${txt(change.to)}`;
   return `${label}: ${txt(change.from)} → ${txt(change.to)}`;

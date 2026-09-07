@@ -197,7 +197,9 @@ export type TaskFieldKey =
 	| "assignee"
 	| "estimate"
 	| "labels"
-	| "description";
+	| "description"
+	| "project"
+	| "parent";
 
 export interface RecurrenceConfig {
 	trigger: RecurrenceTrigger;

@@ -633,6 +633,7 @@ export function TimelineView({
                       rowKey={task.path}
                       bar={bar}
                       color={statusColor(task)}
+                      projected={task.projected}
                       chartWidth={chartWidth}
                       dayOffset={dayOffset}
                       scale={scale}
@@ -782,6 +783,7 @@ function BarShape({
   rowKey,
   bar,
   color,
+  projected,
   chartWidth,
   dayOffset,
   scale,
@@ -790,6 +792,7 @@ function BarShape({
   rowKey: string;
   bar: Bar;
   color: string | null;
+  projected?: boolean;
   chartWidth: number;
   dayOffset: (iso: string) => number;
   scale: number;
@@ -803,18 +806,27 @@ function BarShape({
   const down = (zone: BarDragZone) => (event: React.PointerEvent) =>
     onBarPointerDown(event, rowKey, bar, zone);
 
+  // A projected (ghost) bar carries the status hue on `color` (so the dashed
+  // border and the diagonal-stripe fill can derive from `currentColor`)
+  // rather than painting it as a solid `background` — mirroring the striped
+  // ghost cards on the Board.
+  const ghostClass = projected ? " is-projected" : "";
+
   if (bar.kind === "unscheduled") return null;
 
   if (bar.kind === "milestone") {
     return (
       <span
-        className="vf-timeline-milestone-wrap"
-        style={{ left: dayOffset(bar.date) + scale / 2 }}
+        className={`vf-timeline-milestone-wrap${ghostClass}`}
+        style={{
+          left: dayOffset(bar.date) + scale / 2,
+          ...(projected && color ? { color } : {}),
+        }}
         onPointerDown={down("body")}
       >
         <span
           className="vf-timeline-diamond"
-          style={color ? { background: color } : undefined}
+          style={!projected && color ? { background: color } : undefined}
           aria-hidden
         />
         <span className="vf-timeline-date-label is-solo">{bar.date}</span>
@@ -826,13 +838,17 @@ function BarShape({
     const left = dayOffset(bar.start);
     return (
       <div
-        className="vf-timeline-bar is-open"
+        className={`vf-timeline-bar is-open${ghostClass}`}
         style={{
           left,
           width: Math.max(scale, chartWidth - left),
-          background: color
-            ? `linear-gradient(to right, ${color} 0, ${color} 24px, transparent 100%)`
-            : undefined,
+          ...(projected
+            ? { color: color ?? undefined }
+            : {
+                background: color
+                  ? `linear-gradient(to right, ${color} 0, ${color} 24px, transparent 100%)`
+                  : undefined,
+              }),
         }}
         onPointerDown={down("body")}
       >
@@ -848,8 +864,14 @@ function BarShape({
   const barWidth = Math.max(scale, dayOffset(bar.end) - left + scale);
   return (
     <div
-      className="vf-timeline-bar is-range"
-      style={{ left, width: barWidth, background: color ?? undefined }}
+      className={`vf-timeline-bar is-range${ghostClass}`}
+      style={{
+        left,
+        width: barWidth,
+        ...(projected
+          ? { color: color ?? undefined }
+          : { background: color ?? undefined }),
+      }}
       onPointerDown={down("body")}
     >
       <span className="vf-timeline-date-label is-span">

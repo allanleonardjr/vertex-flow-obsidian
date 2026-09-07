@@ -14,6 +14,7 @@ import { describeRecurrence, recurringOverview } from "../core/recurrence";
 import type { Task, WorkspaceSnapshot } from "../core/types";
 import type { WorkspaceTaxonomies } from "../core/taxonomy";
 import { ConfirmDeleteDialog } from "./components/ConfirmDeleteDialog";
+import { RecurrenceEditDialog } from "./components/RecurrenceEditor";
 import { StatusDot } from "./components/TaskBits";
 import { displayTitle } from "./components/TaskTitle";
 import { usePlugin } from "./context";
@@ -34,11 +35,14 @@ function RecurringRow({
 	task,
 	chainLength,
 	nextDate,
+	description,
 	taxonomies,
+	onEdit,
 	onOpen,
 	onStop,
 }: RecurringScreenRow & {
 	taxonomies: WorkspaceTaxonomies;
+	onEdit: (task: Task) => void;
 	onOpen: (task: Task) => void;
 	onStop: (task: Task) => void;
 }) {
@@ -50,6 +54,8 @@ function RecurringRow({
 					{displayTitle(task)}
 				</span>
 				<span className="vf-dialog-hint">
+					{description}
+					{" · "}
 					{chainLength} occurrence
 					{chainLength > 1 && ` of ${chainLength}`}
 					{nextDate ? ` · next ${nextDate}` : ""}
@@ -59,9 +65,16 @@ function RecurringRow({
 				<button
 					type="button"
 					className="vf-linkish"
+					onClick={() => onEdit(task)}
+				>
+					Edit
+				</button>
+				<button
+					type="button"
+					className="vf-linkish"
 					onClick={() => onOpen(task)}
 				>
-					Open
+					Open Task
 				</button>
 				<button
 					type="button"
@@ -88,6 +101,7 @@ export function RecurringOverviewScreen({
 	const plugin = usePlugin();
 	const [rows, setRows] = useState<RecurringScreenRow[]>([]);
 	const [stopTask, setStopTask] = useState<Task | null>(null);
+	const [editTask, setEditTask] = useState<Task | null>(null);
 
 	// Rebuild the list whenever the snapshot changes — a stopped series drops
 	// out on the next rebuild.
@@ -108,6 +122,10 @@ export function RecurringOverviewScreen({
 
 	const openTask = (task: Task) => {
 		tabs.openTask(task.path);
+	};
+
+	const handleEdit = (task: Task) => {
+		setEditTask(task);
 	};
 
 	const handleStop = (task: Task) => {
@@ -133,6 +151,7 @@ export function RecurringOverviewScreen({
 								key={row.task.path}
 								{...row}
 								taxonomies={taxonomies}
+								onEdit={handleEdit}
 								onOpen={openTask}
 								onStop={handleStop}
 							/>
@@ -141,10 +160,23 @@ export function RecurringOverviewScreen({
 				</BrowseList>
 			)}
 
+			{editTask && (
+				<RecurrenceEditDialog
+					task={editTask}
+					snapshot={snapshot}
+					taxonomies={taxonomies}
+					onClose={() => setEditTask(null)}
+					onSave={(next) => {
+						void plugin.mutations.setRecurrence(editTask, next);
+						setEditTask(null);
+					}}
+				/>
+			)}
+
 			{stopTask && (
 				<ConfirmDeleteDialog
 					title={`Stop “${displayTitle(stopTask)}” repeating?`}
-					body="Occurrences already spawned stay; no new ones are created."
+					body="No files are removed, but every task in this series — including ones already spawned — will have its repeat schedule cleared."
 					confirmLabel="Stop repeating"
 					destructive={false}
 					onCancel={() => setStopTask(null)}

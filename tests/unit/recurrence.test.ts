@@ -265,10 +265,11 @@ describe("spawnPlans — on-date", () => {
 			"2026-09-04",
 			"2026-09-05",
 		]);
-		// The last spawned occurrence carries a future schedule; the mid-chain
-		// ones advance to the next backfilled point, so a lost write self-heals.
+		// Only the newest spawned occurrence carries a live schedule; every
+		// intermediate backfilled point is superseded within this same pass,
+		// so it lands with no recurrence block at all.
 		expect(plans[plans.length - 1].recurrence?.nextDate).toBe("2026-09-06");
-		expect(plans[0].recurrence?.nextDate).toBe("2026-08-29");
+		expect(plans[0].recurrence).toBeNull();
 	});
 
 	it("jumps past the backlog cap: exactly the most recent point, one spawn", () => {
@@ -286,7 +287,9 @@ describe("spawnPlans — on-date", () => {
 		const n = nodeTask({ recurrence: rule({ nextDate: "2026-08-28", endsAfter: 3 }) });
 		const plans = spawnPlans(snap(n), n, "2026-09-05");
 		expect(planDates(plans)).toEqual(["2026-09-04", "2026-09-05"]);
-		expect(plans[0].recurrence).not.toBeNull();
+		// Intermediate backfilled points never carry a live block, and the
+		// final one is the series terminus — both come out null.
+		expect(plans[0].recurrence).toBeNull();
 		expect(plans[1].recurrence).toBeNull();
 	});
 
@@ -377,9 +380,9 @@ describe("spawnPlans — on-close", () => {
 		).toEqual([]);
 	});
 
-	it("never spawns in the past", () => {
-		// A weekly on-close series whose nextDate is long behind still lands on
-		// a real cadence point today or later — never the stale one.
+	it("is status-driven: lands on today with no dates, ignoring cadence", () => {
+		// A weekly on-close series whose nextDate is long behind still just
+		// fires on today when the status matches — no cadence math, no dates.
 		const n = nodeTask({
 			status: "done",
 			recurrence: rule({
@@ -391,7 +394,9 @@ describe("spawnPlans — on-close", () => {
 			}),
 		});
 		const [plan] = spawnPlans(snapshotWith([n]), n, "2026-09-05");
-		expect(plan.date).toBe("2026-09-11");
+		expect(plan.date).toBe("2026-09-05");
+		expect(plan.startDate).toBeNull();
+		expect(plan.dueDate).toBeNull();
 	});
 
 	it("nodeMatchesTrigger summarizes the trigger check for the UI", () => {
@@ -563,7 +568,7 @@ describe("describeRecurrence", () => {
 				sample.workspace.statuses,
 			),
 		).toBe(
-			"Every week on Monday and Wednesday, when completed, 5 occurrences total, until 2026-09-03",
+			"when completed, 5 occurrences total, until 2026-09-03",
 		);
 	});
 });
@@ -571,7 +576,7 @@ describe("describeRecurrence", () => {
 /* -------------------------------------------------------------- overview -- */
 
 describe("recurringOverview", () => {
-	it("lists every node with a live schedule, sorted by title then id, with chain counts", () => {
+	it("lists one row per chain (newest live member), sorted by title then id, with chain counts", () => {
 		const alpha = nodeTask({
 			path: "W/Tasks/TSK-9001",
 			title: "Alpha",
@@ -591,15 +596,33 @@ describe("recurringOverview", () => {
 		const snap = snapshotWith([alpha, betaNext, beta]);
 		const rows = recurringOverview(snap, "2026-09-05");
 
-		expect(rows.map((row) => row.task.title)).toEqual(["Alpha", "Beta", "Beta"]);
+		// The two Beta nodes are one chain — only its newest member surfaces.
+		expect(rows.map((row) => row.task.title)).toEqual(["Alpha", "Beta"]);
+		expect(rows.map((row) => row.task.path)).toEqual([
+			"W/Tasks/TSK-9001",
+			"W/Tasks/TSK-9003",
+		]);
 		expect(rows[0].nextDate).toBe("2026-09-10"); // already future: unchanged
 		expect(rows[0].chainLength).toBe(1);
-		// Both Beta nodes sit behind the cadence, so the overview surfaces each
-		// one's next real point, and both measure the two-note chain.
 		expect(rows[1].nextDate).toBe("2026-09-05");
 		expect(rows[1].chainLength).toBe(2);
-		expect(rows[2].nextDate).toBe("2026-09-05");
-		expect(rows[2].chainLength).toBe(2);
+	});
+
+	it("skips a chain whose newest member is archived", () => {
+		const base = nodeTask({
+			path: "W/Tasks/TSK-8001",
+			title: "Gamma",
+			recurrence: rule({ nextDate: "2026-08-01" }),
+		});
+		const latest = nodeTask({
+			path: "W/Tasks/TSK-8002",
+			title: "Gamma",
+			recurringFrom: base.path,
+			recurrence: rule({ nextDate: "2026-08-02" }),
+			archived: true,
+		});
+		const rows = recurringOverview(snapshotWith([base, latest]), "2026-09-05");
+		expect(rows).toHaveLength(0);
 	});
 });
 
@@ -643,7 +666,7 @@ describe("projectSeries", () => {
 		expect(PROJECTION_HORIZON_DAYS).toBe(30);
 	});
 
-	it("on-close: projects only the single next landing", () => {
+	it("on-close: status-driven series have no date, so project nothing", () => {
 		const node = nodeTask({
 			dueDate: "2026-09-01",
 			recurrence: rule({
@@ -653,11 +676,7 @@ describe("projectSeries", () => {
 				nextDate: "2026-09-01",
 			}),
 		});
-		const ghosts = projectSeries(snapshotWith([node]), node, TODAY);
-		expect(ghosts).toHaveLength(1);
-		expect(ghosts[0].dueDate).toBe(
-			firstOccurrenceOnOrAfter(node.recurrence!, "2026-09-01", TODAY),
-		);
+		expect(projectSeries(snapshotWith([node]), node, TODAY)).toEqual([]);
 	});
 
 	it("respects endsAfter against the existing chain length", () => {

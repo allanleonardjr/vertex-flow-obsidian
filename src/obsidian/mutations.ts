@@ -17,7 +17,12 @@ import {
 import { localTodayIso } from "../core/date";
 import { formatLink, joinPath, sanitizeFileName } from "../core/links";
 import { planReorder, rankAfter, rankForNewTask, rankForPosition, sortTasksByRank } from "../core/ranking";
-import { nextInChain, reconcilePlans, recurrenceNodesInChain } from "../core/recurrence";
+import {
+  describeRecurrence,
+  nextInChain,
+  reconcilePlans,
+  recurrenceNodesInChain,
+} from "../core/recurrence";
 import type { OccurrencePlan } from "../core/recurrence";
 import { instantiateTemplate, type WorkspaceTemplate } from "../core/templates";
 import {
@@ -64,6 +69,7 @@ import {
   type LinkTarget,
   type Project,
   type ProjectDocument,
+  type RecurrenceConfig,
   type SavedView,
   type Task,
   type TaskFieldKey,
@@ -94,7 +100,8 @@ import {
   viewIdentityChanges,
   workspaceConfigChanges,
 } from "../core/history/diff";
-import type { HistoryChange, HistoryTarget } from "../core/types";
+import type { HistoryActor, HistoryChange, HistoryTarget } from "../core/types";
+import { SYSTEM_ACTOR_NAME, valuesDiffer } from "../core/history";
 
 /** Callbacks into plugin-owned state the mutation layer must not hold. */
 export interface MutationsHooks {
@@ -284,17 +291,62 @@ export class Mutations {
   }
 
   /**
+   * Set up, edit, or turn off one task's repeat schedule — the Repeat
+   * editor's single Save path (both the task editor's row and the Recurring
+   * hub). Writes the block, then logs **one** `task.update` carrying a
+   * human-readable `recurrence` change (before / after schedule summaries),
+   * so "set up a repeat", "edited a repeat", and "turned a repeat off" each
+   * land exactly one History entry. A Save that changed nothing logs nothing.
+   */
+  async setRecurrence(
+    task: Task,
+    next: RecurrenceConfig | null,
+  ): Promise<void> {
+    const before = task.recurrence ?? null;
+    const after = next ?? null;
+    await this.updateTask(task, { recurrence: after }, { suppressHistory: true });
+    if (!valuesDiffer(before, after)) return;
+
+    const workspace = this.index.workspaceFor(task.path)?.workspace;
+    if (!workspace) return;
+    const change: HistoryChange = { field: "recurrence" };
+    if (before) change.from = describeRecurrence(before, workspace.statuses);
+    if (after) change.to = describeRecurrence(after, workspace.statuses);
+    this.history.record(workspace, {
+      action: "task.update",
+      targets: [this.taskTarget(task)],
+      changes: [change],
+    });
+  }
+
+  /**
    * Stop a whole series. Non-destructive: every chain member keeps its
    * `recurringFrom` ancestry (the history reads), only the live recurrence
    * block is cleared. `recurrenceNodesInChain` covers the members that
    * still carry one, so a twice-stopped chain is a cheap no-op.
+   *
+   * Logs a single `task.update` (a `recurrence` change with the stopped
+   * schedule as `from` and no `to`), attributed to the user — a deliberate
+   * button-click — not per chain member.
    */
   async stopRecurrence(task: Task): Promise<void> {
     const snapshot = this.index.workspaceFor(task.path);
     if (!snapshot) return;
-    for (const node of recurrenceNodesInChain(snapshot, task)) {
-      await this.updateTask(node, { recurrence: null });
+    const nodes = recurrenceNodesInChain(snapshot, task);
+    if (nodes.length === 0) return;
+
+    const rule = task.recurrence ?? nodes[0].recurrence;
+    const change: HistoryChange = { field: "recurrence" };
+    if (rule) change.from = describeRecurrence(rule, snapshot.workspace.statuses);
+
+    for (const node of nodes) {
+      await this.updateTask(node, { recurrence: null }, { suppressHistory: true });
     }
+    this.history.record(snapshot.workspace, {
+      action: "task.update",
+      targets: [this.taskTarget(task)],
+      changes: [change],
+    });
   }
 
 /**
@@ -311,6 +363,7 @@ private async spawnOccurrences(
   const workspace = snapshot.workspace;
   const takenIds = new Set(snapshot.tasks.map((task) => task.id));
   const now = new Date().toISOString();
+  const systemActor: HistoryActor = { kind: "system", name: SYSTEM_ACTOR_NAME };
 
   for (const [sourcePath, plans] of plansBySource) {
     const source = snapshot.tasks.find((task) => task.path === sourcePath);
@@ -350,8 +403,8 @@ private async spawnOccurrences(
           source.recurrence?.newStatus ?? workspace.defaultNewTaskStatus,
         priority: shouldCopy("priority") ? source.priority : null,
         rank,
-        project: source.project,
-        parent: source.parent,
+        project: shouldCopy("project") ? source.project : null,
+        parent: shouldCopy("parent") ? source.parent : null,
         recurringFrom: predecessor.path,
         assignee: shouldCopy("assignee") ? source.assignee : null,
         estimate: shouldCopy("estimate") ? source.estimate : null,
@@ -373,12 +426,18 @@ private async spawnOccurrences(
         serializeTask(task),
         serializeDescription(description),
       );
+      // Machine-initiated: the reconcile engine created this, not a direct
+      // user action, so it's attributed to the system rather than
+      // whichever device happened to run the reconcile. The recurringFrom
+      // change makes the entry explicit about *why* this task exists.
       this.history.record(workspace, {
         action: "task.create",
         targets: [{ kind: "task", id, path }],
-        changes: source.title
-          ? [{ field: "title", to: source.title }]
-          : [],
+        changes: [
+          ...(source.title ? [{ field: "title", to: source.title }] : []),
+          { field: "recurringFrom", to: predecessor.path },
+        ],
+        actorOverride: systemActor,
       });
 
       predecessor = task;
@@ -388,6 +447,18 @@ private async spawnOccurrences(
     // This source now has a successor on disk. Until a snapshot confirms it,
     // treat the source as settled so a cache-lagged rebuild can't double-spawn.
     this.recentlySpawned.add(sourcePath);
+
+    // The source's own schedule is superseded the moment it spawns — only
+    // the newest occurrence in the chain should ever carry a live
+    // recurrence block (see the matching fix in spawnPlans's backfill
+    // case). Machine-initiated, so logged under the same system actor.
+    if (source.recurrence) {
+      await this.updateTask(
+        source,
+        { recurrence: null },
+        { actorOverride: systemActor },
+      );
+    }
   }
 }
 
@@ -405,7 +476,7 @@ private async spawnOccurrences(
   async updateTask(
     task: Task,
     patch: Partial<Task>,
-    options?: { suppressHistory?: boolean },
+    options?: { suppressHistory?: boolean; actorOverride?: HistoryActor },
   ): Promise<void> {
     const file = this.requireFile(task.path);
     const merged: Task = {
@@ -421,7 +492,7 @@ private async spawnOccurrences(
   private logUpdate(
     before: Task,
     after: Task,
-    options?: { suppressHistory?: boolean },
+    options?: { suppressHistory?: boolean; actorOverride?: HistoryActor },
   ): void {
     if (options?.suppressHistory) return;
     const changes = diffTaskFields(before, after);
@@ -432,6 +503,7 @@ private async spawnOccurrences(
       action: "task.update",
       targets: [this.taskTarget(after)],
       changes,
+      actorOverride: options?.actorOverride,
     });
   }
 

@@ -8,8 +8,9 @@
  * - A node only fires when its trigger condition and its schedule both say so.
  * - A node never spawns while a successor already exists (idempotency — a
  *   deleted successor can legitimately re-extend the chain).
- * - `on-close` skips missed cadence points and lands the occurrence on the next
- *   future point; `on-date` backfills them under the gap policy.
+ * - `on-close` is a pure status trigger with no cadence: it always lands the
+ *   occurrence on today and carries no date fields. `on-date` is the one that
+ *   backfills missed cadence points under the gap policy.
  * - `endsAfter` and `endsOn` cap the series; the terminal occurrence carries no
  *   recurrence block, so a finished chain stops cleanly.
  */
@@ -26,7 +27,6 @@ import { chainLength, nextInChain } from "./chain";
 import {
 	MAX_RECURRENCE_BACKFILL,
 	cadencePoints,
-	firstOccurrenceOnOrAfter,
 	nextOccurrence,
 	shiftOccurrenceDates,
 } from "./engine";
@@ -92,6 +92,18 @@ function buildPlan(
 	day: IsoDate,
 	terminal: boolean,
 ): OccurrencePlan {
+	if (rule.trigger === "on-close") {
+		// Status-driven: no cadence, so there is nothing to shift and
+		// nothing to advance. The successor carries no dates; the rule
+		// carries forward unchanged (or not at all, if terminal).
+		return {
+			sourcePath: node.path,
+			date: day,
+			startDate: null,
+			dueDate: null,
+			recurrence: terminal ? null : { ...rule },
+		};
+	}
 	return {
 		sourcePath: node.path,
 		date: day,
@@ -113,6 +125,10 @@ export function spawnPlans(
 	const rule = node.recurrence;
 	if (!rule) return [];
 
+	// An archived task is dormant by definition — it shouldn't keep
+	// spawning while hidden from view.
+	if (node.archived) return [];
+
 	// Idempotency: a successor sitting after this node means the chain already
 	// advanced past it. Flood-proof by construction — a completed reconcile is
 	// a no-op on relaunch.
@@ -121,20 +137,24 @@ export function spawnPlans(
 	// Daily-graph edge: an intermediate node of a previous multi-backfill holds
 	// nextDate <= today but its own successor exists, handled above.
 
-	if (rule.trigger === "on-close" && !nodeMatchesTrigger(node, rule, snapshot)) {
-		return [];
+	if (rule.trigger === "on-close") {
+		// Status-driven: purely an event check, no cadence math. "today" is
+		// the only date concept that applies, used solely for the endsOn
+		// cutoff below.
+		if (!nodeMatchesTrigger(node, rule, snapshot)) return [];
+		if (rule.endsOn && dayNumber(today) > dayNumber(rule.endsOn)) {
+			return [];
+		}
+		const remaining = remainingOccurrences(node, rule, snapshot);
+		if (remaining <= 0) return [];
+		return [buildPlan(node, rule, today, remaining === 1)];
 	}
-	if (
-		rule.trigger === "on-date" &&
-		dayNumber(rule.nextDate) > dayNumber(today)
-	) {
+
+	if (dayNumber(rule.nextDate) > dayNumber(today)) {
 		return [];
 	}
 
-	const occurrenceDay =
-		rule.trigger === "on-close"
-			? firstOccurrenceOnOrAfter(rule, rule.nextDate, today)
-			: rule.nextDate;
+	const occurrenceDay = rule.nextDate;
 
 	// Ends-on: no occurrence lands strictly after this date.
 	if (rule.endsOn && dayNumber(occurrenceDay) > dayNumber(rule.endsOn)) {
@@ -143,10 +163,6 @@ export function spawnPlans(
 
 	const remaining = remainingOccurrences(node, rule, snapshot);
 	if (remaining <= 0) return [];
-
-	if (rule.trigger === "on-close") {
-		return [buildPlan(node, rule, occurrenceDay, remaining === 1)];
-	}
 
 	// On date — gap policy. Every missed cadence point through today would
 	// otherwise cascade one-file-per-point on reopen.
@@ -169,9 +185,16 @@ export function spawnPlans(
 		points = points.slice(points.length - remaining);
 	}
 
-	const plans = points.map((point, index) =>
-		buildPlan(node, rule, point, index === points.length - 1 && remaining === points.length),
-	);
+	// Only the newest occurrence in this batch should ever end up "live" —
+	// a catch-up batch backfilling several missed points at once would
+	// otherwise leave every intermediate one carrying its own active
+	// schedule, when only the very last one is what the engine will
+	// actually advance from next.
+	const plans = points.map((point, index) => {
+		const isNewest = index === points.length - 1;
+		const terminal = isNewest ? remaining === points.length : true;
+		return buildPlan(node, rule, point, terminal);
+	});
 	return plans;
 }
 

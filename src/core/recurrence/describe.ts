@@ -107,7 +107,12 @@ export function describeRecurrence(
 	rule: RecurrenceConfig,
 	statuses: readonly StatusValue[],
 ): string {
-	const parts = [describeFrequency(rule), describeTrigger(rule, statuses)];
+	// Status-driven series have no cadence to describe — the trigger is
+	// the whole story.
+	const parts =
+		rule.trigger === "on-close"
+			? [describeTrigger(rule, statuses)]
+			: [describeFrequency(rule), describeTrigger(rule, statuses)];
 	if (rule.endsAfter != null) parts.push(`${rule.endsAfter} occurrences total`);
 	if (rule.endsOn) parts.push(`until ${rule.endsOn}`);
 	return parts.join(", ");

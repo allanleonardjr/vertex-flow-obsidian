@@ -7,13 +7,12 @@
  * no `recurrence` block; they are never written to the vault and never a
  * drag/rank/select target (the view layer guards that).
  *
- * Two horizons, matching how the two triggers behave:
+ * Only **on-date** series project:
  *
  * - **on-date** — the schedule is deterministic, so project every cadence point
  *   from today out to `PROJECTION_HORIZON_DAYS`, capped at `PROJECTION_MAX`.
- * - **on-close** — nothing lands until the current occurrence is closed, and
- *   *when* that happens is unknown, so only the single next landing is shown.
- *   Anything past that would be pure guesswork.
+ * - **on-close** — a pure status trigger with no cadence and no dates, so there
+ *   is nothing to draw ahead of time; these series project nothing.
  *
  * `endsOn` / `endsAfter` are honoured: a finite series stops projecting once
  * its budget (chain length included) is spent.
@@ -24,11 +23,7 @@ import type { IsoDate, RecurrenceConfig, Task, WorkspaceSnapshot } from "../type
 import { emptyRelations } from "../types";
 import { addDays, dayNumber } from "../views/timeline";
 import { chainLength, chainMembers } from "./chain";
-import {
-	cadencePoints,
-	firstOccurrenceOnOrAfter,
-	shiftOccurrenceDates,
-} from "./engine";
+import { cadencePoints, shiftOccurrenceDates } from "./engine";
 
 /** How far ahead an on-date series is projected. */
 export const PROJECTION_HORIZON_DAYS = 30;
@@ -72,16 +67,14 @@ export function projectSeries(
 ): Task[] {
 	const rule = source.recurrence;
 	if (!rule) return [];
+	// Status-driven series have no calendar date to project — there's
+	// nothing to draw as a ghost occurrence on Calendar/Timeline.
+	if (rule.trigger === "on-close") return [];
 
-	let days: IsoDate[];
-	if (rule.trigger === "on-close") {
-		days = [firstOccurrenceOnOrAfter(rule, rule.nextDate, today)];
-	} else {
-		const horizon = addDays(today, PROJECTION_HORIZON_DAYS);
-		days = cadencePoints(rule, rule.nextDate, horizon).filter(
-			(day) => dayNumber(day) >= dayNumber(today),
-		);
-	}
+	const horizon = addDays(today, PROJECTION_HORIZON_DAYS);
+	let days = cadencePoints(rule, rule.nextDate, horizon).filter(
+		(day) => dayNumber(day) >= dayNumber(today),
+	);
 
 	if (rule.endsOn) {
 		const limit = dayNumber(rule.endsOn);

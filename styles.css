@@ -6522,6 +6522,7 @@ button.vf-history-expand {
 .vf-repeat-row > .vf-linkish,
 .vf-repeat-actions .vf-linkish,
 .vf-recurrence-dialog .vf-dialog-actions .vf-linkish,
+.vf-recurrence-field-body > .vf-linkish,
 .vf-recurring-actions .vf-linkish {
   padding: 5px 12px;
   border: 1px solid var(--vf-border);
@@ -6534,6 +6535,7 @@ button.vf-history-expand {
 .vf-repeat-row > .vf-linkish:hover,
 .vf-repeat-actions .vf-linkish:hover,
 .vf-recurrence-dialog .vf-dialog-actions .vf-linkish:hover,
+.vf-recurrence-field-body > .vf-linkish:hover,
 .vf-recurring-actions .vf-linkish:hover {
   background: var(--background-modifier-hover);
 }
@@ -6820,17 +6822,97 @@ button.vf-history-expand {
 
 /* --- Projected (ghost) recurrence rows ----------------------------------- */
 
+/* One dashed, accent-tinted 1px stroke everywhere — the accent hue (not
+   weight) is what separates a projected row from a dimmed *archived* one, so
+   it can stay a hairline. `--vf-ghost-border` is the single knob: raise the
+   percentage for more accent. */
 .vf-row.is-projected,
+.vf-timeline-row-label.is-projected,
+.vf-timeline-lane.is-projected,
+.vf-cal-chip.is-projected,
 .vf-card.is-projected {
+  --vf-ghost-border: color-mix(
+    in srgb,
+    var(--interactive-accent) 55%,
+    var(--vf-border)
+  );
+  /* the 1px border is absorbed into the fixed row height, and the Timeline's
+     label / lane columns stay row-aligned. */
+  box-sizing: border-box;
+}
+
+.vf-card.is-projected,
+.vf-cal-chip.is-projected {
   opacity: 0.55;
 }
 
-.vf-row.is-projected {
-  border-style: dashed;
+.vf-cal-chip.is-projected {
+  /* Explicit shorthand — `button.vf-cal-chip` sets `border: none`, so a bare
+     `border-style` would have zero width and paint nothing. */
+  border: 1px dashed var(--vf-ghost-border);
+}
+
+/* Content dims + italicises; the border does not (dimming a `--vf-border`
+   hairline on the last row of a run drops it below the visible threshold).
+   Both halves of a Timeline row — sticky label + lane — get the same bottom
+   so the split shows no seam. */
+.vf-row.is-projected,
+.vf-timeline-row-label.is-projected,
+.vf-timeline-lane.is-projected {
+  border-bottom: 1px dashed var(--vf-ghost-border);
+}
+
+/* Close the top of a contiguous ghost run — the first ghost row (whether it
+   follows a real row or is the section's first child) needs the top edge the
+   others get for free from the row above's `border-bottom`. */
+.vf-row.is-projected:first-child,
+:not(.vf-row.is-projected) + .vf-row.is-projected,
+.vf-timeline-row-label.is-projected:first-child,
+:not(.vf-timeline-row-label.is-projected) + .vf-timeline-row-label.is-projected,
+.vf-timeline-lane.is-projected:first-child,
+:not(.vf-timeline-lane.is-projected) + .vf-timeline-lane.is-projected {
+  border-top: 1px dashed var(--vf-ghost-border);
+}
+
+.vf-row.is-projected .vf-row-open,
+.vf-timeline-row-label.is-projected > * {
+  opacity: 0.55;
+}
+
+.vf-row.is-projected .vf-row-title,
+.vf-timeline-row-label.is-projected .vf-row-title,
+.vf-cal-chip.is-projected .vf-row-title,
+.vf-card.is-projected .vf-card-title {
+  font-style: italic;
+}
+
+/* Timeline ghost bar — the striped, dashed-outline treatment the Board's
+   ghost cards use, scaled down to a bar. `currentColor` is the task's status
+   hue (set inline as `color`, not `background`, for a projected bar). */
+.vf-timeline-bar.is-projected {
+  background: repeating-linear-gradient(
+    -45deg,
+    color-mix(in srgb, currentColor 26%, transparent) 0,
+    color-mix(in srgb, currentColor 26%, transparent) 5px,
+    transparent 5px,
+    transparent 10px
+  );
+  border: 1px dashed color-mix(in srgb, currentColor 60%, transparent);
+  opacity: 1;
+}
+
+.vf-timeline-bar.is-open.is-projected {
+  border-right: none;
+}
+
+.vf-timeline-milestone-wrap.is-projected .vf-timeline-diamond {
+  background: transparent;
+  border: 1px dashed currentColor;
+  opacity: 0.7;
 }
 
 .vf-card.is-projected {
-  border-style: dashed;
+  border: 1px dashed var(--vf-ghost-border);
   background: repeating-linear-gradient(
     -45deg,
     var(--background-primary),

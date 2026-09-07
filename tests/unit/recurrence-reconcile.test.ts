@@ -58,8 +58,10 @@ const rule = (partial: Partial<RecurrenceConfig> = {}): RecurrenceConfig => ({
 
 class FakeIO {
 	created: { path: string }[] = [];
+	// A non-null stub so `updateTask` (used to clear a spawned source's own
+	// recurrence block) can resolve a "file" and write frontmatter.
 	getFile(): unknown {
-		return null;
+		return {};
 	}
 	async readBody(): Promise<string> {
 		return "";
@@ -68,6 +70,7 @@ class FakeIO {
 		this.created.push({ path });
 		return { path };
 	}
+	async replaceFrontmatter(): Promise<void> {}
 }
 
 /**
@@ -88,7 +91,7 @@ class FakeIndex {
 	}
 }
 
-const history = { record: () => {} };
+const history = { record: vi.fn() };
 
 function build(source: Task) {
 	const base = sampleSnapshot();
@@ -111,6 +114,7 @@ function build(source: Task) {
 
 describe("reconcileRecurrences — stale-snapshot double spawn", () => {
 	beforeEach(() => {
+		history.record.mockClear();
 		vi.restoreAllMocks();
 	});
 
@@ -179,5 +183,99 @@ describe("reconcileRecurrences — stale-snapshot double spawn", () => {
 
 		await mutations.reconcileRecurrences();
 		expect(io.created).toHaveLength(1);
+	});
+});
+
+describe("recurrence edits are logged once, on Save", () => {
+	beforeEach(() => history.record.mockClear());
+
+	/** A Mutations wired to a one-task snapshot the FakeIndex keeps returning. */
+	function scene(seed: Task) {
+		const base = sampleSnapshot();
+		const snap: WorkspaceSnapshot = { ...base, tasks: [seed] };
+		const io = new FakeIO();
+		const index = new FakeIndex(snap);
+		const mutations = new Mutations(
+			{} as never,
+			io as never,
+			index as never,
+			history as never,
+		);
+		return { mutations, snap };
+	}
+
+	const recurrenceChanges = () =>
+		history.record.mock.calls
+			.flatMap((call) => (call[1]?.changes ?? []) as { field: string }[])
+			.filter((change) => change.field === "recurrence");
+
+	it("setRecurrence: setting a schedule up logs one `recurrence` change with only `to`", async () => {
+		const t = task({ id: "TSK-5", path: "W/Tasks/TSK-5", recurrence: null });
+		const { mutations } = scene(t);
+
+		await mutations.setRecurrence(t, rule({ freq: "weekly", nextDate: "2026-09-10" }));
+
+		expect(history.record).toHaveBeenCalledTimes(1);
+		const changes = recurrenceChanges();
+		expect(changes).toHaveLength(1);
+		expect(changes[0]).toMatchObject({ field: "recurrence" });
+		expect(typeof (changes[0] as { to?: unknown }).to).toBe("string");
+		expect((changes[0] as { from?: unknown }).from).toBeUndefined();
+	});
+
+	it("setRecurrence: editing logs one change with both `from` and `to`", async () => {
+		const t = task({
+			id: "TSK-5",
+			path: "W/Tasks/TSK-5",
+			recurrence: rule({ freq: "weekly", nextDate: "2026-09-10" }),
+		});
+		const { mutations } = scene(t);
+
+		await mutations.setRecurrence(t, rule({ freq: "daily", nextDate: "2026-09-10" }));
+
+		expect(history.record).toHaveBeenCalledTimes(1);
+		const [change] = recurrenceChanges() as { from?: unknown; to?: unknown }[];
+		expect(typeof change.from).toBe("string");
+		expect(typeof change.to).toBe("string");
+		expect(change.from).not.toBe(change.to);
+	});
+
+	it("setRecurrence: a no-op Save logs nothing", async () => {
+		const r = rule({ freq: "weekly", nextDate: "2026-09-10" });
+		const t = task({ id: "TSK-5", path: "W/Tasks/TSK-5", recurrence: r });
+		const { mutations } = scene(t);
+
+		await mutations.setRecurrence(t, rule({ freq: "weekly", nextDate: "2026-09-10" }));
+
+		expect(history.record).not.toHaveBeenCalled();
+	});
+
+	it("stopRecurrence: a multi-node chain logs exactly one entry", async () => {
+		const a = task({
+			id: "TSK-5",
+			path: "W/Tasks/TSK-5",
+			recurrence: rule({ freq: "weekly", nextDate: "2026-09-10" }),
+		});
+		const b = task({
+			id: "TSK-6",
+			path: "W/Tasks/TSK-6",
+			recurringFrom: a.path,
+			recurrence: rule({ freq: "weekly", nextDate: "2026-09-17" }),
+		});
+		const base = sampleSnapshot();
+		const snap: WorkspaceSnapshot = { ...base, tasks: [a, b] };
+		const mutations = new Mutations(
+			{} as never,
+			new FakeIO() as never,
+			new FakeIndex(snap) as never,
+			history as never,
+		);
+
+		await mutations.stopRecurrence(b);
+
+		expect(history.record).toHaveBeenCalledTimes(1);
+		const [change] = recurrenceChanges() as { from?: unknown; to?: unknown }[];
+		expect(typeof change.from).toBe("string");
+		expect(change.to).toBeUndefined();
 	});
 });
