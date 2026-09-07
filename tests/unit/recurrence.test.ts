@@ -1,0 +1,595 @@
+import { describe, expect, it } from "vitest";
+import { sampleSnapshot } from "../../src/core/templates/instantiate";
+import {
+	MAX_RECURRENCE_BACKFILL,
+	cadencePoints,
+	chainLength,
+	chainMembers,
+	describeFrequency,
+	describeRecurrence,
+	describeTrigger,
+	firstOccurrenceOnOrAfter,
+	nextInChain,
+	nextOccurrence,
+	nodeMatchesTrigger,
+	prevInChain,
+	projectOccurrences,
+	reconcilePlans,
+	recurrenceNodesInChain,
+	recurringOverview,
+	shiftOccurrenceDates,
+	spawnPlans,
+	type OccurrencePlan,
+} from "../../src/core/recurrence";
+import type {
+	IsoDate,
+	RecurrenceConfig,
+	Task,
+	WorkspaceSnapshot,
+} from "../../src/core/types";
+import { task } from "./fixtures";
+
+const sample = sampleSnapshot();
+const snapshotWith = (tasks: Task[]): WorkspaceSnapshot => ({
+	...sample,
+	tasks,
+});
+
+const rule = (partial: Partial<RecurrenceConfig> = {}): RecurrenceConfig => ({
+	trigger: "on-date",
+	triggerStatus: null,
+	freq: "daily",
+	interval: 1,
+	weekdays: [],
+	dayOfMonth: null,
+	weekdayOfMonth: null,
+	monthOfYear: null,
+	anchor: "dueDate",
+	newStatus: null,
+	endsAfter: null,
+	endsOn: null,
+	nextDate: "2026-09-01",
+	...partial,
+});
+
+const nodeTask = (partial: Partial<Task> = {}): Task =>
+	task({ path: "W/Tasks/TSK-9001", ...partial });
+
+const planDates = (plans: OccurrencePlan[]): IsoDate[] =>
+	plans.map((plan) => plan.date);
+
+/* ---------------------------------------------------------------- engine -- */
+
+describe("nextOccurrence — cadence math", () => {
+	it("daily advances by the interval", () => {
+		expect(nextOccurrence(rule({ freq: "daily" }), "2026-09-01")).toBe("2026-09-02");
+		expect(
+			nextOccurrence(rule({ freq: "daily", interval: 3 }), "2026-09-01"),
+		).toBe("2026-09-04");
+	});
+
+	it("weekly interval=1 walks the weekdays in order, wrapping across Sunday", () => {
+		const mwf = rule({ freq: "weekly", interval: 1, weekdays: ["mon", "wed", "fri"] });
+		expect(nextOccurrence(mwf, "2026-09-02")).toBe("2026-09-04"); // Wed → Fri
+		expect(nextOccurrence(mwf, "2026-09-04")).toBe("2026-09-07"); // Fri → Mon
+		expect(nextOccurrence(mwf, "2026-09-07")).toBe("2026-09-09"); // Mon → Wed
+
+		const weekend = rule({ freq: "weekly", interval: 1, weekdays: ["sat", "sun"] });
+		expect(nextOccurrence(weekend, "2026-09-03")).toBe("2026-09-05"); // Thu → Sat
+		expect(nextOccurrence(weekend, "2026-09-06")).toBe("2026-09-12"); // Sun → Sat
+	});
+
+	it("weekly interval>1 steps whole weeks, ignoring weekdays", () => {
+		expect(
+			nextOccurrence(rule({ freq: "weekly", interval: 2 }), "2026-08-28"),
+		).toBe("2026-09-11");
+	});
+
+	it("monthly dayOfMonth clamps short months", () => {
+		expect(
+			nextOccurrence(rule({ freq: "monthly", dayOfMonth: 31 }), "2026-01-31"),
+		).toBe("2026-02-28");
+		expect(
+			nextOccurrence(rule({ freq: "monthly", dayOfMonth: 31 }), "2026-02-28"),
+		).toBe("2026-03-31");
+		expect(
+			nextOccurrence(rule({ freq: "monthly", dayOfMonth: 31 }), "2026-03-31"),
+		).toBe("2026-04-30");
+		expect(
+			nextOccurrence(
+				rule({ freq: "monthly", dayOfMonth: 31, interval: 2 }),
+				"2026-01-31",
+			),
+		).toBe("2026-03-31");
+	});
+
+	it("monthly with no day pattern keeps the seed's own day, clamped", () => {
+		expect(
+			nextOccurrence(rule({ freq: "monthly" }), "2026-01-15"),
+		).toBe("2026-02-15");
+		expect(
+			nextOccurrence(rule({ freq: "monthly" }), "2026-01-31"),
+		).toBe("2026-02-28");
+	});
+
+	it("monthly weekdayOfMonth counts the seed's own weekday through later months", () => {
+		// 2026-09-01 is a Tuesday; 2nd Tuesday of October = the 13th.
+		expect(
+			nextOccurrence(
+				rule({ freq: "monthly", interval: 1, weekdayOfMonth: 2 }),
+				"2026-09-01",
+			),
+		).toBe("2026-10-13");
+		// 1st Wednesday of October, from a Wednesday seed.
+		expect(
+			nextOccurrence(
+				rule({ freq: "monthly", interval: 1, weekdayOfMonth: 1 }),
+				"2026-09-02",
+			),
+		).toBe("2026-10-07");
+	});
+
+	it("monthly weekdayOfMonth skips a month whose nth weekday doesn't exist", () => {
+		// 2026-02-27 is the 4th (and last) Friday of February. The 5th Friday is
+		// missing in Feb, Mar and Apr 2026; the engine lands on May's 5th Friday.
+		expect(
+			nextOccurrence(
+				rule({ freq: "monthly", interval: 1, weekdayOfMonth: 5 }),
+				"2026-02-27",
+			),
+		).toBe("2026-05-29");
+	});
+
+	it("yearly holds month and day, clamping like monthly", () => {
+		expect(
+			nextOccurrence(
+				rule({ freq: "yearly", monthOfYear: 4, dayOfMonth: 10 }),
+				"2026-04-10",
+			),
+		).toBe("2027-04-10");
+		expect(
+			nextOccurrence(
+				rule({ freq: "yearly", monthOfYear: 2, dayOfMonth: 29 }),
+				"2024-02-29",
+			),
+		).toBe("2025-02-28");
+		// monthOfYear null keeps the seed's own month.
+		expect(
+			nextOccurrence(rule({ freq: "yearly" }), "2026-04-10"),
+		).toBe("2027-04-10");
+	});
+});
+
+describe("cadence point helpers", () => {
+	it("cadencePoints lists start through through, inclusive", () => {
+		expect(
+			cadencePoints(rule({ freq: "daily" }), "2026-09-01", "2026-09-05"),
+		).toEqual(["2026-09-01", "2026-09-02", "2026-09-03", "2026-09-04", "2026-09-05"]);
+	});
+
+	it("firstOccurrenceOnOrAfter includes the target and tolerates a lagging start", () => {
+		expect(
+			firstOccurrenceOnOrAfter(rule({ freq: "daily" }), "2026-09-01", "2026-09-05"),
+		).toBe("2026-09-05");
+		expect(
+			firstOccurrenceOnOrAfter(
+				rule({ freq: "weekly", interval: 1, weekdays: ["fri"] }),
+				"2026-09-01",
+				"2026-09-07",
+			),
+		).toBe("2026-09-11");
+		// Already past the target: the start itself is the answer.
+		expect(
+			firstOccurrenceOnOrAfter(rule({ freq: "daily" }), "2026-09-10", "2026-09-05"),
+		).toBe("2026-09-10");
+	});
+
+	it("projectOccurrences walks forward from the seed", () => {
+		expect(projectOccurrences(rule({ freq: "daily" }), "2026-09-01", 3)).toEqual([
+			"2026-09-01",
+			"2026-09-02",
+			"2026-09-03",
+		]);
+	});
+
+	it("shiftOccurrenceDates shifts the whole range onto the anchor day", () => {
+		expect(
+			shiftOccurrenceDates(
+				{ startDate: "2026-09-01", dueDate: "2026-09-05" },
+				"dueDate",
+				"2026-09-12",
+			),
+		).toEqual({ startDate: "2026-09-08", dueDate: "2026-09-12" });
+		expect(
+			shiftOccurrenceDates(
+				{ startDate: "2026-09-01", dueDate: "2026-09-05" },
+				"startDate",
+				"2026-09-12",
+			),
+		).toEqual({ startDate: "2026-09-12", dueDate: "2026-09-16" });
+		// Anchor names the field a start-only task doesn't set: lands on due.
+		expect(
+			shiftOccurrenceDates({ startDate: null, dueDate: "2026-09-05" }, "startDate", "2026-09-12"),
+		).toEqual({ startDate: null, dueDate: "2026-09-12" });
+		// No dates → no dates.
+		expect(
+			shiftOccurrenceDates({ startDate: null, dueDate: null }, "dueDate", "2026-09-12"),
+		).toEqual({ startDate: null, dueDate: null });
+	});
+});
+
+/* -------------------------------------------------------------- spawning -- */
+
+describe("spawnPlans — on-date", () => {
+	const snap = (n: Task) => snapshotWith([n]);
+
+	it("does nothing before nextDate", () => {
+		const n = nodeTask({ recurrence: rule({ nextDate: "2026-09-10" }) });
+		expect(spawnPlans(snap(n), n, "2026-09-05")).toEqual([]);
+	});
+
+	it("spawns one occurrence when nextDate is today, advancing the schedule", () => {
+		const n = nodeTask({
+			startDate: "2026-09-01",
+			dueDate: "2026-09-03",
+			recurrence: rule({ nextDate: "2026-09-05" }),
+		});
+		const [plan] = spawnPlans(snap(n), n, "2026-09-05");
+		expect(plan.sourcePath).toBe(n.path);
+		expect(plan.date).toBe("2026-09-05");
+		expect(plan.dueDate).toBe("2026-09-05");
+		expect(plan.startDate).toBe("2026-09-03");
+		expect(plan.recurrence?.nextDate).toBe("2026-09-06");
+		expect(plan.recurrence?.freq).toBe("daily");
+		expect(plan.recurrence?.anchor).toBe("dueDate");
+	});
+
+	it("backfills every missed point through today", () => {
+		const n = nodeTask({ recurrence: rule({ nextDate: "2026-08-28" }) });
+		const plans = spawnPlans(snap(n), n, "2026-09-05");
+		expect(planDates(plans)).toEqual([
+			"2026-08-28",
+			"2026-08-29",
+			"2026-08-30",
+			"2026-08-31",
+			"2026-09-01",
+			"2026-09-02",
+			"2026-09-03",
+			"2026-09-04",
+			"2026-09-05",
+		]);
+		// The last spawned occurrence carries a future schedule; the mid-chain
+		// ones advance to the next backfilled point, so a lost write self-heals.
+		expect(plans[plans.length - 1].recurrence?.nextDate).toBe("2026-09-06");
+		expect(plans[0].recurrence?.nextDate).toBe("2026-08-29");
+	});
+
+	it("jumps past the backlog cap: exactly the most recent point, one spawn", () => {
+		const n = nodeTask({ recurrence: rule({ nextDate: "2026-07-01" }) });
+		expect(cadencePoints(rule({ nextDate: "2026-07-01" }), "2026-07-01", "2026-09-05").length).toBeGreaterThan(MAX_RECURRENCE_BACKFILL);
+		const plans = spawnPlans(snap(n), n, "2026-09-05");
+		expect(plans).toHaveLength(1);
+		expect(plans[0].date).toBe("2026-09-05");
+		expect(plans[0].recurrence?.nextDate).toBe("2026-09-06");
+	});
+
+	it("endsAfter stops the series mid-gap and marks the last note terminal", () => {
+		// 5 missed points but a budget of 3 total (node + 2). The 2 newest get
+		// written, the final one carries no recurrence block.
+		const n = nodeTask({ recurrence: rule({ nextDate: "2026-08-28", endsAfter: 3 }) });
+		const plans = spawnPlans(snap(n), n, "2026-09-05");
+		expect(planDates(plans)).toEqual(["2026-09-04", "2026-09-05"]);
+		expect(plans[0].recurrence).not.toBeNull();
+		expect(plans[1].recurrence).toBeNull();
+	});
+
+	it("remaining budget 1 spawns a single terminal occurrence", () => {
+		const n = nodeTask({
+			status: "done",
+			recurrence: rule({
+				nextDate: "2026-09-05",
+				trigger: "on-close",
+				endsAfter: 2,
+			}),
+		});
+		expect(chainLength(snapshotWith([n]), n)).toBe(1);
+		const plans = spawnPlans(snapshotWith([n]), n, "2026-09-05");
+		expect(plans).toHaveLength(1);
+		expect(plans[0].recurrence).toBeNull();
+	});
+
+	it("a fully-consumed budget stops forever", () => {
+		const n = nodeTask({ recurrence: rule({ nextDate: "2026-09-05", endsAfter: 1 }) });
+		expect(spawnPlans(snap(n), n, "2026-09-05")).toEqual([]);
+	});
+
+	it("endsOn admits only points on or before the limit", () => {
+		const n = nodeTask({
+			recurrence: rule({ nextDate: "2026-08-30", endsOn: "2026-09-03" }),
+		});
+		expect(planDates(spawnPlans(snap(n), n, "2026-09-05"))).toEqual([
+			"2026-08-30",
+			"2026-08-31",
+			"2026-09-01",
+			"2026-09-02",
+			"2026-09-03",
+		]);
+	});
+
+	it("a due node past its endsOn never spawns", () => {
+		const n = nodeTask({
+			recurrence: rule({ nextDate: "2026-09-05", endsOn: "2026-09-03" }),
+		});
+		expect(spawnPlans(snap(n), n, "2026-09-05")).toEqual([]);
+	});
+});
+
+describe("spawnPlans — on-close", () => {
+	it("spawns on the first future cadence point whenever a completed status fires", () => {
+		const n = nodeTask({
+			status: "done",
+			recurrence: rule({ trigger: "on-close", nextDate: "2026-08-01" }),
+		});
+		const plans = spawnPlans(snapshotWith([n]), n, "2026-09-05");
+		expect(plans).toHaveLength(1);
+		expect(plans[0].date).toBe("2026-09-05");
+		expect(plans[0].recurrence?.trigger).toBe("on-close");
+	});
+
+	it("sits still while the trigger status is unmet", () => {
+		const n = nodeTask({
+			status: "todo",
+			recurrence: rule({ trigger: "on-close", nextDate: "2026-08-01" }),
+		});
+		expect(spawnPlans(snapshotWith([n]), n, "2026-09-05")).toEqual([]);
+	});
+
+	it("a canceled status is not a completed trigger", () => {
+		const n = nodeTask({
+			status: "canceled",
+			recurrence: rule({ trigger: "on-close", nextDate: "2026-09-05" }),
+		});
+		expect(spawnPlans(snapshotWith([n]), n, "2026-09-05")).toEqual([]);
+	});
+
+	it("an explicit triggerStatus fires on that status, wherever it sits", () => {
+		const review = rule({
+			trigger: "on-close",
+			triggerStatus: "in-review",
+			nextDate: "2026-08-01",
+		});
+		expect(
+			spawnPlans(
+				snapshotWith([nodeTask({ status: "in-review", recurrence: review })]),
+				nodeTask({ status: "in-review", recurrence: review }),
+				"2026-09-05",
+			).length,
+		).toBe(1);
+		expect(
+			spawnPlans(snapshotWith([nodeTask({ status: "todo", recurrence: review })]), nodeTask({ status: "todo", recurrence: review }), "2026-09-05"),
+		).toEqual([]);
+	});
+
+	it("never spawns in the past", () => {
+		// A weekly on-close series whose nextDate is long behind still lands on
+		// a real cadence point today or later — never the stale one.
+		const n = nodeTask({
+			status: "done",
+			recurrence: rule({
+				trigger: "on-close",
+				freq: "weekly",
+				interval: 1,
+				weekdays: ["fri"],
+				nextDate: "2026-08-01",
+			}),
+		});
+		const [plan] = spawnPlans(snapshotWith([n]), n, "2026-09-05");
+		expect(plan.date).toBe("2026-09-11");
+	});
+
+	it("nodeMatchesTrigger summarizes the trigger check for the UI", () => {
+		const completedRule = rule({ trigger: "on-close", nextDate: "2026-09-05" });
+		expect(
+			nodeMatchesTrigger(nodeTask({ status: "done" }), completedRule, snapshotWith([])),
+		).toBe(true);
+		expect(
+			nodeMatchesTrigger(nodeTask({ status: "todo" }), completedRule, snapshotWith([])),
+		).toBe(false);
+		expect(
+			nodeMatchesTrigger(nodeTask({ status: "on-date" }), rule({ nextDate: "2026-09-05" }), snapshotWith([])),
+		).toBe(true);
+	});
+});
+
+describe("spawnPlans — idempotency and reconcile", () => {
+	it("a node with an existing successor never spawns again", () => {
+		const n = nodeTask({ recurrence: rule({ nextDate: "2026-09-05" }) });
+		const next = nodeTask({
+			path: "W/Tasks/TSK-9002",
+			recurringFrom: n.path,
+			recurrence: rule({ nextDate: "2026-09-06" }),
+		});
+		expect(spawnPlans(snapshotWith([n, next]), n, "2026-09-05")).toEqual([]);
+	});
+
+	it("reconcilePlans fans out across chains and is a no-op once applied", () => {
+		const a = nodeTask({ recurrence: rule({ nextDate: "2026-09-05" }), path: "W/Tasks/TSK-9001" });
+		const b = nodeTask({ recurrence: rule({ nextDate: "2026-09-05", interval: 2 }), path: "W/Tasks/TSK-9002" });
+		const first = reconcilePlans(snapshotWith([a, b]), "2026-09-05");
+		expect([...first.keys()].sort()).toEqual(["W/Tasks/TSK-9001", "W/Tasks/TSK-9002"]);
+		expect(first.get(a.path)).toHaveLength(1);
+
+		// Apply each batch the way the glue layer would, then re-reconcile.
+		const applied = reconcilePlans(snapshotWith([a, b]), "2026-09-05");
+		const now: Task[] = [a, b];
+		for (const [source, plans] of applied) {
+			plans.forEach((plan, index) => {
+				now.push(
+					nodeTask({
+						path: `W/Tasks/TSK-9${30 + now.length}`,
+						recurringFrom: source,
+						recurrence: plan.recurrence,
+						startDate: plan.startDate,
+						dueDate: plan.dueDate,
+					}),
+				);
+			});
+		}
+		expect(reconcilePlans(snapshotWith(now), "2026-09-05")).toEqual(new Map());
+	});
+});
+
+/* ---------------------------------------------------------------- chains -- */
+
+describe("chain traversal", () => {
+	const a = nodeTask({
+		path: "W/Tasks/TSK-9001",
+		recurrence: rule({ nextDate: "2026-09-01" }),
+	});
+	const b = nodeTask({
+		path: "W/Tasks/TSK-9002",
+		recurringFrom: a.path,
+		recurrence: rule({ nextDate: "2026-09-02" }),
+	});
+	const c = nodeTask({
+		path: "W/Tasks/TSK-9003",
+		recurringFrom: b.path,
+		recurrence: rule({ nextDate: "2026-09-03" }),
+	});
+	const chain = snapshotWith([a, b, c]);
+
+	it("walks the whole series oldest-first from either end", () => {
+		expect(chainMembers(chain, c).map((t) => t.path)).toEqual([a.path, b.path, c.path]);
+		expect(chainMembers(chain, a).map((t) => t.path)).toEqual([a.path, b.path, c.path]);
+		expect(chainLength(chain, b)).toBe(3);
+	});
+
+	it("resolves the immediate neighbours, null at either end", () => {
+		expect(nextInChain(chain, a)?.path).toBe(b.path);
+		expect(nextInChain(chain, c)).toBeNull();
+		expect(prevInChain(chain, b)?.path).toBe(a.path);
+		expect(prevInChain(chain, a)).toBeNull();
+	});
+
+	it("recurrenceNodesInChain lists only nodes still carrying a schedule", () => {
+		expect(recurrenceNodesInChain(chain, c).map((t) => t.path)).toEqual([
+			a.path,
+			b.path,
+			c.path,
+		]);
+		const partiallyStopped = {
+			...chain,
+			tasks: chain.tasks.map((t) =>
+				t.path === b.path ? { ...t, recurrence: null } : t,
+			),
+		};
+		expect(recurrenceNodesInChain(partiallyStopped, c).map((t) => t.path)).toEqual([
+			a.path,
+			c.path,
+		]);
+		// Stopping clears schedules but the chain itself is preserved.
+		expect(chainMembers(partiallyStopped, c)).toHaveLength(3);
+	});
+});
+
+/* ------------------------------------------------------------- describe -- */
+
+describe("describeRecurrence", () => {
+	it("renders each cadence", () => {
+		expect(describeFrequency(rule({ freq: "daily" }))).toBe("Every day");
+		expect(describeFrequency(rule({ freq: "daily", interval: 3 }))).toBe("Every 3 days");
+		expect(
+			describeFrequency(
+				rule({ freq: "weekly", interval: 1, weekdays: ["mon", "wed"] }),
+			),
+		).toBe("Every week on Monday and Wednesday");
+		expect(
+			describeFrequency(
+				rule({ freq: "weekly", interval: 1, weekdays: ["mon", "wed", "fri"] }),
+			),
+		).toBe("Every week on Monday, Wednesday and Friday");
+		expect(describeFrequency(rule({ freq: "weekly", interval: 2 }))).toBe("Every 2 weeks");
+		expect(
+			describeFrequency(rule({ freq: "monthly", dayOfMonth: 5 })),
+		).toBe("Monthly on the 5th");
+		expect(
+			describeFrequency(rule({ freq: "monthly", dayOfMonth: 1 })),
+		).toBe("Monthly on the 1st");
+		expect(
+			describeFrequency(rule({ freq: "monthly", weekdayOfMonth: 2 })),
+		).toBe("Monthly on the 2nd occurrence");
+		expect(describeFrequency(rule({ freq: "monthly" }))).toBe("Monthly");
+		expect(
+			describeFrequency(rule({ freq: "yearly", monthOfYear: 4, dayOfMonth: 10 })),
+		).toBe("Every year on April 10th");
+		expect(describeFrequency(rule({ freq: "yearly" }))).toBe("Every year");
+	});
+
+	it("renders each trigger", () => {
+		const statuses = sample.workspace.statuses;
+		expect(describeTrigger(rule({ trigger: "on-close" }), statuses)).toBe("when completed");
+		expect(
+			describeTrigger(
+				rule({ trigger: "on-close", triggerStatus: "in-review" }),
+				statuses,
+			),
+		).toBe("when status is In Review");
+		expect(describeTrigger(rule({ trigger: "on-date" }), statuses)).toBe("on the due date");
+		expect(
+			describeTrigger(rule({ trigger: "on-date", anchor: "startDate" }), statuses),
+		).toBe("on the start date");
+	});
+
+	it("combines cadence, trigger and end conditions into the summary line", () => {
+		expect(
+			describeRecurrence(
+				rule({
+					freq: "weekly",
+					interval: 1,
+					weekdays: ["mon", "wed"],
+					trigger: "on-close",
+					endsAfter: 5,
+					endsOn: "2026-09-03",
+				}),
+				sample.workspace.statuses,
+			),
+		).toBe(
+			"Every week on Monday and Wednesday, when completed, 5 occurrences total, until 2026-09-03",
+		);
+	});
+});
+
+/* -------------------------------------------------------------- overview -- */
+
+describe("recurringOverview", () => {
+	it("lists every node with a live schedule, sorted by title then id, with chain counts", () => {
+		const alpha = nodeTask({
+			path: "W/Tasks/TSK-9001",
+			title: "Alpha",
+			recurrence: rule({ nextDate: "2026-09-10" }),
+		});
+		const beta = nodeTask({
+			path: "W/Tasks/TSK-9002",
+			title: "Beta",
+			recurrence: rule({ nextDate: "2026-08-01" }),
+		});
+		const betaNext = nodeTask({
+			path: "W/Tasks/TSK-9003",
+			title: "Beta",
+			recurringFrom: beta.path,
+			recurrence: rule({ nextDate: "2026-08-02" }),
+		});
+		const snap = snapshotWith([alpha, betaNext, beta]);
+		const rows = recurringOverview(snap, "2026-09-05");
+
+		expect(rows.map((row) => row.task.title)).toEqual(["Alpha", "Beta", "Beta"]);
+		expect(rows[0].nextDate).toBe("2026-09-10"); // already future: unchanged
+		expect(rows[0].chainLength).toBe(1);
+		// Both Beta nodes sit behind the cadence, so the overview surfaces each
+		// one's next real point, and both measure the two-note chain.
+		expect(rows[1].nextDate).toBe("2026-09-05");
+		expect(rows[1].chainLength).toBe(2);
+		expect(rows[2].nextDate).toBe("2026-09-05");
+		expect(rows[2].chainLength).toBe(2);
+	});
+});
