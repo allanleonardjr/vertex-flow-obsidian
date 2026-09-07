@@ -21,6 +21,7 @@ import {
 	spawnPlans,
 	type OccurrencePlan,
 } from "../../src/core/recurrence";
+import { localTodayIso } from "../../src/core/date";
 import type {
 	IsoDate,
 	RecurrenceConfig,
@@ -591,5 +592,17 @@ describe("recurringOverview", () => {
 		expect(rows[1].chainLength).toBe(2);
 		expect(rows[2].nextDate).toBe("2026-09-05");
 		expect(rows[2].chainLength).toBe(2);
+	});
+});
+
+describe("localTodayIso", () => {
+	it("formats a Date as a local YYYY-MM-DD day, zero-padded", () => {
+		expect(localTodayIso(new Date(2026, 0, 3, 23, 59))).toBe("2026-01-03");
+		expect(localTodayIso(new Date(2026, 11, 25, 0, 0))).toBe("2026-12-25");
+	});
+
+	it("uses local calendar fields, not an instant in UTC", () => {
+		const d = new Date(2026, 8, 6, 22, 30);
+		expect(localTodayIso(d)).toBe("2026-09-06");
 	});
 });

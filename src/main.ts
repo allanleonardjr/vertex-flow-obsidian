@@ -19,6 +19,7 @@ import {
 	getMePersonId,
 	setMePersonId,
 } from "./obsidian/me-storage";
+import { recurrenceNodesInChain } from "./core/recurrence";
 import { VertexFlowSettingTab } from "./settings/SettingTab";
 import {
 	DEFAULT_SETTINGS,
@@ -37,6 +38,16 @@ export default class VertexFlowPlugin extends Plugin {
 
 	/** One-shot: consumed by the next `file-open`, then cleared. See `suppressNextRedirect`. */
 	private redirectSuppressed = false;
+
+	/**
+	 * The task whose editor tab is in front, mirrored out of the React tree so
+	 * native commands (Stop repeating…) can act on "the current task". Set by
+	 * `TaskPane`, cleared when it unmounts.
+	 */
+	activeTaskPath: string | null = null;
+
+	/** One-shot: the React tree opens the Recurring Overview modal when it sees this. */
+	pendingRecurringOverview = false;
 
 	/**
 	 * The workspace most recently active in *any* pane this session. Used to
@@ -144,6 +155,35 @@ export default class VertexFlowPlugin extends Plugin {
 			id: "rebuild-index",
 			name: "Rebuild index",
 			callback: () => void this.index.rebuild(),
+		});
+
+		// Acts on the task whose editor is in front. `checkCallback` keeps the
+		// command out of the palette unless that task is part of a live series.
+		this.addCommand({
+			id: "stop-recurrence",
+			name: "Stop repeating task",
+			checkCallback: (checking) => {
+				const path = this.activeTaskPath;
+				const task = path ? this.index.taskAt(path) : null;
+				const snapshot = path ? this.index.workspaceFor(path) : null;
+				const live =
+					task && snapshot
+						? recurrenceNodesInChain(snapshot, task).length > 0
+						: false;
+				if (live && !checking && task) {
+					void this.mutations.stopRecurrence(task);
+				}
+				return live;
+			},
+		});
+
+		this.addCommand({
+			id: "recurring-overview",
+			name: "Recurring overview",
+			callback: () => {
+				this.pendingRecurringOverview = true;
+				void this.activateView().then(() => this.index.touch());
+			},
 		});
 	}
 

@@ -30,6 +30,7 @@ import {
   Estimate,
   ProjectChip,
   RelationBadge,
+  RepeatBadge,
   StartDate,
   SubtaskProgress,
   TaxonomyChip,
@@ -384,6 +385,7 @@ function CardContent({
           />
         )}
         {!off("relations") && <RelationBadge task={task} />}
+        <RepeatBadge task={task} statuses={snapshot.workspace.statuses} />
         <ArchivedBadge task={task} />
       </div>
 

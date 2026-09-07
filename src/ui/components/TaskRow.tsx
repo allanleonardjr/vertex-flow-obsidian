@@ -25,6 +25,7 @@ import {
 	Labels,
 	ProjectChip,
 	RelationBadge,
+	RepeatBadge,
 	StartDate,
 	SubtaskProgress,
 	StatusDot,
@@ -97,6 +98,7 @@ export function TaskRowContent({
 
 			<span className="vf-row-meta">
 				<ArchivedBadge task={task} />
+				<RepeatBadge task={task} statuses={snapshot.workspace.statuses} />
 				{!off("project") && (
 					<ProjectChip task={task} projects={snapshot.projects} />
 				)}

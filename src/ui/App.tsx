@@ -36,6 +36,7 @@ import { TabStrip } from "./TabStrip";
 import { TaskPane } from "./TaskPane";
 import { TaskViewport } from "./views/TaskViewport";
 import { PrefixEngine } from "./shortcuts/prefix-engine";
+import { RecurringOverviewHost } from "./RecurringOverviewModal";
 import { TabSwitcher } from "./TabSwitcher";
 import {
   CompactNavProvider,
@@ -214,6 +215,7 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
       tabIndex={-1}
     >
       <PrefixEngine snapshot={snapshot} />
+      <RecurringOverviewHost snapshot={snapshot} taxonomies={active.taxonomies} />
       <TabSwitcher snapshot={snapshot} />
       <Sidebar
         snapshot={snapshot}

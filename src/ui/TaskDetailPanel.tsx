@@ -43,6 +43,7 @@ import { TaskBreadcrumb } from "./components/TaskBreadcrumb";
 import { EmbeddedTaskList } from "./components/EmbeddedTaskList";
 import { LabelEditor } from "./components/LabelEditor";
 import { RelationsEditor } from "./components/RelationsEditor";
+import { RepeatRow } from "./components/RecurrenceEditor";
 import { TaskSelectMenu } from "./components/TaskSelectMenu";
 import { usePlugin } from "./context";
 
@@ -326,6 +327,8 @@ export function TaskDetailPanel({
               onChange={(dueDate) => update({ dueDate })}
             />
           </PropertyRow>
+
+          <RepeatRow task={task} snapshot={snapshot} taxonomies={taxonomies} />
 
           <PropertyRow label="Archived">
             <label className="vf-toggle">

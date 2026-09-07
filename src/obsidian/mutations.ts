@@ -14,6 +14,7 @@ import {
   slugify,
   suggestPrefix,
 } from "../core/ids";
+import { localTodayIso } from "../core/date";
 import { formatLink, joinPath, sanitizeFileName } from "../core/links";
 import { planReorder, rankAfter, rankForNewTask, rankForPosition, sortTasksByRank } from "../core/ranking";
 import { reconcilePlans, recurrenceNodesInChain } from "../core/recurrence";
@@ -1672,16 +1673,4 @@ export class Mutations {
     if (!file) return;
     await this.app.workspace.getLeaf(newLeaf).openFile(file);
   }
-}
-
-/**
- * Today's date in the user's own calendar, as the same `YYYY-MM-DD` strings
- * tasks carry in frontmatter. Recurrence compares local days (closing a daily
- * task late in the evening must not wait for UTC to catch up), so this is
- * deliberately not `nowIso()`.
- */
-function localTodayIso(): string {
-  const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }

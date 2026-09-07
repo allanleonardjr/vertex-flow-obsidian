@@ -10,10 +10,12 @@ import {
   Archive,
   Gauge,
 } from "lucide-react";
+import { Repeat } from "lucide-react";
 import { basename } from "../../core/links";
 import { Icon } from "./Icon";
 import { listValues, type WorkspaceTaxonomies } from "../../core/taxonomy";
-import type { Task } from "../../core/types";
+import { describeRecurrence } from "../../core/recurrence";
+import type { StatusValue, Task } from "../../core/types";
 
 /** Signal glyphs from weakest to strongest — the buckets a priority maps into. */
 const SIGNAL_GLYPHS = [SignalLow, SignalMedium, SignalHigh, Signal] as const;
@@ -369,6 +371,34 @@ export function Assignee({
   const person = people.find((p) => p.id === assignee);
 
   return <PersonAvatar name={person?.name ?? assignee} />;
+}
+
+/**
+ * Informational "this task repeats" marker — shown only on the live series node
+ * (the one still carrying a `recurrence` block). No interaction; the schedule
+ * is edited from the task editor's Repeat row. Tooltip carries the full
+ * cadence description and the next landing date.
+ */
+export function RepeatBadge({
+  task,
+  statuses,
+}: {
+  task: Task;
+  statuses: readonly StatusValue[];
+}) {
+  const rule = task.recurrence;
+  if (!rule) return null;
+
+  const summary = describeRecurrence(rule, statuses);
+  return (
+    <span
+      className="vf-chip vf-chip-repeat"
+      title={`${summary} · next ${rule.nextDate}`}
+      aria-label={`Repeats: ${summary}`}
+    >
+      <Repeat size={11} />
+    </span>
+  );
 }
 
 export function RelationBadge({ task }: { task: Task }) {

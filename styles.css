@@ -6456,3 +6456,230 @@ button.vf-history-expand {
 .vf-ledger-more {
   color: var(--vf-muted);
 }
+
+/* --- Recurring tasks -------------------------------------------------------- */
+
+/* The repeat marker on rows and board cards — informational only, like the
+   relations badge it sits beside. */
+.vf-chip-repeat {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--vf-muted);
+}
+
+/* A button that reads as a link inside a sentence, not a padded control. Used
+   by the Repeat row, the recurrence dialog, and the overview modal. */
+.vf-linkish {
+  padding: 0;
+  border: none;
+  background: none;
+  box-shadow: none;
+  color: var(--text-accent);
+  font-size: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.vf-linkish:hover {
+  color: var(--text-accent-hover, var(--text-accent));
+}
+
+.vf-linkish-warn {
+  color: var(--text-error);
+}
+
+.vf-dialog-hint {
+  margin: 2px 0 0;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.4;
+}
+
+.vf-repeat-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.vf-repeat-summary {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vf-repeat-actions {
+  display: inline-flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* --- Recurrence edit dialog ------------------------------------------------- */
+
+.vf-recurrence-dialog {
+  width: min(460px, 92vw);
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.vf-recurrence-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.vf-recurrence-field-label {
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.vf-recurrence-field-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vf-inline-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.vf-inline-field .vf-input {
+  width: 5em;
+}
+
+.vf-chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.vf-chip-btn {
+  padding: 3px 10px;
+  border: 1px solid var(--vf-border);
+  border-radius: 999px;
+  background: var(--background-primary);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+}
+
+.vf-chip-btn.is-on {
+  border-color: var(--interactive-accent);
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.vf-chip-day {
+  width: 30px;
+  padding: 3px 0;
+  text-align: center;
+}
+
+.vf-segmented {
+  display: inline-flex;
+  border: 1px solid var(--vf-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.vf-segmented-item {
+  padding: 4px 12px;
+  border: none;
+  border-radius: 0;
+  background: var(--background-primary);
+  box-shadow: none;
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+}
+
+.vf-segmented-item + .vf-segmented-item {
+  border-left: 1px solid var(--vf-border);
+}
+
+.vf-segmented-item.is-on {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.vf-recurrence-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 14px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--background-secondary);
+}
+
+/* --- Recurring overview modal -------------------------------------------- */
+
+.vf-recurring-overview {
+  width: min(560px, 94vw);
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.vf-recurring-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.vf-recurring-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--vf-border);
+}
+
+.vf-recurring-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.vf-recurring-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.vf-recurring-actions {
+  display: inline-flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* --- Projected (ghost) recurrence rows ----------------------------------- */
+
+.vf-row.is-projected,
+.vf-card.is-projected {
+  opacity: 0.55;
+}
+
+.vf-row.is-projected {
+  border-style: dashed;
+}
+
+.vf-card.is-projected {
+  border-style: dashed;
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--background-primary),
+    var(--background-primary) 8px,
+    var(--background-secondary) 8px,
+    var(--background-secondary) 16px
+  );
+}
