@@ -9,6 +9,7 @@
 import { useRef, useState } from "react";
 import type { EvaluatedView } from "../../core/views";
 import {
+  isProjectViewId,
   isSystemViewId,
   layoutIcon,
   newView,
@@ -110,10 +111,11 @@ export function ViewControls({
 
   // "Save" (overwrite in place) works for any view backed by a `Views/*.md`
   // file — the two System Views included (filter/group/sort tweaks persist
-  // just like a user view, writing their own file on first save). A
-  // synthesised label view isn't backed, so an ad-hoc filter there becomes a
-  // *new* view or nothing at all.
-  const canOverwrite = inSavedViews;
+  // just like a user view, writing their own file on first save) — plus a
+  // Project's synthesised view, which saves to its own note's `view:` block
+  // instead (see `useViewWriter`). A synthesised label view has neither, so
+  // an ad-hoc filter there becomes a *new* view or nothing at all.
+  const canOverwrite = inSavedViews || isProjectViewId(savedView.id);
 
   // Name/icon and the description section: real user views only.
   const canEditIdentity = inSavedViews && !permanentView;

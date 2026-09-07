@@ -11,7 +11,7 @@
  */
 
 import { basename, parseLink } from "../links";
-import { canonicalizeHiddenFields } from "../views/filter";
+import { canonicalizeHiddenFields, viewDefinition } from "../views/filter";
 import {
 	SUBTASK_DISPLAYS,
 	TASK_FIELDS,
@@ -21,6 +21,7 @@ import {
 	type SortField,
 	type SubtaskDisplay,
 	type ViewCalendarState,
+	type ViewDefinition,
 	type ViewFilters,
 	type ViewTimelineState,
 	type ViewType,
@@ -378,6 +379,41 @@ export function serializeView(view: SavedView): Record<string, unknown> {
 		calendar: view.calendar?.visibleMonth
 			? { visibleMonth: view.calendar.visibleMonth }
 			: undefined,
+	});
+}
+
+/**
+ * Parse just the definitional half of a view — used for a Project's own
+ * `view:` frontmatter block, which (unlike a `Views/<id>.md` note) has no
+ * id/name/icon/columns of its own.
+ */
+export function parseViewDefinition(raw: unknown, log: IssueLog): ViewDefinition {
+	return viewDefinition({
+		type: "view",
+		path: "",
+		...parseViewValue(asRecord(raw), "", log),
+	});
+}
+
+/** The serialized counterpart of `parseViewDefinition`. */
+export function serializeViewDefinition(
+	definition: ViewDefinition,
+): Record<string, unknown> {
+	return compact({
+		viewType: definition.viewType,
+		filters: compact(definition.filters as Record<string, unknown>),
+		groupBy: definition.groupBy,
+		sortBy: definition.sortBy,
+		sortDirection: definition.sortDirection,
+		emptyColumnBehavior: definition.emptyColumnBehavior,
+		hiddenFields: definition.hiddenFields,
+		subtaskDisplay:
+			definition.subtaskDisplay === "flat" ? undefined : definition.subtaskDisplay,
+		calendarDateField:
+			definition.calendarDateField === "dueDate"
+				? undefined
+				: definition.calendarDateField,
+		recurringPreview: definition.recurringPreview ? true : undefined,
 	});
 }
 

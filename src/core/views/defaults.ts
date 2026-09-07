@@ -101,6 +101,26 @@ export function isSystemViewId(id: string): boolean {
 	);
 }
 
+/**
+ * The id scheme for a Project's synthesised task-list view (`projectView()`
+ * in `ui/App.tsx`). Unlike a System View it has no `Views/*.md` file of its
+ * own — its save target is the Project note's own `view:` frontmatter block
+ * instead (see `Project.view`).
+ */
+const PROJECT_VIEW_ID_PREFIX = "project:";
+
+export function projectViewId(projectPath: string): string {
+	return `${PROJECT_VIEW_ID_PREFIX}${projectPath}`;
+}
+
+export function isProjectViewId(id: string): boolean {
+	return id.startsWith(PROJECT_VIEW_ID_PREFIX);
+}
+
+export function projectPathFromViewId(id: string): string {
+	return id.slice(PROJECT_VIEW_ID_PREFIX.length);
+}
+
 export function defaultViews(): SavedView[] {
 	return [
 		view({
