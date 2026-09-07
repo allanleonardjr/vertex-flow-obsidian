@@ -9,16 +9,16 @@
 import { useRef, useState } from "react";
 import type { EvaluatedView } from "../../core/views";
 import {
-	isSystemViewId,
-	layoutIcon,
-	newView,
-	setColumnsCollapsed,
+  isSystemViewId,
+  layoutIcon,
+  newView,
+  setColumnsCollapsed,
 } from "../../core/views";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type {
-	SavedView,
-	ViewColumnState,
-	WorkspaceSnapshot,
+  SavedView,
+  ViewColumnState,
+  WorkspaceSnapshot,
 } from "../../core/types";
 import { newConfigId } from "../../core/ids";
 import { withExtension } from "../../obsidian/note-io";
@@ -30,19 +30,19 @@ import { ResizeHandle } from "../components/ResizeHandle";
 import { NamedIconDialog } from "../modals/NamedIconDialog";
 import { useSelection } from "../selection";
 import {
-	EmptyColumnsChip,
-	FieldsControl,
-	GroupChip,
-	LayoutToggle,
-	SortChip,
-	SubtasksChip,
-	RecurringPreviewChip,
+  EmptyColumnsChip,
+  FieldsControl,
+  GroupChip,
+  LayoutToggle,
+  SortChip,
+  SubtasksChip,
+  RecurringPreviewChip,
 } from "./DisplayControls";
 import {
-	AddFilterTrigger,
-	FilterControls,
-	shownFilterKeys,
-	useFilterClauseState,
+  AddFilterTrigger,
+  FilterControls,
+  shownFilterKeys,
+  useFilterClauseState,
 } from "./FilterControls";
 import { activeReadonlyFilterKeys } from "./viewOptions";
 import { QueryBar } from "./QueryBar";
@@ -50,349 +50,359 @@ import { InlineHelpIcon } from "../components/InlineHelpIcon";
 import type { ViewDraft } from "./useViewDraft";
 
 export function ViewControls({
-	snapshot,
-	view,
-	savedView,
-	draft,
-	taxonomies,
-	evaluated,
-	onSelectView,
-	onNewTask,
-	hideTitle = false,
+  snapshot,
+  view,
+  savedView,
+  draft,
+  taxonomies,
+  evaluated,
+  onSelectView,
+  onNewTask,
+  hideTitle = false,
 }: {
-	snapshot: WorkspaceSnapshot;
-	/** The view being rendered — the draft when one is pending. */
-	view: SavedView;
-	/** What's actually on disk, for the "unsaved" comparison and Save-as seed. */
-	savedView: SavedView;
-	draft: ViewDraft;
-	taxonomies: WorkspaceTaxonomies;
-	evaluated: EvaluatedView;
-	onSelectView: (id: string) => void;
-	/** Create a task seeded from this view's filters (see `TaskViewport`). */
-	onNewTask: () => void;
-	/**
-	 * Drop the title row (name, count, "New task"). Set when an outer header
-	 * already names the thing being viewed — the Project Detail screen — so the
-	 * bar isn't preceded by a redundant second heading. Bulk-selection controls
-	 * still appear here when something is selected.
-	 */
-	hideTitle?: boolean;
+  snapshot: WorkspaceSnapshot;
+  /** The view being rendered — the draft when one is pending. */
+  view: SavedView;
+  /** What's actually on disk, for the "unsaved" comparison and Save-as seed. */
+  savedView: SavedView;
+  draft: ViewDraft;
+  taxonomies: WorkspaceTaxonomies;
+  evaluated: EvaluatedView;
+  onSelectView: (id: string) => void;
+  /** Create a task seeded from this view's filters (see `TaskViewport`). */
+  onNewTask: () => void;
+  /**
+   * Drop the title row (name, count, "New task"). Set when an outer header
+   * already names the thing being viewed — the Project Detail screen — so the
+   * bar isn't preceded by a redundant second heading. Bulk-selection controls
+   * still appear here when something is selected.
+   */
+  hideTitle?: boolean;
 }) {
-	const plugin = usePlugin();
-	const writeSettings = useSettingsWriter();
-	const selection = useSelection();
-	const [savingAs, setSavingAs] = useState(false);
-	const [descHeight, setDescHeight] = useState(
-		plugin.settings.viewDescriptionHeight,
-	);
-	const headerRef = useRef<HTMLElement | null>(null);
-	const queryOpen = plugin.settings.queryBarOpen;
+  const plugin = usePlugin();
+  const writeSettings = useSettingsWriter();
+  const selection = useSelection();
+  const [savingAs, setSavingAs] = useState(false);
+  const [descHeight, setDescHeight] = useState(
+    plugin.settings.viewDescriptionHeight,
+  );
+  const headerRef = useRef<HTMLElement | null>(null);
+  const queryOpen = plugin.settings.queryBarOpen;
 
-	// `pending`/`editing` are shared by the Row 1 "+ Filter" trigger and the
-	// Row 2 chip list — see `FilterControls`.
-	const filterClause = useFilterClauseState();
-	// The filters row is mounted only when it has something to show: a clause
-	// with a value, a query-only clause, or a just-added clause awaiting one.
-	const hasFilterRow =
-		shownFilterKeys(view.filters, filterClause.pending).length +
-			activeReadonlyFilterKeys(view.filters).length >
-		0;
+  // `pending`/`editing` are shared by the Row 1 "+ Filter" trigger and the
+  // Row 2 chip list — see `FilterControls`.
+  const filterClause = useFilterClauseState();
+  // The filters row is mounted only when it has something to show: a clause
+  // with a value, a query-only clause, or a just-added clause awaiting one.
+  const hasFilterRow =
+    shownFilterKeys(view.filters, filterClause.pending).length +
+      activeReadonlyFilterKeys(view.filters).length >
+    0;
 
-	const selectedCount = selection.selectedPaths.length;
+  const selectedCount = selection.selectedPaths.length;
 
-	// The two System Views (All Tasks, Untriaged) are fixed fixtures: their
-	// name/icon and their purpose are not the user's to change, so no inline
-	// title editing and no description section. A synthesised label/project
-	// view has no backing file at all.
-	const permanentView = isSystemViewId(savedView.id);
-	const inSavedViews = snapshot.views.some((v) => v.id === savedView.id);
+  // The two System Views (All Tasks, Untriaged) are fixed fixtures: their
+  // name/icon and their purpose are not the user's to change, so no inline
+  // title editing and no description section. A synthesised label/project
+  // view has no backing file at all.
+  const permanentView = isSystemViewId(savedView.id);
+  const inSavedViews = snapshot.views.some((v) => v.id === savedView.id);
 
-	// "Save" (overwrite in place) works for any view backed by a `Views/*.md`
-	// file — the two System Views included (filter/group/sort tweaks persist
-	// just like a user view, writing their own file on first save). A
-	// synthesised label view isn't backed, so an ad-hoc filter there becomes a
-	// *new* view or nothing at all.
-	const canOverwrite = inSavedViews;
+  // "Save" (overwrite in place) works for any view backed by a `Views/*.md`
+  // file — the two System Views included (filter/group/sort tweaks persist
+  // just like a user view, writing their own file on first save). A
+  // synthesised label view isn't backed, so an ad-hoc filter there becomes a
+  // *new* view or nothing at all.
+  const canOverwrite = inSavedViews;
 
-	// Name/icon and the description section: real user views only.
-	const canEditIdentity = inSavedViews && !permanentView;
-	const titleEditable = canEditIdentity;
-	const showDescription = !hideTitle && canEditIdentity;
-	const descCollapsed = plugin.settings.descriptionCollapsed;
-	const descSourceMode = plugin.settings.descriptionSourceMode;
+  // Name/icon and the description section: real user views only.
+  const canEditIdentity = inSavedViews && !permanentView;
+  const titleEditable = canEditIdentity;
+  const showDescription = !hideTitle && canEditIdentity;
+  const descCollapsed = plugin.settings.descriptionCollapsed;
+  const descSourceMode = plugin.settings.descriptionSourceMode;
 
-	const editView = draft.edit;
+  const editView = draft.edit;
 
-	const saveAs = (name: string, icon: string | undefined) => {
-		const created: SavedView = {
-			...newView(newConfigId("view"), name, view.viewType, icon),
-			filters: view.filters,
-			groupBy: view.groupBy,
-			sortBy: view.sortBy,
-			sortDirection: view.sortDirection,
-			emptyColumnBehavior: view.emptyColumnBehavior,
-			hiddenFields: view.hiddenFields,
-		};
-		void plugin.mutations.addView(snapshot, created).then(() => {
-			// Drop the draft before switching, or it would follow us to the new
-			// view and immediately read as unsaved again.
-			draft.reset();
-			onSelectView(created.id);
-		});
-	};
+  const saveAs = (name: string, icon: string | undefined) => {
+    const created: SavedView = {
+      ...newView(newConfigId("view"), name, view.viewType, icon),
+      filters: view.filters,
+      groupBy: view.groupBy,
+      sortBy: view.sortBy,
+      sortDirection: view.sortDirection,
+      emptyColumnBehavior: view.emptyColumnBehavior,
+      hiddenFields: view.hiddenFields,
+    };
+    void plugin.mutations.addView(snapshot, created).then(() => {
+      // Drop the draft before switching, or it would follow us to the new
+      // view and immediately read as unsaved again.
+      draft.reset();
+      onSelectView(created.id);
+    });
+  };
 
-	return (
-		<>
-			<header ref={headerRef} className="vf-view-header">
-				{(!hideTitle || selectedCount > 0) && (
-					<div className="vf-view-title">
-						{!hideTitle && (
-							<>
-								{titleEditable ? (
-									<EditableTitle
-										key={savedView.id}
-										icon={savedView.icon}
-										iconFallback={layoutIcon(savedView.viewType)}
-										name={savedView.name}
-										suffix={`(${snapshot.workspace.idPrefix})`}
-										placeholder="View name"
-										onRename={(name) =>
-											plugin.mutations.updateView(snapshot, {
-												...savedView,
-												name,
-											})
-										}
-										onIconChange={(icon) =>
-											void plugin.mutations.updateView(snapshot, {
-												...savedView,
-												icon,
-											})
-										}
-									/>
-								) : (
-									<h2>
-										<span className="vf-view-title-icon" aria-hidden>
-											<Icon
-												id={view.icon}
-												fallback={layoutIcon(view.viewType)}
-												size={16}
-											/>
-										</span>
-										{view.name}
-										<span className="vf-view-title-code">
-											({snapshot.workspace.idPrefix})
-										</span>
-									</h2>
-								)}
-								<span className="vf-count">
-									{evaluated.total} {evaluated.total === 1 ? "task" : "tasks"}
-								</span>
-							</>
-						)}
+  return (
+    <>
+      <header ref={headerRef} className="vf-view-header">
+        {(!hideTitle || selectedCount > 0) && (
+          <div className="vf-view-title">
+            {!hideTitle && (
+              <>
+                {titleEditable ? (
+                  <EditableTitle
+                    key={savedView.id}
+                    icon={savedView.icon}
+                    iconFallback={layoutIcon(savedView.viewType)}
+                    name={savedView.name}
+                    suffix={`(${snapshot.workspace.idPrefix})`}
+                    placeholder="View name"
+                    onRename={(name) =>
+                      plugin.mutations.updateView(snapshot, {
+                        ...savedView,
+                        name,
+                      })
+                    }
+                    onIconChange={(icon) =>
+                      void plugin.mutations.updateView(snapshot, {
+                        ...savedView,
+                        icon,
+                      })
+                    }
+                  />
+                ) : (
+                  <h2>
+                    <span className="vf-view-title-icon" aria-hidden>
+                      <Icon
+                        id={view.icon}
+                        fallback={layoutIcon(view.viewType)}
+                        size={16}
+                      />
+                    </span>
+                    {view.name}
+                    <span className="vf-view-title-code">
+                      ({snapshot.workspace.idPrefix})
+                    </span>
+                  </h2>
+                )}
+                <span className="vf-count">
+                  {evaluated.total} {evaluated.total === 1 ? "task" : "tasks"}
+                </span>
+              </>
+            )}
 
-						<span className="vf-view-title-spacer" />
+            <span className="vf-view-title-spacer" />
 
-						{selectedCount > 0 && (
-							<>
-								<span className="vf-count">{selectedCount} selected</span>
-								<button onClick={() => selection.clearSelection()}>Clear</button>
-							</>
-						)}
+            {selectedCount > 0 && (
+              <>
+                <span className="vf-count">{selectedCount} selected</span>
+                <button onClick={() => selection.clearSelection()}>
+                  Clear
+                </button>
+              </>
+            )}
 
-						{!hideTitle && (
-							<button className="mod-cta" onClick={onNewTask}>
-								New task
-							</button>
-						)}
-					</div>
-				)}
+            {!hideTitle && (
+              <button className="mod-cta" onClick={onNewTask}>
+                New task
+              </button>
+            )}
+          </div>
+        )}
 
-				{/* Row 1 — always on screen: layout + every display control + the
+        {/* Row 1 — always on screen: layout + every display control + the
 				    action triggers (+ Filter, Query) that must stay reachable even
 				    when Row 2 doesn't exist. */}
-				<div className="vf-view-bar vf-view-bar-display">
-					<LayoutToggle view={view} onChange={editView} />
-					{/* Timeline and Calendar ignore grouping entirely (a day grid has no
+        <div className="vf-view-bar vf-view-bar-display">
+          <LayoutToggle view={view} onChange={editView} />
+          {/* Timeline and Calendar ignore grouping entirely (a day grid has no
 					    columns to group), so the control is hidden for both. */}
-					{view.viewType !== "timeline" && view.viewType !== "calendar" && (
-						<>
-							<span className="vf-bar-divider" />
-							<GroupChip view={view} onChange={editView} />
-							{view.groupBy !== "none" && view.viewType === "board" && (
-								<EmptyColumnsChip view={view} onChange={editView} />
-							)}
-							{/* List and Board share one collapsed-column set, so the bulk
+          {view.viewType !== "timeline" && view.viewType !== "calendar" && (
+            <>
+              <span className="vf-bar-divider" />
+              <GroupChip view={view} onChange={editView} />
+              {view.groupBy !== "none" && view.viewType === "board" && (
+                <EmptyColumnsChip view={view} onChange={editView} />
+              )}
+              {/* List and Board share one collapsed-column set, so the bulk
 							    toggle has to be reachable from both — otherwise a board
 							    inherits a "collapse all" done on the list with no way
 							    back. */}
-							{view.groupBy !== "none" && (
-								<CollapseAllToggle
-									view={view}
-									evaluated={evaluated}
-									onColumnsChange={draft.setColumns}
-								/>
-							)}
-						</>
-					)}
-					<span className="vf-bar-divider" />
-					<SortChip view={view} onChange={editView} />
-					<span className="vf-bar-divider" />
-					<SubtasksChip view={view} onChange={editView} />
-					<span className="vf-bar-divider" />
-					<RecurringPreviewChip view={view} onChange={editView} />
-					<span className="vf-bar-divider" />
-					<FieldsControl view={view} onChange={editView} />
-					<span className="vf-bar-divider" />
-					<AddFilterTrigger view={view} clause={filterClause} />
+              {view.groupBy !== "none" && (
+                <CollapseAllToggle
+                  view={view}
+                  evaluated={evaluated}
+                  onColumnsChange={draft.setColumns}
+                />
+              )}
+            </>
+          )}
+          {/* Nested sub-task display always orders rows by rank at every level
+					    (buildNestedRows / the Golden Rule of one global order) — whatever
+					    sort field is picked here has no effect on what renders, so the
+					    control is hidden rather than left showing a setting that does
+					    nothing. */}
+          {!(view.viewType === "list" && view.subtaskDisplay === "nested") && (
+            <>
+              <span className="vf-bar-divider" />
+              <SortChip view={view} onChange={editView} />
+            </>
+          )}
+          <span className="vf-bar-divider" />
+          <SubtasksChip view={view} onChange={editView} />
+          <span className="vf-bar-divider" />
+          <RecurringPreviewChip view={view} onChange={editView} />
+          <span className="vf-bar-divider" />
+          <FieldsControl view={view} onChange={editView} />
+          <span className="vf-bar-divider" />
+          <AddFilterTrigger view={view} clause={filterClause} />
 
-					<button
-						type="button"
-						className={`vf-bar-item vf-query-toggle${queryOpen ? " is-on" : ""}`}
-						aria-expanded={queryOpen}
-						aria-controls="vf-query-row"
-						title="Edit this view as a text query"
-						onClick={() => writeSettings({ queryBarOpen: !queryOpen })}
-					>
-						<span
-							className={`vf-section-chevron${queryOpen ? " is-open" : ""}`}
-							aria-hidden
-						>
-							›
-						</span>
-						Query
-					</button>
-					<InlineHelpIcon
-						target="savedViewsQuery"
-						label="Query language"
-						className="vf-query-help"
-					/>
+          <button
+            type="button"
+            className={`vf-bar-item vf-query-toggle${queryOpen ? " is-on" : ""}`}
+            aria-expanded={queryOpen}
+            aria-controls="vf-query-row"
+            title="Edit this view as a text query"
+            onClick={() => writeSettings({ queryBarOpen: !queryOpen })}
+          >
+            <span
+              className={`vf-section-chevron${queryOpen ? " is-open" : ""}`}
+              aria-hidden
+            >
+              ›
+            </span>
+            Query
+          </button>
+          <InlineHelpIcon
+            target="savedViewsQuery"
+            label="Query language"
+            className="vf-query-help"
+          />
 
-					<span className="vf-bar-spacer" />
+          <span className="vf-bar-spacer" />
 
-					{draft.dirty && (
-						<>
-							<button
-								type="button"
-								className="vf-bar-item vf-bar-reset"
-								title="Discard unsaved changes to this view"
-								onClick={draft.reset}
-							>
-								Reset
-							</button>
-							{canOverwrite && (
-								<button
-									type="button"
-									className="vf-bar-item vf-bar-save"
-									title={`Save these changes to "${savedView.name}"`}
-									onClick={draft.save}
-								>
-									Save
-								</button>
-							)}
-							<button
-								type="button"
-								className="vf-bar-item vf-bar-save"
-								onClick={() => setSavingAs(true)}
-							>
-								Save view as…
-							</button>
-						</>
-					)}
-				</div>
+          {draft.dirty && (
+            <>
+              <button
+                type="button"
+                className="vf-bar-item vf-bar-reset"
+                title="Discard unsaved changes to this view"
+                onClick={draft.reset}
+              >
+                Reset
+              </button>
+              {canOverwrite && (
+                <button
+                  type="button"
+                  className="vf-bar-item vf-bar-save"
+                  title={`Save these changes to "${savedView.name}"`}
+                  onClick={draft.save}
+                >
+                  Save
+                </button>
+              )}
+              <button
+                type="button"
+                className="vf-bar-item vf-bar-save"
+                onClick={() => setSavingAs(true)}
+              >
+                Save view as…
+              </button>
+            </>
+          )}
+        </div>
 
-				{/* Row 2 — the active filter chips. Not rendered at all when there
+        {/* Row 2 — the active filter chips. Not rendered at all when there
 				    are none, so an unfiltered view reserves no height for it. */}
-				{hasFilterRow && (
-					<div className="vf-view-bar vf-view-bar-filters">
-						<FilterControls
-							snapshot={snapshot}
-							view={view}
-							taxonomies={taxonomies}
-							onChange={editView}
-							clause={filterClause}
-						/>
-					</div>
-				)}
+        {hasFilterRow && (
+          <div className="vf-view-bar vf-view-bar-filters">
+            <FilterControls
+              snapshot={snapshot}
+              view={view}
+              taxonomies={taxonomies}
+              onChange={editView}
+              clause={filterClause}
+            />
+          </div>
+        )}
 
-				{/* Row 3 — the text query editor. */}
-				{queryOpen && (
-					<div id="vf-query-row">
-						<QueryBar snapshot={snapshot} view={view} onChange={editView} />
-					</div>
-				)}
+        {/* Row 3 — the text query editor. */}
+        {queryOpen && (
+          <div id="vf-query-row">
+            <QueryBar snapshot={snapshot} view={view} onChange={editView} />
+          </div>
+        )}
+      </header>
 
-			</header>
+      {showDescription && (
+        <div
+          className={`vf-view-description${descCollapsed ? " is-collapsed" : ""}`}
+          style={
+            descCollapsed ? undefined : { height: descHeight, flex: "0 0 auto" }
+          }
+        >
+          <DescriptionSection
+            collapsed={descCollapsed}
+            onToggleCollapsed={() =>
+              writeSettings({ descriptionCollapsed: !descCollapsed })
+            }
+            sourceMode={descSourceMode}
+            onToggleSourceMode={() =>
+              writeSettings({ descriptionSourceMode: !descSourceMode })
+            }
+            value={savedView.description ?? ""}
+            editorKey={savedView.id}
+            sourcePath={withExtension(savedView.path)}
+            onSave={(text) =>
+              void plugin.mutations.updateView(snapshot, {
+                ...savedView,
+                description: text.trim() || undefined,
+              })
+            }
+          />
+        </div>
+      )}
 
-			{showDescription && (
-				<div
-					className={`vf-view-description${descCollapsed ? " is-collapsed" : ""}`}
-					style={
-						descCollapsed ? undefined : { height: descHeight, flex: "0 0 auto" }
-					}
-				>
-					<DescriptionSection
-						collapsed={descCollapsed}
-						onToggleCollapsed={() =>
-							writeSettings({ descriptionCollapsed: !descCollapsed })
-						}
-						sourceMode={descSourceMode}
-						onToggleSourceMode={() =>
-							writeSettings({ descriptionSourceMode: !descSourceMode })
-						}
-						value={savedView.description ?? ""}
-						editorKey={savedView.id}
-						sourcePath={withExtension(savedView.path)}
-						onSave={(text) =>
-							void plugin.mutations.updateView(snapshot, {
-								...savedView,
-								description: text.trim() || undefined,
-							})
-						}
-					/>
-				</div>
-			)}
+      {showDescription && !descCollapsed && (
+        <ResizeHandle
+          axis="y"
+          sign={1}
+          value={descHeight}
+          min={VIEW_DESC_MIN_HEIGHT}
+          computeMax={(colHeight) =>
+            colHeight -
+            (headerRef.current?.clientHeight ?? 0) -
+            VIEW_BODY_MIN_HEIGHT
+          }
+          onResize={setDescHeight}
+          onResizeEnd={(next) => {
+            plugin.settings.viewDescriptionHeight = next;
+            void plugin.saveSettings();
+          }}
+          resetTo={VIEW_DESC_DEFAULT_HEIGHT}
+          className="vf-view-description-resize"
+        />
+      )}
 
-			{showDescription && !descCollapsed && (
-				<ResizeHandle
-					axis="y"
-					sign={1}
-					value={descHeight}
-					min={VIEW_DESC_MIN_HEIGHT}
-					computeMax={(colHeight) =>
-						colHeight -
-						(headerRef.current?.clientHeight ?? 0) -
-						VIEW_BODY_MIN_HEIGHT
-					}
-					onResize={setDescHeight}
-					onResizeEnd={(next) => {
-						plugin.settings.viewDescriptionHeight = next;
-						void plugin.saveSettings();
-					}}
-					resetTo={VIEW_DESC_DEFAULT_HEIGHT}
-					className="vf-view-description-resize"
-				/>
-			)}
-
-			{savingAs && (
-				<NamedIconDialog
-					title="Save view as"
-					initialName={
-						permanentView
-							? "New view"
-							: canOverwrite
-								? `${savedView.name} copy`
-								: savedView.name
-					}
-					initialIcon={view.icon}
-					iconFallback={layoutIcon(view.viewType)}
-					confirmLabel="Create view"
-					onConfirm={saveAs}
-					onClose={() => setSavingAs(false)}
-				/>
-			)}
-		</>
-	);
+      {savingAs && (
+        <NamedIconDialog
+          title="Save view as"
+          initialName={
+            permanentView
+              ? "New view"
+              : canOverwrite
+                ? `${savedView.name} copy`
+                : savedView.name
+          }
+          initialIcon={view.icon}
+          iconFallback={layoutIcon(view.viewType)}
+          confirmLabel="Create view"
+          onConfirm={saveAs}
+          onClose={() => setSavingAs(false)}
+        />
+      )}
+    </>
+  );
 }
 
 const VIEW_DESC_MIN_HEIGHT = 80;
@@ -405,34 +415,32 @@ const VIEW_DESC_DEFAULT_HEIGHT = 220;
  * it collapses. Writes straight to disk like the per-group toggle.
  */
 function CollapseAllToggle({
-	view,
-	evaluated,
-	onColumnsChange,
+  view,
+  evaluated,
+  onColumnsChange,
 }: {
-	view: SavedView;
-	evaluated: EvaluatedView;
-	onColumnsChange: (columns: ViewColumnState) => void;
+  view: SavedView;
+  evaluated: EvaluatedView;
+  onColumnsChange: (columns: ViewColumnState) => void;
 }) {
-	const keys = evaluated.groups
-		.filter((group) => !group.hidden)
-		.map((group) => group.key);
-	if (keys.length === 0) return null;
+  const keys = evaluated.groups
+    .filter((group) => !group.hidden)
+    .map((group) => group.key);
+  if (keys.length === 0) return null;
 
-	const allCollapsed = evaluated.groups
-		.filter((group) => !group.hidden)
-		.every((group) => group.collapsed);
+  const allCollapsed = evaluated.groups
+    .filter((group) => !group.hidden)
+    .every((group) => group.collapsed);
 
-	return (
-		<button
-			type="button"
-			className="vf-bar-item"
-			onClick={() =>
-				onColumnsChange(
-					setColumnsCollapsed(view, keys, !allCollapsed).columns,
-				)
-			}
-		>
-			{allCollapsed ? "Expand all" : "Collapse all"}
-		</button>
-	);
+  return (
+    <button
+      type="button"
+      className="vf-bar-item"
+      onClick={() =>
+        onColumnsChange(setColumnsCollapsed(view, keys, !allCollapsed).columns)
+      }
+    >
+      {allCollapsed ? "Expand all" : "Collapse all"}
+    </button>
+  );
 }

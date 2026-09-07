@@ -13,6 +13,7 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 - **`u l` "Create label…" no longer attaches an existing label instead of the new one.** The quick-field picker's window-level arrow-nav/Enter listener intercepted Enter in capture phase before it could reach the "Create label…" input's own handler, so typing a new name and pressing Enter silently toggled whichever existing label was highlighted in the list above instead of creating and attaching the typed label. The list listener now ignores Enter when focus is in the create-label input, letting it run its own create-and-attach handler.
+- **Sort control hidden when sub-tasks are Nested.** Nested rows always order by rank at every level regardless of the view's sort field (`buildNestedRows`), so the Sort chip was a dead control there — picking any field silently had no effect on what rendered. It's now hidden whenever a List view's sub-task display is set to Nested; switching back to Flat or Hidden brings it back.
 
 ## 1.0.10 — 2026-09-07
 
