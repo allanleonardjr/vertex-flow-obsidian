@@ -180,7 +180,9 @@ export function TaskDetailPanel({
               value={description}
               editorKey={task.path}
               sourcePath={withExtension(task.path)}
-              onSave={(text) => void plugin.mutations.setDescription(task, text)}
+              onSave={(text) =>
+                void plugin.mutations.setDescription(task, text)
+              }
             />
           </main>
 
@@ -431,15 +433,12 @@ function TitleField({ task }: { task: Task }) {
     if (el && task.title.length === 0) el.focus();
   }, [task]);
 
-  const focusRef = useCallback(
-    (element: HTMLTextAreaElement | null) => {
-      titleField.current = element;
-      if (!element) return;
-      resetAutoGrow(element);
-      element.style.height = `${element.scrollHeight}px`;
-    },
-    [],
-  );
+  const focusRef = useCallback((element: HTMLTextAreaElement | null) => {
+    titleField.current = element;
+    if (!element) return;
+    resetAutoGrow(element);
+    element.style.height = `${element.scrollHeight}px`;
+  }, []);
 
   return (
     <textarea
@@ -643,7 +642,10 @@ function ParentPicker({
   const [tooDeep, setTooDeep] = useState<string | null>(null);
 
   const choose = (parent: string | null) => {
-    if (parent && depthUnder(scopeOf(snapshot), parent) > MAX_COMFORTABLE_DEPTH) {
+    if (
+      parent &&
+      depthUnder(scopeOf(snapshot), parent) > MAX_COMFORTABLE_DEPTH
+    ) {
       setTooDeep(parent);
       return;
     }
@@ -762,7 +764,8 @@ function CommentList({
   // the last-touched pane and can differ from the task being commented on.
   const mePersonId = useMePersonId(snapshot.workspace.root);
   const self = mePersonId
-    ? snapshot.workspace.people.find((person) => person.id === mePersonId) ?? null
+    ? (snapshot.workspace.people.find((person) => person.id === mePersonId) ??
+      null)
     : null;
 
   const reload = async () => {
@@ -787,6 +790,33 @@ function CommentList({
           }}
         />
       )}
+
+      <CommentDraftField
+        placeholder={
+          self
+            ? `Comment as ${self.name}… (@mention to notify)`
+            : "Add a comment…"
+        }
+        value={draft}
+        onChange={setDraft}
+        sourcePath={withExtension(task.path)}
+      />
+      <button
+        type="button"
+        className="mod-cta"
+        disabled={!draft.trim()}
+        onClick={() =>
+          void plugin.mutations
+            .addComment(task, self?.id ?? "me", draft)
+            .then(() => {
+              setDraft("");
+              return reload();
+            })
+        }
+      >
+        Comment
+      </button>
+
       {comments.map((comment) => (
         <article key={comment.id} className="vf-comment">
           <header>
@@ -817,32 +847,6 @@ function CommentList({
           )}
         </article>
       ))}
-
-      <CommentDraftField
-        placeholder={
-          self
-            ? `Comment as ${self.name}… (@mention to notify)`
-            : "Add a comment…"
-        }
-        value={draft}
-        onChange={setDraft}
-        sourcePath={withExtension(task.path)}
-      />
-      <button
-        type="button"
-        className="mod-cta"
-        disabled={!draft.trim()}
-        onClick={() =>
-          void plugin.mutations
-            .addComment(task, self?.id ?? "me", draft)
-            .then(() => {
-              setDraft("");
-              return reload();
-            })
-        }
-      >
-        Comment
-      </button>
     </div>
   );
 }
