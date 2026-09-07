@@ -26,7 +26,7 @@
  *     line order *is* the timeline even across a backward clock jump.
  */
 
-import { HistoryActor, HistoryChange, HistoryTarget, IsoDate, MeBinding, WorkspaceConfig } from "../core/types";
+import { HistoryActor, HistoryChange, HistoryTarget, IsoDate, WorkspaceConfig } from "../core/types";
 import type { HistoryEntry } from "../core/types";
 import {
 	UNKNOWN_ACTOR_NAME,
@@ -43,9 +43,12 @@ export interface LoggedEntry extends HistoryEntry {
 	stream: string;
 }
 
-function selfActor(workspace: WorkspaceConfig, me: MeBinding | null): HistoryActor {
-	if (me) {
-		const person = workspace.people.find((p) => p.id === me.personId);
+function selfActor(
+	workspace: WorkspaceConfig,
+	mePersonId: string | null,
+): HistoryActor {
+	if (mePersonId) {
+		const person = workspace.people.find((p) => p.id === mePersonId);
 		if (person) return { kind: "person", id: person.id, name: person.name };
 	}
 	// The app's `me` is unresolved in this workspace — no self person to credit.
@@ -74,7 +77,7 @@ export class HistoryLog {
 		private readonly io: NoteIO,
 		/** This install's never-synced random token; owns its own stream files. */
 		readonly device: string,
-		private readonly me: () => MeBinding | null,
+		private readonly me: (workspaceRoot: string) => string | null,
 		private readonly now: () => Date = () => new Date(),
 	) {}
 
@@ -132,7 +135,8 @@ export class HistoryLog {
 		if (!workspace.history.enabled) return;
 
 		const action = input.action;
-		const actor = input.actorOverride ?? selfActor(workspace, this.me());
+		const actor =
+			input.actorOverride ?? selfActor(workspace, this.me(workspace.root));
 		const targets = input.targets ?? [];
 		const changes = input.changes;
 

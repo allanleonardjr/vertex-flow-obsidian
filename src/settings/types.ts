@@ -6,8 +6,6 @@
  * holds per-install UI state that would be meaningless to sync or diff.
  */
 
-import type { MeBinding } from "../core/types";
-
 /**
  * Interface text density. `compact` is the built-in baseline;
  * the larger tiers scale the plugin's `--font-ui-*` tokens up by a fixed
@@ -72,13 +70,10 @@ export interface VertexFlowSettings {
 	 * data, so it lives here rather than in `_workspace.md`.
 	 */
 	redirectTaskNotes: boolean;
-	/**
-	 * Who "me" is — one human, global across every workspace. Resolves against
-	 * whichever workspace's `people` roster is on screen; the roster itself is
-	 * plain data in `_workspace.md` and holds no "this is me" flag. Toggling it
-	 * in any workspace's People settings reassigns it everywhere.
-	 */
-	mePerson: MeBinding | null;
+	// "Who me is" is deliberately NOT here. It's per-device and per-workspace,
+	// held in the app's own localStorage (never the vault) — see
+	// `src/obsidian/me-storage.ts`. A single global value in this synced file
+	// was a cross-collaborator correctness bug.
 }
 
 /**
@@ -121,5 +116,4 @@ export const DEFAULT_SETTINGS: VertexFlowSettings = {
 	taskPickerHeight: 360,
 	helpSidebarWidth: 240,
 	redirectTaskNotes: true,
-	mePerson: null,
 };

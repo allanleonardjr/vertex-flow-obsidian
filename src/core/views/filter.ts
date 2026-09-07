@@ -22,7 +22,7 @@ import {
 } from "../types";
 import type { ViewContext } from "./context";
 
-/** Expand the `self` sentinel against the plugin's `mePerson` binding. */
+/** Expand the `self` sentinel against the device's per-workspace "me" personId. */
 function resolvePeople(values: string[], context: ViewContext): string[] {
 	const out: string[] = [];
 	for (const value of values) {

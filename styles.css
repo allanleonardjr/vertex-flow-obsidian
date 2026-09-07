@@ -2303,6 +2303,26 @@ button.vf-menu-item-danger:hover {
   font-size: 11px;
 }
 
+/* "You" identity marker — a small accent pill, styled like a label chip but
+   keyed to the theme accent rather than a per-value colour. Sits right next to
+   the name (no auto margin); an end-of-row context that wants it flush right
+   can rely on a `flex: 1` sibling (e.g. `.vf-nav-label`) to push it there. */
+.vf-you-badge {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--interactive-accent) 15%, transparent);
+  color: var(--text-accent);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
 .vf-menu-separator {
   height: 1px;
   margin: 4px 0;
@@ -3228,6 +3248,8 @@ button.vf-browse-card-menu[aria-expanded="true"],
 }
 
 .vf-browse-title {
+  min-width: 0; /* shrink + ellipsis inside the flex card-top, leaving room
+                   for a trailing marker like `.vf-you-badge` */
   font-weight: 600;
   overflow: hidden;
   white-space: nowrap;
@@ -3639,6 +3661,7 @@ input.vf-editable-title-input {
 .vf-settings-section {
   padding: 16px 0;
   border-bottom: 1px solid var(--vf-border);
+  scroll-margin-top: 8px; /* breathing room when deep-linked into view */
 }
 
 .vf-settings-section:last-child {
@@ -3656,6 +3679,30 @@ input.vf-editable-title-input {
   font-size: var(--font-ui-smaller);
   line-height: 1.5;
   max-width: 640px;
+}
+
+.vf-settings-callout {
+  max-width: 640px;
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--vf-border);
+  border-radius: 6px;
+  background: var(--background-secondary);
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.45;
+}
+
+.vf-settings-callout strong {
+  color: var(--text-normal);
+}
+
+/* Inline "Unset" affordance — reads as a link within the sentence, not a
+   padded button. */
+.vf-settings-callout button.vf-link-button {
+  padding: 0;
+  font-size: inherit;
+  text-decoration: underline;
 }
 
 .vf-taxonomy-table {
@@ -3713,10 +3760,62 @@ input.vf-editable-title-input {
   padding: 4px 0;
 }
 
+.vf-people-header {
+  padding-bottom: 2px;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.vf-people-header .vf-person-self {
+  /* The radio column is only 16px wide — let the "Me" label sit above it
+     without forcing the column wider. */
+  width: auto;
+  overflow: visible;
+  white-space: nowrap;
+}
+
 .vf-person-self {
   width: 16px;
   flex-shrink: 0;
   margin: 0;
+}
+
+/* "Who are you in this workspace?" nudge — see MeIdentityBanner.tsx */
+.vf-me-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 640px;
+  margin: 8px 0 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--vf-border);
+  border-left: 3px solid var(--interactive-accent);
+  border-radius: 6px;
+  background: var(--background-secondary);
+}
+
+.vf-me-banner-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--font-ui-smaller);
+  line-height: 1.45;
+}
+
+.vf-me-banner-body span {
+  color: var(--vf-muted);
+}
+
+.vf-me-banner-body .vf-link-button {
+  align-self: flex-start;
+  margin-top: 2px;
+}
+
+.vf-me-banner-dismiss {
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 .vf-person-name {

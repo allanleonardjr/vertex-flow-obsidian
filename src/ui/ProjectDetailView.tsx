@@ -17,6 +17,7 @@ import type { ViewContext } from "../core/views";
 import type { WorkspaceTaxonomies } from "../core/taxonomy";
 import type { Project, WorkspaceSnapshot } from "../core/types";
 import { withExtension } from "../obsidian/note-io";
+import { getMePersonId } from "../obsidian/me-storage";
 import { NEW_PROJECT_TITLE, useCreateTask } from "./actions";
 import {
   DateField,
@@ -292,7 +293,7 @@ function ProjectEditor({
               value={project.owner}
               onChange={(owner) => update({ owner })}
               noneLabel="No owner"
-              mePersonId={plugin.settings.mePerson?.personId}
+              mePersonId={getMePersonId(snapshot.workspace.root) ?? undefined}
             />
           </PropertyRow>
 

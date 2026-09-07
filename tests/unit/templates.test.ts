@@ -139,18 +139,18 @@ describe("every template's example content is a full feature showcase", () => {
 	}
 });
 
-describe("instantiateTemplate — self person (mePerson) seeding", () => {
+describe("instantiateTemplate — self person seeding", () => {
 	it("leaves the register untouched when no name is given", () => {
-		const { workspace, mePerson } = instantiateTemplate({
+		const { workspace, personId } = instantiateTemplate({
 			...base,
 			template: gettingStartedTemplate,
 		});
 		expect(workspace.people).toEqual([]);
-		expect(mePerson).toBeNull();
+		expect(personId).toBeNull();
 	});
 
-	it("adds the creator as mePerson in an empty register", () => {
-		const { workspace, mePerson } = instantiateTemplate({
+	it("adds the creator as the self-person in an empty register", () => {
+		const { workspace, personId } = instantiateTemplate({
 			...base,
 			template: gettingStartedTemplate,
 			selfPersonName: "  Jordan  ",
@@ -158,17 +158,17 @@ describe("instantiateTemplate — self person (mePerson) seeding", () => {
 		expect(workspace.people).toEqual([
 			{ id: "jordan", name: "Jordan", aliases: [] },
 		]);
-		expect(mePerson).toEqual({ personId: "jordan", name: "Jordan" });
+		expect(personId).toBe("jordan");
 	});
 
-	it("appends the creator and sets mePerson when example people exist", () => {
-		const { workspace, mePerson } = instantiateTemplate({
+	it("appends the creator and sets the self-person when example people exist", () => {
+		const { workspace, personId } = instantiateTemplate({
 			...base,
 			template: sampleWorkspaceTemplate,
 			includeExampleContent: true,
 			selfPersonName: "Casey",
 		});
-		expect(mePerson).toEqual({ personId: "casey", name: "Casey" });
+		expect(personId).toBe("casey");
 		// The template's own people are still present as assignable entries.
 		expect(workspace.people.map((p) => p.name)).toEqual(
 			expect.arrayContaining(["Alice", "Bob", "Casey"]),
@@ -176,27 +176,14 @@ describe("instantiateTemplate — self person (mePerson) seeding", () => {
 	});
 
 	it("reuses a matching entry by name instead of duplicating it", () => {
-		const { workspace, mePerson } = instantiateTemplate({
+		const { workspace, personId } = instantiateTemplate({
 			...base,
 			template: sampleWorkspaceTemplate,
 			includeExampleContent: true,
 			selfPersonName: "alice",
 		});
 		expect(workspace.people.filter((p) => p.name === "Alice")).toHaveLength(1);
-		expect(mePerson).toEqual({ personId: "alice", name: "Alice" });
-	});
-
-	it("adopts an existing mePerson (by id) instead of creating a new one", () => {
-		const meBinding = { personId: "alice", name: "Alice" };
-		const { workspace, mePerson } = instantiateTemplate({
-			...base,
-			template: sampleWorkspaceTemplate,
-			includeExampleContent: true,
-			me: meBinding,
-		});
-		expect(mePerson).toEqual({ personId: "alice", name: "Alice" });
-		// Alice from template is adopted, not duplicated.
-		expect(workspace.people.filter((p) => p.name === "Alice")).toHaveLength(1);
+		expect(personId).toBe("alice");
 	});
 });
 

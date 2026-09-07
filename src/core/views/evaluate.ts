@@ -27,6 +27,10 @@ export interface EvaluatedView {
 export function evaluateView(
 	snapshot: WorkspaceSnapshot,
 	view: SavedView,
+	// The default context has `selfId: null`, so `self` filters resolve to
+	// nothing. Real callers (the UI) must pass a context built with the
+	// device's per-workspace "me" id — see `useActiveWorkspace`. The default is
+	// only for tests and callers that provably have no `self` filter.
 	context: ViewContext = snapshotContext(snapshot),
 ): EvaluatedView {
 	const filtered = applyFilters(snapshot.tasks, view.filters, context);

@@ -117,25 +117,15 @@ export type LabelValue = TaxonomyValue;
 
 /**
  * Lightweight register for `@mentions` and `assignee`. No auth —
- * just names and aliases. *Who "me" is* is not stored here: it's a plugin-level
- * `mePerson` setting (one human, global across workspaces) that resolves
- * against this roster by id. A roster entry that `mePerson` points at may live
- * in any workspace.
+ * just names and aliases. *Who "me" is* is not stored here, and is not a global
+ * plugin setting: it's a per-device, per-workspace `personId` held in the app's
+ * own `localStorage` (never in the vault) — see `src/obsidian/me-storage.ts` —
+ * that resolves against this roster by id.
  */
 export interface Person {
 	id: string;
 	name: string;
 	aliases?: string[];
-}
-
-/**
- * The plugin's "who am I" — a plugin-setting pointer (one human, global across
- * workspaces) into whichever workspace's `people` roster is on screen. `name`
- * is a fallback for workspaces whose roster doesn't (yet) contain the id.
- */
-export interface MeBinding {
-	personId: string;
-	name: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -392,7 +382,7 @@ export interface HistoryConfig {
 
 /**
  * Who performed an action. A person is resolved from the workspace `people`
- * roster by the plugin's app-level `mePerson` id (there's no login, so "the
+ * roster by the device's per-workspace "me" personId (there's no login, so "the
  * person holding the mouse"). `system` is reserved for machine-initiated
  * writes — the auto-archive sweep, a future recurring-task engine — never a
  * human action wearing a costume.
@@ -520,7 +510,7 @@ export type SortDirection = "asc" | "desc";
 export const SUBTASK_DISPLAYS = ["nested", "flat", "hidden"] as const;
 export type SubtaskDisplay = (typeof SUBTASK_DISPLAYS)[number];
 
-/** Magic filter value resolving against the app-level `mePerson` id. */
+/** Magic filter value resolving against the device's per-workspace "me" personId. */
 export const SELF = "self";
 
 /** Magic filter value matching tasks where the field is unset. */

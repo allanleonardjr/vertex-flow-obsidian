@@ -1,44 +1,44 @@
 /**
- * The People register — no auth, just names for `assignee` and
- * `@mentions`. "Me" is a global app setting that affects all workspaces.
+ * The People register — no auth, just names for `assignee` and `@mentions`.
+ *
+ * "Me" is per device and per workspace: it's held in `localStorage` (see
+ * `src/obsidian/me-storage.ts`), never written to the vault, so two
+ * collaborators sharing a synced vault each keep their own identity.
  */
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { slugify } from "../../core/ids";
-import type { Person, WorkspaceSnapshot, MeBinding } from "../../core/types";
+import type { Person, WorkspaceSnapshot } from "../../core/types";
 import { usePlugin } from "../context";
+import { setMePersonId } from "../../obsidian/me-storage";
+import { useMePersonId } from "../useMe";
+import { useDebouncedSave } from "../components/fields";
+import { MeIdentityBanner } from "../components/MeIdentityBanner";
 
-export function PeopleSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
+export function PeopleSection({
+	snapshot,
+	id,
+}: {
+	snapshot: WorkspaceSnapshot;
+	/** DOM id on the section, for settings-screen deep links. */
+	id?: string;
+}) {
 	const plugin = usePlugin();
 	const people = snapshot.workspace.people;
-	const mePerson = plugin.settings.mePerson as MeBinding | null;
+	const root = snapshot.workspace.root;
 
-	// ---------- debounced save ----------
-	let pendingName: string | null = null;
-	const setPendingName = (value: string | null) => {
-		pendingName = value;
-	};
-	const debounceTimer = useRef<number | null>(null);
+	// Reactive read — repaints the radio, the callout and the banner the instant
+	// "me" changes, here or in any other pane.
+	const mePersonId = useMePersonId(root);
 
-	const flushPending = () => {
-		if (pendingName) {
-			const binding: MeBinding = {
-				personId: pendingName,
-				name: pendingName,
-			};
-			plugin.settings.mePerson = binding;
-			void plugin.saveSettings();
-		}
-		pendingName = null;
-	};
-
-	useEffect(() => {
-		const timer = setTimeout(flushPending, 300);
-		return () => clearTimeout(timer);
-	}, []);
+	const pickMe = (id: string) => setMePersonId(root, id);
+	const clearMe = () => setMePersonId(root, null);
 
 	const commit = (next: Person[]) => {
-		void plugin.mutations.saveWorkspaceConfig({ ...snapshot.workspace, people: next });
+		void plugin.mutations.saveWorkspaceConfig({
+			...snapshot.workspace,
+			people: next,
+		});
 	};
 
 	const parseAliases = (raw: string): string[] =>
@@ -47,74 +47,73 @@ export function PeopleSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 			.map((alias) => alias.trim())
 			.filter(Boolean);
 
-	const isMe = (person: Person) => mePerson?.personId === person.id;
+	const isMe = (person: Person) => mePersonId === person.id;
+	const mePerson = mePersonId
+		? people.find((person) => person.id === mePersonId) ?? null
+		: null;
 
 	return (
-		<section className="vf-settings-section">
+		<section className="vf-settings-section" id={id}>
 			<h3>People</h3>
 			<p className="vf-settings-description">
 				Used for <code>assignee</code> and <code>@mentions</code> — no
 				accounts, just names.
 			</p>
+
 			<div className="vf-settings-callout vf-callout-info">
-				<strong>"Me" is a global setting</strong> — it applies to all
-				workspaces. Changing it here updates it everywhere.
+				{mePerson ? (
+					<>
+						You're set as <strong>{mePerson.name}</strong> in this workspace.
+						This is stored on this device only — separate for every workspace,
+						and never synced to collaborators.{" "}
+						<button
+							type="button"
+							className="vf-link-button"
+							onClick={clearMe}
+						>
+							Unset
+						</button>
+					</>
+				) : (
+					<>
+						You haven't set who you are in this workspace yet — pick yourself
+						below, or add a new person.
+					</>
+				)}
 			</div>
 
+			<MeIdentityBanner workspace={snapshot.workspace} />
+
 			<div className="vf-people-table">
+				<div className="vf-people-row vf-people-header" aria-hidden>
+					<span className="vf-person-self">Me</span>
+					<span className="vf-person-name">Name</span>
+					<span className="vf-person-aliases">Aliases</span>
+				</div>
+
 				{people.map((person, index) => (
-					<div key={person.id} className="vf-people-row">
-						<input
-							type="radio"
-							className="vf-person-self"
-							name="vf-self"
-							checked={isMe(person)}
-							title="This is me"
-							onChange={() => {
-								// Set the pending name; debounced save will fire shortly
-								setPendingName(person.name);
-							}}
-						/>
-						<input
-							type="text"
-							className="vf-input vf-person-name"
-							value={person.name}
-							onChange={(event) => {
-								const name = event.target.value;
-								commit(people.map((p, i) => (i === index ? { ...p, name } : p)));
-								if (isMe(person)) {
-									setPendingName(name);
-									void plugin.saveSettings();
-								}
-							}}
-						/>
-						<input
-							type="text"
-							className="vf-input vf-person-aliases"
-							placeholder="Aliases, comma-separated"
-							value={(person.aliases ?? []).join(", ")}
-							onChange={(event) => {
-								const aliases = parseAliases(event.target.value);
-								commit(
-									people.map((p, i) => (i === index ? { ...p, aliases } : p)),
-								);
-							}}
-						/>
-						<button
-							className="vf-icon-button"
-							title="Remove"
-							onClick={() => {
-								if (isMe(person)) {
-									setPendingName(null);
-									plugin.settings.mePerson = null;
-									void plugin.saveSettings();
-								}
-								commit(people.filter((_, i) => i !== index));
-							}}
-						>
-							✕
-						</button>
-					</div>
+					<PersonRow
+						key={person.id}
+						person={person}
+						checked={isMe(person)}
+						onPickMe={() => pickMe(person.id)}
+						onRename={(name) =>
+							commit(
+								people.map((p, i) => (i === index ? { ...p, name } : p)),
+							)
+						}
+						onAliases={(raw) =>
+							commit(
+								people.map((p, i) =>
+									i === index ? { ...p, aliases: parseAliases(raw) } : p,
+								),
+							)
+						}
+						onRemove={() => {
+							if (isMe(person)) clearMe();
+							commit(people.filter((_, i) => i !== index));
+						}}
+					/>
 				))}
 			</div>
 
@@ -122,11 +121,65 @@ export function PeopleSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 				onAdd={(name, aliases) => {
 					const id = slugify(name, people.map((p) => p.id));
 					commit([...people, { id, name, aliases }]);
-					// New person becomes "me" by default
-					setPendingName(name);
+					// A freshly added person is a reasonable "me" default when none
+					// is set yet — but never steal it from an existing pick.
+					if (!mePersonId) pickMe(id);
 				}}
 			/>
 		</section>
+	);
+}
+
+function PersonRow({
+	person,
+	checked,
+	onPickMe,
+	onRename,
+	onAliases,
+	onRemove,
+}: {
+	person: Person;
+	checked: boolean;
+	onPickMe: () => void;
+	onRename: (name: string) => void;
+	onAliases: (raw: string) => void;
+	onRemove: () => void;
+}) {
+	// Debounced so a file write (and index rebuild) doesn't fire per keystroke.
+	const [name, setName] = useDebouncedSave(person.name, onRename);
+	const [aliases, setAliases] = useDebouncedSave(
+		(person.aliases ?? []).join(", "),
+		onAliases,
+	);
+
+	return (
+		<div className="vf-people-row">
+			<input
+				type="radio"
+				className="vf-person-self"
+				name="vf-self"
+				checked={checked}
+				title="This is me"
+				aria-label={`Set ${person.name || "this person"} as me`}
+				onChange={onPickMe}
+			/>
+			<input
+				type="text"
+				className="vf-input vf-person-name"
+				value={name}
+				onChange={(event) => setName(event.target.value)}
+			/>
+			<input
+				type="text"
+				className="vf-input vf-person-aliases"
+				placeholder="Aliases, comma-separated"
+				value={aliases}
+				onChange={(event) => setAliases(event.target.value)}
+			/>
+			<button className="vf-icon-button" title="Remove" onClick={onRemove}>
+				✕
+			</button>
+		</div>
 	);
 }
 

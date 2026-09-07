@@ -54,6 +54,9 @@ export function PersonDetailView({
 				<div className="vf-toolbar-title">
 					<h2>
 						{person.name}
+						{context.selfId === personId && (
+							<span className="vf-you-badge">You</span>
+						)}
 						<span className="vf-view-title-code">
 							({snapshot.workspace.idPrefix})
 						</span>

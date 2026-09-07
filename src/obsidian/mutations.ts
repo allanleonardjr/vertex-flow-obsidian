@@ -61,7 +61,6 @@ import {
   type DashboardWidget,
   type EntityKind,
   type LinkTarget,
-  type MeBinding,
   type Project,
   type ProjectDocument,
   type SavedView,
@@ -85,6 +84,7 @@ import { FOLDERS, VaultIndex, WORKSPACE_NOTE } from "./index-store";
 import { NoteIO, withExtension, withoutExtension } from "./note-io";
 import { liveFolder, trashFolder } from "./trash-paths";
 import { HistoryLog } from "./history-log";
+import { getMePersonId, setMePersonId } from "./me-storage";
 import {
   dashboardIdentityChanges,
   diffProjectFields,
@@ -96,8 +96,11 @@ import type { HistoryChange, HistoryTarget } from "../core/types";
 
 /** Callbacks into plugin-owned state the mutation layer must not hold. */
 export interface MutationsHooks {
-	/** Persist the app-level "who am I" pointer adopted at workspace creation. */
-	setMePerson?: (me: MeBinding) => void;
+	/**
+	 * Persist "who am I" for a freshly created workspace — per device, per
+	 * workspace (see `src/obsidian/me-storage.ts`), never in synced settings.
+	 */
+	setMePersonId?: (workspaceRoot: string, personId: string | null) => void;
 }
 
 export interface NewTaskInput {
@@ -976,9 +979,9 @@ export class Mutations {
    * Delete a person, reassigning (or, with `replacementId: null`, clearing)
    * every `assignee`/`owner` that referenced them before removing them from the
    * register. `reassignValue` is the same generic single-select rewrite the
-   * taxonomy engine uses — no taxonomy coupling in its body. The app-level
-   * `mePerson` pointer is cleared by the People settings UI when the person it
-   * names is deleted here.
+   * taxonomy engine uses — no taxonomy coupling in its body. The device's
+   * per-workspace "me" personId is cleared by the People settings UI when the
+   * person it names is deleted here.
    */
   async deletePerson(
     snapshot: WorkspaceSnapshot,
@@ -999,6 +1002,13 @@ export class Mutations {
         if (next == null) delete frontmatter.owner;
         else frontmatter.owner = next;
       });
+    }
+
+    // If this device had that person marked as "me", clear it — a dangling id
+    // would silently break `SELF` resolution and the "You" badge, and clearing
+    // it also brings the "who are you?" nudge back (see `me-storage`).
+    if (getMePersonId(snapshot.workspace.root) === personId) {
+      setMePersonId(snapshot.workspace.root, null);
     }
 
     await this.saveWorkspaceConfig({
@@ -1496,14 +1506,9 @@ export class Mutations {
      *  workspace-creation UI's toggle ships the template's own value as the
      *  default and only passes this when the user flips it. */
     enableHistory?: boolean;
-    /** When set, ensures the `people` register holds this person (by exact id,
-     *  appending if missing) and records them as the app-level `me`. The
-     *  workspace-creation UI passes the plugin's existing `mePerson` here so a
-     *  fresh workspace adopts the creator without prompting for a name. */
-    me?: MeBinding;
-    /** Seeds the register's "me" person by name (used when no `me` exists yet)
-     *  and records it as the app-level `me`. Blank/undefined leaves the
-     *  register as the template defines it. */
+    /** Seeds the register's "me" person by name and records it as this device's
+     *  "me" for the new workspace. Blank/undefined leaves the register as the
+     *  template defines it (a `template.mePersonId` path still applies). */
     selfPersonName?: string;
   }): Promise<WorkspaceConfig> {
     const desired =
@@ -1519,14 +1524,13 @@ export class Mutations {
       icon: input.icon,
       includeExampleContent: input.includeExampleContent,
       enableHistory: input.enableHistory,
-      me: input.me,
       selfPersonName: input.selfPersonName,
     });
 
-    // Creating a workspace (re)states who "me" is — either the user's existing
-    // identity adopted by this workspace, or the name they typed at creation.
-    if (generated.mePerson) {
-      this.hooks.setMePerson?.(generated.mePerson);
+    // Creating a workspace seeds its own self-person; record it as this
+    // device's "me" for that workspace.
+    if (generated.personId) {
+      this.hooks.setMePersonId?.(generated.root, generated.personId);
     }
 
     await this.io.ensureFolder(input.root);

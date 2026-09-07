@@ -3,8 +3,9 @@
  * People hub. Mirrors `LabelDialog`'s shell (backdrop / dialog / busy+error /
  * submit), swapping the colour field for a comma-separated aliases field.
  *
- * No `isSelf` toggle — that invariant ("exactly one person is self") stays in
- * Settings' `PeopleSection`.
+ * No "this is me" control — who "me" is is per-device, per-workspace state
+ * (`src/obsidian/me-storage.ts`), set from Settings' `PeopleSection`, not a
+ * roster field.
  */
 
 import { useState } from "react";

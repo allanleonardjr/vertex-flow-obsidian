@@ -14,6 +14,11 @@ import { Mutations } from "./obsidian/mutations";
 import { NoteIO } from "./obsidian/note-io";
 import { HistoryLog } from "./obsidian/history-log";
 import { deviceId } from "./obsidian/device-id";
+import {
+	configureMeStorage,
+	getMePersonId,
+	setMePersonId,
+} from "./obsidian/me-storage";
 import { VertexFlowSettingTab } from "./settings/SettingTab";
 import {
 	DEFAULT_SETTINGS,
@@ -54,18 +59,19 @@ export default class VertexFlowPlugin extends Plugin {
 		await this.loadSettings();
 		applyUiTextSize(this.settings.uiTextSize);
 
+		// Stable per-vault id so per-device "me" storage can't collide across two
+		// vaults opened on the same machine.
+		configureMeStorage(
+			(this.app as unknown as { appId?: string }).appId,
+		);
+
 		this.io = new NoteIO(this.app);
 		this.index = new VaultIndex(this.app, this.io);
-		this.history = new HistoryLog(
-			this.io,
-			deviceId(),
-			() => this.settings.mePerson,
+		this.history = new HistoryLog(this.io, deviceId(), (root) =>
+			getMePersonId(root),
 		);
 		this.mutations = new Mutations(this.app, this.io, this.index, this.history, {
-			setMePerson: (me) => {
-				this.settings.mePerson = me;
-				void this.saveSettings();
-			},
+			setMePersonId: (root, personId) => setMePersonId(root, personId),
 		});
 
 		this.registerView(

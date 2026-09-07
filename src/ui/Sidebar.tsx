@@ -24,6 +24,8 @@ import { newConfigId } from "../core/ids";
 import { isProjectTitleTaken } from "../core/serialization";
 import { planDeletion, scopeOf, type DeletionPlan } from "../core/hierarchy";
 import { withoutExtension } from "../obsidian/note-io";
+import { MeIdentityBanner } from "./components/MeIdentityBanner";
+import { useMePersonId } from "./useMe";
 import {
   describeUsage,
   findTaxonomyUsage,
@@ -368,6 +370,7 @@ function NavRow({
   variant,
   onClick,
   trailing,
+  hint,
 }: {
   label: string;
   /** Curated icon id, or the sentinel "settings-glyph". */
@@ -384,6 +387,9 @@ function NavRow({
   variant?: "view" | "workspace";
   onClick: () => void;
   trailing?: ReactNode;
+  /** Identity marker at the row end, e.g. "You" — an accent pill, same
+   *  `.vf-you-badge` treatment as `personNode` and the People hub. */
+  hint?: string;
 }) {
   const cls = [
     "vf-nav-row",
@@ -419,6 +425,7 @@ function NavRow({
               )}
             </span>
             <span className="vf-nav-label">{label}</span>
+            {hint && <span className="vf-you-badge">{hint}</span>}
           </>
         )}
       </button>
@@ -1278,6 +1285,7 @@ function PeopleSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   const people = [...snapshot.workspace.people].sort((a, b) =>
     a.name.localeCompare(b.name),
   );
+  const mePersonId = useMePersonId(snapshot.workspace.root);
 
   const [menuId, setMenuId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -1316,6 +1324,10 @@ function PeopleSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
       }
       onOpenHub={() => openScreen("people")}
     >
+      <MeIdentityBanner
+        workspace={snapshot.workspace}
+        onOpenSettings={() => openScreen("settings", "vf-settings-people")}
+      />
       {people.length === 0 ? (
         <p className="vf-section-empty">No people yet</p>
       ) : (
@@ -1326,6 +1338,7 @@ function PeopleSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
             iconFallback="user"
             active={activePersonId === person.id}
             variant="view"
+            hint={mePersonId === person.id ? "You" : undefined}
             onClick={() => openPerson(person.id)}
             trailing={
               <RowMenu

@@ -24,6 +24,7 @@ import {
 import type { DashboardWidget, Person, WorkspaceSnapshot } from "../../core/types";
 import { computeWidgetData } from "../../core/dashboards";
 import { snapshotContext } from "../../core/views";
+import { useMePersonId } from "../useMe";
 import { WidgetChart } from "../dashboards/charts/WidgetChart";
 import { PersonDialog } from "../modals/PersonDialog";
 import { ReplacePersonDialog } from "../modals/ReplacePersonDialog";
@@ -93,7 +94,11 @@ export function PeopleBrowseView({ snapshot }: { snapshot: WorkspaceSnapshot }) 
 		setDeleting(planPersonDeletion(person, snapshot.workspace.people, usage));
 	};
 
-	const context = useMemo(() => snapshotContext(snapshot), [snapshot]);
+	const mePersonId = useMePersonId(snapshot.workspace.root);
+	const context = useMemo(
+		() => snapshotContext(snapshot, mePersonId),
+		[snapshot, mePersonId],
+	);
 	const assigneeData = useMemo(
 		() => computeWidgetData(HERO_ASSIGNEE_WIDGET, snapshot.tasks, context),
 		[snapshot.tasks, context],

@@ -15,6 +15,7 @@ import {
 } from "../core/hierarchy";
 import { sortTasksByRank } from "../core/ranking";
 import { withExtension } from "../obsidian/note-io";
+import { useMePersonId } from "./useMe";
 import type { WorkspaceTaxonomies } from "../core/taxonomy";
 import type { Comment, Task, WorkspaceSnapshot } from "../core/types";
 import { displayTitle, TaskTitle } from "./components/TaskTitle";
@@ -67,6 +68,9 @@ export function TaskDetailPanel({
   onCloseAllTasks,
 }: TaskDetailPanelProps) {
   const plugin = usePlugin();
+  // `snapshot` is always the task's own owning workspace (TaskPane resolves it
+  // via `index.workspaceFor`), so this is the right roster to read "me" from.
+  const mePersonId = useMePersonId(snapshot.workspace.root);
   const [comments, setComments] = useState<Comment[]>([]);
   const [description, setDescription] = useState<string | null>(null);
   const [descCollapsed, setDescCollapsed] = useState(
@@ -241,6 +245,7 @@ export function TaskDetailPanel({
             <CollapsibleSection id="comments" title="Comments">
               <CommentList
                 task={task}
+                snapshot={snapshot}
                 comments={comments}
                 onChanged={(next) => setComments(next)}
               />
@@ -278,7 +283,7 @@ export function TaskDetailPanel({
               people={snapshot.workspace.people}
               value={task.assignee}
               onChange={(assignee) => update({ assignee })}
-              mePersonId={plugin.settings.mePerson?.personId}
+              mePersonId={mePersonId ?? undefined}
             />
           </PropertyRow>
 
@@ -738,22 +743,24 @@ function ProjectPicker({
 
 function CommentList({
   task,
+  snapshot,
   comments,
   onChanged,
 }: {
   task: Task;
+  snapshot: WorkspaceSnapshot;
   comments: Comment[];
   onChanged: (comments: Comment[]) => void;
 }) {
   const plugin = usePlugin();
   const [draft, setDraft] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const mePerson = plugin.settings.mePerson;
-	const self = mePerson
-		? plugin
-				.activeWorkspace()
-				?.workspace.people.find((person) => person.id === mePerson.personId)
-		: null;
+  // The task's own workspace roster — not `plugin.activeWorkspace()`, which is
+  // the last-touched pane and can differ from the task being commented on.
+  const mePersonId = useMePersonId(snapshot.workspace.root);
+  const self = mePersonId
+    ? snapshot.workspace.people.find((person) => person.id === mePersonId) ?? null
+    : null;
 
   const reload = async () => {
     const doc = await plugin.mutations.readDocument(task);

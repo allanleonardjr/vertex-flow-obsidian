@@ -50,8 +50,8 @@ export const HISTORY_FOLDER = "History";
 export const SYSTEM_ACTOR_NAME = "[system]";
 
 /**
- * A human action recorded when the plugin's `mePerson` doesn't resolve into
- * this workspace's roster. Also bracketed: absence of identity, not a
+ * A human action recorded when this device's "me" personId doesn't resolve
+ * into this workspace's roster. Also bracketed: absence of identity, not a
  * colleague named "unknown".
  */
 export const UNKNOWN_ACTOR_NAME = "[unknown]";

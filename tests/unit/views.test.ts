@@ -29,15 +29,13 @@ import {
 	SELF,
 	TASK_FIELDS,
 	emptyRelations,
-	type MeBinding,
 	type RecurrenceConfig,
 	type SavedView,
 	type Task,
 } from "../../src/core/types";
 
 const snapshot = sampleSnapshot();
-const meAlice: MeBinding = { personId: "alice", name: "Alice" };
-const context = snapshotContext(snapshot, meAlice);
+const context = snapshotContext(snapshot, "alice");
 const anonymousContext = snapshotContext(snapshot, null);
 const view = (partial: Partial<SavedView> = {}): SavedView => ({
 	...newView("test", "Test", "board"),

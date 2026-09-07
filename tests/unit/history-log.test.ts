@@ -10,7 +10,7 @@ import { describe, it, expect, vi } from "vitest";
 import { HistoryLog } from "../../src/obsidian/history-log";
 import type { NoteIO } from "../../src/obsidian/note-io";
 import { createWorkspaceConfig } from "../../src/core/serialization/workspace";
-import type { HistoryEntry, WorkspaceConfig, MeBinding } from "../../src/core/types";
+import type { HistoryEntry, WorkspaceConfig } from "../../src/core/types";
 
 class FakeIO {
 	files = new Map<string, string>();

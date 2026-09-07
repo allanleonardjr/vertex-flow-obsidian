@@ -460,7 +460,7 @@ describe("resolution", () => {
 		);
 	});
 
-	it("stores 'me' even when nobody is flagged isSelf, and says so", () => {
+	it("stores 'me' even when this device has no self set, and says so", () => {
 		const lonely = { ...ctx, selfId: null };
 		const parsed = parseQuery("assignee:me", lonely);
 		expect(parsed.definition.filters.assignee).toEqual([SELF]);

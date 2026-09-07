@@ -5,7 +5,6 @@
 import { workspaceTaxonomies, type WorkspaceTaxonomies } from "../taxonomy";
 import type {
 	LinkTarget,
-	MeBinding,
 	Person,
 	WorkspaceConfig,
 	WorkspaceSnapshot,
@@ -15,7 +14,7 @@ export interface ViewContext {
 	workspace: WorkspaceConfig;
 	taxonomies: WorkspaceTaxonomies;
 	/**
-	 * The roster `Person.id` the plugin's app-level `mePerson` points at, or
+	 * The roster `Person.id` this device treats as "me" in this workspace, or
 	 * null when unset or not in this workspace. Resolving `self` filters is the
 	 * whole mechanism behind "Assigned to Me" / "Mentions Me" — the substitute
 	 * for a dedicated notification panel in v1.
@@ -30,18 +29,18 @@ export interface ViewContext {
 	titles?: Map<LinkTarget, string>;
 }
 
-/** The roster person `mePerson` names, if this workspace has that id. */
+/** The roster person the given `personId` names, if this workspace has that id. */
 export function selfPerson(
 	workspace: WorkspaceConfig,
-	me: MeBinding | null,
+	me: string | null,
 ): Person | null {
 	if (!me) return null;
-	return workspace.people.find((person) => person.id === me.personId) ?? null;
+	return workspace.people.find((person) => person.id === me) ?? null;
 }
 
 export function viewContext(
 	workspace: WorkspaceConfig,
-	me: MeBinding | null = null,
+	me: string | null = null,
 ): ViewContext {
 	return {
 		workspace,
@@ -54,7 +53,7 @@ export function viewContext(
 /** The usual entry point: a context that can also name linked entities. */
 export function snapshotContext(
 	snapshot: WorkspaceSnapshot,
-	me: MeBinding | null = null,
+	me: string | null = null,
 ): ViewContext {
 	const titles = new Map<LinkTarget, string>();
 	for (const project of snapshot.projects) titles.set(project.path, project.title);

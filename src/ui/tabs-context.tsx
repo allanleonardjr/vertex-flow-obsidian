@@ -188,8 +188,20 @@ export interface TabsApi {
 	activeTab: Tab | null;
 	/** Open a task, adding a tab if it isn't already open, and focus it. */
 	openTask: (path: string) => void;
-	/** Open (or reveal) one of the singleton browse/settings tabs. */
-	openScreen: (kind: BrowseKind) => void;
+	/**
+	 * Open (or reveal) one of the singleton browse/settings tabs. `anchor` is a
+	 * DOM id the screen should scroll into view once it mounts (only the
+	 * Settings screen honours it today — see `pendingScreenAnchor`).
+	 */
+	openScreen: (kind: BrowseKind, anchor?: string) => void;
+	/**
+	 * A section id the just-opened screen should scroll to, set by `openScreen`.
+	 * Read once by `WorkspaceSettingsView`, then cleared via
+	 * `clearPendingScreenAnchor` so a later manual scroll isn't clobbered.
+	 */
+	pendingScreenAnchor: string | null;
+	/** Clear the pending screen anchor after the screen has consumed it. */
+	clearPendingScreenAnchor: () => void;
 	/**
 	 * Open (or reveal) the Help screen and land on a specific topic — and
 	 * optionally a heading within it. `anchor` is a `slugifyHeading` slug of a
@@ -328,6 +340,13 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 		topicId: string;
 		anchor?: string;
 	} | null>(null);
+
+	// Same idea, one screen up: a section id the Settings screen should scroll
+	// to once it mounts (e.g. the sidebar "me" banner deep-linking to People).
+	// `WorkspaceSettingsView` consumes it once and clears it.
+	const [pendingScreenAnchor, setPendingScreenAnchor] = useState<string | null>(
+		null,
+	);
 
 	// Ref mirrors so the async navigation callbacks and the re-home layout
 	// effect can read the current tab list / active workspace without taking
@@ -494,9 +513,10 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 	);
 
 	const openScreen = useCallback(
-		(kind: BrowseKind) => {
+		(kind: BrowseKind, anchor?: string) => {
 			void (async () => {
 				if (!(await mayLeaveActive("navigate", kind))) return;
+				setPendingScreenAnchor(anchor ?? null);
 				setTabs((current) =>
 					current.some((tab) => tab.id === kind)
 						? current
@@ -506,6 +526,11 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			})();
 		},
 		[mayLeaveActive],
+	);
+
+	const clearPendingScreenAnchor = useCallback(
+		() => setPendingScreenAnchor(null),
+		[],
 	);
 
 	const openHelp = useCallback(
@@ -921,6 +946,8 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			openHelp,
 			pendingHelpTarget,
 			clearPendingHelpTarget,
+			pendingScreenAnchor,
+			clearPendingScreenAnchor,
 			openView,
 			openLabel,
 			openPerson,
@@ -966,6 +993,8 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			openHelp,
 			pendingHelpTarget,
 			clearPendingHelpTarget,
+			pendingScreenAnchor,
+			clearPendingScreenAnchor,
 			openView,
 			openLabel,
 			openPerson,

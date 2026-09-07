@@ -6,12 +6,7 @@
  * `parent:` couldn't resolve). This shape is built for lookup in both directions.
  */
 
-import type {
-	LinkTarget,
-	MeBinding,
-	Person,
-	WorkspaceSnapshot,
-} from "../types";
+import type { LinkTarget, Person, WorkspaceSnapshot } from "../types";
 import { workspaceTaxonomies, type WorkspaceTaxonomies } from "../taxonomy";
 
 export interface QueryEntity {
@@ -31,10 +26,10 @@ export interface QueryContext {
 
 export function queryContext(
 	snapshot: WorkspaceSnapshot,
-	me: MeBinding | null = null,
+	me: string | null = null,
 ): QueryContext {
 	const self = me
-		? snapshot.workspace.people.find((p) => p.id === me.personId) ?? null
+		? snapshot.workspace.people.find((p) => p.id === me) ?? null
 		: null;
 	return {
 		taxonomies: workspaceTaxonomies(snapshot.workspace),
