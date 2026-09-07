@@ -6518,17 +6518,25 @@ button.vf-history-expand {
   flex-shrink: 0;
 }
 
-/* The "Set up…" trigger on an empty Repeat row — a real, clickable control
-   rather than a link crammed against the row edge. */
-.vf-repeat-row > .vf-linkish {
+/* Every Repeat-row control — "Set up…" on an empty row, "Edit" / "Stop" on a
+   configured one — reads as a real, clickable button rather than a link
+   crammed against the row edge. */
+.vf-repeat-row > .vf-linkish,
+.vf-repeat-actions .vf-linkish {
   padding: 4px 10px;
   border: 1px solid var(--vf-border);
   border-radius: 4px;
   text-decoration: none;
+  line-height: 1.4;
 }
 
-.vf-repeat-row > .vf-linkish:hover {
+.vf-repeat-row > .vf-linkish:hover,
+.vf-repeat-actions .vf-linkish:hover {
   background: var(--background-modifier-hover);
+}
+
+.vf-repeat-actions .vf-linkish-warn {
+  border-color: color-mix(in srgb, var(--text-error) 40%, var(--vf-border));
 }
 
 /* --- Recurrence edit dialog ------------------------------------------------- */
