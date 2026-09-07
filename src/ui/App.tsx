@@ -36,8 +36,8 @@ import { TabStrip } from "./TabStrip";
 import { TaskPane } from "./TaskPane";
 import { TaskViewport } from "./views/TaskViewport";
 import { PrefixEngine } from "./shortcuts/prefix-engine";
-import { RecurringOverviewHost } from "./RecurringOverviewModal";
 import { TabSwitcher } from "./TabSwitcher";
+import { RecurringOverviewScreen } from "./RecurringOverviewScreen";
 import {
   CompactNavProvider,
   useCompactNav,
@@ -215,14 +215,11 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
       tabIndex={-1}
     >
       <PrefixEngine snapshot={snapshot} />
-      <RecurringOverviewHost snapshot={snapshot} taxonomies={active.taxonomies} />
-      <TabSwitcher snapshot={snapshot} />
-      <Sidebar
+<Sidebar
         snapshot={snapshot}
         activeViewId={activeViewId}
         onSelectView={selectView}
       />
-
       {(navOpen || propertiesOpen) && (
         <div
           className="vf-compact-backdrop"
@@ -299,6 +296,8 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
             active
             onSelectView={selectView}
           />
+        ) : activeTab.kind === "recurring" ? (
+          <RecurringOverviewScreen snapshot={snapshot} taxonomies={active.taxonomies} tabs={tabs} />
         ) : viewportView ? (
           <TaskViewport
             snapshot={snapshot}

@@ -17,7 +17,7 @@ import {
 import { localTodayIso } from "../core/date";
 import { formatLink, joinPath, sanitizeFileName } from "../core/links";
 import { planReorder, rankAfter, rankForNewTask, rankForPosition, sortTasksByRank } from "../core/ranking";
-import { reconcilePlans, recurrenceNodesInChain } from "../core/recurrence";
+import { nextInChain, reconcilePlans, recurrenceNodesInChain } from "../core/recurrence";
 import type { OccurrencePlan } from "../core/recurrence";
 import { instantiateTemplate, type WorkspaceTemplate } from "../core/templates";
 import {
@@ -66,6 +66,7 @@ import {
   type ProjectDocument,
   type SavedView,
   type Task,
+  type TaskFieldKey,
   type TrashedItem,
   type WorkspaceConfig,
   type WorkspaceSnapshot,
@@ -142,6 +143,16 @@ export class Mutations {
   /** Set when a status reassignment is being applied; consumed by the next
    *  reconcile request, which skips that one pass. */
   private suppressNextReconcile = false;
+  /**
+   * Source paths handed a successor in the current spawn generation. Obsidian's
+   * metadata cache doesn't populate synchronously after `vault.create()`, so the
+   * rebuild that immediately follows a spawn can miss the just-written successor
+   * and drop it from the snapshot — leaving `nextInChain()` blind and a trailing
+   * pass free to spawn a second, independent successor. A source stays in this
+   * set until a snapshot actually shows its successor, and is skipped for
+   * planning until then.
+   */
+  private recentlySpawned = new Set<LinkTarget>();
 
   // -- Tasks ----------------------------------------------------------------
 
@@ -236,6 +247,20 @@ export class Mutations {
       let wrote = false;
       for (const snapshot of this.index.list()) {
         const plans = reconcilePlans(snapshot, today);
+
+        // Reconcile the in-memory "just spawned" set against what this snapshot
+        // actually shows: a source whose successor is now visible is confirmed
+        // and drops out; one still missing stays settled — drop any plan the
+        // stale snapshot produced for it, so it isn't handled a second time.
+        for (const path of this.recentlySpawned) {
+          const node = snapshot.tasks.find((task) => task.path === path);
+          if (node && nextInChain(snapshot, node)) {
+            this.recentlySpawned.delete(path);
+          } else {
+            plans.delete(path);
+          }
+        }
+
         if (plans.size === 0) continue;
         this.spawning = true;
         try {
@@ -272,90 +297,99 @@ export class Mutations {
     }
   }
 
-  /**
-   * Write one batch of occurrences. Successor notes are siblings of their
-   * source (never sub-tasks), ranked right after it, so a backfilled series
-   * reads oldest → newest down the list. The batch chains `recurringFrom`:
-   * the first successor points at the source, each later one at its direct
-   * predecessor, keeping the chain walkable one hop at a time.
-   */
-  private async spawnOccurrences(
-    snapshot: WorkspaceSnapshot,
-    plansBySource: Map<LinkTarget, OccurrencePlan[]>,
-  ): Promise<void> {
-    const workspace = snapshot.workspace;
-    const takenIds = new Set(snapshot.tasks.map((task) => task.id));
-    const now = new Date().toISOString();
+/**
+ * Write one batch of occurrences. Successor notes are siblings of their
+ * source (never sub-tasks), ranked right after it, so a backfilled series
+ * reads oldest → newest down the list. The batch chains `recurringFrom`:
+ * the first successor points at the source, each later one at its direct
+ * predecessor, keeping the chain walkable one hop at a time.
+ */
+private async spawnOccurrences(
+  snapshot: WorkspaceSnapshot,
+  plansBySource: Map<LinkTarget, OccurrencePlan[]>,
+): Promise<void> {
+  const workspace = snapshot.workspace;
+  const takenIds = new Set(snapshot.tasks.map((task) => task.id));
+  const now = new Date().toISOString();
 
-    for (const [sourcePath, plans] of plansBySource) {
-      const source = snapshot.tasks.find((task) => task.path === sourcePath);
-      if (!source) continue;
+  for (const [sourcePath, plans] of plansBySource) {
+    const source = snapshot.tasks.find((task) => task.path === sourcePath);
+    if (!source) continue;
 
-      const file = this.io.getFile(source.path);
-      const body = file ? await this.io.readBody(file) : "";
-      const description = parseDescription(body);
+    const file = this.io.getFile(source.path);
+    const body = file ? await this.io.readBody(file) : "";
+    const description = parseDescription(body);
 
-      const siblings = sortTasksByRank(
-        snapshot.tasks.filter((task) => task.parent === source.parent),
+    const siblings = sortTasksByRank(
+      snapshot.tasks.filter((task) => task.parent === source.parent),
+    );
+    const within = siblings.map((task) => task.rank);
+    const sourceIndex = siblings.findIndex((task) => task.path === source.path);
+    let rank =
+      sourceIndex === -1
+        ? rankForNewTask(siblings)
+        : rankForPosition(within, sourceIndex + 1);
+
+    const rule = source.recurrence;
+    const copyFields = rule?.copyFields;
+    const shouldCopy = (field: TaskFieldKey): boolean =>
+      copyFields == null || copyFields.includes(field);
+
+    let predecessor: Task = source;
+    for (const plan of plans) {
+      const id = nextTaskId(workspace.idPrefix, takenIds);
+      takenIds.add(id);
+      const path = joinPath(workspace.root, FOLDERS.tasks, id);
+
+      const task: Task = {
+        type: "task",
+        id,
+        title: source.title,
+        taskType: shouldCopy("taskType") ? source.taskType : null,
+        status:
+          source.recurrence?.newStatus ?? workspace.defaultNewTaskStatus,
+        priority: shouldCopy("priority") ? source.priority : null,
+        rank,
+        project: source.project,
+        parent: source.parent,
+        recurringFrom: predecessor.path,
+        assignee: shouldCopy("assignee") ? source.assignee : null,
+        estimate: shouldCopy("estimate") ? source.estimate : null,
+        labels: shouldCopy("labels") ? source.labels : [],
+        startDate: plan.startDate,
+        dueDate: plan.dueDate,
+        recurrence: plan.recurrence,
+        archived: false,
+        archivedAt: null,
+        relations: emptyRelations(),
+        createdAt: now,
+        updatedAt: now,
+        path,
+        mentions: [],
+      };
+
+      await this.io.create(
+        path,
+        serializeTask(task),
+        serializeDescription(description),
       );
-      const within = siblings.map((task) => task.rank);
-      const sourceIndex = siblings.findIndex((task) => task.path === source.path);
-      let rank =
-        sourceIndex === -1
-          ? rankForNewTask(siblings)
-          : rankForPosition(within, sourceIndex + 1);
+      this.history.record(workspace, {
+        action: "task.create",
+        targets: [{ kind: "task", id, path }],
+        changes: source.title
+          ? [{ field: "title", to: source.title }]
+          : [],
+      });
 
-      let predecessor: Task = source;
-      for (const plan of plans) {
-        const id = nextTaskId(workspace.idPrefix, takenIds);
-        takenIds.add(id);
-        const path = joinPath(workspace.root, FOLDERS.tasks, id);
-
-        const task: Task = {
-          type: "task",
-          id,
-          title: source.title,
-          taskType: source.taskType,
-          status:
-            source.recurrence?.newStatus ?? workspace.defaultNewTaskStatus,
-          priority: source.priority,
-          rank,
-          project: source.project,
-          parent: source.parent,
-          recurringFrom: predecessor.path,
-          assignee: source.assignee,
-          estimate: source.estimate,
-          labels: source.labels,
-          startDate: plan.startDate,
-          dueDate: plan.dueDate,
-          recurrence: plan.recurrence,
-          archived: false,
-          archivedAt: null,
-          relations: emptyRelations(),
-          createdAt: now,
-          updatedAt: now,
-          path,
-          mentions: [],
-        };
-
-        await this.io.create(
-          path,
-          serializeTask(task),
-          serializeDescription(description),
-        );
-        this.history.record(workspace, {
-          action: "task.create",
-          targets: [{ kind: "task", id, path }],
-          changes: source.title
-            ? [{ field: "title", to: source.title }]
-            : [],
-        });
-
-        predecessor = task;
-        rank = rankAfter(rank);
-      }
+      predecessor = task;
+      rank = rankAfter(rank);
     }
+
+    // This source now has a successor on disk. Until a snapshot confirms it,
+    // treat the source as settled so a cache-lagged rebuild can't double-spawn.
+    this.recentlySpawned.add(sourcePath);
   }
+}
 
   /**
    * Patch a task's frontmatter. `updatedAt` is stamped here rather than by

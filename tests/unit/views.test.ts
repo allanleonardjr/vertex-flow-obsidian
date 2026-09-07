@@ -134,6 +134,7 @@ describe("filtering", () => {
 			endsAfter: null,
 			endsOn: null,
 			nextDate,
+			copyFields: null,
 		});
 		const tasks = [
 			task({ path: "A" }),

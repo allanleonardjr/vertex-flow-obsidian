@@ -25,6 +25,7 @@ import type {
   RecurrenceConfig,
   RecurrenceFrequency,
   Task,
+  TaskFieldKey,
   Weekday,
   WorkspaceSnapshot,
 } from "../../core/types";
@@ -87,6 +88,7 @@ function defaultRule(task: Task): RecurrenceConfig {
     endsAfter: null,
     endsOn: null,
     nextDate: anchorDate,
+    copyFields: null,
   };
 }
 
@@ -107,6 +109,10 @@ export function RepeatRow({
   const summary = rule
     ? describeRecurrence(rule, snapshot.workspace.statuses)
     : null;
+
+  // Check if task has children in the current snapshot
+  const hasChildren = snapshot.tasks.some((t) => t.parent === task.path);
+  const childCount = snapshot.tasks.filter((t) => t.parent === task.path).length;
 
   return (
     <PropertyRow label="Repeat">
@@ -141,6 +147,11 @@ export function RepeatRow({
           >
             Set up…
           </button>
+        )}
+        {hasChildren && (
+          <span className="vf-repeat-children-hint" title={`This task has ${childCount} sub-task${childCount === 1 ? "" : "s"} — they won't carry over to future occurrences.`}>
+            ⚠ {childCount} sub-task{childCount === 1 ? "" : "s"} won't repeat
+          </span>
         )}
       </div>
 
@@ -199,6 +210,13 @@ function RecurrenceEditDialog({
 
   const midChain = task.recurringFrom != null;
 
+  // Check if task has children
+  const hasChildren = snapshot.tasks.some((t) => t.parent === task.path);
+  const childCount = snapshot.tasks.filter((t) => t.parent === task.path).length;
+
+  // Auto-infer anchor: only show anchor choice when task has BOTH dates
+  const hasBothDates = task.dueDate && task.startDate;
+
   // Re-seat nextDate on the chosen anchor field before saving — the schedule
   // fires from a real date on this task, or today if it has none.
   const finalize = (): RecurrenceConfig => {
@@ -217,6 +235,32 @@ function RecurrenceEditDialog({
     return projectOccurrences(seed, seed.nextDate, 4);
   }, [rule, task.startDate, task.dueDate]);
 
+  // Track expanded state for "Ends" section
+  const [endsExpanded, setEndsExpanded] = useState(
+    rule.endsAfter != null || rule.endsOn != null,
+  );
+
+  // Carries forward fields - default all on for new rules
+  const COPYABLE_FIELDS: { key: TaskFieldKey; label: string }[] = [
+    { key: "priority", label: "Priority" },
+    { key: "taskType", label: "Task Type" },
+    { key: "assignee", label: "Assignee" },
+    { key: "estimate", label: "Estimate" },
+    { key: "labels", label: "Labels" },
+    { key: "description", label: "Description" },
+  ];
+
+  const copyFields = rule.copyFields ?? COPYABLE_FIELDS.map((f) => f.key);
+
+  const toggleCopyField = (key: TaskFieldKey) => {
+    const current = rule.copyFields ?? COPYABLE_FIELDS.map((f) => f.key);
+    patch({
+      copyFields: current.includes(key)
+        ? current.filter((k) => k !== key)
+        : [...current, key],
+    });
+  };
+
   return createPortal(
     <div className="vf-editor-backdrop" onClick={onClose}>
       <div
@@ -226,6 +270,16 @@ function RecurrenceEditDialog({
         onClick={(event) => event.stopPropagation()}
       >
         <h3>Repeat</h3>
+
+        {/* Live preview at the top */}
+        <div className="vf-recurrence-preview">
+          <strong>{describeRecurrence(finalize(), snapshot.workspace.statuses)}</strong>
+          <span className="vf-dialog-hint">
+            {rule.trigger === "on-close"
+              ? `Next occurrence: ${preview[0] ?? "—"} — created once you close this one.`
+              : `Next occurrences: ${preview.join(" · ") || "—"}`}
+          </span>
+        </div>
 
         <Field label="Frequency">
           <div className="vf-chip-group" role="group">
@@ -280,7 +334,7 @@ function RecurrenceEditDialog({
               })}
             </div>
             <p className="vf-dialog-hint">
-              Empty = the task’s own weekday. Only applies to a weekly (not
+              Empty = the task's own weekday. Only applies to a weekly (not
               multi-week) cadence.
             </p>
           </Field>
@@ -345,7 +399,7 @@ function RecurrenceEditDialog({
                 })
               }
             >
-              <option value="">The task’s own month</option>
+              <option value="">The task's own month</option>
               {MONTHS.map((month, i) => (
                 <option key={month} value={i + 1}>
                   {month}
@@ -355,23 +409,26 @@ function RecurrenceEditDialog({
           </Field>
         )}
 
-        <Field label="Which date repeats">
-          <Segmented
-            value={rule.anchor}
-            options={[
-              { value: "dueDate", label: "Due date" },
-              { value: "startDate", label: "Start date" },
-            ]}
-            onChange={(anchor) => patch({ anchor })}
-          />
-        </Field>
+        {/* Anchor choice - only show when task has both dates */}
+        {hasBothDates && (
+          <Field label="Which date repeats">
+            <Segmented
+              value={rule.anchor}
+              options={[
+                { value: "dueDate", label: "Due date" },
+                { value: "startDate", label: "Start date" },
+              ]}
+              onChange={(anchor) => patch({ anchor })}
+            />
+          </Field>
+        )}
 
-        <Field label="Create the next occurrence">
+        <Field label="Next occurrence appears">
           <Segmented
             value={rule.trigger}
             options={[
-              { value: "on-date", label: "On its date" },
-              { value: "on-close", label: "When I close it" },
+              { value: "on-date", label: "As soon as it's due" },
+              { value: "on-close", label: "Only once I close it" },
             ]}
             onChange={(trigger) => patch({ trigger })}
           />
@@ -384,6 +441,7 @@ function RecurrenceEditDialog({
                 taxonomy={taxonomies.status}
                 value={rule.triggerStatus}
                 onChange={(triggerStatus) => patch({ triggerStatus })}
+                noneLabel="Any Completed status"
               />
               {rule.triggerStatus != null ? (
                 <button
@@ -391,62 +449,104 @@ function RecurrenceEditDialog({
                   className="vf-linkish"
                   onClick={() => patch({ triggerStatus: null })}
                 >
-                  Use any “done” status instead
+                  Use any Completed status instead
                 </button>
               ) : (
                 <p className="vf-dialog-hint">
-                  Any status in the “done” category counts.
+                  Any status in the Completed category counts.
                 </p>
               )}
             </div>
           )}
           <p className="vf-dialog-hint">
-            The schedule above sets each occurrence’s dates — this only sets when
-            the next copy appears.
+            Frequency above still sets each occurrence's date — this only changes
+            when the next copy is created.
           </p>
         </Field>
 
-        <Field label="Ends">
-          <div className="vf-inline-field">
-            <span>after</span>
-            <NumberField
-              value={rule.endsAfter}
-              placeholder="∞"
-              onChange={(endsAfter) =>
-                patch({
-                  endsAfter:
-                    endsAfter == null
-                      ? null
-                      : Math.max(1, Math.round(endsAfter)),
-                })
-              }
-            />
-            <span>occurrences</span>
+        {/* Carries forward chip group */}
+        <Field label="Carries forward">
+          <div className="vf-chip-group" role="group">
+            {COPYABLE_FIELDS.map((field) => {
+              const on = copyFields.includes(field.key);
+              return (
+                <button
+                  key={field.key}
+                  type="button"
+                  className={`vf-chip-btn${on ? " is-on" : ""}`}
+                  aria-pressed={on}
+                  onClick={() => toggleCopyField(field.key)}
+                >
+                  {field.label}
+                </button>
+              );
+            })}
           </div>
-          <div className="vf-inline-field">
-            <span>or on</span>
-            <input
-              className="vf-input"
-              type="date"
-              value={rule.endsOn ?? ""}
-              onChange={(e) => patch({ endsOn: e.target.value || null })}
-            />
-          </div>
+          <p className="vf-dialog-hint">
+            Unchecked fields will be reset to empty on each new occurrence. Title,
+            Project, and Parent are always carried forward.
+          </p>
         </Field>
 
-        <div className="vf-recurrence-preview">
-          <strong>{describeRecurrence(finalize(), snapshot.workspace.statuses)}</strong>
-          <span className="vf-dialog-hint">
-            {rule.trigger === "on-close"
-              ? `Next occurrence: ${preview[0] ?? "—"} — created once you close this one.`
-              : `Next occurrences: ${preview.join(" · ") || "—"}`}
-          </span>
-        </div>
+        {/* Ends - collapsible */}
+        <Field label="Ends">
+          {endsExpanded ? (
+            <>
+              <div className="vf-inline-field">
+                <span>after</span>
+                <NumberField
+                  value={rule.endsAfter}
+                  placeholder="∞"
+                  onChange={(endsAfter) =>
+                    patch({
+                      endsAfter:
+                        endsAfter == null
+                          ? null
+                          : Math.max(1, Math.round(endsAfter)),
+                    })
+                  }
+                />
+                <span>occurrences</span>
+              </div>
+              <div className="vf-inline-field">
+                <span>or on</span>
+                <input
+                  className="vf-input"
+                  type="date"
+                  value={rule.endsOn ?? ""}
+                  onChange={(e) => patch({ endsOn: e.target.value || null })}
+                />
+              </div>
+              <button
+                type="button"
+                className="vf-linkish"
+                onClick={() => setEndsExpanded(false)}
+              >
+                Remove end condition
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="vf-linkish"
+              onClick={() => setEndsExpanded(true)}
+            >
+              Add an end condition
+            </button>
+          )}
+        </Field>
+
+        {hasChildren && (
+          <p className="vf-dialog-hint vf-dialog-warning">
+            This task has {childCount} sub-task{childCount === 1 ? "" : "s"} — they
+            won't carry over to future occurrences.
+          </p>
+        )}
 
         {midChain && (
           <p className="vf-dialog-hint">
             This is one occurrence in a series — the change applies to this
-            note’s schedule and is carried forward from here.
+            note's schedule and is carried forward from here.
           </p>
         )}
 

@@ -212,6 +212,13 @@ export function Sidebar({
             onClick={() => openScreen("trash")}
           />
 
+          <NavRow
+            icon="repeat"
+            label="Recurring"
+            active={activeId === "recurring"}
+            onClick={() => openScreen("recurring")}
+          />
+
           <div className="vf-sidebar-sep" aria-hidden />
 
           <NavRow

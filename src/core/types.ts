@@ -191,6 +191,14 @@ export const WEEKDAYS: readonly Weekday[] = [
  * stops. `triggerStatus` is independent of frequency: a series can recur on a
  * mid-flow status (e.g. "when Review lands") without ever being Completed.
  */
+export type TaskFieldKey =
+	| "priority"
+	| "taskType"
+	| "assignee"
+	| "estimate"
+	| "labels"
+	| "description";
+
 export interface RecurrenceConfig {
 	trigger: RecurrenceTrigger;
 	/**
@@ -231,6 +239,14 @@ export interface RecurrenceConfig {
 	endsOn: IsoDate | null;
 	/** The next date this node should fire (On date) or land (On close) on. */
 	nextDate: IsoDate;
+	/**
+	 * Which fields to copy from the source task when spawning the next
+	 * occurrence. `null` (the default, and the value for all pre-existing
+	 * blocks) means "copy everything." Title, Project, and Parent are never
+	 * toggleable — they are always copied. Only the fields listed in
+	 * `TaskFieldKey` can be opted out of.
+	 */
+	copyFields: TaskFieldKey[] | null;
 }
 
 export interface Task {

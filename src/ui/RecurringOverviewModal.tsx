@@ -1,7 +1,7 @@
 /**
  * Recurring Overview — every live recurrence in the workspace in one list.
  *
- * Opened by the "Recurring overview" command (via `plugin.pendingRecurringOverview`)
+ * Opened by the "Recurring overview" command and the `g r` chord.
  * and the `g r` chord. Read-only over `recurringOverview()`; each row can jump
  * to its source task or stop the whole series (with a confirm).
  */
@@ -129,7 +129,7 @@ export function RecurringOverviewModal({
 
 /**
  * Mounted once inside the workspace shell. Watches the one-shot
- * `plugin.pendingRecurringOverview` flag the command / chord set and opens the
+ * Opened by the "Recurring overview" command and the `g r` chord.
  * modal when it flips.
  */
 export function RecurringOverviewHost({
@@ -142,12 +142,6 @@ export function RecurringOverviewHost({
   const plugin = usePlugin();
   const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    if (plugin.pendingRecurringOverview) {
-      plugin.pendingRecurringOverview = false;
-      setOpen(true);
-    }
-  });
 
   if (!open) return null;
   return (

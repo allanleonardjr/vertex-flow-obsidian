@@ -34,6 +34,7 @@ const BROWSE_ICON: Record<BrowseKind, string> = {
 	labels: "🏷",
 	people: "👤",
 	history: "🕘",
+	recurring: "↻",
 };
 
 const BROWSE_LABEL: Record<BrowseKind, string> = {
@@ -47,6 +48,7 @@ const BROWSE_LABEL: Record<BrowseKind, string> = {
 	labels: "Labels",
 	people: "People",
 	history: "History",
+	recurring: "Recurring",
 };
 
 function browseLabel(kind: BrowseKind): string {

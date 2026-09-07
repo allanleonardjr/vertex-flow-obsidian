@@ -47,8 +47,7 @@ export default class VertexFlowPlugin extends Plugin {
 	activeTaskPath: string | null = null;
 
 	/** One-shot: the React tree opens the Recurring Overview modal when it sees this. */
-	pendingRecurringOverview = false;
-
+	
 	/**
 	 * The workspace most recently active in *any* pane this session. Used to
 	 * seed newly opened panes and to pick a workspace for Quick Capture, which
@@ -181,7 +180,6 @@ export default class VertexFlowPlugin extends Plugin {
 			id: "recurring-overview",
 			name: "Recurring overview",
 			callback: () => {
-				this.pendingRecurringOverview = true;
 				void this.activateView().then(() => this.index.touch());
 			},
 		});

@@ -406,10 +406,12 @@ export function StatusSelect({
 	taxonomy,
 	value,
 	onChange,
+	noneLabel = "—",
 }: {
 	taxonomy: Taxonomy;
 	value: string | null;
 	onChange: (value: string | null) => void;
+	noneLabel?: string;
 }) {
 	const hasStatuses = listValues(taxonomy).length > 0;
 	return (
@@ -431,7 +433,7 @@ export function StatusSelect({
 						entry
 							? entry.name
 							: hasStatuses
-								? "—"
+								? noneLabel
 								: "None"
 					}
 				/>

@@ -9,15 +9,16 @@
 import { basename, formatLink, formatLinkList, parseLink, parseLinkList } from "../links";
 import { MIDDLE_RANK, isValidRank } from "../ranking/lexorank";
 import {
-	emptyRelations,
-	type RecurrenceAnchor,
-	type RecurrenceConfig,
-	type RecurrenceFrequency,
-	type RecurrenceTrigger,
-	type StatusValue,
-	type Task,
-	type TaskRelations,
-	type Weekday,
+  emptyRelations,
+  type RecurrenceAnchor,
+  type RecurrenceConfig,
+  type RecurrenceFrequency,
+  type RecurrenceTrigger,
+  type StatusValue,
+  type Task,
+  type TaskFieldKey,
+  type TaskRelations,
+  type Weekday,
 } from "../types";
 import {
 	IssueLog,
@@ -183,32 +184,38 @@ export function parseRecurrence(
 		log.add(`Recurrence anchor "${anchorRaw}" is invalid; defaulting to dueDate.`);
 	}
 
-	const dayOfMonth = clampInt(record.dayOfMonth, 1, 31, log, "dayOfMonth");
-	let weekdayOfMonth = clampInt(record.weekdayOfMonth, 1, 5, log, "weekdayOfMonth");
-	if (dayOfMonth != null && weekdayOfMonth != null) {
-		log.add(
-			"Recurrence has both dayOfMonth and weekdayOfMonth; using dayOfMonth.",
-		);
-		weekdayOfMonth = null;
-	}
-	const monthOfYear = clampInt(record.monthOfYear, 1, 12, log, "monthOfYear");
+const dayOfMonth = clampInt(record.dayOfMonth, 1, 31, log, "dayOfMonth");
+ 	let weekdayOfMonth = clampInt(record.weekdayOfMonth, 1, 5, log, "weekdayOfMonth");
+ 	if (dayOfMonth != null && weekdayOfMonth != null) {
+ 		log.add(
+ 			"Recurrence has both dayOfMonth and weekdayOfMonth; using dayOfMonth.",
+ 		);
+ 		weekdayOfMonth = null;
+ 	}
+ 	const monthOfYear = clampInt(record.monthOfYear, 1, 12, log, "monthOfYear");
 
-	return {
-		trigger: trigger ?? "on-close",
-		triggerStatus,
-		freq,
-		interval,
-		weekdays: parseWeekdays(record.weekdays, log),
-		dayOfMonth,
-		weekdayOfMonth,
-		monthOfYear,
-		anchor,
-		newStatus,
-		endsAfter,
-		endsOn: asDate(record.endsOn),
-		nextDate,
-	};
-}
+ 	const copyFieldsRaw = asStringArray(record.copyFields);
+ 	const copyFields = (copyFieldsRaw && copyFieldsRaw.length > 0
+ 		? copyFieldsRaw
+ 		: null) as TaskFieldKey[] | null;
+
+ 	return {
+ 		trigger: trigger ?? "on-close",
+ 		triggerStatus,
+ 		freq,
+ 		interval,
+ 		weekdays: parseWeekdays(record.weekdays, log),
+ 		dayOfMonth,
+ 		weekdayOfMonth,
+ 		monthOfYear,
+ 		anchor,
+ 		newStatus,
+ 		endsAfter,
+ 		endsOn: asDate(record.endsOn),
+ 		nextDate,
+ 		copyFields,
+ 	};
+ }
 
 /** RecurrenceConfig → frontmatter object, with the empty guts compacted away. */
 export function serializeRecurrence(rule: RecurrenceConfig): Record<string, unknown> {
@@ -226,6 +233,7 @@ export function serializeRecurrence(rule: RecurrenceConfig): Record<string, unkn
 		endsAfter: rule.endsAfter,
 		endsOn: rule.endsOn,
 		nextDate: rule.nextDate,
+		copyFields: rule.copyFields,
 	});
 }
 

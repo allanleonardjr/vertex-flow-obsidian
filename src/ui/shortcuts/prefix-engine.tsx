@@ -112,10 +112,9 @@ export function PrefixEngine({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 					case "s":
 						void tabs.openScreen("settings");
 						return true;
-					case "r":
-						plugin.pendingRecurringOverview = true;
-						plugin.index.touch();
-						return true;
+case "r":
+					void tabs.openScreen("recurring");
+					return true;
 					default:
 						return false;
 				}

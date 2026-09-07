@@ -55,6 +55,7 @@ const rule = (partial: Partial<RecurrenceConfig> = {}): RecurrenceConfig => ({
 	endsAfter: null,
 	endsOn: null,
 	nextDate: "2026-09-01",
+	copyFields: null,
 	...partial,
 });
 
@@ -831,5 +832,27 @@ describe("localTodayIso", () => {
 	it("uses local calendar fields, not an instant in UTC", () => {
 		const d = new Date(2026, 8, 6, 22, 30);
 		expect(localTodayIso(d)).toBe("2026-09-06");
+	});
+});
+
+/* -------------------------------------------------------------- copyFields -- */
+
+describe("copyFields serialization and default behavior", () => {
+	it("defaults to null when not provided", () => {
+		const r = rule({ freq: "weekly" });
+		expect(r.copyFields).toBeNull();
+	});
+
+	it("can be set to an array of field keys", () => {
+		const r = rule({
+			freq: "weekly",
+			copyFields: ["priority", "labels"],
+		});
+		expect(r.copyFields).toEqual(["priority", "labels"]);
+	});
+
+	it("null copyFields means copy all fields (backward compatible)", () => {
+		const r = rule({ copyFields: null });
+		expect(r.copyFields).toBeNull();
 	});
 });

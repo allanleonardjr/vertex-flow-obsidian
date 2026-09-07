@@ -33,16 +33,17 @@ import {
 
 /** The non-task screens, each a single reusable tab (never duplicated). */
 export type BrowseKind =
-	| "projects"
-	| "settings"
-	| "help"
-	| "new-workspace"
-	| "dashboards"
-	| "views"
-	| "trash"
-	| "labels"
-	| "people"
-	| "history";
+    | "projects"
+    | "settings"
+    | "help"
+    | "new-workspace"
+    | "dashboards"
+    | "views"
+    | "trash"
+    | "labels"
+    | "people"
+    | "history"
+    | "recurring";
 
 export type Tab =
 	| { id: BrowseKind; kind: BrowseKind }
@@ -173,6 +174,7 @@ export function tabAccentRoot(
 		case "trash":
 		case "settings":
 		case "history":
+		case "recurring":
 			return activeRoot;
 		case "help":
 		case "new-workspace":
