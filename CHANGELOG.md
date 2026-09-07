@@ -8,6 +8,9 @@ This project uses [Semantic Versioning](https://semver.org/).
 ### Added
 - **Nested collapsible label folders in the sidebar** — labels whose name contains `/` (e.g. `Application/UI/Forms`) now render as nested, independently collapsible folders in the sidebar's Labels section, Linear-style, one level per `/`. Each row shows only its leaf segment with the full path in a hover tooltip; folder collapse state persists across reopens via the existing sidebar-chrome mechanism. Folders and bare labels at the same depth are interleaved alphabetically by their own segment, and a bare label sharing a folder's name sorts directly above that folder. Storage, naming, filtering, and matching are unchanged — `TaxonomyValue.name` stays the full path everywhere outside the sidebar; the other Label views are untouched.
 
+### Fixed
+- **`u l` "Create label…" no longer attaches an existing label instead of the new one.** The quick-field picker's window-level arrow-nav/Enter listener intercepted Enter in capture phase before it could reach the "Create label…" input's own handler, so typing a new name and pressing Enter silently toggled whichever existing label was highlighted in the list above instead of creating and attaching the typed label. The list listener now ignores Enter when focus is in the create-label input, letting it run its own create-and-attach handler.
+
 ## 1.0.10 — 2026-09-07
 
 ### Changed
