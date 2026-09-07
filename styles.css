@@ -6498,11 +6498,11 @@ button.vf-history-expand {
 
 .vf-repeat-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  padding-top: 4px;
-  min-height: 22px;
+  min-height: 28px;
+  padding: 2px 0;
   line-height: 1.4;
 }
 
@@ -6516,6 +6516,19 @@ button.vf-history-expand {
   display: inline-flex;
   gap: 10px;
   flex-shrink: 0;
+}
+
+/* The "Set up…" trigger on an empty Repeat row — a real, clickable control
+   rather than a link crammed against the row edge. */
+.vf-repeat-row > .vf-linkish {
+  padding: 4px 10px;
+  border: 1px solid var(--vf-border);
+  border-radius: 4px;
+  text-decoration: none;
+}
+
+.vf-repeat-row > .vf-linkish:hover {
+  background: var(--background-modifier-hover);
 }
 
 /* --- Recurrence edit dialog ------------------------------------------------- */
@@ -6553,9 +6566,26 @@ button.vf-history-expand {
   gap: 8px;
 }
 
-.vf-recurrence-field-body .vf-input,
+.vf-recurrence-field-body .vf-input {
+  min-height: 28px;
+  padding: 4px 8px;
+  max-width: 280px;
+}
+
+/* Native select needs room for its own disclosure arrow, or the value sits
+   under it. */
 .vf-recurrence-field-body select.vf-input {
-  max-width: 260px;
+  width: 100%;
+  max-width: 280px;
+  padding-right: 24px;
+}
+
+/* The date picker renders its own spinners/calendar button — 5em clips the
+   value. Give date and select inputs their natural width; only the bare
+   number spinners get the narrow treatment. */
+.vf-recurrence-field-body input[type="date"].vf-input {
+  width: auto;
+  min-width: 150px;
 }
 
 .vf-inline-field {
@@ -6565,8 +6595,9 @@ button.vf-history-expand {
   flex-wrap: wrap;
 }
 
-.vf-inline-field .vf-input {
+.vf-inline-field input[type="number"].vf-input {
   width: 5em;
+  flex: 0 0 auto;
 }
 
 .vf-chip-group {
