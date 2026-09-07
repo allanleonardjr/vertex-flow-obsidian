@@ -6498,9 +6498,12 @@ button.vf-history-expand {
 
 .vf-repeat-row {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   gap: 8px;
   flex-wrap: wrap;
+  padding-top: 4px;
+  min-height: 22px;
+  line-height: 1.4;
 }
 
 .vf-repeat-summary {
@@ -6511,7 +6514,7 @@ button.vf-history-expand {
 
 .vf-repeat-actions {
   display: inline-flex;
-  gap: 8px;
+  gap: 10px;
   flex-shrink: 0;
 }
 
@@ -6521,18 +6524,25 @@ button.vf-history-expand {
   width: min(460px, 92vw);
   max-height: 85vh;
   overflow-y: auto;
+  gap: 4px;
+}
+
+.vf-recurrence-dialog h3 {
+  margin-bottom: 6px;
 }
 
 .vf-recurrence-field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-top: 10px;
+  gap: 6px;
+  padding: 10px 0;
+  border-top: 1px solid var(--vf-border);
 }
 
 .vf-recurrence-field-label {
   color: var(--vf-muted);
   font-size: var(--font-ui-smaller);
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -6540,7 +6550,12 @@ button.vf-history-expand {
 .vf-recurrence-field-body {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
+}
+
+.vf-recurrence-field-body .vf-input,
+.vf-recurrence-field-body select.vf-input {
+  max-width: 260px;
 }
 
 .vf-inline-field {
@@ -6610,11 +6625,25 @@ button.vf-history-expand {
 .vf-recurrence-preview {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  margin-top: 14px;
-  padding: 8px 10px;
+  gap: 3px;
+  margin-top: 12px;
+  padding: 10px 12px;
   border-radius: 6px;
   background: var(--background-secondary);
+  line-height: 1.45;
+}
+
+.vf-recurrence-preview strong {
+  color: var(--text-normal);
+}
+
+.vf-recurrence-dialog .vf-dialog-actions {
+  margin-top: 12px;
+  align-items: center;
+}
+
+.vf-recurrence-dialog .vf-dialog-actions .vf-editor-spacer {
+  flex: 1;
 }
 
 /* --- Recurring overview modal -------------------------------------------- */
