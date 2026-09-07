@@ -14,6 +14,10 @@ import {
 	nodeMatchesTrigger,
 	prevInChain,
 	projectOccurrences,
+	projectRecurrences,
+	projectSeries,
+	PROJECTION_HORIZON_DAYS,
+	PROJECTION_MAX,
 	reconcilePlans,
 	recurrenceNodesInChain,
 	recurringOverview,
@@ -22,6 +26,7 @@ import {
 	type OccurrencePlan,
 } from "../../src/core/recurrence";
 import { localTodayIso } from "../../src/core/date";
+import { evaluateView, newView } from "../../src/core/views";
 import type {
 	IsoDate,
 	RecurrenceConfig,
@@ -592,6 +597,226 @@ describe("recurringOverview", () => {
 		expect(rows[1].chainLength).toBe(2);
 		expect(rows[2].nextDate).toBe("2026-09-05");
 		expect(rows[2].chainLength).toBe(2);
+	});
+});
+
+/* ------------------------------------------------------------ projection -- */
+
+describe("projectSeries", () => {
+	const TODAY: IsoDate = "2026-09-10";
+	const defaultStatus = sample.workspace.defaultNewTaskStatus;
+
+	it("on-date: projects cadence points from today, capped at PROJECTION_MAX", () => {
+		const node = nodeTask({
+			dueDate: "2026-09-01",
+			recurrence: rule({ freq: "daily", nextDate: "2026-09-01" }),
+		});
+		const ghosts = projectSeries(snapshotWith([node]), node, TODAY);
+
+		expect(ghosts).toHaveLength(PROJECTION_MAX);
+		expect(ghosts.every((g) => g.projected === true)).toBe(true);
+		expect(ghosts[0].dueDate).toBe("2026-09-10");
+		expect(ghosts[ghosts.length - 1].dueDate).toBe("2026-09-21");
+		expect(ghosts.every((g) => g.recurringFrom === node.path)).toBe(true);
+		expect(ghosts.every((g) => g.recurrence === null)).toBe(true);
+		expect(ghosts.every((g) => g.path.includes("/occ/"))).toBe(true);
+		expect(new Set(ghosts.map((g) => g.path)).size).toBe(ghosts.length);
+	});
+
+	it("on-date: stops at PROJECTION_HORIZON_DAYS when the cadence is sparse", () => {
+		const node = nodeTask({
+			dueDate: "2026-09-10",
+			recurrence: rule({ freq: "weekly", interval: 1, nextDate: "2026-09-10" }),
+		});
+		const ghosts = projectSeries(snapshotWith([node]), node, TODAY);
+		// 2026-09-10 + {0,7,14,21,28} all within the 30-day horizon.
+		expect(ghosts.map((g) => g.dueDate)).toEqual([
+			"2026-09-10",
+			"2026-09-17",
+			"2026-09-24",
+			"2026-10-01",
+			"2026-10-08",
+		]);
+		expect(PROJECTION_HORIZON_DAYS).toBe(30);
+	});
+
+	it("on-close: projects only the single next landing", () => {
+		const node = nodeTask({
+			dueDate: "2026-09-01",
+			recurrence: rule({
+				trigger: "on-close",
+				freq: "weekly",
+				interval: 1,
+				nextDate: "2026-09-01",
+			}),
+		});
+		const ghosts = projectSeries(snapshotWith([node]), node, TODAY);
+		expect(ghosts).toHaveLength(1);
+		expect(ghosts[0].dueDate).toBe(
+			firstOccurrenceOnOrAfter(node.recurrence!, "2026-09-01", TODAY),
+		);
+	});
+
+	it("respects endsAfter against the existing chain length", () => {
+		const first = nodeTask({
+			path: "W/Tasks/TSK-1",
+			dueDate: "2026-09-08",
+			recurrence: null,
+		});
+		const node = nodeTask({
+			path: "W/Tasks/TSK-2",
+			dueDate: "2026-09-09",
+			recurringFrom: "W/Tasks/TSK-1",
+			recurrence: rule({ freq: "daily", nextDate: "2026-09-09", endsAfter: 3 }),
+		});
+		const ghosts = projectSeries(snapshotWith([first, node]), node, TODAY);
+		// Chain already has 2 notes, budget is 3 → exactly one more.
+		expect(ghosts).toHaveLength(1);
+	});
+
+	it("respects endsOn", () => {
+		const node = nodeTask({
+			dueDate: "2026-09-10",
+			recurrence: rule({
+				freq: "daily",
+				nextDate: "2026-09-10",
+				endsOn: "2026-09-13",
+			}),
+		});
+		const ghosts = projectSeries(snapshotWith([node]), node, TODAY);
+		expect(ghosts.map((g) => g.dueDate)).toEqual([
+			"2026-09-10",
+			"2026-09-11",
+			"2026-09-12",
+			"2026-09-13",
+		]);
+	});
+
+	it("gives ghosts strictly increasing ranks, all after the source", () => {
+		const node = nodeTask({
+			rank: "0|i00000:",
+			dueDate: "2026-09-10",
+			recurrence: rule({ freq: "daily", nextDate: "2026-09-10" }),
+		});
+		const ghosts = projectSeries(snapshotWith([node]), node, TODAY);
+		const ranks = ghosts.map((g) => g.rank);
+		expect(ranks.every((r) => r > node.rank)).toBe(true);
+		expect([...ranks]).toEqual([...ranks].sort());
+	});
+
+	it("uses newStatus when the rule sets one, else the workspace default", () => {
+		const node = nodeTask({
+			dueDate: "2026-09-10",
+			recurrence: rule({ freq: "daily", nextDate: "2026-09-10" }),
+		});
+		expect(projectSeries(snapshotWith([node]), node, TODAY)[0].status).toBe(
+			defaultStatus,
+		);
+
+		const withStatus = nodeTask({
+			dueDate: "2026-09-10",
+			recurrence: rule({
+				freq: "daily",
+				nextDate: "2026-09-10",
+				newStatus: "in-progress",
+			}),
+		});
+		expect(
+			projectSeries(snapshotWith([withStatus]), withStatus, TODAY)[0].status,
+		).toBe("in-progress");
+	});
+});
+
+describe("projectRecurrences", () => {
+	const TODAY: IsoDate = "2026-09-10";
+
+	it("projects each series once, from the newest chain member", () => {
+		const first = nodeTask({
+			path: "W/Tasks/TSK-1",
+			dueDate: "2026-09-08",
+			recurrence: rule({ freq: "daily", nextDate: "2026-09-08" }),
+		});
+		const newest = nodeTask({
+			path: "W/Tasks/TSK-2",
+			dueDate: "2026-09-10",
+			recurringFrom: "W/Tasks/TSK-1",
+			recurrence: rule({ freq: "daily", nextDate: "2026-09-10" }),
+		});
+		const snap = snapshotWith([first, newest]);
+		// Both chain members are "matched"; still one set of ghosts, from newest.
+		const ghosts = projectRecurrences(snap, [first, newest], TODAY);
+		expect(ghosts.every((g) => g.recurringFrom === newest.path)).toBe(true);
+		expect(ghosts[0].dueDate).toBe("2026-09-10");
+	});
+
+	it("ignores tasks with no recurrence", () => {
+		const plain = nodeTask({ path: "W/Tasks/TSK-9", recurrence: null });
+		expect(projectRecurrences(snapshotWith([plain]), [plain], TODAY)).toEqual(
+			[],
+		);
+	});
+});
+
+describe("evaluateView — recurring preview", () => {
+	const TODAY: IsoDate = "2026-09-10";
+	const recurringNode = nodeTask({
+		path: "W/Tasks/TSK-R",
+		title: "Weekly report",
+		status: "todo",
+		dueDate: "2026-09-10",
+		recurrence: rule({
+			freq: "daily",
+			nextDate: "2026-09-10",
+			newStatus: "todo",
+		}),
+	});
+	const snap = snapshotWith([recurringNode]);
+
+	it("adds nothing unless recurringPreview AND today are both supplied", () => {
+		const off = evaluateView(
+			snap,
+			newView("v", "V", "list"),
+			undefined,
+			TODAY,
+		);
+		expect(off.tasks.every((t) => !t.projected)).toBe(true);
+
+		const noToday = evaluateView(snap, {
+			...newView("v", "V", "list"),
+			recurringPreview: true,
+		});
+		expect(noToday.tasks.every((t) => !t.projected)).toBe(true);
+	});
+
+	it("merges projections after filtering; total/filteredOut stay real-only", () => {
+		const evaluated = evaluateView(
+			snap,
+			{ ...newView("v", "V", "list"), recurringPreview: true, groupBy: "none" },
+			undefined,
+			TODAY,
+		);
+		const ghosts = evaluated.tasks.filter((t) => t.projected);
+		expect(ghosts.length).toBeGreaterThan(0);
+		// The one real task is the only thing counted.
+		expect(evaluated.total).toBe(1);
+		expect(evaluated.filteredOut).toBe(snap.tasks.length - 1);
+	});
+
+	it("board grouping drops ghosts into the rule's newStatus column", () => {
+		const evaluated = evaluateView(
+			snap,
+			{
+				...newView("v", "V", "board"),
+				recurringPreview: true,
+				groupBy: "status",
+			},
+			undefined,
+			TODAY,
+		);
+		const todo = evaluated.groups.find((g) => g.key === "todo");
+		expect(todo?.tasks.some((t) => t.projected)).toBe(true);
+		const other = evaluated.groups.filter((g) => g.key !== "todo");
+		expect(other.every((g) => g.tasks.every((t) => !t.projected))).toBe(true);
 	});
 });
 

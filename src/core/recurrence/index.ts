@@ -13,3 +13,4 @@ export * from "./chain";
 export * from "./spawn";
 export * from "./describe";
 export * from "./overview";
+export * from "./project";

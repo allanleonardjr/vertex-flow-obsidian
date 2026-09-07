@@ -421,6 +421,11 @@ export function TimelineView({
 
   const openRow = (event: React.MouseEvent, task: Task) => {
     if (barDrag.consumeDragClick() || scheduleDrag.consumeDragClick()) return;
+    // A projected occurrence opens its repeating source, never selects.
+    if (task.projected) {
+      tabs.openTask(task.recurringFrom ?? task.path);
+      return;
+    }
     const toggle = event.metaKey || event.ctrlKey;
     const range = event.shiftKey;
     selection.select(task.path, { toggle, range });
@@ -527,11 +532,17 @@ export function TimelineView({
                   key={task.path}
                   type="button"
                   className={`vf-timeline-row-label vf-row-open${
-                    selection.focusedPath === task.path ? " is-focused" : ""
-                  }${selection.isSelected(task.path) ? " is-selected" : ""}${
-                    task.archived ? " is-archived" : ""
+                    !task.projected && selection.focusedPath === task.path
+                      ? " is-focused"
+                      : ""
+                  }${
+                    !task.projected && selection.isSelected(task.path)
+                      ? " is-selected"
+                      : ""
+                  }${task.archived ? " is-archived" : ""}${
+                    task.projected ? " is-projected" : ""
                   }`}
-                  data-task-path={task.path}
+                  data-task-path={task.projected ? undefined : task.path}
                   title={leftCollapsed ? displayTitle(task) : undefined}
                   onClick={(event) => openRow(event, task)}
                 >
@@ -614,8 +625,8 @@ export function TimelineView({
                     key={task.path}
                     className={`vf-timeline-lane${
                       barDrag.isDragging(task.path) ? " is-dragging" : ""
-                    }`}
-                    data-task-path={task.path}
+                    }${task.projected ? " is-projected" : ""}`}
+                    data-task-path={task.projected ? undefined : task.path}
                     onClick={(event) => openRow(event, task)}
                   >
                     <BarShape
@@ -625,7 +636,9 @@ export function TimelineView({
                       chartWidth={chartWidth}
                       dayOffset={dayOffset}
                       scale={scale}
-                      onBarPointerDown={barDrag.onPointerDown}
+                      onBarPointerDown={
+                        task.projected ? () => {} : barDrag.onPointerDown
+                      }
                     />
                   </div>
                 );

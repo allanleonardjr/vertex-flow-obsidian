@@ -245,7 +245,11 @@ function NestedListRow({
 	rowAction?: (task: Task) => ReactNode;
 	hiddenFields?: readonly TaskField[];
 }) {
-	const { task, depth, hasChildren, ghost } = row;
+	const { task, depth, hasChildren } = row;
+	// A projected occurrence reuses the non-interactive ghost treatment, but
+	// opens its series source rather than a nonexistent note.
+	const projected = task.projected === true;
+	const ghost = row.ghost || projected;
 
 	const disclosure = (
 		<span
@@ -285,7 +289,8 @@ function NestedListRow({
 	const className = [
 		"vf-row",
 		"vf-row-nested",
-		ghost ? "is-ghost" : "",
+		row.ghost ? "is-ghost" : "",
+		projected ? "is-projected" : "",
 		!ghost && interaction?.isFocused?.(task) ? "is-focused" : "",
 		!ghost && interaction?.isSelected?.(task) ? "is-selected" : "",
 		task.archived ? "is-archived" : "",
@@ -300,7 +305,11 @@ function NestedListRow({
 			<div className={className} data-nested="true">
 				<button
 					className="vf-row-open"
-					onClick={() => onOpenTask?.(task.path)}
+					onClick={() =>
+						onOpenTask?.(
+							projected ? (task.recurringFrom ?? task.path) : task.path,
+						)
+					}
 				>
 					{content}
 				</button>
@@ -359,13 +368,19 @@ function TaskListRow({
 	rowAction?: (task: Task) => ReactNode;
 	hiddenFields?: readonly TaskField[];
 }) {
+	// A projected (ghost) occurrence: no drag, no selection, and any activation
+	// opens the series source instead of a note that doesn't exist yet.
+	const projected = task.projected === true;
+	const openTarget = projected ? (task.recurringFrom ?? task.path) : task.path;
+
 	const className = [
 		"vf-row",
-		interaction?.isFocused?.(task) ? "is-focused" : "",
-		interaction?.isSelected?.(task) ? "is-selected" : "",
+		!projected && interaction?.isFocused?.(task) ? "is-focused" : "",
+		!projected && interaction?.isSelected?.(task) ? "is-selected" : "",
 		interaction?.isDragging?.(task) ? "is-dragging" : "",
 		task.archived ? "is-archived" : "",
-		rowAction ? "vf-row-with-action" : "",
+		projected ? "is-projected" : "",
+		rowAction && !projected ? "vf-row-with-action" : "",
 	]
 		.filter(Boolean)
 		.join(" ");
@@ -378,6 +393,20 @@ function TaskListRow({
 			hiddenFields={hiddenFields}
 		/>
 	);
+
+	if (projected) {
+		return (
+			<div className={className}>
+				<button
+					className="vf-row-open"
+					title="Projected occurrence — opens the repeating task"
+					onClick={() => onOpenTask?.(openTarget)}
+				>
+					{content}
+				</button>
+			</div>
+		);
+	}
 
 	// With a trailing action the row can't be one big click target — a button
 	// inside a button is invalid, and the two would fight for the same click.

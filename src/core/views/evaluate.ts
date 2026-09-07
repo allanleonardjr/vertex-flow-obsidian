@@ -5,7 +5,14 @@
  * views can never drift out of agreement about which tasks a filter matches.
  */
 
-import type { SavedView, Task, TaskGroup, WorkspaceSnapshot } from "../types";
+import type {
+	IsoDate,
+	SavedView,
+	Task,
+	TaskGroup,
+	WorkspaceSnapshot,
+} from "../types";
+import { projectRecurrences } from "../recurrence/project";
 import { snapshotContext, type ViewContext } from "./context";
 import { applyFilters } from "./filter";
 import { groupTasksForView } from "./group";
@@ -32,6 +39,10 @@ export function evaluateView(
 	// device's per-workspace "me" id — see `useActiveWorkspace`. The default is
 	// only for tests and callers that provably have no `self` filter.
 	context: ViewContext = snapshotContext(snapshot),
+	// The local calendar day, for the `show:recurring` projection. Omitted =>
+	// no projection, whatever `view.recurringPreview` says (tests and callers
+	// that don't preview futures).
+	today?: IsoDate,
 ): EvaluatedView {
 	const filtered = applyFilters(snapshot.tasks, view.filters, context);
 	// `hidden` drops sub-tasks outright; `nested` and `flat` both keep them in the
@@ -40,15 +51,24 @@ export function evaluateView(
 		view.subtaskDisplay === "hidden"
 			? filtered.filter((task) => task.parent == null)
 			: filtered;
-	const sorted = sortTasks(visible, view.sortBy, view.sortDirection, context);
+
+	// `total` / `filteredOut` count real tasks only — projected ghosts are a
+	// presentation layer, not "more tasks matched". They merge *after* filtering
+	// (projected from filter-matched sources), then sort and group like any row.
+	const projected =
+		view.recurringPreview && today
+			? projectRecurrences(snapshot, visible, today)
+			: [];
+	const merged = projected.length > 0 ? [...visible, ...projected] : visible;
+	const sorted = sortTasks(merged, view.sortBy, view.sortDirection, context);
 
 	return {
 		view,
 		context,
 		tasks: sorted,
 		groups: groupTasksForView(sorted, view, context),
-		total: sorted.length,
-		filteredOut: snapshot.tasks.length - sorted.length,
+		total: visible.length,
+		filteredOut: snapshot.tasks.length - visible.length,
 	};
 }
 

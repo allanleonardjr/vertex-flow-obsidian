@@ -268,8 +268,11 @@ function Card({
   const selection = useSelection();
   const tabs = useTabs();
 
-  const focused = selection.focusedPath === task.path;
-  const selected = selection.isSelected(task.path);
+  // A projected (ghost) occurrence — no drag, no selection; a click opens the
+  // repeating source task, not a note that doesn't exist yet.
+  const projected = task.projected === true;
+  const focused = !projected && selection.focusedPath === task.path;
+  const selected = !projected && selection.isSelected(task.path);
 
   return (
     <article
@@ -279,12 +282,22 @@ function Card({
         selected ? "is-selected" : "",
         drag.isDragging(task.path) ? "is-dragging" : "",
         task.archived ? "is-archived" : "",
+        projected ? "is-projected" : "",
       ]
         .filter(Boolean)
         .join(" ")}
-      data-task-path={task.path}
-      onPointerDown={(event) => drag.onPointerDown(event, task.path, groupKey)}
-      onClick={(event) => openOrSelect(event, task.path, drag, selection, tabs)}
+      data-task-path={projected ? undefined : task.path}
+      title={projected ? "Projected occurrence — opens the repeating task" : undefined}
+      onPointerDown={
+        projected
+          ? undefined
+          : (event) => drag.onPointerDown(event, task.path, groupKey)
+      }
+      onClick={
+        projected
+          ? () => tabs.openTask(task.recurringFrom ?? task.path)
+          : (event) => openOrSelect(event, task.path, drag, selection, tabs)
+      }
     >
       <CardContent
         task={task}

@@ -286,6 +286,15 @@ export interface Task {
 	path: LinkTarget;
 	/** `Person.id`s @mentioned in the body/comments — powers `mentions: self`. */
 	mentions: string[];
+
+	/**
+	 * A speculative future occurrence of a recurring series, synthesised by
+	 * `projectRecurrences` for the `show:recurring` preview. Never a real note,
+	 * never serialized, never a drag/rank/select target — a ghost row. Its
+	 * `path` is synthetic (`<source>/occ/N`) and `recurringFrom` points at the
+	 * chain member it was projected from.
+	 */
+	projected?: boolean;
 }
 
 /** A flat, unthreaded comment stored in the body's delimited block. */
