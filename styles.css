@@ -6518,45 +6518,52 @@ button.vf-history-expand {
   flex-shrink: 0;
 }
 
-/* Every Repeat-row control — "Set up…" on an empty row, "Edit" / "Stop" on a
-   configured one — reads as a real, clickable button rather than a link
-   crammed against the row edge. */
+/* Every Repeat-row / dialog / overview link-button — "Set up…", "Edit",
+   "Stop", "Turn off", per-row "Open"/"Stop" — reads as a real, padded,
+   clickable button rather than a link crammed against an edge. */
 .vf-repeat-row > .vf-linkish,
-.vf-repeat-actions .vf-linkish {
-  padding: 4px 10px;
+.vf-repeat-actions .vf-linkish,
+.vf-recurrence-dialog .vf-dialog-actions .vf-linkish,
+.vf-recurring-actions .vf-linkish {
+  padding: 5px 12px;
   border: 1px solid var(--vf-border);
   border-radius: 4px;
   text-decoration: none;
   line-height: 1.4;
+  white-space: nowrap;
 }
 
 .vf-repeat-row > .vf-linkish:hover,
-.vf-repeat-actions .vf-linkish:hover {
+.vf-repeat-actions .vf-linkish:hover,
+.vf-recurrence-dialog .vf-dialog-actions .vf-linkish:hover,
+.vf-recurring-actions .vf-linkish:hover {
   background: var(--background-modifier-hover);
 }
 
-.vf-repeat-actions .vf-linkish-warn {
+.vf-repeat-actions .vf-linkish-warn,
+.vf-recurrence-dialog .vf-dialog-actions .vf-linkish-warn,
+.vf-recurring-actions .vf-linkish-warn {
   border-color: color-mix(in srgb, var(--text-error) 40%, var(--vf-border));
 }
 
 /* --- Recurrence edit dialog ------------------------------------------------- */
 
 .vf-recurrence-dialog {
-  width: min(460px, 92vw);
+  width: min(480px, 94vw);
   max-height: 85vh;
   overflow-y: auto;
-  gap: 4px;
+  gap: 0;
 }
 
 .vf-recurrence-dialog h3 {
-  margin-bottom: 6px;
+  margin-bottom: 10px;
 }
 
 .vf-recurrence-field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 10px 0;
+  gap: 8px;
+  padding: 14px 0;
   border-top: 1px solid var(--vf-border);
 }
 
@@ -6571,16 +6578,145 @@ button.vf-history-expand {
 .vf-recurrence-field-body {
   display: flex;
   flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+/* Every text input / number / select / date field inside the dialog gets one
+   consistent, self-contained box — never relying on the theme's bare input
+   defaults, which clip content and vary by theme. */
+.vf-recurrence-dialog input.vf-input,
+.vf-recurrence-dialog select.vf-input {
+  box-sizing: border-box;
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 5px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  line-height: 1.4;
+}
+
+.vf-recurrence-dialog input.vf-input:focus,
+.vf-recurrence-dialog select.vf-input:focus {
+  border-color: var(--interactive-accent);
+  outline: none;
+}
+
+/* Selects fill their field and leave room for the native disclosure arrow. */
+.vf-recurrence-dialog select.vf-input {
+  width: 100%;
+  max-width: 100%;
+  padding-right: 28px;
+}
+
+/* Date picker: wide enough for the full value plus its calendar/spinner UI. */
+.vf-recurrence-dialog input[type="date"].vf-input {
+  width: 100%;
+  max-width: 220px;
+}
+
+.vf-inline-field {
+  display: flex;
+  align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Bare number spinners: wide enough for two digits, a placeholder like
+   "1–31", and the up/down arrows. */
+.vf-inline-field input[type="number"].vf-input {
+  width: 5.5rem;
+  flex: 0 0 auto;
+}
+
+.vf-chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+}
+
+.vf-chip-btn {
+  min-height: 30px;
+  padding: 5px 14px;
+  border: 1px solid var(--vf-border);
+  border-radius: 999px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.vf-chip-btn:hover {
+  background: var(--background-modifier-hover);
+}
+
+.vf-chip-btn.is-on,
+.vf-chip-btn.is-on:hover {
+  border-color: var(--interactive-accent);
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.vf-chip-day {
+  width: 34px;
+  min-width: 34px;
+  padding: 5px 0;
+  text-align: center;
+}
+
+/* Segmented control: fills the field width; items share it evenly and never
+   overflow the dialog. */
+.vf-segmented {
+  display: flex;
+  width: 100%;
+  border: 1px solid var(--vf-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.vf-segmented-item {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 32px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 0;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  box-shadow: none;
+  font-size: var(--font-ui-small);
+  line-height: 1.3;
+  text-align: center;
+  cursor: pointer;
+}
+
+.vf-segmented-item:hover {
+  background: var(--background-modifier-hover);
+}
+
+.vf-segmented-item + .vf-segmented-item {
+  border-left: 1px solid var(--vf-border);
+}
+
+.vf-segmented-item.is-on,
+.vf-segmented-item.is-on:hover {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
 }
 
 /* The "closed = which status" control, nested under the trigger choice. */
 .vf-recurrence-subfield {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-inline-start: 12px;
-  padding-inline-start: 10px;
+  gap: 8px;
+  align-items: flex-start;
+  width: 100%;
+  margin-inline-start: 4px;
+  padding-inline-start: 12px;
   border-inline-start: 2px solid var(--vf-border);
 }
 
@@ -6589,102 +6725,30 @@ button.vf-history-expand {
   font-size: var(--font-ui-smaller);
 }
 
-.vf-recurrence-field-body .vf-input {
-  min-height: 28px;
-  padding: 4px 8px;
-  max-width: 280px;
-}
-
-/* Native select needs room for its own disclosure arrow, or the value sits
-   under it. */
-.vf-recurrence-field-body select.vf-input {
-  width: 100%;
-  max-width: 280px;
-  padding-right: 24px;
-}
-
-/* The date picker renders its own spinners/calendar button — 5em clips the
-   value. Give date and select inputs their natural width; only the bare
-   number spinners get the narrow treatment. */
-.vf-recurrence-field-body input[type="date"].vf-input {
-  width: auto;
-  min-width: 150px;
-}
-
-.vf-inline-field {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.vf-inline-field input[type="number"].vf-input {
-  width: 5em;
-  flex: 0 0 auto;
-}
-
-.vf-chip-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.vf-chip-btn {
-  padding: 3px 10px;
+/* The inline "use any done status" reset — a small text button, not a bare
+   link jammed under the picker. */
+.vf-recurrence-subfield .vf-linkish {
+  align-self: flex-start;
+  padding: 3px 8px;
   border: 1px solid var(--vf-border);
-  border-radius: 999px;
-  background: var(--background-primary);
-  font-size: var(--font-ui-smaller);
-  cursor: pointer;
+  border-radius: 4px;
+  text-decoration: none;
+  line-height: 1.4;
 }
 
-.vf-chip-btn.is-on {
-  border-color: var(--interactive-accent);
-  background: var(--interactive-accent);
-  color: var(--text-on-accent);
-}
-
-.vf-chip-day {
-  width: 30px;
-  padding: 3px 0;
-  text-align: center;
-}
-
-.vf-segmented {
-  display: inline-flex;
-  border: 1px solid var(--vf-border);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.vf-segmented-item {
-  padding: 4px 12px;
-  border: none;
-  border-radius: 0;
-  background: var(--background-primary);
-  box-shadow: none;
-  font-size: var(--font-ui-smaller);
-  cursor: pointer;
-}
-
-.vf-segmented-item + .vf-segmented-item {
-  border-left: 1px solid var(--vf-border);
-}
-
-.vf-segmented-item.is-on {
-  background: var(--interactive-accent);
-  color: var(--text-on-accent);
+.vf-recurrence-subfield .vf-linkish:hover {
+  background: var(--background-modifier-hover);
 }
 
 .vf-recurrence-preview {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  margin-top: 12px;
-  padding: 10px 12px;
+  gap: 4px;
+  margin-top: 14px;
+  padding: 12px 14px;
   border-radius: 6px;
   background: var(--background-secondary);
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
 .vf-recurrence-preview strong {
@@ -6692,12 +6756,22 @@ button.vf-history-expand {
 }
 
 .vf-recurrence-dialog .vf-dialog-actions {
-  margin-top: 12px;
+  margin-top: 16px;
   align-items: center;
 }
 
 .vf-recurrence-dialog .vf-dialog-actions .vf-editor-spacer {
   flex: 1;
+}
+
+.vf-recurrence-dialog .vf-dialog-actions button {
+  min-height: 32px;
+  padding: 6px 14px;
+}
+
+/* The mid-chain caption sits between the preview and the actions. */
+.vf-recurrence-dialog > .vf-dialog-hint {
+  margin-top: 10px;
 }
 
 /* --- Recurring overview modal -------------------------------------------- */
@@ -6718,17 +6792,17 @@ button.vf-history-expand {
 
 .vf-recurring-item {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 10px 0;
+  gap: 16px;
+  padding: 12px 0;
   border-top: 1px solid var(--vf-border);
 }
 
 .vf-recurring-main {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   min-width: 0;
 }
 
@@ -6741,8 +6815,17 @@ button.vf-history-expand {
 
 .vf-recurring-actions {
   display: inline-flex;
-  gap: 10px;
+  gap: 8px;
   flex-shrink: 0;
+}
+
+.vf-recurring-overview .vf-dialog-actions {
+  margin-top: 16px;
+}
+
+.vf-recurring-overview .vf-dialog-actions button {
+  min-height: 32px;
+  padding: 6px 14px;
 }
 
 /* --- Projected (ghost) recurrence rows ----------------------------------- */

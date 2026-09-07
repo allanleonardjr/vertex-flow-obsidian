@@ -319,7 +319,7 @@ function RecurrenceEditDialog({
                 <span>On the</span>
                 <NumberField
                   value={rule.dayOfMonth}
-                  placeholder="task’s day"
+                  placeholder="1–31"
                   onChange={(dayOfMonth) =>
                     patch({
                       dayOfMonth:
@@ -370,8 +370,8 @@ function RecurrenceEditDialog({
           <Segmented
             value={rule.trigger}
             options={[
-              { value: "on-date", label: "Automatically, on its date" },
-              { value: "on-close", label: "After I close this one" },
+              { value: "on-date", label: "On its date" },
+              { value: "on-close", label: "When I close it" },
             ]}
             onChange={(trigger) => patch({ trigger })}
           />
