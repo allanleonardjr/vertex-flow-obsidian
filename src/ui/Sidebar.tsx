@@ -44,6 +44,7 @@ import type {
   Person,
   Project,
   SavedView,
+  TaxonomyValue,
   WorkspaceSnapshot,
 } from "../core/types";
 import { Icon } from "./components/Icon";
@@ -371,6 +372,8 @@ function AddButton({
 
 function NavRow({
   label,
+  displayLabel,
+  indent = 0,
   icon,
   iconFallback,
   chipColor,
@@ -382,6 +385,13 @@ function NavRow({
   hint,
 }: {
   label: string;
+  /**
+   * Text actually rendered; falls back to `label`. Nested label rows pass just
+   * the leaf segment here while `label` (the full path) backs the tooltip.
+   */
+  displayLabel?: string;
+  /** Nesting depth — adds `20 + indent * 14`px of left padding, overriding the base. */
+  indent?: number;
   /** Curated icon id, or the sentinel "settings-glyph". */
   icon?: string;
   iconFallback?: string;
@@ -408,15 +418,21 @@ function NavRow({
     .filter(Boolean)
     .join(" ");
 
+  const text = displayLabel ?? label;
+
   return (
     <div className="vf-nav-row-wrap">
       <button
         className={cls}
         onClick={onClick}
         aria-current={active ? "page" : undefined}
+        style={indent ? { paddingLeft: 20 + indent * 14 } : undefined}
+        aria-label={
+          displayLabel && displayLabel !== label ? label : undefined
+        }
       >
         {chipColor !== undefined ? (
-          <LabelChip name={label} color={chipColor} className="vf-nav-chip" />
+          <LabelChip name={text} color={chipColor} className="vf-nav-chip" />
         ) : (
           <>
             {accentColor && (
@@ -433,7 +449,7 @@ function NavRow({
                 <Icon id={icon} fallback={iconFallback} size={14} />
               )}
             </span>
-            <span className="vf-nav-label">{label}</span>
+            <span className="vf-nav-label">{text}</span>
             {hint && <span className="vf-you-badge">{hint}</span>}
           </>
         )}
@@ -1121,6 +1137,225 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 
 /* ----------------------------------------------------------------- labels -- */
 
+/**
+ * A node in the sidebar's label tree. Labels whose `name` contains `/` are
+ * split into nested folders — one level per segment — purely for rendering;
+ * `TaxonomyValue.name` stays the full path everywhere else.
+ */
+type LabelTreeNode =
+  | { kind: "label"; segment: string; value: TaxonomyValue }
+  | {
+      kind: "folder";
+      segment: string;
+      /** Full path from the root, e.g. `"Application/UI"`. */
+      path: string;
+      children: LabelTreeNode[];
+    };
+
+type MutableFolder = {
+  path: string;
+  folders: Map<string, MutableFolder>;
+  labels: TaxonomyValue[];
+};
+
+/** Split each label name on `/` and walk/create folder nodes for every segment
+ *  but the last. Folders and labels are sorted together by their own segment. */
+function buildLabelTree(values: TaxonomyValue[]): LabelTreeNode[] {
+  const root: MutableFolder = { path: "", folders: new Map(), labels: [] };
+
+  for (const value of values) {
+    const segments = value.name
+      .split("/")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+
+    if (segments.length <= 1) {
+      root.labels.push(value);
+      continue;
+    }
+
+    let folder = root;
+    for (const segment of segments.slice(0, -1)) {
+      let next = folder.folders.get(segment);
+      if (!next) {
+        next = {
+          path: folder.path ? `${folder.path}/${segment}` : segment,
+          folders: new Map(),
+          labels: [],
+        };
+        folder.folders.set(segment, next);
+      }
+      folder = next;
+    }
+    folder.labels.push(value);
+  }
+
+  const convert = (folder: MutableFolder): LabelTreeNode[] => {
+    const nodes: LabelTreeNode[] = [];
+    for (const [segment, child] of folder.folders) {
+      nodes.push({
+        kind: "folder",
+        segment,
+        path: child.path,
+        children: convert(child),
+      });
+    }
+    for (const value of folder.labels) {
+      const segments = value.name
+        .split("/")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+      nodes.push({
+        kind: "label",
+        segment: segments[segments.length - 1] ?? value.name,
+        value,
+      });
+    }
+    nodes.sort((a, b) => {
+      const bySegment = a.segment.localeCompare(b.segment);
+      // A bare label sorts before a folder sharing its segment name, so
+      // `Application` the label sits directly above the `Application/…` group.
+      if (bySegment !== 0) return bySegment;
+      return (a.kind === "label" ? 0 : 1) - (b.kind === "label" ? 0 : 1);
+    });
+    return nodes;
+  };
+
+  return convert(root);
+}
+
+function LabelGroupRow({
+  segment,
+  path,
+  depth,
+  collapsed,
+  onToggle,
+}: {
+  segment: string;
+  /** Full path from the root — shown as the hover tooltip. */
+  path: string;
+  depth: number;
+  collapsed: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      className="vf-label-group-row"
+      aria-expanded={!collapsed}
+      onClick={onToggle}
+      aria-label={path}
+      style={{ paddingLeft: 20 + depth * 14 }}
+    >
+      <span
+        className={`vf-section-chevron${collapsed ? "" : " is-open"}`}
+        aria-hidden
+      >
+        ›
+      </span>
+      {segment}
+    </button>
+  );
+}
+
+function LabelTreeList({
+  nodes,
+  depth,
+  activeLabelId,
+  openLabel,
+  menuId,
+  setMenuId,
+  setEditing,
+  requestDelete,
+}: {
+  nodes: LabelTreeNode[];
+  depth: number;
+  activeLabelId: string | null;
+  openLabel: (id: string) => void;
+  menuId: string | null;
+  setMenuId: React.Dispatch<React.SetStateAction<string | null>>;
+  setEditing: (id: string | null) => void;
+  requestDelete: (id: string) => void;
+}) {
+  const { collapsed: collapsedMap, toggleSection } = useSidebarChrome();
+
+  return (
+    <>
+      {nodes.map((node) => {
+        if (node.kind === "label") {
+          const label = node.value;
+          return (
+            <NavRow
+              key={`label:${label.id}`}
+              label={label.name}
+              displayLabel={node.segment}
+              indent={depth}
+              chipColor={label.color}
+              active={activeLabelId === label.id}
+              variant="view"
+              onClick={() => openLabel(label.id)}
+              trailing={
+                <RowMenu
+                  open={menuId === label.id}
+                  onToggle={() =>
+                    setMenuId((m) => (m === label.id ? null : label.id))
+                  }
+                  onClose={() => setMenuId(null)}
+                >
+                  <button
+                    className="vf-menu-item"
+                    onClick={() => {
+                      setMenuId(null);
+                      setEditing(label.id);
+                    }}
+                  >
+                    Edit
+                  </button>
+                  <div className="vf-menu-divider" aria-hidden />
+                  <button
+                    className="vf-menu-item vf-menu-item-danger"
+                    onClick={() => {
+                      setMenuId(null);
+                      requestDelete(label.id);
+                    }}
+                  >
+                    Delete
+                  </button>
+                </RowMenu>
+              }
+            />
+          );
+        }
+
+        const groupId = `label-group:${node.path}`;
+        const isCollapsed = collapsedMap[groupId] === true;
+        return (
+          <div className="vf-label-group" key={`folder:${node.path}`}>
+            <LabelGroupRow
+              segment={node.segment}
+              path={node.path}
+              depth={depth}
+              collapsed={isCollapsed}
+              onToggle={() => toggleSection(groupId)}
+            />
+            {!isCollapsed && (
+              <LabelTreeList
+                nodes={node.children}
+                depth={depth + 1}
+                activeLabelId={activeLabelId}
+                openLabel={openLabel}
+                menuId={menuId}
+                setMenuId={setMenuId}
+                setEditing={setEditing}
+                requestDelete={requestDelete}
+              />
+            )}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 function LabelsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   const plugin = usePlugin();
   const { activeTab, openLabel, openScreen } = useTabs();
@@ -1179,45 +1414,16 @@ function LabelsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
       {ordered.length === 0 ? (
         <p className="vf-section-empty">No labels yet</p>
       ) : (
-        ordered.map((label) => (
-          <NavRow
-            key={label.id}
-            label={label.name}
-            chipColor={label.color}
-            active={activeLabelId === label.id}
-            variant="view"
-            onClick={() => openLabel(label.id)}
-            trailing={
-              <RowMenu
-                open={menuId === label.id}
-                onToggle={() =>
-                  setMenuId((m) => (m === label.id ? null : label.id))
-                }
-                onClose={() => setMenuId(null)}
-              >
-                <button
-                  className="vf-menu-item"
-                  onClick={() => {
-                    setMenuId(null);
-                    setEditing(label.id);
-                  }}
-                >
-                  Edit
-                </button>
-                <div className="vf-menu-divider" aria-hidden />
-                <button
-                  className="vf-menu-item vf-menu-item-danger"
-                  onClick={() => {
-                    setMenuId(null);
-                    requestDelete(label.id);
-                  }}
-                >
-                  Delete
-                </button>
-              </RowMenu>
-            }
-          />
-        ))
+        <LabelTreeList
+          nodes={buildLabelTree(ordered)}
+          depth={0}
+          activeLabelId={activeLabelId}
+          openLabel={openLabel}
+          menuId={menuId}
+          setMenuId={setMenuId}
+          setEditing={setEditing}
+          requestDelete={requestDelete}
+        />
       )}
 
       {creating && (
