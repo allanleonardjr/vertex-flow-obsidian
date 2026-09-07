@@ -2752,6 +2752,14 @@ button.vf-rail-section-toggle:hover {
   color: var(--text-normal);
 }
 
+button.vf-editor-rail-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+}
+
 .vf-source-view {
   margin: 10px 0 0;
   padding: 10px;

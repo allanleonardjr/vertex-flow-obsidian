@@ -4,14 +4,17 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { Trash2 } from "lucide-react";
 import { resetAutoGrow } from "./components/autoGrow";
 import {
   childTasks,
   depthUnder,
   descendantTasks,
   MAX_COMFORTABLE_DEPTH,
+  planDeletion,
   scopeOf,
   subtaskProgress,
+  type DeletionPlan,
 } from "../core/hierarchy";
 import { sortTasksByRank } from "../core/ranking";
 import { withExtension } from "../obsidian/note-io";
@@ -34,6 +37,7 @@ import {
 import { CollapsibleSection } from "./components/CollapsibleSection";
 import { Icon } from "./components/Icon";
 import { ConfirmDeleteDialog } from "./components/ConfirmDeleteDialog";
+import { DeleteEntityDialog } from "./DeleteEntityDialog";
 import { DescriptionSection } from "./components/DescriptionSection";
 import { EditorRail } from "./components/EditorRail";
 import { ResizeHandle } from "./components/ResizeHandle";
@@ -74,6 +78,7 @@ export function TaskDetailPanel({
   const mePersonId = useMePersonId(snapshot.workspace.root);
   const [comments, setComments] = useState<Comment[]>([]);
   const [description, setDescription] = useState<string | null>(null);
+  const [deletePlan, setDeletePlan] = useState<DeletionPlan | null>(null);
   const [descCollapsed, setDescCollapsed] = useState(
     plugin.settings.descriptionCollapsed,
   );
@@ -351,8 +356,29 @@ export function TaskDetailPanel({
           </PropertyRow>
 
           <RawSourceSection task={task} />
+
+          <div className="vf-editor-rail-section">
+            <button
+              type="button"
+              className="mod-warning vf-editor-rail-delete"
+              onClick={() =>
+                setDeletePlan(planDeletion(scopeOf(snapshot), task))
+              }
+            >
+              <Trash2 size={14} />
+              Move to Trash
+            </button>
+          </div>
         </EditorRail>
       </div>
+
+      {deletePlan && (
+        <DeleteEntityDialog
+          snapshot={snapshot}
+          plan={deletePlan}
+          onClose={() => setDeletePlan(null)}
+        />
+      )}
     </>
   );
 }

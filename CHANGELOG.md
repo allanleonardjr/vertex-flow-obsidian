@@ -9,13 +9,8 @@ This project uses [Semantic Versioning](https://semver.org/).
 -   Moved the comment editor to above the list of comments so a user doesn't have to scroll to the bottom to add a comment.
 
 ### Added
-- **Projects can now save their task-list view.** A Project's embedded
-  view (sort, grouping, filters, sub-task display) used to reset on every
-  visit — there was nowhere for it to persist. It now saves to the
-  Project's own note as a `view:` frontmatter block, with a real **Save**
-  button alongside Reset/Save view as…, and the usual unsaved-changes
-  guard when navigating away. Column-collapse on a Project's task list,
-  which previously attempted a silent broken write, is now a clean no-op.
+- **"Move to Trash" on the Task Editor page.** Previously only available as a row action in List/Board view — a task can now be moved to Trash directly from its own editor, in the property rail below the raw source view. Uses the same confirm dialog and sub-task cascade prompt as the existing row action; the tab closes itself once the task is gone.
+- **Projects can now save their task-list view.** A Project's embedded view (sort, grouping, filters, sub-task display) used to reset on every visit — there was nowhere for it to persist. It now saves to the Project's own note as a `view:` frontmatter block, with a real **Save** button alongside Reset/Save view as…, and the usual unsaved-changes guard when navigating away. Column-collapse on a Project's task list, which previously attempted a silent broken write, is now a clean no-op.
 - **Nested collapsible label folders in the sidebar** — labels whose name contains `/` (e.g. `Application/UI/Forms`) now render as nested, independently collapsible folders in the sidebar's Labels section, Linear-style, one level per `/`. Each row shows only its leaf segment with the full path in a hover tooltip; folder collapse state persists across reopens via the existing sidebar-chrome mechanism. Folders and bare labels at the same depth are interleaved alphabetically by their own segment, and a bare label sharing a folder's name sorts directly above that folder. Storage, naming, filtering, and matching are unchanged — `TaxonomyValue.name` stays the full path everywhere outside the sidebar; the other Label views are untouched.
 
 ### Fixed
