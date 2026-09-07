@@ -362,6 +362,40 @@ button.vf-nav-row:hover {
   text-overflow: ellipsis;
 }
 
+/* -- Sidebar tree: nested collapsible groups, one level per "/" ---------- */
+/* Generic `TreeList` — shared by the Labels, Projects, Views and Dashboards
+   sidebar sections. Items whose name/title contains "/" render as nested,
+   independently collapsible folders. */
+
+.vf-tree-group {
+  display: flex;
+  flex-direction: column;
+}
+
+button.vf-tree-group-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  width: 100%;
+  height: 26px;
+  padding-right: 22px;
+  border: none;
+  border-radius: var(--vf-radius);
+  background: transparent;
+  box-shadow: none;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-small);
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.vf-tree-group-row:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
 /* Per-row options menu (⋯) — revealed on row hover. */
 button.vf-nav-row-menu {
   position: absolute;
@@ -2719,6 +2753,14 @@ button.vf-rail-section-toggle {
 
 button.vf-rail-section-toggle:hover {
   color: var(--text-normal);
+}
+
+button.vf-editor-rail-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
 }
 
 .vf-source-view {

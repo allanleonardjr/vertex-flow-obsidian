@@ -223,6 +223,7 @@ export function ProjectsBrowseView({
       {creating && (
         <NamedIconDialog
           title="New project"
+          nameHint="Use / to nest under a group in the sidebar"
           initialName="New project"
           initialIcon="folder"
           initialDescription=""
@@ -245,6 +246,7 @@ export function ProjectsBrowseView({
       {editing && (
         <NamedIconDialog
           title="Edit project"
+          nameHint="Use / to nest under a group in the sidebar"
           initialName={editing.title}
           initialIcon={editing.icon}
           iconFallback="folder"

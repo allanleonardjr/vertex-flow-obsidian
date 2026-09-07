@@ -5,6 +5,23 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+
+## 1.0.11 — 2026-09-07
+
+### Changed
+-   Moved the comment editor to above the list of comments so a user doesn't have to scroll to the bottom to add a comment.
+
+### Added
+-   Views, Dashboards and Projects can now be nested under a group in the sidebar and a "/" slash hint is added to the create/edit dialogs.
+- **"Move to Trash" on the Task Editor page.** Previously only available as a row action in List/Board view — a task can now be moved to Trash directly from its own editor, in the property rail below the raw source view. Uses the same confirm dialog and sub-task cascade prompt as the existing row action; the tab closes itself once the task is gone.
+- **Projects can now save their task-list view.** A Project's embedded view (sort, grouping, filters, sub-task display) used to reset on every visit — there was nowhere for it to persist. It now saves to the Project's own note as a `view:` frontmatter block, with a real **Save** button alongside Reset/Save view as…, and the usual unsaved-changes guard when navigating away. Column-collapse on a Project's task list, which previously attempted a silent broken write, is now a clean no-op.
+- **Nested collapsible groups for Projects, Views and Dashboards in the sidebar** — the `/`-nested folder rendering that Labels already had is now a generic tree component (`buildTree` / `TreeList`, with an exported `defaultTreeSort` and an optional sibling-comparator hook reserved for a future manual-sort feature), applied to the Projects, Views and Dashboards sidebar sections as well. A Project, View or Dashboard whose name/title contains `/` (e.g. `Application/UI`) renders as independently collapsible folders showing only the leaf segment, full path in a hover tooltip; each section owns its own collapse-state namespace, so collapsing a "Projects" group never touches a same-named "Labels" group. This is display-only — storage, uniqueness, filtering, query round-tripping and every other Label/Project/View/Dashboard surface are unchanged; the hub Browse screens stay flat card grids. The Project, View and Dashboard naming dialogs (and the "Save view/dashboard as…" dialogs) now carry a "Use / to nest under a group in the sidebar" hint, and a project title with `/` now sanitizes to a hyphen in its vault filename (`Application/UI` → `Application-UI.md`) instead of losing the separator.
+- **Nested collapsible label folders in the sidebar** — labels whose name contains `/` (e.g. `Application/UI/Forms`) now render as nested, independently collapsible folders in the sidebar's Labels section, Linear-style, one level per `/`. Each row shows only its leaf segment with the full path in a hover tooltip; folder collapse state persists across reopens via the existing sidebar-chrome mechanism. Folders and bare labels at the same depth are interleaved alphabetically by their own segment, and a bare label sharing a folder's name sorts directly above that folder. Storage, naming, filtering, and matching are unchanged — `TaxonomyValue.name` stays the full path everywhere outside the sidebar; the other Label views are untouched.
+
+### Fixed
+- **`u l` "Create label…" no longer attaches an existing label instead of the new one.** The quick-field picker's window-level arrow-nav/Enter listener intercepted Enter in capture phase before it could reach the "Create label…" input's own handler, so typing a new name and pressing Enter silently toggled whichever existing label was highlighted in the list above instead of creating and attaching the typed label. The list listener now ignores Enter when focus is in the create-label input, letting it run its own create-and-attach handler.
+- **Sort control hidden when sub-tasks are Nested.** Nested rows always order by rank at every level regardless of the view's sort field (`buildNestedRows`), so the Sort chip was a dead control there — picking any field silently had no effect on what rendered. It's now hidden whenever a List view's sub-task display is set to Nested; switching back to Flat or Hidden brings it back.
+
 ## 1.0.10 — 2026-09-07
 
 ### Changed

@@ -21,6 +21,7 @@ import {
   buildNestedRows,
   evaluateView,
   focusableRowPaths,
+  isProjectViewId,
   partitionScheduled,
   seedFromFilters,
 } from "../../core/views";
@@ -99,9 +100,11 @@ export function TaskViewport({
   const effective = draft.effective;
 
   // The draft lives in local state and dies with this component on a tab
-  // switch — guard against silently losing it. A synthesised label view has no
-  // backing file, so it can't be overwritten (Save As only).
-  const canOverwriteView = snapshot.views.some((v) => v.id === view.id);
+  // switch — guard against silently losing it. A synthesised label view has
+  // no backing file, so it can't be overwritten (Save As only) — a Project's
+  // synthesised view can, via its own note's `view:` block.
+  const canOverwriteView =
+    snapshot.views.some((v) => v.id === view.id) || isProjectViewId(view.id);
   const leaveGuard = useUnsavedGuard({
     dirty: guardUnsavedEdits && draft.dirty,
     canSave: canOverwriteView,

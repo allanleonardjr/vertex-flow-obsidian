@@ -12,6 +12,7 @@ import {
   type ActiveWorkspace,
 } from "./context";
 import { workspaceTaxonomies } from "../core/taxonomy";
+import { projectViewId } from "../core/views";
 import type { Project, SavedView, WorkspaceSnapshot } from "../core/types";
 import { EmptyState } from "./EmptyState";
 import { EmptyTabsPane } from "./EmptyTabsPane";
@@ -372,22 +373,25 @@ export function personView(
  * `ProjectDetailView` renders it beneath the project header.
  */
 export function projectView(project: Project): SavedView {
+  const definition = project.view;
   return {
     type: "view",
     path: "",
-    id: `project:${project.path}`,
+    id: projectViewId(project.path),
     name: project.title,
-    viewType: "list",
-    filters: { project: [project.path] },
-    groupBy: "status",
-    sortBy: "rank",
-    sortDirection: "asc",
+    viewType: definition?.viewType ?? "list",
+    // The project filter is always forced, regardless of what's stored — a
+    // safety net against a stale or missing value (e.g. after a rename).
+    filters: { ...(definition?.filters ?? {}), project: [project.path] },
+    groupBy: definition?.groupBy ?? "status",
+    sortBy: definition?.sortBy ?? "rank",
+    sortDirection: definition?.sortDirection ?? "asc",
     columns: { collapsed: [], hidden: [] },
-    emptyColumnBehavior: "show-normal",
-    hiddenFields: [],
-    subtaskDisplay: "nested",
-    calendarDateField: "dueDate",
-    recurringPreview: false,
+    emptyColumnBehavior: definition?.emptyColumnBehavior ?? "show-normal",
+    hiddenFields: definition?.hiddenFields ?? [],
+    subtaskDisplay: definition?.subtaskDisplay ?? "nested",
+    calendarDateField: definition?.calendarDateField ?? "dueDate",
+    recurringPreview: definition?.recurringPreview ?? false,
   };
 }
 

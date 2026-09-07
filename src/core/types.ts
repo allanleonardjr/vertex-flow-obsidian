@@ -364,6 +364,13 @@ export interface Project {
 	createdAt: IsoDate;
 	updatedAt: IsoDate;
 	path: LinkTarget;
+	/**
+	 * The embedded task-list viewport's saved sort/group/filter settings —
+	 * absent until the user hits Save there at least once. `projectView()`
+	 * (`ui/App.tsx`) merges this over its hardcoded defaults. No migration
+	 * concern: older projects simply have none.
+	 */
+	view?: ViewDefinition | null;
 }
 
 /**

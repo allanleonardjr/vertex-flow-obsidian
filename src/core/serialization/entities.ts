@@ -16,8 +16,10 @@ import {
 	asRecord,
 	compact,
 	nowIso,
+	IssueLog,
 	type ParseResult,
 } from "./coerce";
+import { parseViewDefinition, serializeViewDefinition } from "./views";
 
 export interface EntityParseOptions {
 	path: string;
@@ -32,11 +34,13 @@ export function parseProject(
 	const fm = asRecord(raw);
 	const createdAt = asDateTime(fm.createdAt);
 	const archivedAt = asDateTime(fm.archivedAt);
+	const log = new IssueLog();
+	const title = asString(fm.title) ?? basename(options.path);
 
 	return {
 		value: {
 			type: "project",
-			title: asString(fm.title) ?? basename(options.path),
+			title,
 			icon: asString(fm.icon) ?? undefined,
 			status: asString(fm.status) ?? options.defaultStatus,
 			// Priority/labels reuse the Task taxonomies — same forgiving coercion.
@@ -52,8 +56,9 @@ export function parseProject(
 			createdAt: createdAt ?? nowIso(),
 			updatedAt: asDateTime(fm.updatedAt) ?? createdAt ?? nowIso(),
 			path: options.path,
+			view: fm.view != null ? parseViewDefinition(fm.view, log) : null,
 		},
-		issues: [],
+		issues: log.issues.map((issue) => `Project "${title}": ${issue}`),
 	};
 }
 
@@ -75,6 +80,8 @@ export function serializeProject(project: Project): Record<string, unknown> {
 	if (project.archivedAt) base.archivedAt = project.archivedAt;
 	base.createdAt = project.createdAt;
 	base.updatedAt = project.updatedAt;
+	// Absent until the user hits Save on the embedded viewport at least once.
+	if (project.view) base.view = serializeViewDefinition(project.view);
 	return base;
 }
 
@@ -93,6 +100,7 @@ export const PROJECT_FIELD_ORDER: readonly string[] = [
 	"archivedAt",
 	"createdAt",
 	"updatedAt",
+	"view",
 ] as const;
 
 // ---------------------------------------------------------------------------

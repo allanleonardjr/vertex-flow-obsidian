@@ -96,7 +96,6 @@ export function ProjectDetailView({
           active={active}
           onSelectView={onSelectView}
           hideViewTitle
-          guardUnsavedEdits={false}
         />
       }
     />
