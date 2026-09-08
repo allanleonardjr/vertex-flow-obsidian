@@ -3036,6 +3036,64 @@ button.vf-editor-rail-delete {
   font-style: italic;
 }
 
+/* A property label carrying a trailing affordance (e.g. the "no default task
+   type" hint right after "Type"): keep the glyph on the label's baseline. */
+.vf-prop-label--adorned {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding-top: 3px;
+}
+
+/* A labelled settings row whose control isn't a plain <input>/<select> (the
+   Default task type picker). Kept off `.vf-field` on purpose — that class's
+   broad descendant `span` rule would rewrite the ported TypeSelect's inner
+   spans. */
+.vf-settings-row {
+  margin-bottom: 12px;
+}
+
+.vf-settings-row-label {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+/* A taxonomy menu-select standing in for a native <select> on the settings
+   screen — don't let it stretch the full pane width. */
+.vf-settings-select {
+  max-width: 260px;
+}
+
+/* Explanatory panel with a follow-up link (DefaultTaskTypeHint). Portaled to
+   <body> and fixed-positioned by the component, so it carries its own chrome
+   rather than borrowing `.vf-popover`'s. */
+.vf-hint-popover {
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-primary);
+  box-shadow: 0 10px 28px rgb(0 0 0 / 28%);
+}
+
+.vf-hint-popover p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--vf-muted);
+}
+
+.vf-hint-popover button.vf-link-button {
+  align-self: flex-start;
+  padding: 2px 0;
+  font-size: 12px;
+  text-align: left;
+}
+
 .vf-label-picker {
   display: flex;
   flex-wrap: wrap;

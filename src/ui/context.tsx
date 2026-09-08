@@ -25,6 +25,7 @@ import { snapshotContext, type ViewContext, SYSTEM_VIEW_ALL_TASKS_ID } from "../
 import { workspaceTaxonomies, type WorkspaceTaxonomies } from "../core/taxonomy";
 import type { SavedView, WorkspaceSnapshot } from "../core/types";
 import { useMePersonId } from "./useMe";
+import { setLastWorkspaceRoot } from "../obsidian/last-workspace-storage";
 
 interface PluginContextValue {
 	plugin: VertexFlowPlugin;
@@ -106,9 +107,12 @@ export function ActiveWorkspaceProvider({
 	const setRoot = useCallback(
 		(next: string) => {
 			setRootState(next);
-			// Runtime-only "last touched" pointer — read by main.ts quickCapture()
-			// and used to seed newly opened panes. Never persisted.
+			// Session "last touched" pointer — read by main.ts quickCapture() and
+			// used to seed newly opened panes.
 			plugin.lastActiveWorkspaceRoot = next;
+			// Also persist per-device (localStorage, never data.json) so a
+			// relaunch reopens this workspace.
+			setLastWorkspaceRoot(next);
 		},
 		[plugin],
 	);

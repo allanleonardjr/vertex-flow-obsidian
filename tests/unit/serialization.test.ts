@@ -675,6 +675,8 @@ describe("parseWorkspace", () => {
 			archiving: { autoArchiveEnabled: false, autoArchiveDays: 30 },
 			history: { enabled: false },
 			defaultNewTaskStatus: "queue",
+			defaultNewTaskType: null,
+			newTaskPlacement: "top",
 			estimateUnitLabel: null,
 			deletedAt: null,
 			statuses: [],
@@ -720,6 +722,51 @@ describe("parseWorkspace", () => {
 		);
 		expect(value.defaultNewTaskStatus).toBe("a");
 		expect(issues.some((i) => /not a configured status/.test(i))).toBe(true);
+	});
+
+	it("round-trips defaultNewTaskType and newTaskPlacement", () => {
+		const first = parseWorkspace(
+			{
+				name: "W",
+				idPrefix: "WWW",
+				taskTypes: [{ id: "bug", name: "Bug", color: "#000" }],
+				defaultNewTaskType: "bug",
+				newTaskPlacement: "bottom",
+			},
+			{ path },
+		).value;
+		expect(first.defaultNewTaskType).toBe("bug");
+		expect(first.newTaskPlacement).toBe("bottom");
+		const second = parseWorkspace(serializeWorkspace(first), { path }).value;
+		expect(second).toEqual(first);
+	});
+
+	it("defaults defaultNewTaskType to null and newTaskPlacement to 'top'", () => {
+		const { value } = parseWorkspace({ name: "W" }, { path });
+		expect(value.defaultNewTaskType).toBeNull();
+		expect(value.newTaskPlacement).toBe("top");
+	});
+
+	it("clears defaultNewTaskType when it names a task type that doesn't exist", () => {
+		const { value, issues } = parseWorkspace(
+			{
+				taskTypes: [{ id: "bug", name: "Bug", color: "#000" }],
+				defaultNewTaskType: "ghost",
+			},
+			{ path },
+		);
+		expect(value.defaultNewTaskType).toBeNull();
+		expect(issues.some((i) => /not a configured task type/.test(i))).toBe(true);
+	});
+
+	it("reads any non-'bottom' newTaskPlacement as 'top'", () => {
+		expect(
+			parseWorkspace({ name: "W", newTaskPlacement: "sideways" }, { path }).value
+				.newTaskPlacement,
+		).toBe("top");
+		expect(
+			parseWorkspace({ name: "W" }, { path }).value.newTaskPlacement,
+		).toBe("top");
 	});
 
 	it("round-trips through serialize", () => {

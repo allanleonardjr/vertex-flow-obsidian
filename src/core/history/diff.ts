@@ -154,6 +154,8 @@ const CONFIG_SCALAR_FIELDS: ReadonlyArray<keyof WorkspaceConfig> = [
 	"icon",
 	"idPrefix",
 	"defaultNewTaskStatus",
+	"defaultNewTaskType",
+	"newTaskPlacement",
 	"estimateUnitLabel",
 	"deletedAt",
 ];

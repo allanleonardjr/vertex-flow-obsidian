@@ -102,6 +102,8 @@ function fieldLabel(field: string): string {
     idPrefix: "id prefix",
     deletedAt: "deleted at",
     defaultNewTaskStatus: "default status",
+    defaultNewTaskType: "default type",
+    newTaskPlacement: "new task placement",
     estimateUnitLabel: "estimate unit",
     comment: "comment",
     reaction: "reaction",

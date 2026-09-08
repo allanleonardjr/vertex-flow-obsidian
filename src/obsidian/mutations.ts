@@ -175,8 +175,9 @@ export class Mutations {
     const path = joinPath(workspace.root, FOLDERS.tasks, id);
     const now = new Date().toISOString();
 
-    // New tasks land at the top of whatever they're joining, so the person
-    // who just created one can actually see it.
+    // New tasks land at whichever end of their siblings the workspace
+    // prefers (`newTaskPlacement`) — "top" by default, so the person who
+    // just created one can actually see it.
     const parentTask = input.parent
       ? (snapshot.tasks.find((task) => task.path === input.parent) ?? null)
       : null;
@@ -194,10 +195,10 @@ export class Mutations {
       type: "task",
       id,
       title: (input.title ?? "").trim(),
-      taskType: input.taskType ?? null,
+      taskType: input.taskType ?? workspace.defaultNewTaskType,
       status: input.status ?? workspace.defaultNewTaskStatus,
       priority: input.priority ?? null,
-      rank: rankForNewTask(siblings),
+      rank: rankForNewTask(siblings, workspace.newTaskPlacement),
       project,
       parent: input.parent ?? null,
       recurringFrom: null,
@@ -380,7 +381,7 @@ private async spawnOccurrences(
     const sourceIndex = siblings.findIndex((task) => task.path === source.path);
     let rank =
       sourceIndex === -1
-        ? rankForNewTask(siblings)
+        ? rankForNewTask(siblings, workspace.newTaskPlacement)
         : rankForPosition(within, sourceIndex + 1);
 
     const rule = source.recurrence;

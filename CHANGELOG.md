@@ -6,6 +6,26 @@ This project uses [Semantic Versioning](https://semver.org/).
 ## Unreleased
 
 ### Added
+- **Workspace setting: default task type for new tasks.** A new "Task creation"
+  section in workspace settings sets the Task Type every newly created task
+  starts with (or "None" — a fully valid steady state, unlike status). The
+  picker renders types as the same bordered pills List/Board rows and the task
+  editor use. When no default is set, a help icon sits right after "Type" in
+  the task editor's property rail; clicking it explains the setting and links
+  straight to it. A stale/unknown id in `_workspace.md` clears itself to None on
+  load rather than forcing a pick, and changing the setting shows up in Activity
+  History like any other config field.
+- **Workspace setting: where new tasks land.** "New tasks go to" chooses whether
+  a brand-new task is ranked at the **top** of its siblings (the existing
+  behavior, and the default — so nothing changes for existing workspaces) or the
+  **bottom**. Applies to tasks created at the top level or under a parent, and
+  to an orphaned recurring successor's fallback placement. Bulk content creation
+  and template seeding are unaffected.
+- **Reopen your last workspace on relaunch.** The plugin now remembers which
+  workspace this device last had active and reopens it on load, falling back to
+  the first workspace if it no longer exists. Stored per-device in the app's own
+  storage, never in the vault — a shared or synced vault won't carry one
+  machine's pointer onto every other machine.
 - **On-close recurrence can now set Start/Due dates.** Status-triggered
   ("on close") repeats previously always spawned with no dates at all. Each
   of Start Date and Due Date can now independently be set to None (unchanged

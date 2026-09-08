@@ -49,10 +49,14 @@ export function planReorder(
 }
 
 /**
- * Rank for a brand-new task placed at the top of `siblings`:
- * new work appears where you'll see it, not buried at the bottom.
+ * Rank for a brand-new task among `siblings`, at whichever end
+ * `placement` names. `"top"` is the historical default — new work appears
+ * where you'll see it — `"bottom"` queues it after everything else.
  */
-export function rankForNewTask(siblings: Task[]): string {
+export function rankForNewTask(
+	siblings: Task[],
+	placement: "top" | "bottom",
+): string {
 	const ordered = sortTasksByRank(siblings).map((task) => task.rank);
-	return rankForPosition(ordered, 0);
+	return rankForPosition(ordered, placement === "bottom" ? ordered.length : 0);
 }

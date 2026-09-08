@@ -35,6 +35,7 @@ import {
   useDebouncedSave,
 } from "./components/fields";
 import { CollapsibleSection } from "./components/CollapsibleSection";
+import { DefaultTaskTypeHint } from "./components/DefaultTaskTypeHint";
 import { Icon } from "./components/Icon";
 import { ConfirmDeleteDialog } from "./components/ConfirmDeleteDialog";
 import { DeleteEntityDialog } from "./DeleteEntityDialog";
@@ -278,7 +279,12 @@ export function TaskDetailPanel({
             />
           </PropertyRow>
 
-          <PropertyRow label="Type">
+          <PropertyRow
+            label="Type"
+            labelAdornment={
+              !snapshot.workspace.defaultNewTaskType && <DefaultTaskTypeHint />
+            }
+          >
             <TypeSelect
               taxonomy={taxonomies.taskType}
               value={task.taskType}

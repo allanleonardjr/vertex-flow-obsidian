@@ -14,6 +14,8 @@ import {
 	rankForPosition,
 	sortByRank,
 } from "../../src/core/ranking/lexorank";
+import { rankForNewTask } from "../../src/core/ranking";
+import { task } from "./fixtures";
 
 describe("format", () => {
 	it("accepts the documented schema example", () => {
@@ -189,6 +191,31 @@ describe("rankForPosition", () => {
 
 	it("handles an empty destination (dragging into an empty Kanban column)", () => {
 		expect(rankForPosition([], 0)).toBe(MIDDLE_RANK);
+	});
+});
+
+describe("rankForNewTask", () => {
+	const siblings = initialRanks(3).map((rank, i) =>
+		task({ id: `TSK-${i}`, path: `W/Tasks/TSK-${i}`, rank }),
+	);
+
+	it("places a new task above every sibling at 'top'", () => {
+		const rank = rankForNewTask(siblings, "top");
+		for (const sibling of siblings) {
+			expect(compareRanks(rank, sibling.rank)).toBe(-1);
+		}
+	});
+
+	it("places a new task below every sibling at 'bottom'", () => {
+		const rank = rankForNewTask(siblings, "bottom");
+		for (const sibling of siblings) {
+			expect(compareRanks(sibling.rank, rank)).toBe(-1);
+		}
+	});
+
+	it("falls back to the middle rank with no siblings", () => {
+		expect(rankForNewTask([], "bottom")).toBe(MIDDLE_RANK);
+		expect(rankForNewTask([], "top")).toBe(MIDDLE_RANK);
 	});
 });
 

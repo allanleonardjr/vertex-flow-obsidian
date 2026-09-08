@@ -500,6 +500,11 @@ export interface WorkspaceConfig {
 	history: HistoryConfig;
 	/** Configurable independently of status category. `null` when no status is defined. */
 	defaultNewTaskStatus: string | null;
+	/** Task type new tasks start with. `null` is a valid, common choice — unlike
+	 *  status, there's no "must resolve to something" constraint here. */
+	defaultNewTaskType: string | null;
+	/** Where a brand-new task lands among its siblings. Defaults to `"top"`. */
+	newTaskPlacement: "top" | "bottom";
 	/** Cosmetic suffix only — the plugin never calculates on estimates. */
 	estimateUnitLabel: string | null;
 
