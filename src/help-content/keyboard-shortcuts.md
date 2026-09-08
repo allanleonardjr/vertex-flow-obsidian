@@ -21,13 +21,14 @@ If that destination is already open, Vertex Flow switches to its existing tab ra
 | --- | --- |
 | `g` `a` | All Tasks |
 | `g` `i` | Untriaged tasks |
-| `g` `p` | Projects |
-| `g` `d` | Dashboards |
 | `g` `v` | Views |
+| `g` `d` | Dashboards |
+| `g` `p` | Projects |
 | `g` `l` | Labels |
 | `g` `m` | People |
-| `g` `t` | Trash |
+| `g` `r` | Recurring |
 | `g` `e` | Activity History |
+| `g` `t` | Trash |
 | `g` `h` | Help |
 | `g` `s` | Settings |
 

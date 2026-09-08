@@ -8,7 +8,7 @@
   />
 </p>
 
-A keyboard-first task manager stored entirely as Markdown: projects, tasks, boards, calendars, timelines, chart dashboards, saved views, and an offline help system.
+A keyboard-first task manager stored entirely as Markdown: projects, tasks, recurring schedules, activity history logs, boards, calendars, timelines, chart dashboards, saved views, and an offline help system.
 
 Vertex Flow turns your vault into a fast, high-density project management OS — no cloud, no account, no database. Every task, project, view, and dashboard is a plain Markdown note. You own the data, always, and you can edit it with any tool that reads Markdown.
 
@@ -54,6 +54,8 @@ If Vertex Flow helps you stay organized, consider [sponsoring on GitHub ❤️](
 - **Keyboard-first tab management.** Hold `Option` (macOS) or `Alt` (Windows/Linux) and press `Tab` to cycle through open tabs with an Arc-style switcher overlay (`Shift+Tab` walks back, `Esc` cancels); jump straight to any tab with `Option`/`Alt` + `1–9` (or `0` for the last) and close the active tab with `Option`/`Alt` + `W` (`Shift` closes them all). Right-click any tab for close-other, close-to-the-right, and close-all.
 - **A density scale that fits your screen.** Choose compact, cozy, or comfortable UI spacing across the whole plugin — app-like density without giving up readability.
 - **Fast to open, painless to keep in sync.** The index reads from Obsidian's metadata cache (no slow disk scans) and resolves @mentions in a lazy background pass, so views paint immediately and edits sync automatically.
+- **Recurring Tasks:** Automate routines with recurring schedules directly in task frontmatter that automatically instantiate the next instance when marked complete.
+- **Activity History Log:** Track past completed work, status updates, and workspace activity logs preserved in plain Markdown files.
 
 
 ## Views
