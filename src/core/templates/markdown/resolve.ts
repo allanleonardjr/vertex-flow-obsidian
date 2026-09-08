@@ -173,9 +173,11 @@ function resolveArchived(
 /**
  * ParsedRepeat + the task's own resolved dates → a full RecurrenceConfig.
  * Mirrors the dialog's own `finalize()`: anchor to whichever date the task
- * has (due first, then start), and when it has neither, seed one cadence
- * step past today rather than today itself — the same fix that keeps a
- * dateless on-date task from firing on the very next reconcile.
+ * has (due first, then start), and always seed the first landing one cadence
+ * *strictly past* that anchor — the task's own date is this occurrence, not
+ * a landing the series should duplicate. With no date to anchor to, seed one
+ * cadence step past today rather than today itself — the same fix that keeps
+ * a dateless on-date task from firing on the very next reconcile.
  */
 function resolveRepeat(
 	repeat: ParsedRepeat,
@@ -202,7 +204,9 @@ function resolveRepeat(
 		copyFields: null,
 	};
 
-	if (!existing) rule.nextDate = nextOccurrence(rule, rule.nextDate);
+	// On-date only. `on-close` has no cadence and its nextDate is inert —
+	// leave the authored value untouched there.
+	if (!repeat.onClose) rule.nextDate = nextOccurrence(rule, rule.nextDate);
 
 	return rule;
 }

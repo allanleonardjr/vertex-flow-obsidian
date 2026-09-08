@@ -239,12 +239,14 @@ export function RecurrenceEditDialog({
     if (rule.trigger === "on-close") return rule;
     const existing =
       rule.anchor === "dueDate" ? task.dueDate : task.startDate;
-    // A real date on the task seeds the schedule exactly as before. With
-    // no date to anchor to, seed one cadence step past today rather than
-    // today itself — otherwise the very first occurrence fires on the
-    // next reconcile instead of waiting a full cycle.
-    const anchorDate = existing ?? nextOccurrence(rule, localTodayIso());
-    return { ...rule, nextDate: anchorDate };
+    // Seed one cadence strictly after the anchor: the task's own date is
+    // *this* occurrence, not a landing the series should duplicate — so a
+    // weekly repeat on a due-date task lands a week later, never "same
+    // day". With no date to anchor to, seed one cadence step past today
+    // rather than today itself — otherwise the very first occurrence
+    // fires on the next reconcile instead of waiting a full cycle.
+    const anchorDate = existing ?? localTodayIso();
+    return { ...rule, nextDate: nextOccurrence(rule, anchorDate) };
   };
 
   const preview = useMemo(() => {

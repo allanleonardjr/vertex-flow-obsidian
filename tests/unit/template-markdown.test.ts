@@ -384,11 +384,13 @@ describe("template markdown — repeat", () => {
 		});
 	});
 
-	it("anchors to the task's own due date when it has one", () => {
+	it("seeds the first landing one cadence past the task's own due date", () => {
 		const task = resolveTask("repeat: weekly | due: +3d");
+		// Strictly past the anchor: the due date is *this* occurrence, so the
+		// first landing is a full cadence ahead of it — not the same day.
 		expect(task.recurrence).toMatchObject({
 			anchor: "dueDate",
-			nextDate: "2026-08-29",
+			nextDate: "2026-09-05",
 		});
 	});
 
