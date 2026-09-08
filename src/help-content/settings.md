@@ -27,6 +27,9 @@ Inside a workspace, in the workspace's settings (reachable with `g` `s`):
 - **Statuses** — rename, recolor, reorder; you must keep at least one.
 - **Priorities** — an ordered list, add or remove freely.
 - **Task Types** — names and colors, no ordering.
+- **Task creation** — the **default task type** applied to new tasks (or
+  none), and whether new tasks join their siblings at the **top** or
+  **bottom** of the list.
 - **People register** — names and aliases. "You" (the **me** person) is a
    global setting in plugin Settings, so `me` / `self` filters work across
    all workspaces. See **Settings → People** to pick who "me" is.

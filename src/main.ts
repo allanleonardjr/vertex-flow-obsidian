@@ -19,6 +19,10 @@ import {
 	getMePersonId,
 	setMePersonId,
 } from "./obsidian/me-storage";
+import {
+	configureLastWorkspaceStorage,
+	getLastWorkspaceRoot,
+} from "./obsidian/last-workspace-storage";
 import { recurrenceNodesInChain } from "./core/recurrence";
 import { VertexFlowSettingTab } from "./settings/SettingTab";
 import {
@@ -51,8 +55,12 @@ export default class VertexFlowPlugin extends Plugin {
 	/**
 	 * The workspace most recently active in *any* pane this session. Used to
 	 * seed newly opened panes and to pick a workspace for Quick Capture, which
-	 * isn't tied to any specific pane. Deliberately not persisted: writing
-	 * this to settings is exactly the global-state bug we're removing.
+	 * isn't tied to any specific pane.
+	 *
+	 * Seeded at load from this device's `localStorage` (see
+	 * `last-workspace-storage.ts`) so a relaunch reopens the last workspace, and
+	 * written back there on every switch. Still never touches `data.json` — a
+	 * synced vault must not carry one machine's pointer to every other machine.
 	 */
 	lastActiveWorkspaceRoot: string | null = null;
 
@@ -71,9 +79,13 @@ export default class VertexFlowPlugin extends Plugin {
 
 		// Stable per-vault id so per-device "me" storage can't collide across two
 		// vaults opened on the same machine.
-		configureMeStorage(
-			(this.app as unknown as { appId?: string }).appId,
-		);
+		const appId = (this.app as unknown as { appId?: string }).appId;
+		configureMeStorage(appId);
+		configureLastWorkspaceStorage(appId);
+		// Reopen the workspace this device last had active. A stale value (the
+		// workspace was deleted/renamed) is harmless — `activeWorkspace()` and
+		// `useActiveWorkspace()` both fall back to the first workspace.
+		this.lastActiveWorkspaceRoot = getLastWorkspaceRoot();
 
 		this.io = new NoteIO(this.app);
 		this.index = new VaultIndex(this.app, this.io);

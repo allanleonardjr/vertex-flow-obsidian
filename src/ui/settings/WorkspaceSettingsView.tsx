@@ -13,6 +13,7 @@ import { ArchivingSection } from "./ArchivingSection";
 import { GeneralSection } from "./GeneralSection";
 import { HistorySection } from "./HistorySection";
 import { PeopleSection } from "./PeopleSection";
+import { TaskDefaultsSection } from "./TaskDefaultsSection";
 import { TaxonomySection } from "./TaxonomySection";
 
 export function WorkspaceSettingsView({ snapshot }: { snapshot: WorkspaceSnapshot }) {
@@ -66,6 +67,10 @@ export function WorkspaceSettingsView({ snapshot }: { snapshot: WorkspaceSnapsho
 					snapshot={snapshot}
 				/>
 
+				<TaskDefaultsSection
+					snapshot={snapshot}
+					id="vf-settings-task-defaults"
+				/>
 
 				<PeopleSection snapshot={snapshot} id="vf-settings-people" />
 				<ArchivingSection snapshot={snapshot} />

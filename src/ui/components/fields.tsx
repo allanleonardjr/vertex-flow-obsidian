@@ -24,14 +24,22 @@ import { LabelChip, PersonAvatar, PriorityIcon } from "./TaskBits";
 
 export function PropertyRow({
 	label,
+	labelAdornment,
 	children,
 }: {
 	label: string;
+	/** Small trailing element after the label text (e.g. a help glyph). */
+	labelAdornment?: ReactNode;
 	children: ReactNode;
 }) {
 	return (
 		<div className="vf-prop">
-			<span className="vf-prop-label">{label}</span>
+			<span
+				className={`vf-prop-label${labelAdornment ? " vf-prop-label--adorned" : ""}`}
+			>
+				{label}
+				{labelAdornment}
+			</span>
 			<div className="vf-prop-control">{children}</div>
 		</div>
 	);
@@ -454,7 +462,11 @@ export function TypeSelect(props: {
 			allowNone
 			renderOption={(entry) =>
 				entry ? (
-					<LabelChip name={entry.name} color={entry.color} />
+					<LabelChip
+						name={entry.name}
+						color={entry.color}
+						className="vf-label-chip--bordered"
+					/>
 				) : (
 					<span className="vf-icon-select-name vf-prop-empty">None</span>
 				)

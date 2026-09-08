@@ -187,6 +187,25 @@ export function parseWorkspace(
 		defaultNewTaskStatus = null;
 	}
 
+	// Unlike status, "no default type" is a legitimate steady-state — a stale
+	// or unknown id just falls back to `null` rather than forcing a pick.
+	let defaultNewTaskType = asString(fm.defaultNewTaskType) ?? null;
+	if (
+		defaultNewTaskType != null &&
+		!taskTypes.some((t) => t.id === defaultNewTaskType)
+	) {
+		log.add(
+			`defaultNewTaskType "${defaultNewTaskType}" is not a configured task type; clearing it.`,
+		);
+		defaultNewTaskType = null;
+	}
+
+	// Anything other than exactly "bottom" reads as "top" — the historical,
+	// hardcoded behavior — so older `_workspace.md` notes with no opinion here
+	// see no change.
+	const newTaskPlacement: "top" | "bottom" =
+		asString(fm.newTaskPlacement) === "bottom" ? "bottom" : "top";
+
 	const workspace: WorkspaceConfig = {
 		type: "workspace",
 		name,
@@ -201,6 +220,8 @@ export function parseWorkspace(
 			enabled: asBoolean(history.enabled, false),
 		},
 		defaultNewTaskStatus,
+		defaultNewTaskType,
+		newTaskPlacement,
 		estimateUnitLabel: asString(fm.estimateUnitLabel),
 		deletedAt: asDateTime(fm.deletedAt),
 		statuses,
@@ -230,6 +251,8 @@ export function serializeWorkspace(
 			enabled: workspace.history.enabled,
 		},
 		defaultNewTaskStatus: workspace.defaultNewTaskStatus,
+		defaultNewTaskType: workspace.defaultNewTaskType,
+		newTaskPlacement: workspace.newTaskPlacement,
 		estimateUnitLabel: workspace.estimateUnitLabel,
 		deletedAt: workspace.deletedAt,
 		statuses: workspace.statuses.map((value) =>
@@ -292,6 +315,8 @@ export function createWorkspaceConfig(
 		archiving: { autoArchiveEnabled: false, autoArchiveDays: 30 },
 		history: { enabled: false },
 		defaultNewTaskStatus: DEFAULT_NEW_TASK_STATUS,
+		defaultNewTaskType: null,
+		newTaskPlacement: "top",
 		estimateUnitLabel: null,
 		deletedAt: null,
 		statuses: DEFAULT_STATUSES.map((value) => ({ ...value })),

@@ -14,8 +14,10 @@ import {
 	nextCommentId,
 	parseComments,
 	parseProject,
+	parseRecurrence,
 	parseTask,
 	parseView,
+	serializeRecurrence,
 	parseViews,
 	parseWorkspace,
 	resolveMentions,
@@ -29,8 +31,9 @@ import {
 	withComments,
 	withProjectDescription,
 } from "../../src/core/serialization";
+import { IssueLog } from "../../src/core/serialization/coerce";
 import { MIDDLE_RANK } from "../../src/core/ranking/lexorank";
-import type { Person, WorkspaceConfig } from "../../src/core/types";
+import type { Comment, Person, WorkspaceConfig } from "../../src/core/types";
 
 const opts = { path: "W/Tasks/PRD-0104", defaultStatus: "queue" };
 
@@ -175,6 +178,54 @@ describe("serializeTask", () => {
 		const fm = serializeTask(parseTask(SPEC_TASK, opts).value);
 		expect(fm).not.toHaveProperty("path");
 		expect(fm).not.toHaveProperty("mentions");
+	});
+});
+
+describe("parseRecurrence / serializeRecurrence — on-close date modes", () => {
+	const base = {
+		freq: "weekly",
+		trigger: "on-close",
+		nextDate: "2026-09-01",
+	};
+
+	it("round-trips a valid mode on each field", () => {
+		const log = new IssueLog();
+		const rule = parseRecurrence(
+			{ ...base, onCloseStartDateMode: "shifted", onCloseDueDateMode: "immediate" },
+			log,
+			[],
+		);
+		expect(rule?.onCloseStartDateMode).toBe("shifted");
+		expect(rule?.onCloseDueDateMode).toBe("immediate");
+		expect(log.issues).toEqual([]);
+
+		const fm = serializeRecurrence(rule!);
+		expect(fm.onCloseStartDateMode).toBe("shifted");
+		expect(fm.onCloseDueDateMode).toBe("immediate");
+		expect(parseRecurrence(fm, new IssueLog(), [])?.onCloseStartDateMode).toBe(
+			"shifted",
+		);
+	});
+
+	it("drops an invalid mode string with a logged issue", () => {
+		const log = new IssueLog();
+		const rule = parseRecurrence(
+			{ ...base, onCloseStartDateMode: "whenever" },
+			log,
+			[],
+		);
+		expect(rule?.onCloseStartDateMode).toBeUndefined();
+		expect(log.issues.some((i) => i.includes("onCloseStartDateMode"))).toBe(true);
+	});
+
+	it("keeps an absent key as undefined — no implicit default at this layer", () => {
+		const rule = parseRecurrence(base, new IssueLog(), []);
+		expect(rule?.onCloseStartDateMode).toBeUndefined();
+		expect(rule?.onCloseDueDateMode).toBeUndefined();
+		// And serialization writes neither key back.
+		const fm = serializeRecurrence(rule!);
+		expect(fm).not.toHaveProperty("onCloseStartDateMode");
+		expect(fm).not.toHaveProperty("onCloseDueDateMode");
 	});
 });
 
@@ -480,7 +531,7 @@ ${COMMENTS_END}
 		const comments = parseComments(BODY);
 		const updated = withComments(BODY, [
 			...comments,
-			{ id: "cmt_03", author: "bob", date: "2026-08-27T00:00:00Z", body: "On it.", reactions: {} },
+			{ id: "cmt_03", author: "bob", date: "2026-08-27T00:00:00Z", body: "On it.", reactions: {}, editedAt: null, replyTo: null },
 		]);
 		expect(updated).toContain("## Description\nSomething broke.");
 		expect(parseComments(updated)).toHaveLength(3);
@@ -494,7 +545,7 @@ ${COMMENTS_END}
 
 	it("adds a comment block to a note that never had one", () => {
 		const updated = withComments("Some prose.\n", [
-			{ id: "cmt_01", author: "alice", date: "2026-01-01T00:00:00Z", body: "Hi", reactions: {} },
+			{ id: "cmt_01", author: "alice", date: "2026-01-01T00:00:00Z", body: "Hi", reactions: {}, editedAt: null, replyTo: null },
 		]);
 		expect(parseComments(updated)).toHaveLength(1);
 		expect(updated).toContain("Some prose.");
@@ -502,7 +553,7 @@ ${COMMENTS_END}
 
 	it("drops reactions with no count and keeps emoji intact", () => {
 		const block = serializeComments([
-			{ id: "cmt_01", author: "a", date: "d", body: "b", reactions: { "👍": 2, "🎉": 0 } },
+			{ id: "cmt_01", author: "a", date: "d", body: "b", reactions: { "👍": 2, "🎉": 0 }, editedAt: null, replyTo: null },
 		]);
 		expect(parseComments(block)[0].reactions).toEqual({ "👍": 2 });
 	});
@@ -527,6 +578,37 @@ ${COMMENTS_END}`;
 
 	it("returns an empty tally for a note with no comment block", () => {
 		expect(commentCountsInBody("Just prose.")).toEqual({});
+	});
+
+	it("round-trips a comment with editedAt and replyTo set", () => {
+		const comments: Comment[] = [
+			{
+				id: "cmt_01",
+				author: "alice",
+				date: "2026-01-01T00:00:00Z",
+				body: "First",
+				reactions: {},
+				editedAt: null,
+				replyTo: null,
+			},
+			{
+				id: "cmt_02",
+				author: "bob",
+				date: "2026-01-02T00:00:00Z",
+				body: "A reply, later fixed",
+				reactions: { "👍": 1 },
+				editedAt: "2026-01-03T00:00:00Z",
+				replyTo: "cmt_01",
+			},
+		];
+		expect(parseComments(serializeComments(comments))).toEqual(comments);
+	});
+
+	it("parses pre-existing comments (no edited/reply attrs) as null", () => {
+		for (const comment of parseComments(BODY)) {
+			expect(comment.editedAt).toBeNull();
+			expect(comment.replyTo).toBeNull();
+		}
 	});
 });
 
@@ -624,6 +706,8 @@ describe("parseWorkspace", () => {
 			archiving: { autoArchiveEnabled: false, autoArchiveDays: 30 },
 			history: { enabled: false },
 			defaultNewTaskStatus: "queue",
+			defaultNewTaskType: null,
+			newTaskPlacement: "top",
 			estimateUnitLabel: null,
 			deletedAt: null,
 			statuses: [],
@@ -669,6 +753,51 @@ describe("parseWorkspace", () => {
 		);
 		expect(value.defaultNewTaskStatus).toBe("a");
 		expect(issues.some((i) => /not a configured status/.test(i))).toBe(true);
+	});
+
+	it("round-trips defaultNewTaskType and newTaskPlacement", () => {
+		const first = parseWorkspace(
+			{
+				name: "W",
+				idPrefix: "WWW",
+				taskTypes: [{ id: "bug", name: "Bug", color: "#000" }],
+				defaultNewTaskType: "bug",
+				newTaskPlacement: "bottom",
+			},
+			{ path },
+		).value;
+		expect(first.defaultNewTaskType).toBe("bug");
+		expect(first.newTaskPlacement).toBe("bottom");
+		const second = parseWorkspace(serializeWorkspace(first), { path }).value;
+		expect(second).toEqual(first);
+	});
+
+	it("defaults defaultNewTaskType to null and newTaskPlacement to 'top'", () => {
+		const { value } = parseWorkspace({ name: "W" }, { path });
+		expect(value.defaultNewTaskType).toBeNull();
+		expect(value.newTaskPlacement).toBe("top");
+	});
+
+	it("clears defaultNewTaskType when it names a task type that doesn't exist", () => {
+		const { value, issues } = parseWorkspace(
+			{
+				taskTypes: [{ id: "bug", name: "Bug", color: "#000" }],
+				defaultNewTaskType: "ghost",
+			},
+			{ path },
+		);
+		expect(value.defaultNewTaskType).toBeNull();
+		expect(issues.some((i) => /not a configured task type/.test(i))).toBe(true);
+	});
+
+	it("reads any non-'bottom' newTaskPlacement as 'top'", () => {
+		expect(
+			parseWorkspace({ name: "W", newTaskPlacement: "sideways" }, { path }).value
+				.newTaskPlacement,
+		).toBe("top");
+		expect(
+			parseWorkspace({ name: "W" }, { path }).value.newTaskPlacement,
+		).toBe("top");
 	});
 
 	it("round-trips through serialize", () => {

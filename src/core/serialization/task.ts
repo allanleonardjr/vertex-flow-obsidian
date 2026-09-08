@@ -10,6 +10,7 @@ import { basename, formatLink, formatLinkList, parseLink, parseLinkList } from "
 import { MIDDLE_RANK, isValidRank } from "../ranking/lexorank";
 import {
   emptyRelations,
+  type OnCloseDateMode,
   type RecurrenceAnchor,
   type RecurrenceConfig,
   type RecurrenceFrequency,
@@ -184,6 +185,25 @@ export function parseRecurrence(
 		log.add(`Recurrence anchor "${anchorRaw}" is invalid; defaulting to dueDate.`);
 	}
 
+	const parseOnCloseMode = (
+		value: unknown,
+		label: string,
+	): OnCloseDateMode | undefined => {
+		const raw = asString(value);
+		if (raw == null) return undefined;
+		if (raw === "none" || raw === "immediate" || raw === "shifted") return raw;
+		log.add(`Recurrence ${label} "${raw}" is invalid; ignoring it.`);
+		return undefined;
+	};
+	const onCloseStartDateMode = parseOnCloseMode(
+		record.onCloseStartDateMode,
+		"onCloseStartDateMode",
+	);
+	const onCloseDueDateMode = parseOnCloseMode(
+		record.onCloseDueDateMode,
+		"onCloseDueDateMode",
+	);
+
 const dayOfMonth = clampInt(record.dayOfMonth, 1, 31, log, "dayOfMonth");
  	let weekdayOfMonth = clampInt(record.weekdayOfMonth, 1, 5, log, "weekdayOfMonth");
  	if (dayOfMonth != null && weekdayOfMonth != null) {
@@ -209,6 +229,8 @@ const dayOfMonth = clampInt(record.dayOfMonth, 1, 31, log, "dayOfMonth");
  		weekdayOfMonth,
  		monthOfYear,
  		anchor,
+		onCloseStartDateMode,
+		onCloseDueDateMode,
  		newStatus,
  		endsAfter,
  		endsOn: asDate(record.endsOn),
@@ -229,6 +251,8 @@ export function serializeRecurrence(rule: RecurrenceConfig): Record<string, unkn
 		weekdayOfMonth: rule.weekdayOfMonth,
 		monthOfYear: rule.monthOfYear,
 		anchor: rule.anchor,
+		onCloseStartDateMode: rule.onCloseStartDateMode,
+		onCloseDueDateMode: rule.onCloseDueDateMode,
 		newStatus: rule.newStatus,
 		endsAfter: rule.endsAfter,
 		endsOn: rule.endsOn,

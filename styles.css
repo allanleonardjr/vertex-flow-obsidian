@@ -1411,9 +1411,15 @@ button.vf-icon-select-trigger:hover {
   font-size: 10px;
 }
 
-.vf-comment header .vf-icon-button {
-  opacity: 1;
+.vf-comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   margin-left: auto;
+}
+
+.vf-comment-actions .vf-icon-button {
+  opacity: 1;
 }
 
 .vf-label-editor-row:hover .vf-icon-button {
@@ -2822,7 +2828,7 @@ button.vf-editor-rail-delete {
 
 .vf-editor-title {
   width: 100%;
-  padding: 0;
+  padding: 6px 8px;
   border: none;
   background: transparent;
   box-shadow: none;
@@ -2971,6 +2977,7 @@ button.vf-editor-rail-delete {
 
 .vf-comment-body {
   line-height: 1.5;
+  user-select: text;
 }
 
 .vf-comment-body :is(.markdown-rendered) > :first-child {
@@ -3033,6 +3040,64 @@ button.vf-editor-rail-delete {
 .vf-prop-empty {
   color: var(--vf-muted);
   font-style: italic;
+}
+
+/* A property label carrying a trailing affordance (e.g. the "no default task
+   type" hint right after "Type"): keep the glyph on the label's baseline. */
+.vf-prop-label--adorned {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding-top: 3px;
+}
+
+/* A labelled settings row whose control isn't a plain <input>/<select> (the
+   Default task type picker). Kept off `.vf-field` on purpose — that class's
+   broad descendant `span` rule would rewrite the ported TypeSelect's inner
+   spans. */
+.vf-settings-row {
+  margin-bottom: 12px;
+}
+
+.vf-settings-row-label {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+/* A taxonomy menu-select standing in for a native <select> on the settings
+   screen — don't let it stretch the full pane width. */
+.vf-settings-select {
+  max-width: 260px;
+}
+
+/* Explanatory panel with a follow-up link (DefaultTaskTypeHint). Portaled to
+   <body> and fixed-positioned by the component, so it carries its own chrome
+   rather than borrowing `.vf-popover`'s. */
+.vf-hint-popover {
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-primary);
+  box-shadow: 0 10px 28px rgb(0 0 0 / 28%);
+}
+
+.vf-hint-popover p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--vf-muted);
+}
+
+.vf-hint-popover button.vf-link-button {
+  align-self: flex-start;
+  padding: 2px 0;
+  font-size: 12px;
+  text-align: left;
 }
 
 .vf-label-picker {
@@ -3117,6 +3182,61 @@ button.vf-chip-button.is-on {
 .vf-comment-date {
   color: var(--vf-muted);
   font-size: 11px;
+}
+
+.vf-comment-reply-ref {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 6px;
+  padding: 4px 8px;
+  border-radius: var(--vf-radius);
+  background: var(--background-primary);
+  color: var(--vf-muted);
+  font-size: 11px;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.vf-comment-reply-ref:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.vf-comment-reply-ref.is-deleted {
+  cursor: default;
+  font-style: italic;
+}
+
+.vf-comment-reply-ref.is-deleted:hover {
+  background: var(--background-primary);
+  color: var(--vf-muted);
+}
+
+.vf-comment-replying-to {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 10px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-secondary);
+  color: var(--vf-muted);
+  font-size: 12px;
+}
+
+.vf-comment-replying-to .vf-icon-button {
+  margin-left: auto;
+}
+
+.vf-comment-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
 }
 
 .vf-reactions {
@@ -3425,6 +3545,11 @@ input.vf-editable-title-input {
   font-size: var(--font-ui-medium);
   font-weight: 600;
   cursor: text;
+}
+
+.vf-editable-title-input:focus {
+  padding: 6px 8px;
+  margin: -6px -8px; /* Offsets the expanded padding so container dimensions stay fixed */
 }
 
 .vf-editable-title-input::placeholder {

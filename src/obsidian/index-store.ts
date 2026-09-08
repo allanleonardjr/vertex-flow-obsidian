@@ -343,6 +343,11 @@ export class VaultIndex {
 				// lingers and the next rebuild retries (writing nothing new).
 				console.error(`[vertex-flow] config-note migration failed for "${root}"`, err);
 			}
+			try {
+				if (await this.migrateOnCloseDateModes(root)) migrated = true;
+			} catch (err) {
+				console.error(`[vertex-flow] on-close date-mode migration failed for "${root}"`, err);
+			}
 		}
 		if (migrated) files = this.app.vault.getMarkdownFiles();
 
@@ -562,6 +567,40 @@ export class VaultIndex {
 		// reads as obviously inert to anyone browsing the vault.
 		await this.io.rename(file, `${notePath}.legacy`);
 		return true;
+	}
+
+	/**
+	 * Backfill `onCloseStartDateMode`/`onCloseDueDateMode` onto every live
+	 * on-close recurrence written before those fields existed. Written
+	 * explicitly to frontmatter (never inferred at read time) so a vault's
+	 * on-disk state stays the single source of truth: reopening a note in a
+	 * plain text editor shows the same schedule the app is running. Idempotent
+	 * — a note that already has both keys is left untouched — safe on every
+	 * `rebuild()`.
+	 */
+	private async migrateOnCloseDateModes(root: string): Promise<boolean> {
+		let did = false;
+		for (const file of this.io.listFiles(joinPath(root, FOLDERS.tasks))) {
+			const frontmatter = this.io.readFrontmatter(file);
+			const recurrence = frontmatter?.recurrence as
+				| Record<string, unknown>
+				| undefined;
+			if (!recurrence || recurrence.trigger !== "on-close") continue;
+			if (
+				recurrence.onCloseStartDateMode != null &&
+				recurrence.onCloseDueDateMode != null
+			) {
+				continue;
+			}
+			await this.io.updateFrontmatter(file, (fm) => {
+				const rec = fm.recurrence as Record<string, unknown> | undefined;
+				if (!rec) return;
+				rec.onCloseStartDateMode ??= "immediate";
+				rec.onCloseDueDateMode ??= "immediate";
+			});
+			did = true;
+		}
+		return did;
 	}
 
 	/**

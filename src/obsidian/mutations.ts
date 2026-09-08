@@ -175,8 +175,9 @@ export class Mutations {
     const path = joinPath(workspace.root, FOLDERS.tasks, id);
     const now = new Date().toISOString();
 
-    // New tasks land at the top of whatever they're joining, so the person
-    // who just created one can actually see it.
+    // New tasks land at whichever end of their siblings the workspace
+    // prefers (`newTaskPlacement`) — "top" by default, so the person who
+    // just created one can actually see it.
     const parentTask = input.parent
       ? (snapshot.tasks.find((task) => task.path === input.parent) ?? null)
       : null;
@@ -194,10 +195,10 @@ export class Mutations {
       type: "task",
       id,
       title: (input.title ?? "").trim(),
-      taskType: input.taskType ?? null,
+      taskType: input.taskType ?? workspace.defaultNewTaskType,
       status: input.status ?? workspace.defaultNewTaskStatus,
       priority: input.priority ?? null,
-      rank: rankForNewTask(siblings),
+      rank: rankForNewTask(siblings, workspace.newTaskPlacement),
       project,
       parent: input.parent ?? null,
       recurringFrom: null,
@@ -380,7 +381,7 @@ private async spawnOccurrences(
     const sourceIndex = siblings.findIndex((task) => task.path === source.path);
     let rank =
       sourceIndex === -1
-        ? rankForNewTask(siblings)
+        ? rankForNewTask(siblings, workspace.newTaskPlacement)
         : rankForPosition(within, sourceIndex + 1);
 
     const rule = source.recurrence;
@@ -680,7 +681,12 @@ private async spawnOccurrences(
 
   // -- Comments -------------------------------------------------------------
 
-  async addComment(task: Task, author: string, body: string): Promise<void> {
+  async addComment(
+    task: Task,
+    author: string,
+    body: string,
+    replyTo: string | null = null,
+  ): Promise<void> {
     const file = this.requireFile(task.path);
     await this.io.processBody(file, (content) => {
       const comments = parseComments(content);
@@ -690,6 +696,8 @@ private async spawnOccurrences(
         date: new Date().toISOString(),
         body: body.trim(),
         reactions: {},
+        editedAt: null,
+        replyTo,
       };
       return withComments(content, [...comments, comment]);
     });
@@ -698,11 +706,44 @@ private async spawnOccurrences(
     const workspace = this.index.workspaceFor(task.path)?.workspace;
     if (workspace) {
       this.history.record(workspace, {
-        action: "comment.add",
+        // A reply is its own verb in the feed — same reasoning as
+        // `toggleReaction` using `comment.update` rather than `comment.add`.
+        action: replyTo ? "comment.reply" : "comment.add",
         targets: [this.taskTarget(task)],
         // No id captured here — the comment's id is minted inside the body
         // transform above. The entry records the event, not the id.
         changes: [{ field: "comment" }],
+      });
+    }
+  }
+
+  /**
+   * Edit one comment's body in place, stamping `editedAt`. Modeled on
+   * `toggleReaction`'s map-and-replace shape. Like `addComment`, a body change
+   * bumps the task's `updatedAt`. No author restriction — matches the
+   * unrestricted delete.
+   */
+  async editComment(task: Task, commentId: string, body: string): Promise<void> {
+    const file = this.requireFile(task.path);
+    await this.io.processBody(file, (content) => {
+      const comments = parseComments(content).map((comment) => {
+        if (comment.id !== commentId) return comment;
+        return {
+          ...comment,
+          body: body.trim(),
+          editedAt: new Date().toISOString(),
+        };
+      });
+      return withComments(content, comments);
+    });
+    await this.updateTask(task, {});
+
+    const workspace = this.index.workspaceFor(task.path)?.workspace;
+    if (workspace) {
+      this.history.record(workspace, {
+        action: "comment.edit",
+        targets: [this.taskTarget(task)],
+        changes: [{ field: "comment", to: commentId }],
       });
     }
   }

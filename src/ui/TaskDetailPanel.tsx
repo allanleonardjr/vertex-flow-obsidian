@@ -35,6 +35,7 @@ import {
   useDebouncedSave,
 } from "./components/fields";
 import { CollapsibleSection } from "./components/CollapsibleSection";
+import { DefaultTaskTypeHint } from "./components/DefaultTaskTypeHint";
 import { Icon } from "./components/Icon";
 import { ConfirmDeleteDialog } from "./components/ConfirmDeleteDialog";
 import { DeleteEntityDialog } from "./DeleteEntityDialog";
@@ -278,7 +279,12 @@ export function TaskDetailPanel({
             />
           </PropertyRow>
 
-          <PropertyRow label="Type">
+          <PropertyRow
+            label="Type"
+            labelAdornment={
+              !snapshot.workspace.defaultNewTaskType && <DefaultTaskTypeHint />
+            }
+          >
             <TypeSelect
               taxonomy={taxonomies.taskType}
               value={task.taskType}
@@ -786,6 +792,16 @@ function CommentList({
   const plugin = usePlugin();
   const [draft, setDraft] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState("");
+  const [replyingTo, setReplyingTo] = useState<Comment | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  // Scopes DOM lookups (jump-to-parent, scroll-to-composer) to this task's own
+  // comment list — plain `document.getElementById` would resolve to whichever
+  // task's comments render first in the DOM if more than one task tab is open,
+  // since comment ids ("cmt_01", "cmt_02"...) are only unique per task.
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const composerRef = useRef<HTMLDivElement | null>(null);
   // The task's own workspace roster — not `plugin.activeWorkspace()`, which is
   // the last-touched pane and can differ from the task being commented on.
   const mePersonId = useMePersonId(snapshot.workspace.root);
@@ -801,8 +817,20 @@ function CommentList({
 
   const deletingComment = comments.find((c) => c.id === deletingId);
 
+  // Clicking Reply on a comment far down the list otherwise looks like
+  // nothing happened — the composer (and the "Replying to" strip) live at the
+  // top of the list, off-screen. Bring them into view instead of leaving the
+  // user to scroll up themselves.
+  useEffect(() => {
+    if (!replyingTo) return;
+    composerRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+  }, [replyingTo]);
+
   return (
-    <div className="vf-comments">
+    <div className="vf-comments" ref={containerRef}>
       {deletingComment && (
         <ConfirmDeleteDialog
           title="Delete comment?"
@@ -817,51 +845,177 @@ function CommentList({
         />
       )}
 
-      <CommentDraftField
-        placeholder={
-          self
-            ? `Comment as ${self.name}… (@mention to notify)`
-            : "Add a comment…"
-        }
-        value={draft}
-        onChange={setDraft}
-        sourcePath={withExtension(task.path)}
-      />
-      <button
-        type="button"
-        className="mod-cta"
-        disabled={!draft.trim()}
-        onClick={() =>
-          void plugin.mutations
-            .addComment(task, self?.id ?? "me", draft)
-            .then(() => {
-              setDraft("");
-              return reload();
-            })
-        }
-      >
-        Comment
-      </button>
-
-      {comments.map((comment) => (
-        <article key={comment.id} className="vf-comment">
-          <header>
-            <strong>{comment.author}</strong>
-            <span className="vf-comment-date">{comment.date.slice(0, 10)}</span>
+      <div ref={composerRef}>
+        {replyingTo && (
+          <div className="vf-comment-replying-to">
+            <span className="vf-comment-replying-to-text">
+              Replying to <strong>{replyingTo.author}</strong>:{" "}
+              {replyingTo.body.slice(0, 100)}
+            </span>
             <button
               type="button"
               className="vf-icon-button"
-              title="Delete comment"
-              onClick={() => setDeletingId(comment.id)}
+              title="Cancel reply"
+              onClick={() => setReplyingTo(null)}
             >
-              ✕
+              <Icon id="x" size={12} />
             </button>
+          </div>
+        )}
+
+        <CommentDraftField
+          placeholder={
+            self
+              ? `Comment as ${self.name}… (@mention to notify)`
+              : "Add a comment…"
+          }
+          value={draft}
+          onChange={setDraft}
+          sourcePath={withExtension(task.path)}
+        />
+        <button
+          type="button"
+          className="mod-cta"
+          disabled={!draft.trim()}
+          onClick={() =>
+            void plugin.mutations
+              .addComment(task, self?.id ?? "me", draft, replyingTo?.id ?? null)
+              .then(() => {
+                setDraft("");
+                setReplyingTo(null);
+                return reload();
+              })
+          }
+        >
+          Comment
+        </button>
+      </div>
+
+      {comments.map((comment) => (
+        <article
+          key={comment.id}
+          id={`vf-comment-${comment.id}`}
+          className="vf-comment"
+        >
+          {comment.replyTo &&
+            (() => {
+              const parent = comments.find((c) => c.id === comment.replyTo);
+              return parent ? (
+                <button
+                  type="button"
+                  className="vf-comment-reply-ref"
+                  onClick={() =>
+                    containerRef.current
+                      ?.querySelector<HTMLElement>(
+                        `#vf-comment-${CSS.escape(parent.id)}`,
+                      )
+                      ?.scrollIntoView({ behavior: "smooth", block: "center" })
+                  }
+                >
+                  ↳ replying to {parent.author}: {parent.body.slice(0, 60)}
+                </button>
+              ) : (
+                <span className="vf-comment-reply-ref is-deleted">
+                  ↳ replying to a deleted comment
+                </span>
+              );
+            })()}
+          <header>
+            <strong>{comment.author}</strong>
+            <span className="vf-comment-date">
+              {comment.date.slice(0, 10)}
+              {comment.editedAt ? " · edited" : ""}
+            </span>
+
+            <div className="vf-comment-actions">
+              <button
+                type="button"
+                className="vf-icon-button"
+                aria-label="Reply"
+                onClick={() => setReplyingTo(comment)}
+              >
+                <Icon id="reply" size={13} />
+              </button>
+
+              <button
+                type="button"
+                className="vf-icon-button"
+                aria-label="Copy comment"
+                onClick={() => {
+                  void navigator.clipboard.writeText(comment.body).then(() => {
+                    setCopiedId(comment.id);
+                    setTimeout(
+                      () =>
+                        setCopiedId((id) => (id === comment.id ? null : id)),
+                      1500,
+                    );
+                  });
+                }}
+              >
+                <Icon
+                  id={copiedId === comment.id ? "check" : "copy"}
+                  size={13}
+                />
+              </button>
+
+              <button
+                type="button"
+                className="vf-icon-button"
+                aria-label="Edit comment"
+                onClick={() => {
+                  setEditingId(comment.id);
+                  setEditDraft(comment.body);
+                }}
+              >
+                <Icon id="pencil" size={13} />
+              </button>
+
+              <button
+                type="button"
+                className="vf-icon-button"
+                aria-label="Delete comment"
+                onClick={() => setDeletingId(comment.id)}
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
           </header>
-          <MarkdownContent
-            className="vf-comment-body"
-            text={comment.body}
-            sourcePath={withExtension(task.path)}
-          />
+          {editingId === comment.id ? (
+            <>
+              <MarkdownField
+                className="vf-comment-edit"
+                value={editDraft}
+                onChange={setEditDraft}
+                sourcePath={withExtension(task.path)}
+              />
+              <div className="vf-comment-edit-actions">
+                <button type="button" onClick={() => setEditingId(null)}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="mod-cta"
+                  disabled={!editDraft.trim()}
+                  onClick={() =>
+                    void plugin.mutations
+                      .editComment(task, comment.id, editDraft)
+                      .then(() => {
+                        setEditingId(null);
+                        return reload();
+                      })
+                  }
+                >
+                  Save
+                </button>
+              </div>
+            </>
+          ) : (
+            <MarkdownContent
+              className="vf-comment-body"
+              text={comment.body}
+              sourcePath={withExtension(task.path)}
+            />
+          )}
           {Object.entries(comment.reactions).length > 0 && (
             <div className="vf-reactions">
               {Object.entries(comment.reactions).map(([emoji, count]) => (
