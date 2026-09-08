@@ -5,6 +5,8 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.13 — 2026-09-07
+
 ### Fixed
 - **A weekly repeat no longer lands the next occurrence on the same day.** Setting up an on-date repeat on a task that carries a due (or start) date seeded the schedule's `nextDate` to the task's *own* anchor date — the day this task already occupies — so the Repeat dialog's preview showed the same day as the next landing, and once that date arrived the reconcile engine spawned an exact duplicate beside the source note. New recurrences now seed one full cadence **strictly past** the anchor (a weekly repeat on a task due today lands next week), matching the engine's "next cadence point strictly after" rule and the existing dateless-task behavior. The same fix applies to `repeat:` authored in a markdown workspace template, which mirrors the dialog's seeding logic.
 
