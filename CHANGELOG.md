@@ -5,14 +5,15 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
-## Added
+### Added
 -   Added the `g r` chord for Recurring, to the quick help.
 -   Added in-app Help documentation for Recurring Tasks and Activity History, with links from the README.
 
-## Changed
+### Changed
 -   Updated the docs to reflect correct sidebar order. 
+-   **Task Type now shows on List rows, not just Board cards.** The "Type" field toggle previously did nothing in a List view; it now renders the Task Type as a bordered, bold pill in the row's trailing meta cluster (just before Priority), and toggling "Type" off in a Saved View hides it from both Board cards and List rows. Labels are unchanged — still plain tinted pills.
 
-## Fixed
+### Fixed
 -   Collapsing a group in the List view works again — a 1.0.11 regression had left it dead on the Project detail view and the label / person views. Project task lists now persist group collapse to the Project note's `view:` block; label and person views keep it for the session.
 
 

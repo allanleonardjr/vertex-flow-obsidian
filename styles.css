@@ -1312,6 +1312,14 @@ button.vf-icon-select-trigger:hover {
   white-space: nowrap;
 }
 
+/* Task Type: same pill, bordered + bold to stand apart from Labels. Border
+   uses currentColor so it automatically matches the inline `color` LabelChip
+   already sets per taxonomy value — no extra color plumbing needed. */
+.vf-label-chip--bordered {
+  border: 1px solid currentColor;
+  font-weight: 600;
+}
+
 .vf-label-chip-name {
   overflow: hidden;
   text-overflow: ellipsis;

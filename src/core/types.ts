@@ -622,8 +622,8 @@ export interface ViewCalendarState {
  * Task fields a Saved View can hide from its rows/cards.
  *
  * Status icon, Task ID and Task title are mandatory and never members here.
- * `type` only renders on Board cards; other layouts ignore an entry they can't
- * show. Order is canonical — `canonicalizeHiddenFields` sorts into it.
+ * `type` renders on Board cards and List rows; other layouts ignore an entry
+ * they can't show. Order is canonical — `canonicalizeHiddenFields` sorts into it.
  *
  * The list stores what's *hidden*, so a view written before a field existed
  * keeps working — but it also means a newly added field switches itself on

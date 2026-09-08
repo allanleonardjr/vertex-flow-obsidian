@@ -131,7 +131,19 @@ export function TaxonomyChip({
     );
   }
 
-  // Render Labels & Task Types as tinted pills
+  // Task Type: same tinted pill as a Label, but bordered + bold so it reads
+  // as a classifier rather than a freeform tag.
+  if (kind === "taskType") {
+    return (
+      <LabelChip
+        name={item.name}
+        color={item.color}
+        className="vf-label-chip--bordered"
+      />
+    );
+  }
+
+  // Render Labels as tinted pills
   return <LabelChip name={item.name} color={item.color} />;
 }
 
