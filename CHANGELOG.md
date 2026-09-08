@@ -6,6 +6,7 @@ This project uses [Semantic Versioning](https://semver.org/).
 ## Unreleased
 
 ### Added
+-   Added a Changelog page to the in-app Help system, generated directly from this file, so release notes are visible without leaving Obsidian.
 -   Added the `g r` chord for Recurring, to the quick help.
 -   Added in-app Help documentation for Recurring Tasks and Activity History, with links from the README.
 
@@ -15,6 +16,7 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 -   Collapsing a group in the List view works again — a 1.0.11 regression had left it dead on the Project detail view and the label / person views. Project task lists now persist group collapse to the Project note's `view:` block; label and person views keep it for the session.
+-   **Board card labels no longer overflow the card.** `.vf-labels` had no `flex-wrap`, so a task with several labels laid them out in one unbroken row whose minimum width could exceed the fixed column width, spilling past the card edge with nothing clipping the overflow. Labels on Board cards now wrap onto additional lines; List row label rendering (single-line, clipped) is unchanged.
 
 
 ## 1.0.11 — 2026-09-07
