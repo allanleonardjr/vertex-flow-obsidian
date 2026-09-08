@@ -5,6 +5,8 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.12 — 2026-09-07
+
 ### Added
 -   Added a Changelog page to the in-app Help system, generated directly from this file, so release notes are visible without leaving Obsidian.
 -   Added the `g r` chord for Recurring, to the quick help.
