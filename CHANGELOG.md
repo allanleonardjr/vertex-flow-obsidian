@@ -9,6 +9,7 @@ This project uses [Semantic Versioning](https://semver.org/).
 -   Added a Changelog page to the in-app Help system, generated directly from this file, so release notes are visible without leaving Obsidian.
 -   Added the `g r` chord for Recurring, to the quick help.
 -   Added in-app Help documentation for Recurring Tasks and Activity History, with links from the README.
+-   Added the ability to press [Esc] button to clear all selections.
 
 ### Changed
 -   Updated the docs to reflect correct sidebar order. 
