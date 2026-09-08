@@ -544,6 +544,9 @@ export function resolveTemplateContent(
 					// Reactions aren't part of the template format — nothing authors
 					// them and nothing in the app would round-trip them from here.
 					reactions: {},
+					// Same for edit stamps and reply references.
+					editedAt: null,
+					replyTo: null,
 				})),
 			);
 		}

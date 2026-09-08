@@ -345,6 +345,10 @@ export interface Comment {
 	body: string;
 	/** Emoji → count, e.g. `{ "👍": 2 }`. */
 	reactions: Record<string, number>;
+	/** Set when the comment has been edited since it was posted. */
+	editedAt: IsoDate | null;
+	/** The id of the comment this one is replying to, or null. */
+	replyTo: string | null;
 }
 
 /**

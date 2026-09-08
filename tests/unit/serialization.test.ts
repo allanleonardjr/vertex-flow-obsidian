@@ -33,7 +33,7 @@ import {
 } from "../../src/core/serialization";
 import { IssueLog } from "../../src/core/serialization/coerce";
 import { MIDDLE_RANK } from "../../src/core/ranking/lexorank";
-import type { Person, WorkspaceConfig } from "../../src/core/types";
+import type { Comment, Person, WorkspaceConfig } from "../../src/core/types";
 
 const opts = { path: "W/Tasks/PRD-0104", defaultStatus: "queue" };
 
@@ -531,7 +531,7 @@ ${COMMENTS_END}
 		const comments = parseComments(BODY);
 		const updated = withComments(BODY, [
 			...comments,
-			{ id: "cmt_03", author: "bob", date: "2026-08-27T00:00:00Z", body: "On it.", reactions: {} },
+			{ id: "cmt_03", author: "bob", date: "2026-08-27T00:00:00Z", body: "On it.", reactions: {}, editedAt: null, replyTo: null },
 		]);
 		expect(updated).toContain("## Description\nSomething broke.");
 		expect(parseComments(updated)).toHaveLength(3);
@@ -545,7 +545,7 @@ ${COMMENTS_END}
 
 	it("adds a comment block to a note that never had one", () => {
 		const updated = withComments("Some prose.\n", [
-			{ id: "cmt_01", author: "alice", date: "2026-01-01T00:00:00Z", body: "Hi", reactions: {} },
+			{ id: "cmt_01", author: "alice", date: "2026-01-01T00:00:00Z", body: "Hi", reactions: {}, editedAt: null, replyTo: null },
 		]);
 		expect(parseComments(updated)).toHaveLength(1);
 		expect(updated).toContain("Some prose.");
@@ -553,7 +553,7 @@ ${COMMENTS_END}
 
 	it("drops reactions with no count and keeps emoji intact", () => {
 		const block = serializeComments([
-			{ id: "cmt_01", author: "a", date: "d", body: "b", reactions: { "👍": 2, "🎉": 0 } },
+			{ id: "cmt_01", author: "a", date: "d", body: "b", reactions: { "👍": 2, "🎉": 0 }, editedAt: null, replyTo: null },
 		]);
 		expect(parseComments(block)[0].reactions).toEqual({ "👍": 2 });
 	});
@@ -578,6 +578,37 @@ ${COMMENTS_END}`;
 
 	it("returns an empty tally for a note with no comment block", () => {
 		expect(commentCountsInBody("Just prose.")).toEqual({});
+	});
+
+	it("round-trips a comment with editedAt and replyTo set", () => {
+		const comments: Comment[] = [
+			{
+				id: "cmt_01",
+				author: "alice",
+				date: "2026-01-01T00:00:00Z",
+				body: "First",
+				reactions: {},
+				editedAt: null,
+				replyTo: null,
+			},
+			{
+				id: "cmt_02",
+				author: "bob",
+				date: "2026-01-02T00:00:00Z",
+				body: "A reply, later fixed",
+				reactions: { "👍": 1 },
+				editedAt: "2026-01-03T00:00:00Z",
+				replyTo: "cmt_01",
+			},
+		];
+		expect(parseComments(serializeComments(comments))).toEqual(comments);
+	});
+
+	it("parses pre-existing comments (no edited/reply attrs) as null", () => {
+		for (const comment of parseComments(BODY)) {
+			expect(comment.editedAt).toBeNull();
+			expect(comment.replyTo).toBeNull();
+		}
 	});
 });
 

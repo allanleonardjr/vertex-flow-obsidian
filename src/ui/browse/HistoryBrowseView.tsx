@@ -67,6 +67,8 @@ const ACTION_LABEL: Record<string, string> = {
   "comment.add": "commented on",
   "comment.delete": "removed a comment on",
   "comment.update": "reacted on",
+  "comment.edit": "edited a comment on",
+  "comment.reply": "replied to a comment on",
   "view.create": "created",
   "view.update": "updated",
   "view.delete": "moved to Trash",

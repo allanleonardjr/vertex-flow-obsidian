@@ -7,7 +7,9 @@
  * the plugin rewrite the comment block without touching a single character of
  * the user's own writing above it.
  *
- * Comments are flat — no threading.
+ * Comments are flat — no threading. A "reply" is just a flat comment carrying a
+ * `reply="<comment-id>"` reference to another comment; it does not nest, and the
+ * storage and list order are exactly the same as any other comment.
  */
 
 import type { Comment, Person } from "../types";
@@ -89,6 +91,8 @@ export function parseComments(body: string): Comment[] {
 			date: attrs.date ?? "",
 			body: match[2].trim(),
 			reactions: decodeReactions(attrs.reactions),
+			editedAt: attrs.edited ?? null,
+			replyTo: attrs.reply ?? null,
 		});
 	}
 
@@ -106,6 +110,8 @@ export function serializeComments(comments: Comment[]): string {
 				`author="${comment.author}"`,
 				`date="${comment.date}"`,
 				reactions ? `reactions="${reactions}"` : null,
+				comment.editedAt ? `edited="${comment.editedAt}"` : null,
+				comment.replyTo ? `reply="${comment.replyTo}"` : null,
 			]
 				.filter(Boolean)
 				.join(" ");

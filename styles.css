@@ -1411,9 +1411,15 @@ button.vf-icon-select-trigger:hover {
   font-size: 10px;
 }
 
-.vf-comment header .vf-icon-button {
-  opacity: 1;
+.vf-comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   margin-left: auto;
+}
+
+.vf-comment-actions .vf-icon-button {
+  opacity: 1;
 }
 
 .vf-label-editor-row:hover .vf-icon-button {
@@ -3176,6 +3182,61 @@ button.vf-chip-button.is-on {
 .vf-comment-date {
   color: var(--vf-muted);
   font-size: 11px;
+}
+
+.vf-comment-reply-ref {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 6px;
+  padding: 4px 8px;
+  border-radius: var(--vf-radius);
+  background: var(--background-primary);
+  color: var(--vf-muted);
+  font-size: 11px;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.vf-comment-reply-ref:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.vf-comment-reply-ref.is-deleted {
+  cursor: default;
+  font-style: italic;
+}
+
+.vf-comment-reply-ref.is-deleted:hover {
+  background: var(--background-primary);
+  color: var(--vf-muted);
+}
+
+.vf-comment-replying-to {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 10px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-secondary);
+  color: var(--vf-muted);
+  font-size: 12px;
+}
+
+.vf-comment-replying-to .vf-icon-button {
+  margin-left: auto;
+}
+
+.vf-comment-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
 }
 
 .vf-reactions {

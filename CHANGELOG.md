@@ -38,6 +38,23 @@ This project uses [Semantic Versioning](https://semver.org/).
   Activity History entry recorded when a repeat is set up or changed, not
   just in the Repeat editor.
 - Comments are now selectable.
+- **Edit comments.** A pencil icon on each comment switches it into an inline
+  editable field with explicit Save/Cancel — no auto-save, and no restriction
+  on whose comment can be edited, matching the existing unrestricted delete.
+  An edited comment shows "· edited" next to its date, and the change is
+  recorded in Activity History as "edited a comment on."
+- **Reply to a specific comment.** A reply icon opens a dismissible "Replying
+  to {author}: ..." strip above the comment composer; posting attaches a
+  reference to that comment. Comments stay a flat, unthreaded list — a reply
+  shows a small "↳ replying to {author}" line above it, clickable to jump to
+  the original, or "↳ replying to a deleted comment" if it's since been
+  removed. Replies get their own Activity History action ("replied to a
+  comment on"), distinct from a plain comment.
+- Added a copy icon to each comment, copying its raw Markdown source to the
+  clipboard.
+- Comment actions (reply, copy, edit, delete) now use consistent icons —
+  including the same Trash icon used elsewhere for deletion — and sit
+  grouped together on the right of each comment.
 
 ## 1.0.13 — 2026-09-07
 
