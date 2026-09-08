@@ -5,6 +5,8 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.14 — 2026-09-08
+
 ### Added
 - **Workspace setting: default task type for new tasks.** A new "Task creation"
   section in workspace settings sets the Task Type every newly created task
