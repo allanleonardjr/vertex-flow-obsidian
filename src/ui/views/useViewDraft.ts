@@ -21,7 +21,11 @@ import type {
 	ViewTimelineState,
 	WorkspaceSnapshot,
 } from "../../core/types";
-import { canonicalizeDefinition, viewDefinition } from "../../core/views";
+import {
+	canonicalizeDefinition,
+	isProjectViewId,
+	viewDefinition,
+} from "../../core/views";
 import { useTabs } from "../tabs-context";
 import { useViewWriter } from "./useViewWriter";
 
@@ -62,7 +66,15 @@ export function useViewDraft(
 	view: SavedView,
 ): ViewDraft {
 	const writeView = useViewWriter(snapshot, view);
-	const { getViewDraft, setViewDraft } = useTabs();
+	const { getViewDraft, setViewDraft, getViewColumns, setViewColumns } =
+		useTabs();
+
+	// Label / person views are synthesised and have no note to persist column
+	// collapse to (a project view writes it to the project note; a file-backed
+	// view to its own note). For those, column chrome lives in a memory-only
+	// store, keyed by view id — same lifetime as a draft.
+	const noteless = view.path === "" && !isProjectViewId(view.id);
+	const transientColumns = noteless ? getViewColumns(view.id) : null;
 
 	// The draft is keyed by `view.id` in the shared store owned by
 	// `TabsProvider`, so it survives this component unmounting on a tab or
@@ -70,17 +82,20 @@ export function useViewDraft(
 	// per-id, so each view only ever sees its own draft.
 	const draft = getViewDraft(view.id);
 
-	// Columns and timeline chrome always come from disk, so collapsing a column
-	// or zooming the timeline while a draft is pending isn't reverted when the
-	// draft is saved or discarded.
+	// Columns and timeline chrome always come from disk (or the transient store,
+	// for a noteless view), so collapsing a column or zooming the timeline while
+	// a draft is pending isn't reverted when the draft is saved or discarded.
+	const columns = transientColumns ?? view.columns;
 	const effective = draft
 		? {
 				...draft,
-				columns: view.columns,
+				columns,
 				timeline: view.timeline,
 				calendar: view.calendar,
 			}
-		: view;
+		: transientColumns
+			? { ...view, columns }
+			: view;
 	const dirty = draft != null && definitionOf(draft) !== definitionOf(view);
 
 	const edit = useCallback(
@@ -89,8 +104,16 @@ export function useViewDraft(
 	);
 
 	const setColumns = useCallback(
-		(columns: ViewColumnState) => writeView({ ...view, columns }),
-		[writeView, view],
+		(next: ViewColumnState) => {
+			if (noteless) {
+				const empty =
+					next.collapsed.length === 0 && next.hidden.length === 0;
+				setViewColumns(view.id, empty ? null : next);
+				return;
+			}
+			writeView({ ...view, columns: next });
+		},
+		[noteless, setViewColumns, view, writeView],
 	);
 
 	const setTimeline = useCallback(

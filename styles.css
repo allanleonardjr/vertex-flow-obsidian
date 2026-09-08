@@ -1082,6 +1082,14 @@ button.vf-card-parent:hover {
   gap: 6px;
 }
 
+/* Multiple labels wrap onto additional lines instead of overflowing the
+   card. Scoped to Board cards only — .vf-labels itself stays a single-line,
+   non-wrapping inline-flex everywhere else, since the List row's meta
+   cluster relies on that for its clipped single-line layout. */
+.vf-card-labels .vf-labels {
+  flex-wrap: wrap;
+}
+
 .vf-drop-indicator {
   height: 3px;
   margin: 3px 0;
@@ -1310,6 +1318,14 @@ button.vf-icon-select-trigger:hover {
   font-weight: 500;
   line-height: 1.4;
   white-space: nowrap;
+}
+
+/* Task Type: same pill, bordered + bold to stand apart from Labels. Border
+   uses currentColor so it automatically matches the inline `color` LabelChip
+   already sets per taxonomy value — no extra color plumbing needed. */
+.vf-label-chip--bordered {
+  border: 1px solid currentColor;
+  font-weight: 600;
 }
 
 .vf-label-chip-name {

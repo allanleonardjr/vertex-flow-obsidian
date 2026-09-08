@@ -105,6 +105,9 @@ export function TaskRowContent({
 				{!off("relations") && <RelationBadge task={task} />}
 				{!off("progress") && <SubtaskProgress progress={progress} />}
 				{!off("labels") && <Labels taxonomies={taxonomies} labels={task.labels} />}
+				{!off("type") && (
+					<TaxonomyChip taxonomies={taxonomies} kind="taskType" id={task.taskType} />
+				)}
 				{!off("priority") && (
 					<TaxonomyChip taxonomies={taxonomies} kind="priority" id={task.priority} />
 				)}

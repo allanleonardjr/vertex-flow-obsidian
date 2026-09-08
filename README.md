@@ -8,7 +8,7 @@
   />
 </p>
 
-A keyboard-first task manager stored entirely as Markdown: projects, tasks, boards, calendars, timelines, chart dashboards, saved views, and an offline help system.
+A keyboard-first task manager stored entirely as Markdown: projects, tasks, recurring schedules, activity history logs, boards, calendars, timelines, chart dashboards, saved views, and an offline help system.
 
 Vertex Flow turns your vault into a fast, high-density project management OS — no cloud, no account, no database. Every task, project, view, and dashboard is a plain Markdown note. You own the data, always, and you can edit it with any tool that reads Markdown.
 
@@ -54,6 +54,8 @@ If Vertex Flow helps you stay organized, consider [sponsoring on GitHub ❤️](
 - **Keyboard-first tab management.** Hold `Option` (macOS) or `Alt` (Windows/Linux) and press `Tab` to cycle through open tabs with an Arc-style switcher overlay (`Shift+Tab` walks back, `Esc` cancels); jump straight to any tab with `Option`/`Alt` + `1–9` (or `0` for the last) and close the active tab with `Option`/`Alt` + `W` (`Shift` closes them all). Right-click any tab for close-other, close-to-the-right, and close-all.
 - **A density scale that fits your screen.** Choose compact, cozy, or comfortable UI spacing across the whole plugin — app-like density without giving up readability.
 - **Fast to open, painless to keep in sync.** The index reads from Obsidian's metadata cache (no slow disk scans) and resolves @mentions in a lazy background pass, so views paint immediately and edits sync automatically.
+- **Recurring Tasks:** Automate routines with recurring schedules directly in task frontmatter that automatically instantiate the next instance when marked complete.
+- **Activity History Log:** Track past completed work, status updates, and workspace activity logs preserved in plain Markdown files.
 
 
 ## Views
@@ -119,7 +121,7 @@ See dated work on a calendar.
 Vertex Flow ships with a complete built-in help system available **offline in the app** — press `?` anywhere for the keyboard reference, or open **Help** in the sidebar. The source of those docs lives in this repo, so they're also readable here:
 
 - [Getting started](src/help-content/getting-started.md)
-- **Concepts** — [Workspaces](src/help-content/concepts/workspaces.md), [Projects](src/help-content/concepts/projects.md), [Tasks](src/help-content/concepts/tasks/_category.md), [Sub-tasks](src/help-content/concepts/tasks/subtasks.md)
+- **Concepts** — [Workspaces](src/help-content/concepts/workspaces.md), [Projects](src/help-content/concepts/projects.md), [Tasks](src/help-content/concepts/tasks/_category.md), [Sub-tasks](src/help-content/concepts/tasks/subtasks.md), [Recurring Tasks](src/help-content/concepts/recurring-tasks.md), [Activity History](src/help-content/concepts/activity-history.md)
 - **Views** — [List](src/help-content/views/list-view.md), [Board](src/help-content/views/board-view.md), [Calendar](src/help-content/views/calendar-view.md), [Saved Views](src/help-content/views/saved-views.md)
 - [Keyboard shortcuts](src/help-content/keyboard-shortcuts.md)
 - [FAQ](src/help-content/faq.md)

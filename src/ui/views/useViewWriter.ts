@@ -28,19 +28,31 @@ export function useViewWriter(
 	return useCallback(
 		(next: SavedView) => {
 			if (isProjectViewId(next.id)) {
-				// Column collapse / timeline zoom / calendar month funnel through
-				// here too, unchanged in their definitional fields — that's
-				// transient chrome for every other view, and a Project has nowhere
-				// to persist it, so skip the write rather than bump the project's
-				// `updatedAt` for a non-change.
+				// A Project has no `Views/<id>.md`; its view settings ride in the
+				// project note's `view:` block. Group collapse/hide *is* persisted
+				// there (the one bit of per-session chrome the note can hold) —
+				// timeline zoom / calendar month still aren't, and land as a no-op.
 				const definition = viewDefinition(next);
-				if (definitionsEqual(definition, viewDefinition(view))) return;
+				const columnsUnchanged =
+					JSON.stringify(next.columns) === JSON.stringify(view.columns);
+				if (
+					definitionsEqual(definition, viewDefinition(view)) &&
+					columnsUnchanged
+				)
+					return;
 
 				const project = snapshot.projects.find(
 					(p) => p.path === projectPathFromViewId(next.id),
 				);
 				if (project) {
-					void plugin.mutations.updateProject(project, { view: definition });
+					const hasColumns =
+						next.columns.collapsed.length > 0 ||
+						next.columns.hidden.length > 0;
+					void plugin.mutations.updateProject(project, {
+						view: hasColumns
+							? { ...definition, columns: next.columns }
+							: definition,
+					});
 				}
 				return;
 			}

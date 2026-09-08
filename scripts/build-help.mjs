@@ -22,6 +22,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CONTENT_DIR = join(__dirname, "../src/help-content");
+const CHANGELOG_FILE = join(__dirname, "../CHANGELOG.md");
 const OUT_FILE = join(__dirname, "../src/core/help-generated.ts");
 
 const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
@@ -94,8 +95,27 @@ function readCategoryMeta(dirAbs, dirRel) {
 	}
 }
 
-function walk(dirAbs, dirRel) {
-	const entries = [];
+/**
+ * The root `CHANGELOG.md` as a top-level Help topic, read straight from the file
+ * so it can never drift from the real changelog. The file has no frontmatter
+ * (parseFrontmatter yields the whole file as `body`) and opens with a `# Changelog`
+ * H1 — stripped here, plus the blank line after it, since the topic `title`
+ * already renders as the page heading.
+ */
+function readChangelogTopic() {
+	const { body } = parseFrontmatter(readFileSync(CHANGELOG_FILE, "utf8"));
+	const stripped = body.replace(/^#\s+.*(?:\r?\n)?(?:\r?\n)?/, "");
+	return {
+		id: "changelog",
+		title: "Changelog",
+		icon: "history",
+		order: 70,
+		content: stripped.trim(),
+	};
+}
+
+function walk(dirAbs, dirRel, extra = []) {
+	const entries = [...extra];
 
 	for (const name of readdirSync(dirAbs)) {
 		if (name === "_category.md") continue;
@@ -129,5 +149,5 @@ export const HELP_TOPICS: HelpTopic[] = ${JSON.stringify(topics, null, "\t")};
 	writeFileSync(OUT_FILE, source);
 }
 
-emit(walk(CONTENT_DIR, ""));
+emit(walk(CONTENT_DIR, "", [readChangelogTopic()]));
 console.log(`[help] Generated ${OUT_FILE}`);

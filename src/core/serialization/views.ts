@@ -17,6 +17,7 @@ import {
 	TASK_FIELDS,
 	type EmptyColumnBehavior,
 	type GroupByField,
+	type ProjectViewSettings,
 	type SavedView,
 	type SortField,
 	type SubtaskDisplay,
@@ -383,22 +384,28 @@ export function serializeView(view: SavedView): Record<string, unknown> {
 }
 
 /**
- * Parse just the definitional half of a view — used for a Project's own
- * `view:` frontmatter block, which (unlike a `Views/<id>.md` note) has no
- * id/name/icon/columns of its own.
+ * Parse a Project's own `view:` frontmatter block — the definitional half of a
+ * view plus group collapse/hide (`columns`), which (unlike a `Views/<id>.md`
+ * note) is the only per-session furniture it carries. No id/name/icon.
  */
-export function parseViewDefinition(raw: unknown, log: IssueLog): ViewDefinition {
-	return viewDefinition({
-		type: "view",
-		path: "",
-		...parseViewValue(asRecord(raw), "", log),
-	});
+export function parseViewDefinition(
+	raw: unknown,
+	log: IssueLog,
+): ProjectViewSettings {
+	const value = parseViewValue(asRecord(raw), "", log);
+	const definition = viewDefinition({ type: "view", path: "", ...value });
+	const { collapsed, hidden } = value.columns;
+	return collapsed.length || hidden.length
+		? { ...definition, columns: { collapsed, hidden } }
+		: definition;
 }
 
 /** The serialized counterpart of `parseViewDefinition`. */
 export function serializeViewDefinition(
-	definition: ViewDefinition,
+	definition: ProjectViewSettings,
 ): Record<string, unknown> {
+	const collapsed = definition.columns?.collapsed ?? [];
+	const hidden = definition.columns?.hidden ?? [];
 	return compact({
 		viewType: definition.viewType,
 		filters: compact(definition.filters as Record<string, unknown>),
@@ -414,6 +421,8 @@ export function serializeViewDefinition(
 				? undefined
 				: definition.calendarDateField,
 		recurringPreview: definition.recurringPreview ? true : undefined,
+		columns:
+			collapsed.length || hidden.length ? { collapsed, hidden } : undefined,
 	});
 }
 

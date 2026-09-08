@@ -3,7 +3,7 @@
  * sidebar + one tab strip holding the Board/List plus every other open tab.
  */
 
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Platform } from "obsidian";
 import {
   viewById,
@@ -12,7 +12,7 @@ import {
   type ActiveWorkspace,
 } from "./context";
 import { workspaceTaxonomies } from "../core/taxonomy";
-import { projectViewId } from "../core/views";
+import { projectViewId } from "../core/views/defaults";
 import type { Project, SavedView, WorkspaceSnapshot } from "../core/types";
 import { EmptyState } from "./EmptyState";
 import { EmptyTabsPane } from "./EmptyTabsPane";
@@ -20,7 +20,7 @@ import { ProjectDetailView } from "./ProjectDetailView";
 import { LabelDetailView } from "./LabelDetailView";
 import { PersonDetailView } from "./PersonDetailView";
 import { TemplateGallery } from "./TemplateGallery";
-import { SelectionProvider } from "./selection";
+import { SelectionProvider, useSelection } from "./selection";
 import { ProjectsBrowseView } from "./browse/ProjectsBrowseView";
 import { ViewsBrowseView } from "./browse/ViewsBrowseView";
 import { LabelsBrowseView } from "./browse/LabelsBrowseView";
@@ -39,10 +39,7 @@ import { TaskViewport } from "./views/TaskViewport";
 import { PrefixEngine } from "./shortcuts/prefix-engine";
 import { TabSwitcher } from "./TabSwitcher";
 import { RecurringOverviewScreen } from "./RecurringOverviewScreen";
-import {
-  CompactNavProvider,
-  useCompactNav,
-} from "./compact-nav-context";
+import { CompactNavProvider, useCompactNav } from "./compact-nav-context";
 import { CompactModeToggle } from "./CompactModeToggle";
 
 export function App() {
@@ -74,10 +71,17 @@ export function App() {
 function Workspace({ active }: { active: ActiveWorkspace }) {
   const plugin = usePlugin();
   const tabs = useTabs();
+  const selection = useSelection();
   // A state-backed ref, not `useRef`: attaching a plain ref doesn't re-render,
   // so the shortcut effect below would keep seeing `null` and bind nothing
   // until some unrelated update happened to re-run it.
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
+  // Mirrored so the Escape handler below can check for an active selection
+  // without taking `selection` (a new object identity on every focus/select
+  // change) as an effect dependency — that would tear down and rebind the
+  // window listener on every arrow-key press.
+  const selectedPathsRef = useRef(selection.selectedPaths);
+  selectedPathsRef.current = selection.selectedPaths;
 
   const { snapshot } = active;
   const activeTab = tabs.activeTab;
@@ -184,15 +188,18 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
         return;
       }
 
+      // Drop any multi-selection. Independent of the blur/refocus below —
+      // selection is shared across List/Board/Timeline/Calendar, so this
+      // clears it regardless of which view is on screen or where DOM focus
+      // currently sits.
+      if (selectedPathsRef.current.length > 0) {
+        selection.clearSelection();
+      }
+
       // Blur whatever's focused inside the shell, then settle focus on the
       // shell itself so the view/keyboard listeners are the active context.
       const el = document.activeElement as HTMLElement | null;
-      if (
-        container &&
-        el &&
-        el !== document.body &&
-        container.contains(el)
-      ) {
+      if (container && el && el !== document.body && container.contains(el)) {
         event.stopPropagation();
         el.blur();
         container.focus();
@@ -217,7 +224,7 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
     >
       <PrefixEngine snapshot={snapshot} />
       <TabSwitcher snapshot={snapshot} />
-<Sidebar
+      <Sidebar
         snapshot={snapshot}
         activeViewId={activeViewId}
         onSelectView={selectView}
@@ -299,7 +306,11 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
             onSelectView={selectView}
           />
         ) : activeTab.kind === "recurring" ? (
-          <RecurringOverviewScreen snapshot={snapshot} taxonomies={active.taxonomies} tabs={tabs} />
+          <RecurringOverviewScreen
+            snapshot={snapshot}
+            taxonomies={active.taxonomies}
+            tabs={tabs}
+          />
         ) : viewportView ? (
           <TaskViewport
             snapshot={snapshot}
@@ -319,7 +330,10 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
 }
 
 /** A synthesised, never-persisted view showing only tasks carrying `labelId`. */
-export function labelView(snapshot: WorkspaceSnapshot, labelId: string): SavedView {
+export function labelView(
+  snapshot: WorkspaceSnapshot,
+  labelId: string,
+): SavedView {
   const label = workspaceTaxonomies(snapshot.workspace).label.values.find(
     (v) => v.id === labelId,
   );
@@ -386,7 +400,7 @@ export function projectView(project: Project): SavedView {
     groupBy: definition?.groupBy ?? "status",
     sortBy: definition?.sortBy ?? "rank",
     sortDirection: definition?.sortDirection ?? "asc",
-    columns: { collapsed: [], hidden: [] },
+    columns: definition?.columns ?? { collapsed: [], hidden: [] },
     emptyColumnBehavior: definition?.emptyColumnBehavior ?? "show-normal",
     hiddenFields: definition?.hiddenFields ?? [],
     subtaskDisplay: definition?.subtaskDisplay ?? "nested",

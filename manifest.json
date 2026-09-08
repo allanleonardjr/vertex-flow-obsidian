@@ -1,9 +1,9 @@
 {
   "id": "vertex-flow",
   "name": "Vertex Flow",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "minAppVersion": "1.13.7",
-  "description": "A keyboard-first task manager stored entirely as Markdown: projects, tasks, boards, calendars, timelines, chart dashboards, saved views, and an offline help system.",
+  "description": "A keyboard-first task manager stored entirely as Markdown: projects, tasks, recurring schedules, activity history logs, boards, calendars, timelines, chart dashboards, saved views, and an offline help system.",
   "author": "JR Leonard",
   "authorUrl": "https://linkedin.com/in/allanleonardjr",
   "fundingUrl": "https://github.com/sponsors/allanleonardjr",
