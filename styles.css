@@ -2971,6 +2971,7 @@ button.vf-editor-rail-delete {
 
 .vf-comment-body {
   line-height: 1.5;
+  user-select: text;
 }
 
 .vf-comment-body :is(.markdown-rendered) > :first-child {
