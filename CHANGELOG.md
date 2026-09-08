@@ -58,6 +58,10 @@ This project uses [Semantic Versioning](https://semver.org/).
   including the same Trash icon used elsewhere for deletion — and sit
   grouped together on the right of each comment.
 
+### Changed
+-   Added padding to the task editor's title field, and title fields of Views, Dashboards and Projects.
+
+
 ## 1.0.13 — 2026-09-07
 
 ### Fixed

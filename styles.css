@@ -2828,7 +2828,7 @@ button.vf-editor-rail-delete {
 
 .vf-editor-title {
   width: 100%;
-  padding: 0;
+  padding: 6px 8px;
   border: none;
   background: transparent;
   box-shadow: none;
@@ -3545,6 +3545,11 @@ input.vf-editable-title-input {
   font-size: var(--font-ui-medium);
   font-weight: 600;
   cursor: text;
+}
+
+.vf-editable-title-input:focus {
+  padding: 6px 8px;
+  margin: -6px -8px; /* Offsets the expanded padding so container dimensions stay fixed */
 }
 
 .vf-editable-title-input::placeholder {
