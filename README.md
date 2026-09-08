@@ -121,7 +121,7 @@ See dated work on a calendar.
 Vertex Flow ships with a complete built-in help system available **offline in the app** — press `?` anywhere for the keyboard reference, or open **Help** in the sidebar. The source of those docs lives in this repo, so they're also readable here:
 
 - [Getting started](src/help-content/getting-started.md)
-- **Concepts** — [Workspaces](src/help-content/concepts/workspaces.md), [Projects](src/help-content/concepts/projects.md), [Tasks](src/help-content/concepts/tasks/_category.md), [Sub-tasks](src/help-content/concepts/tasks/subtasks.md)
+- **Concepts** — [Workspaces](src/help-content/concepts/workspaces.md), [Projects](src/help-content/concepts/projects.md), [Tasks](src/help-content/concepts/tasks/_category.md), [Sub-tasks](src/help-content/concepts/tasks/subtasks.md), [Recurring Tasks](src/help-content/concepts/recurring-tasks.md), [Activity History](src/help-content/concepts/activity-history.md)
 - **Views** — [List](src/help-content/views/list-view.md), [Board](src/help-content/views/board-view.md), [Calendar](src/help-content/views/calendar-view.md), [Saved Views](src/help-content/views/saved-views.md)
 - [Keyboard shortcuts](src/help-content/keyboard-shortcuts.md)
 - [FAQ](src/help-content/faq.md)

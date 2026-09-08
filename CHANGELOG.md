@@ -7,6 +7,7 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Added
 -   Added the `g r` chord for Recurring, to the quick help.
+-   Added in-app Help documentation for Recurring Tasks and Activity History, with links from the README.
 
 ## Changed
 -   Updated the docs to reflect correct sidebar order. 
