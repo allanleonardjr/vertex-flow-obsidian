@@ -625,12 +625,14 @@ function ReparentSubtaskDialog({
         onClick={(event) => event.stopPropagation()}
       >
         <h3>Move "{label(child)}" here?</h3>
-        <p className="vf-dialog-lead">
-          It's already a sub-task of{" "}
-          {currentParent ? `"${label(currentParent)}"` : "another task"}. A task
-          has only one parent, so moving it under "{label(newParent)}" removes
-          it from there.
-        </p>
+        <div className="vf-dialog-body">
+          <p className="vf-dialog-lead">
+            It's already a sub-task of{" "}
+            {currentParent ? `"${label(currentParent)}"` : "another task"}. A task
+            has only one parent, so moving it under "{label(newParent)}" removes
+            it from there.
+          </p>
+        </div>
         <div className="vf-dialog-actions">
           <button onClick={onClose}>Cancel</button>
           <button className="mod-cta" onClick={onConfirm}>

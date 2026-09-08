@@ -58,11 +58,13 @@ export function UnsavedChangesDialog({
 				<h3>
 					Unsaved changes to {name ? `"${name}"` : `this ${what}`}
 				</h3>
-				<p className="vf-dialog-lead">
-					{canSave
-						? `Save your changes to ${label} before leaving, or discard them?`
-						: `${cap(label)} can't be saved over. Use "Save as…" first to keep these changes, or discard them.`}
-				</p>
+				<div className="vf-dialog-body">
+					<p className="vf-dialog-lead">
+						{canSave
+							? `Save your changes to ${label} before leaving, or discard them?`
+							: `${cap(label)} can't be saved over. Use "Save as…" first to keep these changes, or discard them.`}
+					</p>
+				</div>
 				<div className="vf-dialog-actions">
 					<button disabled={busy} onClick={onCancel}>
 						Cancel

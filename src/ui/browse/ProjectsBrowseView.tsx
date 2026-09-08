@@ -31,6 +31,7 @@ import { withoutExtension } from "../../obsidian/note-io";
 import { usePlugin } from "../context";
 import { WidgetChart } from "../dashboards/charts/WidgetChart";
 import { DeleteEntityDialog } from "../DeleteEntityDialog";
+import { ExportDialog } from "../modals/ExportDialog";
 import { NamedIconDialog } from "../modals/NamedIconDialog";
 import { useTabs } from "../tabs-context";
 import { ProjectCardContent } from "./ProjectCardContent";
@@ -81,6 +82,7 @@ export function ProjectsBrowseView({
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Project | null>(null);
   const [deletePlan, setDeletePlan] = useState<DeletionPlan | null>(null);
+  const [exportingProject, setExportingProject] = useState<Project | null>(null);
 
   const duplicate = (project: Project) => {
     void plugin.mutations
@@ -194,6 +196,15 @@ export function ProjectsBrowseView({
                     className="vf-menu-item"
                     onClick={() => {
                       setMenuPath(null);
+                      setExportingProject(project);
+                    }}
+                  >
+                    Export…
+                  </button>
+                  <button
+                    className="vf-menu-item"
+                    onClick={() => {
+                      setMenuPath(null);
                       setDeletePlan(planDeletion(scopeOf(snapshot), project));
                     }}
                   >
@@ -263,6 +274,15 @@ export function ProjectsBrowseView({
             })
           }
           onClose={() => setEditing(null)}
+        />
+      )}
+
+      {exportingProject && (
+        <ExportDialog
+          snapshot={snapshot}
+          lockScope
+          initialScope={{ kind: "project", project: exportingProject }}
+          onClose={() => setExportingProject(null)}
         />
       )}
     </div>

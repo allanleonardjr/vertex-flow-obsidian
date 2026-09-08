@@ -1163,13 +1163,30 @@ export function parseTemplateMarkdown(source: string): ParsedTemplate {
 		);
 	}
 
-	const kind = data.kind;
-	if (kind == null) fail(`Frontmatter is missing "kind" — add "kind: template"`, 3);
-	if (kind !== "template") {
+	// `type` is the unified discriminant every other Vertex-Flow-authored note
+	// uses; `kind` is the legacy field name. Accept either spelling and
+	// normalize to the new `type: vertex-flow-workspace-template` internally.
+	// `snapshot` stays reserved and unbuilt — only the field name and the
+	// built value's spelling change here.
+	const rawKind = data.type ?? data.kind;
+	const kindField = data.type != null ? "type" : "kind";
+	if (rawKind == null) {
 		fail(
-			kind === "snapshot"
-				? `"kind: snapshot" is not yet supported — only "kind: template" can be loaded`
-				: `Unknown "kind: ${String(kind)}" — only "kind: template" is supported`,
+			`Frontmatter is missing "type" — add "type: vertex-flow-workspace-template"`,
+			3,
+		);
+	}
+	const normalizedKind =
+		rawKind === "template" || rawKind === "vertex-flow-workspace-template"
+			? "template"
+			: rawKind === "snapshot" || rawKind === "vertex-flow-workspace-snapshot"
+				? "snapshot"
+				: null;
+	if (normalizedKind !== "template") {
+		fail(
+			normalizedKind === "snapshot"
+				? `"type: vertex-flow-workspace-snapshot" is not yet supported — only "type: vertex-flow-workspace-template" can be loaded`
+				: `Unknown "${kindField}: ${String(rawKind)}" — only "type: vertex-flow-workspace-template" is supported`,
 			3,
 		);
 	}

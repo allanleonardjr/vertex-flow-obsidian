@@ -88,10 +88,16 @@ describe("template markdown — schema gate", () => {
 		expect(error.message).toMatch(/update the plugin/i);
 	});
 
-	it("rejects kind: snapshot as not yet supported", () => {
+	it("rejects the snapshot kind as not yet supported", () => {
 		expectFailure(
 			template(HEADER.replace("kind: template", "kind: snapshot")),
-			/"kind: snapshot" is not yet supported/,
+			/not yet supported/,
+		);
+		expectFailure(
+			template(
+				HEADER.replace("kind: template", "type: vertex-flow-workspace-snapshot"),
+			),
+			/not yet supported/,
 		);
 	});
 
@@ -99,6 +105,14 @@ describe("template markdown — schema gate", () => {
 		expectFailure(
 			template(HEADER.replace("kind: template", "kind: workspace")),
 			/Unknown "kind: workspace"/,
+		);
+	});
+
+	it("accepts the new type field spelling", () => {
+		build(
+			template(
+				HEADER.replace("kind: template", "type: vertex-flow-workspace-template"),
+			),
 		);
 	});
 });

@@ -107,6 +107,7 @@ export function WidgetConfigDialog({
 			>
 				<h3>{initial ? "Edit chart" : "Add chart"}</h3>
 
+				<div className="vf-dialog-body">
 				<div className="vf-widget-config-types" role="group" aria-label="Chart type">
 					{CHART_TYPES.map((type) => (
 						<button
@@ -173,6 +174,7 @@ export function WidgetConfigDialog({
 							onChange={setMapping}
 						/>
 					)}
+				</div>
 				</div>
 
 				<div className="vf-dialog-actions">

@@ -1,6 +1,6 @@
 ---
 templateSchema: 1
-kind: template
+type: vertex-flow-workspace-template
 id: job-search
 name: Job Search
 description: Track applications as Projects moving from Wishlist to Offer, with the tasks to advance each one underneath.

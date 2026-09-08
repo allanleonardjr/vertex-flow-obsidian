@@ -92,44 +92,46 @@ export function NamedIconDialog({
 			>
 				<h3>{title}</h3>
 
-				<div className="vf-icon-name-row">
-					<div className="vf-field vf-field-icon">
-						<span>Icon</span>
-						<IconField
-							value={icon}
-							fallback={iconFallback}
-							onChange={setIcon}
-						/>
+				<div className="vf-dialog-body">
+					<div className="vf-icon-name-row">
+						<div className="vf-field vf-field-icon">
+							<span>Icon</span>
+							<IconField
+								value={icon}
+								fallback={iconFallback}
+								onChange={setIcon}
+							/>
+						</div>
+						<label className="vf-field vf-field-name">
+							<span>Name</span>
+							<input
+								type="text"
+								autoFocus
+								value={name}
+								aria-invalid={nameError != null}
+								onChange={(event) => setName(event.target.value)}
+								onKeyDown={(event) => {
+									if (event.key === "Enter") submit();
+								}}
+							/>
+							{nameError ? (
+								<small className="vf-field-error">{nameError}</small>
+							) : (
+								nameHint && (
+									<small className="vf-field-hint">{nameHint}</small>
+								)
+							)}
+						</label>
 					</div>
-					<label className="vf-field vf-field-name">
-						<span>Name</span>
-						<input
-							type="text"
-							autoFocus
-							value={name}
-							aria-invalid={nameError != null}
-							onChange={(event) => setName(event.target.value)}
-							onKeyDown={(event) => {
-								if (event.key === "Enter") submit();
-							}}
-						/>
-						{nameError ? (
-							<small className="vf-field-error">{nameError}</small>
-						) : (
-							nameHint && (
-								<small className="vf-field-hint">{nameHint}</small>
-							)
-						)}
-					</label>
-				</div>
 
-				{initialDescription !== undefined && (
-					<DescriptionDialogField
-						value={description}
-						onChange={setDescription}
-						sourcePath={descriptionSourcePath ?? ""}
-					/>
-				)}
+					{initialDescription !== undefined && (
+						<DescriptionDialogField
+							value={description}
+							onChange={setDescription}
+							sourcePath={descriptionSourcePath ?? ""}
+						/>
+					)}
+				</div>
 
 				<div className="vf-dialog-actions">
 					<button onClick={cancel}>Cancel</button>

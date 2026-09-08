@@ -10,7 +10,7 @@
  * tab when opened from the sidebar (`onClose` closes that tab).
  */
 
-import { TFolder } from "obsidian";
+import { Notice, TFolder } from "obsidian";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
 	WORKSPACE_TEMPLATES,
@@ -21,6 +21,7 @@ import { joinPath, sanitizeFileName } from "../core/links";
 import { suggestPrefix } from "../core/ids";
 import { SYSTEM_VIEW_ALL_TASKS_ID } from "../core/views";
 import { Icon, IconField } from "./components/Icon";
+import { discoverVaultTemplates } from "../obsidian/template-discovery";
 import { usePlugin, useSetActiveWorkspace } from "./context";
 import { getMePrefill, setMePrefill } from "../obsidian/me-storage";
 import { FolderSuggestModal } from "./modals/FolderSuggestModal";
@@ -69,6 +70,22 @@ function Gallery({
 	onClose?: () => void;
 }) {
 	const gridRef = useRef<HTMLDivElement>(null);
+	const plugin = usePlugin();
+	const [vaultTemplates, setVaultTemplates] = useState<WorkspaceTemplate[]>([]);
+
+	// Discovery runs once per Gallery mount — a file added mid-session appears
+	// next time "New workspace" is opened, not immediately.
+	useEffect(() => {
+		let alive = true;
+		void discoverVaultTemplates(plugin.io, (message) => {
+			new Notice(message);
+		}).then((found) => {
+			if (alive) setVaultTemplates(found);
+		});
+		return () => {
+			alive = false;
+		};
+	}, [plugin]);
 
 	// Give "Getting Started" initial focus (not selection) so a self-directed
 	// user can jump in immediately, while Blank leads the visual order. Keyboard
@@ -167,36 +184,63 @@ function Gallery({
 				)}
 			</header>
 
+			<h2 className="vf-template-section-title">Built-in</h2>
 			<div className="vf-template-grid" ref={gridRef}>
 				{WORKSPACE_TEMPLATES.map((template) => (
-					<div
-						key={template.id}
-						data-template={template.id}
-						className="vf-template-card"
-						role="button"
-						tabIndex={0}
-						onClick={() => onPick(template)}
-						onKeyDown={(event) => {
-							if (event.key === "Enter" || event.key === " ") {
-								event.preventDefault();
-								onPick(template);
-							}
-						}}
-					>
-						<div className="vf-template-card-head">
-							<Icon id={template.icon} fallback="layers" size={17} />
-							<span className="vf-template-card-title">{template.name}</span>
-						</div>
-						<p className="vf-template-card-desc">{template.description}</p>
-						<dl className="vf-template-settings">
-							{template.settings.map((setting) => (
-								<SettingRow key={setting.label} setting={setting} />
-							))}
-						</dl>
-						<span className="vf-template-card-cta">Use this template →</span>
-					</div>
+					<TemplateCard key={template.id} template={template} onPick={onPick} />
 				))}
 			</div>
+
+			{vaultTemplates.length > 0 && (
+				<>
+					<h2 className="vf-template-section-title">Your templates</h2>
+					<div className="vf-template-grid">
+						{vaultTemplates.map((template) => (
+							<TemplateCard
+								key={template.id}
+								template={template}
+								onPick={onPick}
+							/>
+						))}
+					</div>
+				</>
+			)}
+		</div>
+	);
+}
+
+function TemplateCard({
+	template,
+	onPick,
+}: {
+	template: WorkspaceTemplate;
+	onPick: (template: WorkspaceTemplate) => void;
+}) {
+	return (
+		<div
+			data-template={template.id}
+			className="vf-template-card"
+			role="button"
+			tabIndex={0}
+			onClick={() => onPick(template)}
+			onKeyDown={(event) => {
+				if (event.key === "Enter" || event.key === " ") {
+					event.preventDefault();
+					onPick(template);
+				}
+			}}
+		>
+			<div className="vf-template-card-head">
+				<Icon id={template.icon} fallback="layers" size={17} />
+				<span className="vf-template-card-title">{template.name}</span>
+			</div>
+			<p className="vf-template-card-desc">{template.description}</p>
+			<dl className="vf-template-settings">
+				{template.settings.map((setting) => (
+					<SettingRow key={setting.label} setting={setting} />
+				))}
+			</dl>
+			<span className="vf-template-card-cta">Use this template →</span>
 		</div>
 	);
 }

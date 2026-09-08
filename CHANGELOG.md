@@ -5,6 +5,49 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Added
+- **Export your tasks to CSV, JSON or iCalendar.** Pick a scope — the current
+  view, a saved view, a project, or the whole workspace — choose which CSV/JSON
+  fields to include, and decide whether archived tasks come along. Exports land
+  as real vault files under `<workspace>/Exports/`, named
+  `vertex-flow-export-<workspace>-<scope>-<date>.<ext>` so they stay
+  recognizable once they're moved or synced elsewhere.
+- **Reach export from anywhere.** Export is available from the Sidebar's
+  "Export…" row, an "Export…" command in the Command Palette, a button on the
+  view toolbar (scoped to that view), and right-click row/card menus on
+  **Workspaces**, **Views** and **Projects** — each opening the dialog already
+  locked to what you clicked.
+- **Export a workspace as a template.** "Export Workspace as Template" captures
+  the workspace's taxonomy, views, dashboards and people roster as a portable
+  markdown template file — no tasks or projects. Choose the destination folder
+  from a picker or by typing (default `Templates/`, the folder the New Workspace
+  gallery discovers; a hint warns when a template is saved somewhere the gallery
+  won't see).
+- **Result view instead of a toast.** After an export, the dialog shows the
+  resulting file's path with actions to **Reveal in Finder / File Manager** or
+  **Open in Obsidian** — useful for `.csv`/`.json`/`.ics` files, which
+  Obsidian's own file list hides unless "Detect all file extensions" is on.
+
+### Changed
+- **Template frontmatter `kind` is now `type`.** The workspace-template grammar
+  uses `type: vertex-flow-workspace-template` (and `-snapshot`) instead of
+  `kind: template`/`kind: snapshot`. Old `kind` frontmatter still loads. Files
+  exported as templates get a `vertex-flow-template-` filename prefix while
+  their frontmatter `id` stays unprefixed.
+
+### Fixed
+- **iCalendar all-day event end dates.** All-day events now emit
+  `DTEND;VALUE=DATE` one day after the task's due date (exclusive end), matching
+  how calendars like Google Calendar store all-day events — previously the end
+  date came out a day early.
+- **Tall dialogs scroll their body.** The dialog's header and footer stay
+  pinned while only the content area scrolls, instead of the whole dialog
+  overflowing the window. Applies across the editor's dialogs (Replace
+  value/person, Person, Label, Widget config, Shortcuts, Export, and more).
+- **The description textarea fills its row.** The task-editor description field
+  now spans the full width of the field column instead of hugging the icon
+  column.
+
 ## 1.0.14 — 2026-09-08
 
 ### Added

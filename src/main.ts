@@ -168,6 +168,15 @@ export default class VertexFlowPlugin extends Plugin {
 			callback: () => void this.index.rebuild(),
 		});
 
+		this.addCommand({
+			id: "export",
+			name: "Export…",
+			callback: () => {
+				this.pendingExport = true;
+				void this.activateView().then(() => this.index.touch());
+			},
+		});
+
 		// Acts on the task whose editor is in front. `checkCallback` keeps the
 		// command out of the palette unless that task is part of a live series.
 		this.addCommand({
@@ -259,6 +268,12 @@ export default class VertexFlowPlugin extends Plugin {
 	 * `TabsProvider`.
 	 */
 	pendingOpenView: string | null = null;
+
+	/**
+	 * Set by the "Export…" command; consumed by Sidebar's bridge effect to open
+	 * the Export dialog. Mirrors pendingEditPath/pendingOpenView.
+	 */
+	pendingExport = false;
 
 	/** Ask the view to open a task's tab, opening the view first if needed. */
 	async requestEdit(path: string): Promise<void> {

@@ -58,6 +58,7 @@ import { LabelChip } from "./components/TaskBits";
 import { DeleteWorkspaceDialog } from "./DeleteWorkspaceDialog";
 import { DeleteEntityDialog } from "./DeleteEntityDialog";
 import { LabelDialog } from "./modals/LabelDialog";
+import { ExportDialog } from "./modals/ExportDialog";
 import { PersonDialog } from "./modals/PersonDialog";
 import { ReplacePersonDialog } from "./modals/ReplacePersonDialog";
 import { ReplaceValueDialog } from "./settings/ReplaceValueDialog";
@@ -92,6 +93,7 @@ export function Sidebar({
   activeViewId: string;
   onSelectView: (id: string) => void;
 }) {
+  const plugin = usePlugin();
   const { activeId, openScreen } = useTabs();
   const {
     minimized,
@@ -99,6 +101,18 @@ export function Sidebar({
     setMinimized,
     setWidth,
   } = useSidebarChrome();
+  const [exporting, setExporting] = useState(false);
+
+  // Bridge for the "Export…" command — kept outside the `{!minimized}` block so
+  // it still fires when the sidebar is collapsed. Mirrors the
+  // pendingEditPath/pendingOpenView pattern in main.ts; the command calls
+  // `index.touch()` so this repaints and the check below runs even when the
+  // sidebar was already mounted.
+  useEffect(() => {
+    if (!plugin.pendingExport) return;
+    plugin.pendingExport = false;
+    setExporting(true);
+  });
   // Compact-mode drawer state. In wide panes `navOpen` stays false and this is
   // inert; in compact panes the strip's Navigation button drives it and the
   // aside slides in as a drawer. Any navigation from a row here closes it.
@@ -228,6 +242,12 @@ export function Sidebar({
             onClick={() => openScreen("trash")}
           />
 
+          <NavRow
+            icon="download"
+            label="Export…"
+            onClick={() => setExporting(true)}
+          />
+
           <div className="vf-sidebar-sep" aria-hidden />
 
           <NavRow
@@ -246,6 +266,21 @@ export function Sidebar({
 
           <ResizeHandle width={width} onResize={(w) => setWidth(w)} />
         </>
+      )}
+      {exporting && (
+        <ExportDialog
+          snapshot={snapshot}
+          allowTemplateExport
+          initialScope={
+            activeViewId && snapshot.views.some((v) => v.id === activeViewId)
+              ? {
+                  kind: "view",
+                  view: snapshot.views.find((v) => v.id === activeViewId)!,
+                }
+              : { kind: "workspace" }
+          }
+          onClose={() => setExporting(false)}
+        />
       )}
     </aside>
   );
@@ -514,6 +549,10 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   const [menuRoot, setMenuRoot] = useState<string | null>(null);
   const [editRoot, setEditRoot] = useState<string | null>(null);
   const [deleteRoot, setDeleteRoot] = useState<string | null>(null);
+  const [exportTarget, setExportTarget] = useState<{
+    workspace: WorkspaceSnapshot;
+    forceMode?: "tasks" | "template";
+  } | null>(null);
 
   const editing = workspaces.find((w) => w.workspace.root === editRoot);
   const deleting = workspaces.find((w) => w.workspace.root === deleteRoot);
@@ -610,6 +649,27 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
                 className="vf-menu-item"
                 onClick={() => {
                   setMenuRoot(null);
+                  setActiveWorkspace(entry.workspace.root);
+                  setExportTarget({ workspace: entry });
+                }}
+              >
+                Export…
+              </button>
+              <button
+                className="vf-menu-item"
+                onClick={() => {
+                  setMenuRoot(null);
+                  setActiveWorkspace(entry.workspace.root);
+                  setExportTarget({ workspace: entry, forceMode: "template" });
+                }}
+              >
+                Export Workspace as Template…
+              </button>
+              <div className="vf-menu-divider" aria-hidden />
+              <button
+                className="vf-menu-item"
+                onClick={() => {
+                  setMenuRoot(null);
                   setDeleteRoot(entry.workspace.root);
                 }}
               >
@@ -642,6 +702,17 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
         <DeleteWorkspaceDialog
           snapshot={deleting}
           onClose={() => setDeleteRoot(null)}
+        />
+      )}
+
+      {exportTarget && (
+        <ExportDialog
+          snapshot={exportTarget.workspace}
+          allowTemplateExport
+          lockScope
+          initialScope={{ kind: "workspace" }}
+          forceMode={exportTarget.forceMode}
+          onClose={() => setExportTarget(null)}
         />
       )}
     </Section>
@@ -697,6 +768,7 @@ function ViewsSection({
   const [creating, setCreating] = useState(false);
   const [dialog, setDialog] = useState<ViewDialogState>(null);
   const [deleting, setDeleting] = useState<SavedView | null>(null);
+  const [exportingView, setExportingView] = useState<SavedView | null>(null);
 
   // The two System Views (All Tasks, Untriaged) render as their own bare rows
   // above this section — never in the list, never in the count.
@@ -782,6 +854,15 @@ function ViewsSection({
                   className="vf-menu-item"
                   onClick={() => {
                     setMenuOpenId(null);
+                    setExportingView(view);
+                  }}
+                >
+                  Export…
+                </button>
+                <button
+                  className="vf-menu-item"
+                  onClick={() => {
+                    setMenuOpenId(null);
                     setDeleting(view);
                   }}
                 >
@@ -847,6 +928,15 @@ function ViewsSection({
             })
           }
           onClose={() => setDialog(null)}
+        />
+      )}
+
+      {exportingView && (
+        <ExportDialog
+          snapshot={snapshot}
+          lockScope
+          initialScope={{ kind: "view", view: exportingView }}
+          onClose={() => setExportingView(null)}
         />
       )}
     </Section>
@@ -1028,6 +1118,7 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   const [editing, setEditing] = useState<Project | null>(null);
   const [creating, setCreating] = useState(false);
   const [deletePlan, setDeletePlan] = useState<DeletionPlan | null>(null);
+  const [exportingProject, setExportingProject] = useState<Project | null>(null);
 
   const projects = [...snapshot.projects].sort((a, b) =>
     a.title.localeCompare(b.title),
@@ -1104,6 +1195,15 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
                     className="vf-menu-item"
                     onClick={() => {
                       setMenuPath(null);
+                      setExportingProject(project);
+                    }}
+                  >
+                    Export…
+                  </button>
+                  <button
+                    className="vf-menu-item"
+                    onClick={() => {
+                      setMenuPath(null);
                       setDeletePlan(planDeletion(scopeOf(snapshot), project));
                     }}
                   >
@@ -1167,6 +1267,15 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
             })
           }
           onClose={() => setEditing(null)}
+        />
+      )}
+
+      {exportingProject && (
+        <ExportDialog
+          snapshot={snapshot}
+          lockScope
+          initialScope={{ kind: "project", project: exportingProject }}
+          onClose={() => setExportingProject(null)}
         />
       )}
     </Section>

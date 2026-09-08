@@ -246,26 +246,28 @@ function PurgeWorkspaceDialog({
       >
         <h3>Permanently delete workspace "{name}"?</h3>
 
-        <p className="vf-dialog-lead">
-          This action cannot be undone. This will permanently delete the
-          workspace folder and all files inside it from disk.
-        </p>
+        <div className="vf-dialog-body">
+          <p className="vf-dialog-lead">
+            This action cannot be undone. This will permanently delete the
+            workspace folder and all files inside it from disk.
+          </p>
 
-        <label className="vf-field">
-          <span>
-            Type <strong>"{name}"</strong> to confirm permanent deletion
-          </span>
-          <input
-            className="vf-input"
-            type="text"
-            value={typed}
-            autoFocus
-            onChange={(e) => setTyped(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && canDelete) void handlePurge();
-            }}
-          />
-        </label>
+          <label className="vf-field">
+            <span>
+              Type <strong>"{name}"</strong> to confirm permanent deletion
+            </span>
+            <input
+              className="vf-input"
+              type="text"
+              value={typed}
+              autoFocus
+              onChange={(e) => setTyped(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && canDelete) void handlePurge();
+              }}
+            />
+          </label>
+        </div>
 
         <div className="vf-dialog-actions">
           <button disabled={busy} onClick={onClose}>

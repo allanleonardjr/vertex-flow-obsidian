@@ -59,38 +59,40 @@ export function LabelDialog({
 			>
 				<h3>{title}</h3>
 
-				<div className="vf-icon-name-row">
-					<div className="vf-field vf-field-icon">
-						<span>Color</span>
-						<ColorField value={color} onChange={setColor} />
+				<div className="vf-dialog-body">
+					<div className="vf-icon-name-row">
+						<div className="vf-field vf-field-icon">
+							<span>Color</span>
+							<ColorField value={color} onChange={setColor} />
+						</div>
+						<label className="vf-field vf-field-name">
+							<span>Name</span>
+							<input
+								type="text"
+								autoFocus
+								value={name}
+								onChange={(event) => {
+									setName(event.target.value);
+									setError(null);
+								}}
+								onKeyDown={(event) => {
+									if (event.key === "Enter") void submit();
+								}}
+							/>
+							<small className="vf-field-hint">
+								Use / to nest under a group in the sidebar
+							</small>
+						</label>
 					</div>
-					<label className="vf-field vf-field-name">
-						<span>Name</span>
-						<input
-							type="text"
-							autoFocus
-							value={name}
-							onChange={(event) => {
-								setName(event.target.value);
-								setError(null);
-							}}
-							onKeyDown={(event) => {
-								if (event.key === "Enter") void submit();
-							}}
-						/>
-						<small className="vf-field-hint">
-							Use / to nest under a group in the sidebar
-						</small>
-					</label>
+
+					<DescriptionDialogField
+						value={description}
+						onChange={setDescription}
+						sourcePath={descriptionSourcePath}
+					/>
+
+					{error && <p className="vf-error">{error}</p>}
 				</div>
-
-				<DescriptionDialogField
-					value={description}
-					onChange={setDescription}
-					sourcePath={descriptionSourcePath}
-				/>
-
-				{error && <p className="vf-error">{error}</p>}
 
 				<div className="vf-dialog-actions">
 					<button onClick={onClose}>Cancel</button>

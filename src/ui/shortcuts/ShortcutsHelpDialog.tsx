@@ -39,15 +39,17 @@ export function ShortcutsHelpDialog({ onClose }: { onClose: () => void }) {
 				aria-label="Keyboard shortcuts"
 				onClick={(event) => event.stopPropagation()}
 			>
-				{topic?.content ? (
-					<MarkdownContent
-						className="vf-shortcuts-dialog-body"
-						text={topic.content}
-						sourcePath={HELP_SOURCE_PATH}
-					/>
-				) : (
-					<p>Shortcut reference unavailable.</p>
-				)}
+				<div className="vf-dialog-body">
+					{topic?.content ? (
+						<MarkdownContent
+							className="vf-shortcuts-dialog-body"
+							text={topic.content}
+							sourcePath={HELP_SOURCE_PATH}
+						/>
+					) : (
+						<p>Shortcut reference unavailable.</p>
+					)}
+				</div>
 				<div className="vf-dialog-actions">
 					<button className="mod-cta" autoFocus onClick={onClose}>
 						Close

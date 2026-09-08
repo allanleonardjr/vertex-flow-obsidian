@@ -1,6 +1,6 @@
 ---
 templateSchema: 1
-kind: template
+type: vertex-flow-workspace-template
 id: sales-pipeline
 name: Sales Pipeline
 description: Track deals as Projects moving from Lead to Won, with the activities to close each one as Tasks underneath.
