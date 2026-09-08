@@ -23,7 +23,11 @@ import {
 } from "react";
 import type VertexFlowPlugin from "../main";
 import { SYSTEM_VIEW_ALL_TASKS_ID, isSystemViewId } from "../core/views";
-import type { DashboardConfig, SavedView } from "../core/types";
+import type {
+	DashboardConfig,
+	SavedView,
+	ViewColumnState,
+} from "../core/types";
 import { useActiveWorkspace, usePlugin, useSetActiveWorkspace } from "./context";
 import {
 	reorderTabs,
@@ -321,6 +325,14 @@ export interface TabsApi {
 		tabId: string,
 		snapshot: { focusedPath: string | null; selectedPaths: string[]; scrollTop: number } | null,
 	) => void;
+
+	/**
+	 * Group collapse/hide for synthesised views that have no note to persist to
+	 * (label / person views — a project view writes it to the project note
+	 * instead). Memory-only, keyed by view id; setting `null` clears the entry.
+	 */
+	getViewColumns: (viewId: string) => ViewColumnState | null;
+	setViewColumns: (viewId: string, columns: ViewColumnState | null) => void;
 }
 
 const TabsCtx = createContext<TabsApi | null>(null);
@@ -404,6 +416,34 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 					return next;
 				}
 				return { ...current, [tabId]: snapshot };
+			});
+		},
+		[],
+	);
+
+	// Group collapse/hide for note-less synthesised views (label / person).
+	// Memory-only, same lifetime as selection snapshots.
+	const [viewColumns, setViewColumns] = useState<
+		Record<string, ViewColumnState>
+	>({});
+	const viewColumnsRef = useRef(viewColumns);
+	viewColumnsRef.current = viewColumns;
+
+	const getViewColumns = useCallback(
+		(viewId: string): ViewColumnState | null =>
+			viewColumnsRef.current[viewId] ?? null,
+		[],
+	);
+	const setViewColumnsFor = useCallback(
+		(viewId: string, columns: ViewColumnState | null) => {
+			setViewColumns((current) => {
+				if (columns == null) {
+					if (!(viewId in current)) return current;
+					const next = { ...current };
+					delete next[viewId];
+					return next;
+				}
+				return { ...current, [viewId]: columns };
 			});
 		},
 		[],
@@ -977,6 +1017,8 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			setDashboardDraft,
 			getSelectionSnapshot,
 			setSelectionSnapshot,
+			getViewColumns,
+			setViewColumns: setViewColumnsFor,
 		}),
 		[
 			// The draft maps and selection snapshots are in here (not just the
@@ -987,6 +1029,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			viewDrafts,
 			dashboardDrafts,
 			selectionSnapshots,
+			viewColumns,
 			tabs,
 			activeId,
 			activeTab,
@@ -1022,6 +1065,8 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			setViewDraft,
 			getDashboardDraft,
 			setDashboardDraft,
+			getViewColumns,
+			setViewColumnsFor,
 		],
 	);
 

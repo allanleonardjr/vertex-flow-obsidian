@@ -370,7 +370,7 @@ export interface Project {
 	 * (`ui/App.tsx`) merges this over its hardcoded defaults. No migration
 	 * concern: older projects simply have none.
 	 */
-	view?: ViewDefinition | null;
+	view?: ProjectViewSettings | null;
 }
 
 /**
@@ -723,6 +723,18 @@ export type ViewDefinition = Pick<
 	| "calendarDateField"
 	| "recurringPreview"
 >;
+
+/**
+ * A Project's embedded task-list view settings: the `ViewDefinition` plus the
+ * one piece of per-session furniture the project note *can* hold — group
+ * collapse/hide. A Project has no `Views/<id>.md`, so this rides in the
+ * project's own `view:` frontmatter block. `columns` is absent when nothing is
+ * collapsed or hidden (kept out of `ViewDefinition` so a collapse never marks a
+ * file-backed view unsaved).
+ */
+export interface ProjectViewSettings extends ViewDefinition {
+	columns?: ViewColumnState;
+}
 
 // ---------------------------------------------------------------------------
 // Dashboards (§Dashboards Phase 1)

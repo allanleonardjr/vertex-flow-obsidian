@@ -386,7 +386,7 @@ export function projectView(project: Project): SavedView {
     groupBy: definition?.groupBy ?? "status",
     sortBy: definition?.sortBy ?? "rank",
     sortDirection: definition?.sortDirection ?? "asc",
-    columns: { collapsed: [], hidden: [] },
+    columns: definition?.columns ?? { collapsed: [], hidden: [] },
     emptyColumnBehavior: definition?.emptyColumnBehavior ?? "show-normal",
     hiddenFields: definition?.hiddenFields ?? [],
     subtaskDisplay: definition?.subtaskDisplay ?? "nested",

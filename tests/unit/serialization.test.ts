@@ -262,6 +262,31 @@ describe("serializeProject", () => {
 		const fm = serializeProject(parseProject(SPEC_PROJECT, projectOpts).value);
 		expect(fm).not.toHaveProperty("path");
 	});
+
+	it("round-trips the embedded view's group collapse (columns)", () => {
+		const withView = {
+			...SPEC_PROJECT,
+			view: { groupBy: "status", columns: { collapsed: ["done"], hidden: [] } },
+		};
+		const parsed = parseProject(withView, projectOpts).value;
+		expect(parsed.view?.columns).toEqual({ collapsed: ["done"], hidden: [] });
+
+		const reparsed = parseProject(
+			serializeProject(parsed),
+			projectOpts,
+		).value;
+		expect(reparsed.view?.columns).toEqual({ collapsed: ["done"], hidden: [] });
+	});
+
+	it("omits the view's columns block when nothing is collapsed or hidden", () => {
+		const parsed = parseProject(
+			{ ...SPEC_PROJECT, view: { groupBy: "status" } },
+			projectOpts,
+		).value;
+		expect(parsed.view).not.toHaveProperty("columns");
+		const fm = serializeProject(parsed);
+		expect(fm.view).not.toHaveProperty("columns");
+	});
 });
 
 describe("project description (note body)", () => {

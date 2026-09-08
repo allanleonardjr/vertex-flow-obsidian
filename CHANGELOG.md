@@ -5,6 +5,15 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## Added
+-   Added the `g r` chord for Recurring, to the quick help.
+
+## Changed
+-   Updated the docs to reflect correct sidebar order. 
+
+## Fixed
+-   Collapsing a group in the List view works again — a 1.0.11 regression had left it dead on the Project detail view and the label / person views. Project task lists now persist group collapse to the Project note's `view:` block; label and person views keep it for the session.
+
 
 ## 1.0.11 — 2026-09-07
 
