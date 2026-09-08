@@ -22,7 +22,9 @@ There are two ways a schedule can fire:
 - **On close** — the next occurrence is spawned when the task *reaches a
   status*. By default that's any status in the **completed** category; you
   can instead point it at one specific status, so "recur when this hits
-  Review" is a supported workflow, not just "recur when done".
+  Review" is a supported workflow, not just "recur when done". Unlike an
+  on-date occurrence, there's no cadence to compute a landing day from — but
+  you can still choose what its Start Date and Due Date look like.
 
 ## The anchor date
 
@@ -30,6 +32,31 @@ An on-date occurrence lands on either the **due date** or the **start date** —
 whichever you pick as the anchor. If the task has both dates set, the whole
 range is shifted forward together so its length is preserved exactly: a task
 running start→due over five days stays a five-day task on every occurrence.
+
+## On-close dates
+
+A status-triggered occurrence has no cadence to anchor a date to — it just
+lands on the day it spawns. You choose, independently for Start Date and Due
+Date, what that occurrence's dates look like:
+
+- **None** — leave the field blank, same as Vertex Flow has always done.
+- **Immediately** — set the field to the day the occurrence is created.
+- **Shifted** — reuse the same range-preserving shift an on-date occurrence
+  gets: pick which field anchors the shift (Due or Start), and it lands on
+  the spawn day while the other field moves by the same number of days,
+  keeping the original task's start↔due length intact.
+
+Existing on-close series created before this feature existed are
+automatically set to **Immediately** for both fields the first time you open
+the vault after updating — you can change either back to **None** in the
+Repeat editor if you'd rather they stay dateless.
+
+Whatever you choose shows up wherever the schedule itself is described — the
+Repeat row's one-line summary on the task, and the entry Activity History
+records when you set up or change the repeat. A rule reads as, for example,
+`when completed, sets due today` or `when status is Review, sets start
+shifted and due shifted, relative to the due date`; the anchor a **Shifted**
+field preserves the range around is always named.
 
 ## Chains
 

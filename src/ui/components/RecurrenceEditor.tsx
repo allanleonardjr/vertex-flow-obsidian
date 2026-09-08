@@ -237,8 +237,7 @@ export function RecurrenceEditDialog({
     // Status-driven mode has no cadence and no date to seed — the rule
     // stands as authored.
     if (rule.trigger === "on-close") return rule;
-    const existing =
-      rule.anchor === "dueDate" ? task.dueDate : task.startDate;
+    const existing = rule.anchor === "dueDate" ? task.dueDate : task.startDate;
     // Seed one cadence strictly after the anchor: the task's own date is
     // *this* occurrence, not a landing the series should duplicate — so a
     // weekly repeat on a due-date task lands a week later, never "same
@@ -300,7 +299,7 @@ export function RecurrenceEditDialog({
           </strong>
           <span className="vf-dialog-hint">
             {rule.trigger === "on-close"
-              ? "Creates a new task the moment this one matches — no date is scheduled."
+              ? "Creates a new task the moment this one matches."
               : `Next occurrences: ${preview.join(" · ") || "—"}`}
           </span>
         </div>
@@ -312,33 +311,93 @@ export function RecurrenceEditDialog({
               { value: "on-date", label: "As soon as it's due" },
               { value: "on-close", label: "Only once it reaches a status" },
             ]}
-            onChange={(trigger) => patch({ trigger })}
+            onChange={(trigger) =>
+              patch(
+                trigger === "on-close"
+                  ? {
+                      trigger,
+                      onCloseStartDateMode:
+                        rule.onCloseStartDateMode ?? "immediate",
+                      onCloseDueDateMode:
+                        rule.onCloseDueDateMode ?? "immediate",
+                    }
+                  : { trigger },
+              )
+            }
           />
           {rule.trigger === "on-close" && (
-            <div className="vf-recurrence-subfield">
-              <span className="vf-recurrence-subfield-label">
-                Fires when status is
-              </span>
-              <StatusSelect
-                taxonomy={taxonomies.status}
-                value={rule.triggerStatus}
-                onChange={(triggerStatus) => patch({ triggerStatus })}
-                noneLabel="Any Completed status"
-              />
-              {rule.triggerStatus != null ? (
-                <button
-                  type="button"
-                  className="vf-linkish"
-                  onClick={() => patch({ triggerStatus: null })}
-                >
-                  Use any Completed status instead
-                </button>
-              ) : (
-                <p className="vf-dialog-hint">
-                  Any status in the Completed category counts.
-                </p>
+            <>
+              <div className="vf-recurrence-subfield">
+                <span className="vf-recurrence-subfield-label">
+                  Fires when status is
+                </span>
+                <StatusSelect
+                  taxonomy={taxonomies.status}
+                  value={rule.triggerStatus}
+                  onChange={(triggerStatus) => patch({ triggerStatus })}
+                  noneLabel="Any Completed status"
+                />
+                {rule.triggerStatus != null ? (
+                  <button
+                    type="button"
+                    className="vf-linkish"
+                    onClick={() => patch({ triggerStatus: null })}
+                  >
+                    Use any Completed status instead
+                  </button>
+                ) : (
+                  <p className="vf-dialog-hint">
+                    Any status in the Completed category counts.
+                  </p>
+                )}
+              </div>
+
+              <div className="vf-recurrence-subfield">
+                <span className="vf-recurrence-subfield-label">Start Date</span>
+                <Segmented
+                  value={rule.onCloseStartDateMode ?? "immediate"}
+                  options={[
+                    { value: "none", label: "None" },
+                    { value: "immediate", label: "Immediately" },
+                    { value: "shifted", label: "Shifted" },
+                  ]}
+                  onChange={(onCloseStartDateMode) =>
+                    patch({ onCloseStartDateMode })
+                  }
+                />
+              </div>
+              <div className="vf-recurrence-subfield">
+                <span className="vf-recurrence-subfield-label">Due Date</span>
+                <Segmented
+                  value={rule.onCloseDueDateMode ?? "immediate"}
+                  options={[
+                    { value: "none", label: "None" },
+                    { value: "immediate", label: "Immediately" },
+                    { value: "shifted", label: "Shifted" },
+                  ]}
+                  onChange={(onCloseDueDateMode) =>
+                    patch({ onCloseDueDateMode })
+                  }
+                />
+              </div>
+              {(rule.onCloseStartDateMode === "shifted" ||
+                rule.onCloseDueDateMode === "shifted") && (
+                <Field label="Shift relative to">
+                  <Segmented
+                    value={rule.anchor}
+                    options={[
+                      { value: "dueDate", label: "Due date" },
+                      { value: "startDate", label: "Start date" },
+                    ]}
+                    onChange={(anchor) => patch({ anchor })}
+                  />
+                  <p className="vf-dialog-hint">
+                    “Shifted” preserves this task's start↔due range, landing
+                    the date above on the day the occurrence spawns.
+                  </p>
+                </Field>
               )}
-            </div>
+            </>
           )}
         </Field>
 

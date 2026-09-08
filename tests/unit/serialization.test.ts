@@ -14,8 +14,10 @@ import {
 	nextCommentId,
 	parseComments,
 	parseProject,
+	parseRecurrence,
 	parseTask,
 	parseView,
+	serializeRecurrence,
 	parseViews,
 	parseWorkspace,
 	resolveMentions,
@@ -29,6 +31,7 @@ import {
 	withComments,
 	withProjectDescription,
 } from "../../src/core/serialization";
+import { IssueLog } from "../../src/core/serialization/coerce";
 import { MIDDLE_RANK } from "../../src/core/ranking/lexorank";
 import type { Person, WorkspaceConfig } from "../../src/core/types";
 
@@ -175,6 +178,54 @@ describe("serializeTask", () => {
 		const fm = serializeTask(parseTask(SPEC_TASK, opts).value);
 		expect(fm).not.toHaveProperty("path");
 		expect(fm).not.toHaveProperty("mentions");
+	});
+});
+
+describe("parseRecurrence / serializeRecurrence — on-close date modes", () => {
+	const base = {
+		freq: "weekly",
+		trigger: "on-close",
+		nextDate: "2026-09-01",
+	};
+
+	it("round-trips a valid mode on each field", () => {
+		const log = new IssueLog();
+		const rule = parseRecurrence(
+			{ ...base, onCloseStartDateMode: "shifted", onCloseDueDateMode: "immediate" },
+			log,
+			[],
+		);
+		expect(rule?.onCloseStartDateMode).toBe("shifted");
+		expect(rule?.onCloseDueDateMode).toBe("immediate");
+		expect(log.issues).toEqual([]);
+
+		const fm = serializeRecurrence(rule!);
+		expect(fm.onCloseStartDateMode).toBe("shifted");
+		expect(fm.onCloseDueDateMode).toBe("immediate");
+		expect(parseRecurrence(fm, new IssueLog(), [])?.onCloseStartDateMode).toBe(
+			"shifted",
+		);
+	});
+
+	it("drops an invalid mode string with a logged issue", () => {
+		const log = new IssueLog();
+		const rule = parseRecurrence(
+			{ ...base, onCloseStartDateMode: "whenever" },
+			log,
+			[],
+		);
+		expect(rule?.onCloseStartDateMode).toBeUndefined();
+		expect(log.issues.some((i) => i.includes("onCloseStartDateMode"))).toBe(true);
+	});
+
+	it("keeps an absent key as undefined — no implicit default at this layer", () => {
+		const rule = parseRecurrence(base, new IssueLog(), []);
+		expect(rule?.onCloseStartDateMode).toBeUndefined();
+		expect(rule?.onCloseDueDateMode).toBeUndefined();
+		// And serialization writes neither key back.
+		const fm = serializeRecurrence(rule!);
+		expect(fm).not.toHaveProperty("onCloseStartDateMode");
+		expect(fm).not.toHaveProperty("onCloseDueDateMode");
 	});
 });
 

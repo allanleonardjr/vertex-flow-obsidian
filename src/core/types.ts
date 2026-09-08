@@ -158,6 +158,17 @@ export type RecurrenceFrequency = "daily" | "weekly" | "monthly" | "yearly";
 export type RecurrenceAnchor = "dueDate" | "startDate";
 
 /**
+ * How an `on-close` occurrence's Start Date or Due Date field gets set.
+ * `"none"` leaves the field blank (the original, and only, on-close
+ * behavior). `"immediate"` lands the field on the day the occurrence spawns.
+ * `"shifted"` reuses the `on-date` anchor-preserving shift
+ * (`shiftOccurrenceDates`): the rule's `anchor` field lands on the spawn day,
+ * and this field is carried along by the same delta, preserving whatever
+ * start↔due range the source task had. Unused for `on-date` rules.
+ */
+export type OnCloseDateMode = "none" | "immediate" | "shifted";
+
+/**
  * Lowercase short weekday names — the canonical encoding for a weekly
  * cadence. `["mon", "wed", "fri"]` reads better in frontmatter than day
  * numbers, and a human can hand-edit it without a decoder ring.
@@ -229,6 +240,17 @@ export interface RecurrenceConfig {
 	 * source's range is shifted so this field lands on the occurrence day.
 	 */
 	anchor: RecurrenceAnchor;
+	/**
+	 * `on-close` only: how the spawned occurrence's Start Date is set. Optional
+	 * only because notes written before this field existed have no key at all —
+	 * `migrateOnCloseDateModes` (see `src/obsidian/index-store.ts`) backfills
+	 * every such note to `"immediate"` on the next rebuild, so `undefined`
+	 * should not persist in practice. New rules authored via the Repeat editor
+	 * always set this explicitly.
+	 */
+	onCloseStartDateMode?: OnCloseDateMode;
+	/** `on-close` only: same semantics as `onCloseStartDateMode`, for Due Date. */
+	onCloseDueDateMode?: OnCloseDateMode;
 	/** The status a spawned occurrence starts in; `null` = workspace default. */
 	newStatus: string | null;
 	/**

@@ -5,6 +5,20 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Added
+- **On-close recurrence can now set Start/Due dates.** Status-triggered
+  ("on close") repeats previously always spawned with no dates at all. Each
+  of Start Date and Due Date can now independently be set to None (unchanged
+  default for new rules going forward is Immediately), Immediately (today),
+  or Shifted (preserves the source task's date range, anchored to the day it
+  spawns — the same math on-date recurrence already uses). Existing on-close
+  series are migrated to Immediately for both fields automatically. The
+  configured date modes (including which date a "Shifted" field is anchored
+  to) now show up in the Repeat row's one-line summary on the task and in the
+  Activity History entry recorded when a repeat is set up or changed, not
+  just in the Repeat editor.
+- Comments are now selectable.
+
 ## 1.0.13 — 2026-09-07
 
 ### Fixed

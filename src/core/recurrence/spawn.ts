@@ -9,8 +9,10 @@
  * - A node never spawns while a successor already exists (idempotency — a
  *   deleted successor can legitimately re-extend the chain).
  * - `on-close` is a pure status trigger with no cadence: it always lands the
- *   occurrence on today and carries no date fields. `on-date` is the one that
- *   backfills missed cadence points under the gap policy.
+ *   occurrence on today; whether Start/Due are set on that day, shifted to
+ *   preserve the source's range, or left blank is decided independently per
+ *   field by `onCloseStartDateMode`/`onCloseDueDateMode`. `on-date` is the one
+ *   that backfills missed cadence points under the gap policy.
  * - `endsAfter` and `endsOn` cap the series; the terminal occurrence carries no
  *   recurrence block, so a finished chain stops cleanly.
  */
@@ -18,6 +20,7 @@
 import type {
 	IsoDate,
 	LinkTarget,
+	OnCloseDateMode,
 	RecurrenceConfig,
 	Task,
 	WorkspaceSnapshot,
@@ -93,14 +96,29 @@ function buildPlan(
 	terminal: boolean,
 ): OccurrencePlan {
 	if (rule.trigger === "on-close") {
-		// Status-driven: no cadence, so there is nothing to shift and
-		// nothing to advance. The successor carries no dates; the rule
-		// carries forward unchanged (or not at all, if terminal).
+		// Status-driven: no cadence, so there's nothing to advance — only
+		// today's date and each field's own mode decide what lands. "shifted"
+		// reuses the same anchor-preserving math on-date relies on, computed
+		// once and read into whichever field(s) asked for it.
+		const shifted = shiftOccurrenceDates(node, rule.anchor, day);
+		const resolve = (
+			mode: OnCloseDateMode | undefined,
+			shiftedValue: IsoDate | null,
+		): IsoDate | null => {
+			switch (mode) {
+				case "immediate":
+					return day;
+				case "shifted":
+					return shiftedValue;
+				default:
+					return null;
+			}
+		};
 		return {
 			sourcePath: node.path,
 			date: day,
-			startDate: null,
-			dueDate: null,
+			startDate: resolve(rule.onCloseStartDateMode, shifted.startDate),
+			dueDate: resolve(rule.onCloseDueDateMode, shifted.dueDate),
 			recurrence: terminal ? null : { ...rule },
 		};
 	}

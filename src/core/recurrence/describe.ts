@@ -5,7 +5,7 @@
  * and the Stop-repeating confirmation lead — one phrasing, one place.
  */
 
-import type { RecurrenceConfig, StatusValue } from "../types";
+import type { OnCloseDateMode, RecurrenceConfig, StatusValue } from "../types";
 import { weekdayName } from "./engine";
 
 const MONTHS = [
@@ -102,16 +102,60 @@ export function describeTrigger(
 	return `when status is ${status ? status.name : rule.triggerStatus}`;
 }
 
+/**
+ * `on-close` only: a short clause describing what Start Date / Due Date will
+ * be set to, or `""` when both resolve to `"none"` — the original, dateless
+ * behavior reads fine without extra words appended. Reused by
+ * `describeRecurrence` (which feeds both the Repeat row summary and Activity
+ * History's `repeat set:` / `repeat changed:` entries) and by the Repeat
+ * dialog's own preview hint, so the three surfaces can never say different
+ * things about the same rule.
+ *
+ * `undefined` is treated the same as `"immediate"` here, matching the
+ * Repeat dialog's own display default — by the time any rule reaches this
+ * function from real task data, `migrateOnCloseDateModes` has already
+ * backfilled both fields, so `undefined` should never actually appear here in
+ * practice. (`buildPlan`'s runtime resolution treats an unresolved mode as
+ * `"none"` instead, which is the more conservative choice for actually
+ * setting dates on a note — the two only disagree in this same
+ * already-unreachable case.)
+ */
+export function describeOnCloseDates(rule: RecurrenceConfig): string {
+	const word = (mode: OnCloseDateMode | undefined): string | null => {
+		if ((mode ?? "immediate") === "immediate") return "today";
+		if (mode === "shifted") return "shifted";
+		return null;
+	};
+	const start = word(rule.onCloseStartDateMode);
+	const due = word(rule.onCloseDueDateMode);
+	const parts: string[] = [];
+	if (start) parts.push(`start ${start}`);
+	if (due) parts.push(`due ${due}`);
+	if (parts.length === 0) return "";
+	// "shifted" is meaningless without saying which field the shift preserves
+	// the range around — the same `anchor` the on-date path uses.
+	const anchored =
+		rule.onCloseStartDateMode === "shifted" ||
+		rule.onCloseDueDateMode === "shifted"
+			? `, relative to the ${
+					rule.anchor === "startDate" ? "start date" : "due date"
+				}`
+			: "";
+	return `sets ${parts.join(" and ")}${anchored}`;
+}
+
 /** The full one-line summary — cadence, trigger, and any end conditions. */
 export function describeRecurrence(
 	rule: RecurrenceConfig,
 	statuses: readonly StatusValue[],
 ): string {
-	// Status-driven series have no cadence to describe — the trigger is
-	// the whole story.
+	// Status-driven series have no cadence to describe — the trigger (plus
+	// whatever dates it sets) is the whole story.
 	const parts =
 		rule.trigger === "on-close"
-			? [describeTrigger(rule, statuses)]
+			? [describeTrigger(rule, statuses), describeOnCloseDates(rule)].filter(
+					(part) => part.length > 0,
+				)
 			: [describeFrequency(rule), describeTrigger(rule, statuses)];
 	if (rule.endsAfter != null) parts.push(`${rule.endsAfter} occurrences total`);
 	if (rule.endsOn) parts.push(`until ${rule.endsOn}`);

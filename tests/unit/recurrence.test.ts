@@ -399,6 +399,118 @@ describe("spawnPlans — on-close", () => {
 		expect(plan.dueDate).toBeNull();
 	});
 
+	it("onCloseStartDateMode: immediate lands Start on the spawn day only", () => {
+		const n = nodeTask({
+			status: "done",
+			startDate: "2026-01-01",
+			dueDate: "2026-01-05",
+			recurrence: rule({
+				trigger: "on-close",
+				nextDate: "2026-08-01",
+				onCloseStartDateMode: "immediate",
+			}),
+		});
+		const [plan] = spawnPlans(snapshotWith([n]), n, "2026-09-05");
+		expect(plan.startDate).toBe("2026-09-05");
+		expect(plan.dueDate).toBeNull();
+	});
+
+	it("onCloseDueDateMode: immediate lands Due on the spawn day only", () => {
+		const n = nodeTask({
+			status: "done",
+			startDate: "2026-01-01",
+			dueDate: "2026-01-05",
+			recurrence: rule({
+				trigger: "on-close",
+				nextDate: "2026-08-01",
+				onCloseDueDateMode: "immediate",
+			}),
+		});
+		const [plan] = spawnPlans(snapshotWith([n]), n, "2026-09-05");
+		expect(plan.dueDate).toBe("2026-09-05");
+		expect(plan.startDate).toBeNull();
+	});
+
+	it("both immediate lands both fields on the spawn day", () => {
+		const n = nodeTask({
+			status: "done",
+			recurrence: rule({
+				trigger: "on-close",
+				nextDate: "2026-08-01",
+				onCloseStartDateMode: "immediate",
+				onCloseDueDateMode: "immediate",
+			}),
+		});
+		const [plan] = spawnPlans(snapshotWith([n]), n, "2026-09-05");
+		expect(plan.startDate).toBe("2026-09-05");
+		expect(plan.dueDate).toBe("2026-09-05");
+	});
+
+	it("onCloseStartDateMode: shifted carries the anchor-preserving delta", () => {
+		const n = nodeTask({
+			status: "done",
+			startDate: "2026-01-01",
+			dueDate: "2026-01-05",
+			recurrence: rule({
+				trigger: "on-close",
+				anchor: "dueDate",
+				nextDate: "2026-08-01",
+				onCloseStartDateMode: "shifted",
+			}),
+		});
+		const [plan] = spawnPlans(snapshotWith([n]), n, "2026-09-05");
+		const expected = shiftOccurrenceDates(n, "dueDate", "2026-09-05");
+		expect(plan.startDate).toBe(expected.startDate);
+		expect(plan.dueDate).toBeNull();
+	});
+
+	it("shifted on the anchor field itself coincides with immediate", () => {
+		const n = nodeTask({
+			status: "done",
+			startDate: "2026-01-01",
+			dueDate: "2026-01-05",
+			recurrence: rule({
+				trigger: "on-close",
+				anchor: "dueDate",
+				nextDate: "2026-08-01",
+				onCloseDueDateMode: "shifted",
+			}),
+		});
+		const [plan] = spawnPlans(snapshotWith([n]), n, "2026-09-05");
+		expect(plan.dueDate).toBe("2026-09-05");
+	});
+
+	it("explicit none behaves identically to an absent mode", () => {
+		const base = {
+			status: "done" as const,
+			startDate: "2026-01-01",
+			dueDate: "2026-01-05",
+		};
+		const withNone = nodeTask({
+			...base,
+			recurrence: rule({
+				trigger: "on-close",
+				nextDate: "2026-08-01",
+				onCloseStartDateMode: "none",
+				onCloseDueDateMode: "none",
+			}),
+		});
+		const withUndefined = nodeTask({
+			...base,
+			recurrence: rule({ trigger: "on-close", nextDate: "2026-08-01" }),
+		});
+		const [a] = spawnPlans(snapshotWith([withNone]), withNone, "2026-09-05");
+		const [b] = spawnPlans(
+			snapshotWith([withUndefined]),
+			withUndefined,
+			"2026-09-05",
+		);
+		expect(a.startDate).toBeNull();
+		expect(a.dueDate).toBeNull();
+		expect(b.startDate).toBeNull();
+		expect(b.dueDate).toBeNull();
+	});
+
 	it("nodeMatchesTrigger summarizes the trigger check for the UI", () => {
 		const completedRule = rule({ trigger: "on-close", nextDate: "2026-09-05" });
 		expect(
@@ -562,6 +674,8 @@ describe("describeRecurrence", () => {
 					interval: 1,
 					weekdays: ["mon", "wed"],
 					trigger: "on-close",
+					onCloseStartDateMode: "none",
+					onCloseDueDateMode: "none",
 					endsAfter: 5,
 					endsOn: "2026-09-03",
 				}),
@@ -570,6 +684,70 @@ describe("describeRecurrence", () => {
 		).toBe(
 			"when completed, 5 occurrences total, until 2026-09-03",
 		);
+	});
+
+	it("on-close with both date modes none reads exactly as a pre-feature rule", () => {
+		expect(
+			describeRecurrence(
+				rule({
+					trigger: "on-close",
+					onCloseStartDateMode: "none",
+					onCloseDueDateMode: "none",
+				}),
+				sample.workspace.statuses,
+			),
+		).toBe("when completed");
+	});
+
+	it("on-close appends a dates clause when a field is set", () => {
+		const statuses = sample.workspace.statuses;
+		expect(
+			describeRecurrence(
+				rule({
+					trigger: "on-close",
+					onCloseStartDateMode: "none",
+					onCloseDueDateMode: "immediate",
+				}),
+				statuses,
+			),
+		).toBe("when completed, sets due today");
+		expect(
+			describeRecurrence(
+				rule({
+					trigger: "on-close",
+					onCloseStartDateMode: "shifted",
+					onCloseDueDateMode: "shifted",
+				}),
+				statuses,
+			),
+		).toBe(
+			"when completed, sets start shifted and due shifted, relative to the due date",
+		);
+		expect(
+			describeRecurrence(
+				rule({
+					trigger: "on-close",
+					anchor: "startDate",
+					onCloseStartDateMode: "none",
+					onCloseDueDateMode: "shifted",
+				}),
+				statuses,
+			),
+		).toBe("when completed, sets due shifted, relative to the start date");
+	});
+
+	it("on-close puts the dates clause before the occurrence-count clause", () => {
+		expect(
+			describeRecurrence(
+				rule({
+					trigger: "on-close",
+					onCloseStartDateMode: "none",
+					onCloseDueDateMode: "immediate",
+					endsAfter: 3,
+				}),
+				sample.workspace.statuses,
+			),
+		).toBe("when completed, sets due today, 3 occurrences total");
 	});
 });
 

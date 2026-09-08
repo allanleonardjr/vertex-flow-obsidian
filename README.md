@@ -54,7 +54,7 @@ If Vertex Flow helps you stay organized, consider [sponsoring on GitHub ❤️](
 - **Keyboard-first tab management.** Hold `Option` (macOS) or `Alt` (Windows/Linux) and press `Tab` to cycle through open tabs with an Arc-style switcher overlay (`Shift+Tab` walks back, `Esc` cancels); jump straight to any tab with `Option`/`Alt` + `1–9` (or `0` for the last) and close the active tab with `Option`/`Alt` + `W` (`Shift` closes them all). Right-click any tab for close-other, close-to-the-right, and close-all.
 - **A density scale that fits your screen.** Choose compact, cozy, or comfortable UI spacing across the whole plugin — app-like density without giving up readability.
 - **Fast to open, painless to keep in sync.** The index reads from Obsidian's metadata cache (no slow disk scans) and resolves @mentions in a lazy background pass, so views paint immediately and edits sync automatically.
-- **Recurring Tasks:** Automate routines with recurring schedules directly in task frontmatter that automatically instantiate the next instance when marked complete.
+- **Recurring Tasks:** Automate routines with recurring schedules directly in task frontmatter that automatically instantiate the next instance — on a date cadence, or when the task reaches a status. Status-triggered repeats can set the next occurrence's Start and Due dates independently: leave them blank, land them on the spawn day, or shift them to preserve the original task's date range.
 - **Activity History Log:** Track past completed work, status updates, and workspace activity logs preserved in plain Markdown files.
 
 
