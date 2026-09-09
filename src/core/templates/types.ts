@@ -38,6 +38,9 @@ export interface TemplateSettingValue {
 	/** Hex color. Present for Status/Priority/Task Type/Label values; omitted
 	 *  for settings that have no color (e.g. "Default view"). */
 	color?: string;
+	/** Obsidian icon name. Present for values that stand for a view or
+	 *  dashboard, rendered as a small glyph before the name. */
+	icon?: string;
 }
 
 export interface TemplateSetting {
@@ -132,4 +135,14 @@ export function settingsFromValues(
 /** A plain (colorless) card row, e.g. "Default view: Board (grouped by Status)". */
 export function plainSetting(label: string, ...values: string[]): TemplateSetting {
 	return { label, values: values.map((name) => ({ name })) };
+}
+
+/** A card row whose values carry an icon glyph each, e.g. "Views: …".
+ *  Used for gallery cards that preview what an exported workspace will
+ *  create (views and dashboards carry user-chosen icon names). */
+export function iconSetting(
+	label: string,
+	values: { name: string; icon?: string }[],
+): TemplateSetting {
+	return { label, values: values.map((v) => ({ name: v.name, icon: v.icon })) };
 }

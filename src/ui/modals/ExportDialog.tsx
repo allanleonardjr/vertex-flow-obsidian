@@ -587,8 +587,9 @@ export function ExportDialog({
                   <p className="vf-export-preview">
                     <strong>This exports your workspace configuration.</strong>
                     <br />
-                    Captures statuses, priorities, task types, labels, and the
-                    people roster — no tasks, views, dashboards or projects.
+                    Captures statuses, priorities, task types, labels, the
+                    people roster, saved views and dashboards — no tasks or
+                    projects.
                   </p>
 
                   {error && <p className="vf-error">{error}</p>}

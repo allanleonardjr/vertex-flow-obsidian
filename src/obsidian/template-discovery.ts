@@ -17,7 +17,16 @@ import { TemplateParseError } from "../core/templates/markdown/types";
 import { WORKSPACE_TEMPLATES, type WorkspaceTemplate } from "../core/templates";
 import type { NoteIO } from "./note-io";
 
-export type VaultTemplate = WorkspaceTemplate & { path: string };
+export type VaultTemplate = WorkspaceTemplate & {
+	path: string;
+	/** The saved views the template will create (excluding the injected "All
+	 *  Tasks" System View), with their icon names — surfaced as pills on the
+	 *  gallery card. */
+	templateViews: { name: string; icon?: string }[];
+	/** The dashboards the template will create, with their icon names —
+	 *  surfaced as pills on the gallery card. */
+	templateDashboards: { name: string; icon?: string }[];
+};
 
 export async function discoverVaultTemplates(
 	io: NoteIO,
@@ -48,6 +57,14 @@ export async function discoverVaultTemplates(
 				...parsed.meta,
 				workspace: parsed.workspaceOverrides,
 				mePersonId: parsed.mePersonId,
+				templateViews: parsed.views.map((view) => ({
+					name: view.name,
+					icon: view.icon,
+				})),
+				templateDashboards: parsed.dashboards.map((dash) => ({
+					name: dash.name,
+					icon: dash.icon,
+				})),
 				buildExampleContent: (buildCtx) =>
 					resolveTemplateContent(parsed, buildCtx),
 			});

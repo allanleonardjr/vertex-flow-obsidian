@@ -56,3 +56,17 @@ projects, use Labels or relations — never a second parent.
 **Is my data safe to back up or version control?**
 Everything is plain Markdown in your vault, so it syncs, backs up, and
 version-controls with whatever tools you already use for your notes.
+
+**Can I export my tasks?**
+Yes — in CSV, JSON, or iCalendar. Pick a scope (the current view, a saved view,
+a project, or the whole workspace), choose which fields to include, and the
+export lands as a file under `<workspace>/Exports/`. See **Export &
+workspace templates** in Concepts.
+
+**Can I reuse an existing workspace as a starting point?**
+Yes — **"Export Workspace as Template"** captures a workspace's statuses,
+priorities, task types, labels, people, saved views, and dashboards as a
+portable Markdown template. Pick a destination folder (you can type one or
+browse; vault-root `Templates/` is the default), and a template saved there
+shows up in the New Workspace gallery under **From your Vault**, ready to seed
+a fresh workspace. It never includes tasks or projects.

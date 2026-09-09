@@ -1759,8 +1759,17 @@ button.vf-swatch.is-on {
   margin: 0;
 }
 
-.vf-template-card-cta {
+/* The footer (meta line + "Use this template →") is one block pinned to the
+ * bottom of every card so the CTA aligns across the grid regardless of how
+ * many settings/fields an individual card previews. */
+.vf-template-card-footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pad);
   margin-top: auto;
+}
+
+.vf-template-card-cta {
   font-size: var(--font-ui-smaller);
   font-weight: 600;
   color: var(--interactive-accent);

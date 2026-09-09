@@ -14,6 +14,7 @@ import { Notice, TFolder } from "obsidian";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   WORKSPACE_TEMPLATES,
+  iconSetting,
   type TemplateSetting,
   type WorkspaceTemplate,
 } from "../core/templates";
@@ -213,9 +214,21 @@ function TemplateCard({
   template,
   onPick,
 }: {
-  template: WorkspaceTemplate & { path?: string };
+  template: WorkspaceTemplate & {
+    path?: string;
+    templateViews?: { name: string; icon?: string }[];
+    templateDashboards?: { name: string; icon?: string }[];
+  };
   onPick: (template: WorkspaceTemplate) => void;
 }) {
+  // A template that opts out of example content (an exported workspace) always
+  // creates its views and dashboards, so they're safe to preview on the card.
+  // Built-in, example-content templates only create theirs when the user ticks
+  // "Populate with example content" — previewing them unconditionally would
+  // overpromise.
+  const guaranteesContent = template.supportsExampleContent === false;
+  const templateViews = template.templateViews ?? [];
+  const templateDashboards = template.templateDashboards ?? [];
   return (
     <div
       data-template={template.id}
@@ -244,18 +257,26 @@ function TemplateCard({
         {template.settings.map((setting) => (
           <SettingRow key={setting.label} setting={setting} />
         ))}
+        {guaranteesContent && templateViews.length > 0 && (
+          <SettingRow setting={iconSetting("Views", templateViews)} />
+        )}
+        {guaranteesContent && templateDashboards.length > 0 && (
+          <SettingRow setting={iconSetting("Dashboards", templateDashboards)} />
+        )}
       </dl>
-      {template.path && (
-        <div className="vf-template-card-meta">
-          {template.createdAt && (
-            <p className="vf-template-card-created">
-              Created: {formatFullDateTime(template.createdAt)}
-            </p>
-          )}
-          <p className="vf-template-card-path">Located: {template.path}</p>
-        </div>
-      )}
-      <span className="vf-template-card-cta">Use this template →</span>
+      <div className="vf-template-card-footer">
+        {template.path && (
+          <div className="vf-template-card-meta">
+            {template.createdAt && (
+              <p className="vf-template-card-created">
+                Created: {formatFullDateTime(template.createdAt)}
+              </p>
+            )}
+            <p className="vf-template-card-path">Located: {template.path}</p>
+          </div>
+        )}
+        <span className="vf-template-card-cta">Use this template →</span>
+      </div>
     </div>
   );
 }
@@ -270,6 +291,9 @@ function SettingRow({ setting }: { setting: TemplateSetting }) {
         ) : (
           setting.values.map((value) => (
             <span key={value.name} className="vf-template-val">
+              {value.icon && (
+                <Icon id={value.icon} fallback="layers" size={12} />
+              )}
               {value.color && (
                 <span
                   className="vf-template-dot"

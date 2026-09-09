@@ -172,7 +172,15 @@ export function instantiateTemplate(
 		taskPath: (n: number) => joinPath(root, "Tasks", formatTaskId(idPrefix, n)),
 	};
 
-	const content: TemplateContent | null = includeExampleContent
+	// `includeExampleContent` gates the example material — projects, tasks,
+	// comments/descriptions, seeded history. A template that opts out of
+	// example content entirely (an exported workspace template ships no tasks
+	// or projects — only configuration) treats everything it returns as config
+	// to apply unconditionally, so the gallery's always-off "populate" toggle
+	// can't silently drop its views and dashboards.
+	const wantsConfigContent =
+		includeExampleContent || template.supportsExampleContent === false;
+	const content: TemplateContent | null = wantsConfigContent
 		? template.buildExampleContent(ctx)
 		: null;
 

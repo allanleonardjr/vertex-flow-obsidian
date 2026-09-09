@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { sampleSnapshot } from "../../src/core/templates/instantiate";
+import {
+	instantiateTemplate,
+	sampleSnapshot,
+} from "../../src/core/templates/instantiate";
 import { queryContext } from "../../src/core/query";
 import { isSystemViewId } from "../../src/core/views";
 import { serializeTemplateMarkdown } from "../../src/core/templates/markdown/serialize";
@@ -41,6 +44,14 @@ describe("discoverVaultTemplates", () => {
 		expect(found[0].path).toBe("Templates/team.md");
 		expect(typeof found[0].buildExampleContent).toBe("function");
 		expect(found[0].workspace?.statuses?.length).toBe(6);
+		expect(found[0].templateViews).toEqual(
+			snapshot.views
+				.filter((v) => !isSystemViewId(v.id))
+				.map((v) => ({ name: v.name, icon: v.icon })),
+		);
+		expect(found[0].templateDashboards).toEqual(
+			snapshot.dashboards.map((d) => ({ name: d.name, icon: d.icon })),
+		);
 	});
 
 	it("skips a malformed file without throwing, warning once", async () => {
@@ -85,5 +96,30 @@ describe("discoverVaultTemplates", () => {
 		const io = fakeIo({ "dated.md": source });
 		const found = await discoverVaultTemplates(io);
 		expect(found[0].createdAt).toBe("2026-08-26T12:00:00.000Z");
+	});
+
+	it("keeps views and dashboards when instantiated without example content", async () => {
+		// An exported workspace template sets `supportsExampleContent: false`, so
+		// the gallery never offers the "populate" toggle and creation runs with
+		// `includeExampleContent: false`. Its views and dashboards are
+		// configuration, not example material, and must still be born.
+		const io = fakeIo({ "team.md": templateSource("team") });
+		const [found] = await discoverVaultTemplates(io);
+		const { snapshot } = instantiateTemplate({
+			template: found,
+			root: "WS",
+			name: "Team",
+			idPrefix: "TEA",
+			includeExampleContent: false,
+			now: new Date("2026-08-26T12:00:00Z"),
+		});
+		expect(snapshot.tasks).toHaveLength(0);
+		expect(snapshot.projects).toHaveLength(0);
+		expect(
+			snapshot.views.filter((v) => !isSystemViewId(v.id)).map((v) => v.name),
+		).toContain("Sprint Board");
+		expect(snapshot.dashboards.map((d) => d.name)).toContain(
+			"Sprint Overview",
+		);
 	});
 });

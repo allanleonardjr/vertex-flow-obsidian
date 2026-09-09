@@ -35,6 +35,11 @@ This project uses [Semantic Versioning](https://semver.org/).
   the built-ins: a "From your Vault" section badge, a subtle accent border on
   the cards, a "Your template" pill on each card, and the on-disk location —
   "Located: `Templates/<file>.md`" — shown below the settings on the card.
+  The card previews exactly what the template will create, so exported-template
+  cards add **Views** and **Dashboards** rows to their settings block — named
+  pills, each with the icon that view or dashboard will show — and the whole
+  footer (Created, Located, "Use this template →") pins to the bottom of every
+  card so the action link aligns across the grid.
 - **Exported templates now carry their timestamp.** "Export Workspace as
   Template" stamps each exported template file with a `createdAt` timestamp in
   its frontmatter, and the New Workspace gallery shows it as a "Created:"
@@ -100,6 +105,13 @@ This project uses [Semantic Versioning](https://semver.org/).
   rather than floating alone in the body.
 
 ### Fixed
+- **Exported workspace templates no longer drop their views and dashboards.**
+  Creating a workspace from an "Export Workspace as Template" file used to come
+  out without any of the saved views or dashboards the template carried — the
+  gallery's always-off "Populate with example content" toggle silently gated
+  them away. A template that opts out of example content (an exported workspace
+  ships no tasks or projects, only configuration) now applies everything it
+  returns regardless of the toggle.
 - **iCalendar all-day event end dates.** All-day events now emit
   `DTEND;VALUE=DATE` one day after the task's due date (exclusive end), matching
   how calendars like Google Calendar store all-day events — previously the end
