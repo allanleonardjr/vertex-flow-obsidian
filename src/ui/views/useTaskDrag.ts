@@ -31,212 +31,244 @@ import { LONG_PRESS_MS, liftVerdict } from "./pointerGesture";
 export const PREVIEW_OFFSET_PX = 14;
 
 export interface DropTarget {
-	/** Group key of the column/section under the pointer. */
-	groupKey: string;
-	/** Insert position within that group. */
-	index: number;
+  /** Group key of the column/section under the pointer. */
+  groupKey: string;
+  /** Insert position within that group. */
+  index: number;
 }
 
 export interface DragState {
-	taskPath: string;
-	fromGroup: string;
-	/** Current pointer position, in viewport coordinates. */
-	x: number;
-	y: number;
-	/** Width of the source element, so the preview matches it. */
-	width: number;
-	target: DropTarget | null;
+  taskPaths: string[];
+  fromGroup: string;
+  /** Current pointer position, in viewport coordinates. */
+  x: number;
+  y: number;
+  /** Width of the source element, so the preview matches it. */
+  width: number;
+  target: DropTarget | null;
 }
 
 export interface TaskDragApi {
-	drag: DragState | null;
-	/** Attach to each draggable item's `onPointerDown`. */
-	onPointerDown: (
-		event: React.PointerEvent,
-		taskPath: string,
-		groupKey: string,
-	) => void;
-	isDragging: (taskPath: string) => boolean;
-	/**
-	 * True if the gesture that just ended was a drag rather than a click.
-	 *
-	 * Needed because a drag always ends with a `click` event too, and without
-	 * this guard dropping a card would also open its editor.
-	 */
-	consumeDragClick: () => boolean;
-	/** Insert index within a group, or null when it isn't the drop target. */
-	dropIndexFor: (groupKey: string) => number | null;
+  drag: DragState | null;
+  /** Attach to each draggable item's `onPointerDown`. */
+  onPointerDown: (
+    event: React.PointerEvent,
+    taskPath: string,
+    groupKey: string,
+  ) => void;
+  isDragging: (taskPath: string) => boolean;
+  /**
+   * True if the gesture that just ended was a drag rather than a click.
+   *
+   * Needed because a drag always ends with a `click` event too, and without
+   * this guard dropping a card would also open its editor.
+   */
+  consumeDragClick: () => boolean;
+  /** Insert index within a group, or null when it isn't the drop target. */
+  dropIndexFor: (groupKey: string) => number | null;
 }
 
 export function useTaskDrag(
-	onDrop: (taskPath: string, target: DropTarget) => void,
+  onDrop: (taskPaths: string[], target: DropTarget) => void,
+  resolveBatch: (taskPath: string) => string[],
 ): TaskDragApi {
-	const [drag, setDrag] = useState<DragState | null>(null);
+  const [drag, setDrag] = useState<DragState | null>(null);
+  const resolveBatchRef = useRef(resolveBatch);
+  resolveBatchRef.current = resolveBatch;
 
-	// Everything the live gesture needs, kept in a ref so the global pointer
-	// listeners never go stale between renders.
-	const gesture = useRef<{
-		taskPath: string;
-		groupKey: string;
-		pointerId: number;
-		startX: number;
-		startY: number;
-		width: number;
-		lifted: boolean;
-		longPress: number | null;
-	} | null>(null);
+  // Everything the live gesture needs, kept in a ref so the global pointer
+  // listeners never go stale between renders.
+  const gesture = useRef<{
+    taskPath: string;
+    groupKey: string;
+    pointerId: number;
+    startX: number;
+    startY: number;
+    width: number;
+    lifted: boolean;
+    longPress: number | null;
+  } | null>(null);
 
-	const dragRef = useRef<DragState | null>(null);
-	dragRef.current = drag;
+  const dragRef = useRef<DragState | null>(null);
+  dragRef.current = drag;
 
-	/** Set when a drag completes, cleared by the click handler that follows. */
-	const suppressClick = useRef(false);
+  /** Set when a drag completes, cleared by the click handler that follows. */
+  const suppressClick = useRef(false);
 
-	const cancelLongPress = () => {
-		const current = gesture.current;
-		if (current?.longPress != null) {
-			window.clearTimeout(current.longPress);
-			current.longPress = null;
-		}
-	};
+  const cancelLongPress = () => {
+    const current = gesture.current;
+    if (current?.longPress != null) {
+      window.clearTimeout(current.longPress);
+      current.longPress = null;
+    }
+  };
 
-	const endGesture = useCallback(() => {
-		cancelLongPress();
-		gesture.current = null;
-		setDrag(null);
-		document.body.classList.remove("vf-dragging");
-	}, []);
+  const endGesture = useCallback(() => {
+    cancelLongPress();
+    gesture.current = null;
+    setDrag(null);
+    document.body.classList.remove("vf-dragging");
+  }, []);
 
-	const lift = useCallback((x: number, y: number) => {
-		const current = gesture.current;
-		if (!current || current.lifted) return;
-		current.lifted = true;
-		document.body.classList.add("vf-dragging");
-		setDrag({
-			taskPath: current.taskPath,
-			fromGroup: current.groupKey,
-			x,
-			y,
-			width: current.width,
-			target: resolveTarget(x, y, current.taskPath),
-		});
-	}, []);
+  const cancelDrag = useCallback(() => {
+    if (!gesture.current?.lifted) return;
+    // The pointer button is presumably still down, so `pointerup` and its
+    // trailing `click` will still fire after Escape. Nulling `gesture.current`
+    // in `endGesture()` makes `onUp` return early without calling `onDrop`,
+    // but the trailing click would still open/select the row under the
+    // cursor without this — same ordering as `onUp` sets it.
+    suppressClick.current = true;
+    endGesture();
+  }, [endGesture]);
 
-	const onPointerDown = useCallback(
-		(event: React.PointerEvent, taskPath: string, groupKey: string) => {
-			// Ignore right-clicks and anything starting on an interactive control
-			// — but NOT the row's own open-affordance. In the List view every
-			// row's content is wrapped in a `.vf-row-open` button so the trailing
-			// delete action can sit beside it; treating that as "a control" would
-			// abort every list drag before it started.
-			if (event.button !== 0) return;
-			const target = event.target as HTMLElement;
-			if (
-				target.closest("button:not(.vf-row-open), input, select, a, textarea")
-			) {
-				return;
-			}
+  const lift = useCallback((x: number, y: number) => {
+    const current = gesture.current;
+    if (!current || current.lifted) return;
+    current.lifted = true;
+    document.body.classList.add("vf-dragging");
+    const taskPaths = resolveBatchRef.current(current.taskPath);
+    setDrag({
+      taskPaths,
+      fromGroup: current.groupKey,
+      x,
+      y,
+      width: current.width,
+      target: resolveTarget(x, y, taskPaths),
+    });
+  }, []);
 
-			// Measure now, while the element is still in its resting position.
-			const rect = event.currentTarget.getBoundingClientRect();
+  const onPointerDown = useCallback(
+    (event: React.PointerEvent, taskPath: string, groupKey: string) => {
+      // Ignore right-clicks and anything starting on an interactive control
+      // — but NOT the row's own open-affordance. In the List view every
+      // row's content is wrapped in a `.vf-row-open` button so the trailing
+      // delete action can sit beside it; treating that as "a control" would
+      // abort every list drag before it started.
+      if (event.button !== 0) return;
+      const target = event.target as HTMLElement;
+      if (
+        target.closest("button:not(.vf-row-open), input, select, a, textarea")
+      ) {
+        return;
+      }
 
-			gesture.current = {
-				taskPath,
-				groupKey,
-				pointerId: event.pointerId,
-				startX: event.clientX,
-				startY: event.clientY,
-				width: rect.width,
-				lifted: false,
-				longPress: null,
-			};
+      // Measure now, while the element is still in its resting position.
+      const rect = event.currentTarget.getBoundingClientRect();
 
-			if (event.pointerType === "touch" || event.pointerType === "pen") {
-				const { clientX, clientY } = event;
-				gesture.current.longPress = window.setTimeout(
-					() => lift(clientX, clientY),
-					LONG_PRESS_MS,
-				);
-			}
-		},
-		[lift],
-	);
+      gesture.current = {
+        taskPath,
+        groupKey,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        width: rect.width,
+        lifted: false,
+        longPress: null,
+      };
 
-	useEffect(() => {
-		const onMove = (event: PointerEvent) => {
-			const current = gesture.current;
-			if (!current || event.pointerId !== current.pointerId) return;
+      if (event.pointerType === "touch" || event.pointerType === "pen") {
+        const { clientX, clientY } = event;
+        gesture.current.longPress = window.setTimeout(
+          () => lift(clientX, clientY),
+          LONG_PRESS_MS,
+        );
+      }
+    },
+    [lift],
+  );
 
-			const dx = Math.abs(event.clientX - current.startX);
-			const dy = Math.abs(event.clientY - current.startY);
+  useEffect(() => {
+    const onMove = (event: PointerEvent) => {
+      const current = gesture.current;
+      if (!current || event.pointerId !== current.pointerId) return;
 
-			if (!current.lifted) {
-				const verdict = liftVerdict(event.pointerType, dx, dy);
-				if (verdict === "lift") {
-					lift(event.clientX, event.clientY);
-				} else if (verdict === "abandon") {
-					// The finger moved before the long press fired — that's a
-					// scroll, so abandon the gesture entirely.
-					cancelLongPress();
-					gesture.current = null;
-				}
-				return;
-			}
+      const dx = Math.abs(event.clientX - current.startX);
+      const dy = Math.abs(event.clientY - current.startY);
 
-			setDrag({
-				taskPath: current.taskPath,
-				fromGroup: current.groupKey,
-				x: event.clientX,
-				y: event.clientY,
-				width: current.width,
-				target: resolveTarget(event.clientX, event.clientY, current.taskPath),
-			});
-		};
+      if (!current.lifted) {
+        const verdict = liftVerdict(event.pointerType, dx, dy);
+        if (verdict === "lift") {
+          lift(event.clientX, event.clientY);
+        } else if (verdict === "abandon") {
+          // The finger moved before the long press fired — that's a
+          // scroll, so abandon the gesture entirely.
+          cancelLongPress();
+          gesture.current = null;
+        }
+        return;
+      }
 
-		const onUp = (event: PointerEvent) => {
-			const current = gesture.current;
-			if (!current || event.pointerId !== current.pointerId) return;
+      setDrag({
+        taskPaths: dragRef.current?.taskPaths ?? [current.taskPath],
+        fromGroup: current.groupKey,
+        x: event.clientX,
+        y: event.clientY,
+        width: current.width,
+        target: resolveTarget(
+          event.clientX,
+          event.clientY,
+          dragRef.current?.taskPaths ?? [current.taskPath],
+        ),
+      });
+    };
 
-			if (current.lifted) {
-				const active = dragRef.current;
-				if (active?.target) onDrop(current.taskPath, active.target);
-				// A drag always emits a trailing click; swallow it so dropping a
-				// card doesn't also open it.
-				suppressClick.current = true;
-			}
-			endGesture();
-		};
+    const onUp = (event: PointerEvent) => {
+      const current = gesture.current;
+      if (!current || event.pointerId !== current.pointerId) return;
 
-		// Non-passive so a lifted touch drag can suppress the column's scroll.
-		const onTouchMove = (event: TouchEvent) => {
-			if (gesture.current?.lifted) event.preventDefault();
-		};
+      if (current.lifted) {
+        const active = dragRef.current;
+        if (active?.target) onDrop(active.taskPaths, active.target);
+        // A drag always emits a trailing click; swallow it so dropping a
+        // card doesn't also open it.
+        suppressClick.current = true;
+      }
+      endGesture();
+    };
 
-		window.addEventListener("pointermove", onMove);
-		window.addEventListener("pointerup", onUp);
-		window.addEventListener("pointercancel", onUp);
-		window.addEventListener("touchmove", onTouchMove, { passive: false });
+    // Non-passive so a lifted touch drag can suppress the column's scroll.
+    const onTouchMove = (event: TouchEvent) => {
+      if (gesture.current?.lifted) event.preventDefault();
+    };
 
-		return () => {
-			window.removeEventListener("pointermove", onMove);
-			window.removeEventListener("pointerup", onUp);
-			window.removeEventListener("pointercancel", onUp);
-			window.removeEventListener("touchmove", onTouchMove);
-		};
-	}, [lift, endGesture, onDrop]);
+    // Escape cancels an in-progress drag before it can drop. Capture-phase so
+    // it wins over `Workspace`'s unified Escape handler, which steps aside
+    // while `[data-task-drag]` is in the DOM (see `App.tsx`).
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (!gesture.current?.lifted) return;
+      event.preventDefault();
+      event.stopPropagation();
+      cancelDrag();
+    };
 
-	return {
-		drag,
-		onPointerDown,
-		isDragging: (taskPath) => drag?.taskPath === taskPath,
-		consumeDragClick: () => {
-			const suppressed = suppressClick.current;
-			suppressClick.current = false;
-			return suppressed;
-		},
-		dropIndexFor: (groupKey) =>
-			drag?.target?.groupKey === groupKey ? drag.target.index : null,
-	};
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("keydown", onKeyDown, true);
+
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("keydown", onKeyDown, true);
+    };
+  }, [lift, endGesture, onDrop, cancelDrag]);
+
+  return {
+    drag,
+    onPointerDown,
+    isDragging: (taskPath) => drag?.taskPaths?.includes(taskPath) ?? false,
+    consumeDragClick: () => {
+      const suppressed = suppressClick.current;
+      suppressClick.current = false;
+      return suppressed;
+    },
+    dropIndexFor: (groupKey) =>
+      drag?.target?.groupKey === groupKey ? drag.target.index : null,
+  };
 }
 
 /**
@@ -246,27 +278,33 @@ export function useTaskDrag(
  * scroll independently and items reflow as the indicator moves, so any cached
  * geometry would be wrong within one frame.
  */
-function resolveTarget(x: number, y: number, movingPath: string): DropTarget | null {
-	const element = document.elementFromPoint(x, y) as HTMLElement | null;
-	const group = element?.closest("[data-group-key]") as HTMLElement | null;
-	if (!group) return null;
+function resolveTarget(
+  x: number,
+  y: number,
+  movingPaths?: string[],
+): DropTarget | null {
+  const element = document.elementFromPoint(x, y) as HTMLElement | null;
+  const group = element?.closest("[data-group-key]") as HTMLElement | null;
+  if (!group) return null;
 
-	const groupKey = group.dataset.groupKey as string;
+  const groupKey = group.dataset.groupKey as string;
 
-	// A collapsed column is still a valid drop target — it just has no
-	// items to position against, so anything landing on it goes to the top.
-	const items = [...group.querySelectorAll<HTMLElement>("[data-task-path]")].filter(
-		(item) => item.dataset.taskPath !== movingPath,
-	);
+  // A collapsed column is still a valid drop target — it just has no
+  // items to position against, so anything landing on it goes to the top.
+  const items = [
+    ...group.querySelectorAll<HTMLElement>("[data-task-path]"),
+  ].filter(
+    (item) => !(movingPaths ?? []).includes(item.dataset.taskPath as string),
+  );
 
-	let index = items.length;
-	for (let i = 0; i < items.length; i++) {
-		const rect = items[i].getBoundingClientRect();
-		if (y < rect.top + rect.height / 2) {
-			index = i;
-			break;
-		}
-	}
+  let index = items.length;
+  for (let i = 0; i < items.length; i++) {
+    const rect = items[i].getBoundingClientRect();
+    if (y < rect.top + rect.height / 2) {
+      index = i;
+      break;
+    }
+  }
 
-	return { groupKey, index };
+  return { groupKey, index };
 }

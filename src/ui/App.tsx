@@ -178,12 +178,16 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
 
       // The `?` shortcuts overlay, the taxonomy quick-picker, the Option+Tab
       // switcher, and the tab right-click menu each own Escape while they're
-      // up — closing them, not clearing focus behind them.
+      // up — closing them, not clearing focus behind them. An in-progress
+      // task drag (`[data-task-drag]`) likewise owns Escape to cancel itself
+      // (see `useTaskDrag`) rather than have the selection clear out from
+      // under it.
       if (
         document.querySelector(".vf-shortcuts-dialog") ||
         document.querySelector(".vf-quick-picker") ||
         document.querySelector(".vf-tab-switcher") ||
-        document.querySelector(".vf-tab-menu")
+        document.querySelector(".vf-tab-menu") ||
+        document.querySelector("[data-task-drag]")
       ) {
         return;
       }

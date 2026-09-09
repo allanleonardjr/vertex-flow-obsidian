@@ -47,19 +47,23 @@ function fieldEditFor(
 export function useTaskDropHandler(
 	view: SavedView,
 	evaluated: EvaluatedView,
-): (taskPath: string, target: DropTarget) => void {
+): (taskPaths: string[], target: DropTarget) => void {
 	const plugin = usePlugin();
 
 	return useCallback(
-		(taskPath: string, target: DropTarget) => {
-			const task = evaluated.tasks.find((candidate) => candidate.path === taskPath);
+		(taskPaths: string[], target: DropTarget) => {
+			const tasks = taskPaths
+				.map((path) => evaluated.tasks.find((candidate) => candidate.path === path))
+				.filter((task): task is Task => task != null);
 			const group = evaluated.groups.find((candidate) => candidate.key === target.groupKey);
-			if (!task || !group) return;
+			if (tasks.length === 0 || !group) return;
+
 
 			const edit = fieldEditFor(view.groupBy, target.groupKey);
 
-			void plugin.mutations.moveTask(
-				task,
+
+			void plugin.mutations.moveTasks(
+				tasks,
 				group.tasks,
 				target.index,
 				edit ?? undefined,

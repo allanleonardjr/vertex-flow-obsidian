@@ -1041,6 +1041,41 @@ button.vf-nest-chevron {
   opacity: 0.95;
 }
 
+/* --- Drag count badge for multi-task drags --- */
+
+.vf-drag-count-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: var(--vf-muted);
+  color: var(--background-primary);
+  font-size: var(--font-ui-tiny);
+  font-weight: 600;
+  width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* --- Stacked-card effect for multi-task drags --- */
+
+.vf-card-preview.vf-drag-stack-ghost,
+.vf-row-preview.vf-drag-stack-ghost {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: calc(-1 * var(--vf-stack-depth));
+  transform: translate(
+      calc(var(--vf-stack-depth) * 5px),
+      calc(var(--vf-stack-depth) * 5px)
+    )
+    rotate(calc(var(--vf-stack-depth) * -1.5deg));
+  opacity: calc(0.85 - var(--vf-stack-depth) * 0.22);
+}
+
 body.vf-dragging,
 body.vf-dragging .vf-card {
   cursor: grabbing;

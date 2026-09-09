@@ -20,6 +20,16 @@ This project uses [Semantic Versioning](https://semver.org/).
 - **Separate "Include descriptions" and "Include comments" toggles** when a
   workspace template carries tasks — descriptions default on, comments default
   off (they more often hold private back-and-forth).
+- **Drag a multi-selection as one batch.** In List and Board, dragging a task
+  that's part of the current selection now moves the whole selection together,
+  keeping its relative order and landing as a contiguous block. It's recorded
+  as a single move in history.
+- **The drag preview shows the batch.** When more than one task is dragged, the
+  floating preview carries a `+N` count badge and up to two fanned-out card /
+  row outlines behind it, so it reads as a stack rather than a single item.
+- **Escape cancels an in-progress drag.** Pressing Escape after a drag lifts,
+  but before the mouse is released, drops the gesture with no move — the tasks
+  stay put and the selection is untouched. A completed drop is unaffected.
 
 ### Changed
 - **New export filename format**, shared by task exports and template exports:

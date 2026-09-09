@@ -186,6 +186,34 @@ export function rankBefore(next: string | null): string {
 }
 
 /**
+ * `count` strictly-ascending ranks to insert between `prev` and `next`
+ * (either may be null, meaning "no bound on that side"). Used when several
+ * items are dragged into the same gap at once and must land in a known
+ * relative order.
+ *
+ * Implemented by repeated bisection toward `next`: each rank is computed as
+ * `rankBetween(cursor, next)`, then `cursor` advances to that rank before
+ * the next iteration. This keeps every intermediate value strictly between
+ * its predecessor and `next`, so the whole batch stays ordered without
+ * needing to know all `count` positions up front.
+ */
+export function ranksBetween(
+	prev: string | null | undefined,
+	next: string | null | undefined,
+	count: number,
+): string[] {
+	if (count <= 0) return [];
+	const ranks: string[] = [];
+	let cursor = prev ?? null;
+	for (let i = 0; i < count; i++) {
+		const rank = rankBetween(cursor, next);
+		ranks.push(rank);
+		cursor = rank;
+	}
+	return ranks;
+}
+
+/**
  * `count` evenly-spaced ranks across the whole space — used when seeding a
  * workspace or importing tasks in bulk. Evenly spacing keeps plenty of room for
  * later insertions anywhere in the list.

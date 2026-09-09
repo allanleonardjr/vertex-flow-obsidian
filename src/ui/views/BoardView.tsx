@@ -6,7 +6,7 @@
  * `useDropHandler`, shared with the List view.
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { scopeOf, subtaskProgress } from "../../core/hierarchy";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
@@ -65,11 +65,22 @@ export function BoardView({
   // Fields the view saved as hidden, plus any the filters make redundant.
   const shownFields = useMemo(() => renderedHiddenFields(view), [view]);
 
-  const drag = useTaskDrag(useTaskDropHandler(view, evaluated));
+  const selection = useSelection();
+  const resolveDragBatch = useCallback(
+    (path: string) => {
+      if (selection.isSelected(path) && selection.selectedPaths.length > 1) {
+        return selection.selectedPaths;
+      }
+      selection.select(path);
+      return [path];
+    },
+    [selection],
+  );
+  const drag = useTaskDrag(useTaskDropHandler(view, evaluated), resolveDragBatch);
   const visible = evaluated.groups.filter((group) => !group.hidden);
 
   const draggedTask = drag.drag
-    ? evaluated.tasks.find((task) => task.path === drag.drag?.taskPath)
+    ? evaluated.tasks.find((task) => task.path === drag.drag?.taskPaths?.[0])
     : undefined;
 
   const [board, setBoard] = useState<HTMLDivElement | null>(null);
@@ -141,9 +152,14 @@ export function DragPreview({
   taxonomies: WorkspaceTaxonomies;
   hiddenFields?: readonly TaskField[];
 }) {
+  const stackCount = Math.min(drag.taskPaths.length - 1, 2);
+  const badge = drag.taskPaths.length > 1 ? (
+    <span className="vf-drag-count-badge">+{drag.taskPaths.length - 1}</span>
+  ) : null;
   return createPortal(
     <div
       className="vf-drag-layer"
+      data-task-drag
       style={{
         transform: `translate(${drag.x + PREVIEW_OFFSET_PX}px, ${
           drag.y + PREVIEW_OFFSET_PX
@@ -152,6 +168,13 @@ export function DragPreview({
       }}
       aria-hidden
     >
+      {Array.from({ length: stackCount }).map((_, i) => (
+        <div
+          key={i}
+          className="vf-card vf-card-preview vf-drag-stack-ghost"
+          style={{ "--vf-stack-depth": i + 1 } as CSSProperties}
+        />
+      ))}
       <article className="vf-card vf-card-preview">
         <CardContent
           task={task}
@@ -159,6 +182,7 @@ export function DragPreview({
           taxonomies={taxonomies}
           hiddenFields={hiddenFields}
         />
+        {badge}
       </article>
     </div>,
     document.body,
