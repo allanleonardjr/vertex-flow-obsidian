@@ -211,6 +211,24 @@ export function ExportDialog({
     [format, fields],
   );
 
+  const eligibleFields = useMemo(
+    () =>
+      FIELD_GROUPS.flatMap((group) => group.fields).filter(
+        (id) => format !== "ics" || FIELDS[id].icalEligible,
+      ),
+    [format],
+  );
+  const selectedEligibleCount = eligibleFields.filter((id) =>
+    fields.has(id),
+  ).length;
+  const allFieldsIncluded = selectedEligibleCount === eligibleFields.length;
+  const fieldsSummary = allFieldsIncluded
+    ? "Fields (All included)"
+    : `Fields ${selectedEligibleCount} of ${eligibleFields.length}`;
+  const selectedFieldLabels = eligibleFields
+    .filter((id) => fields.has(id))
+    .map((id) => FIELDS[id].label);
+
   const preview = useMemo(() => {
     try {
       const { content, taskCount } = buildExport({
@@ -666,6 +684,22 @@ export function ExportDialog({
                 </div>
 
                 <div className="vf-dialog-body">
+                  <p className="vf-export-preview">
+                    <strong>
+                      This exports{" "}
+                      {preview.taskCount == null
+                        ? "your tasks"
+                        : `${preview.taskCount.toLocaleString()} task${
+                            preview.taskCount === 1 ? "" : "s"
+                          }`}
+                      .
+                    </strong>
+                    <br />
+                    {selectedFieldLabels.length > 0
+                      ? `Captures ${selectedFieldLabels.join(", ")}.`
+                      : "No fields selected."}
+                  </p>
+
                   <div className="vf-export-group">
                     <div className="vf-export-group-head">
                       <strong>Options</strong>
@@ -685,7 +719,12 @@ export function ExportDialog({
                   </div>
 
                   <details className="vf-field vf-export-fields">
-                    <summary>Fields</summary>
+                    <summary>
+                      <span className="vf-section-chevron" aria-hidden>
+                        ›
+                      </span>
+                      {fieldsSummary}
+                    </summary>
                     {FIELD_GROUPS.map((group) => {
                       const groupFields = group.fields.filter(
                         (id) => format !== "ics" || FIELDS[id].icalEligible,

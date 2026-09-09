@@ -7223,14 +7223,7 @@ button.vf-history-expand {
   display: none;
 }
 
-.vf-export-fields > summary::before {
-  content: "\25B8"; /* ▸ */
-  color: var(--vf-muted);
-  font-size: 10px;
-  transition: transform 0.12s ease;
-}
-
-.vf-export-fields[open] > summary::before {
+.vf-export-fields[open] > summary .vf-section-chevron {
   transform: rotate(90deg);
 }
 
@@ -7305,9 +7298,7 @@ button.vf-history-expand {
 }
 
 .vf-export-locked-scope {
-  padding: 5px 8px;
-  border: 1px solid var(--vf-border);
-  border-radius: var(--vf-radius);
+  padding: 5px 0;
   color: var(--vf-muted);
   font-size: var(--font-ui-small);
 }

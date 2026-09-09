@@ -23,6 +23,9 @@ This project uses [Semantic Versioning](https://semver.org/).
   task-export form.
 - In the task-export form the Format picker is a segmented control, the Fields
   list is collapsed by default, and the Export button reads "Export N Task(s)".
+- The task-export form shows a summary ("This exports N tasks." / "Captures
+  …"), the Fields header reports how many of the eligible fields are selected,
+  and a forced scope renders as plain read-only text with no border.
 
 ## 1.0.15 — 2026-09-09
 
