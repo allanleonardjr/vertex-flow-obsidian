@@ -1620,6 +1620,10 @@ button.vf-swatch.is-on {
     box-shadow 120ms ease;
 }
 
+.vf-template-card-local {
+  border-color: color-mix(in srgb, var(--interactive-accent) 30%, var(--vf-border));
+}
+
 .vf-template-card:hover,
 .vf-template-card:focus-visible {
   border-color: var(--interactive-accent);
@@ -1637,6 +1641,21 @@ button.vf-swatch.is-on {
 .vf-template-card-title {
   font-size: var(--font-ui-medium);
   font-weight: 600;
+}
+
+.vf-template-card-badge-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.vf-template-card-badge {
+  padding: 1px 7px;
+  border: 1px solid color-mix(in srgb, var(--interactive-accent) 45%, var(--vf-border));
+  border-radius: 999px;
+  color: var(--interactive-accent);
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .vf-template-card-desc {
@@ -1693,6 +1712,16 @@ button.vf-swatch.is-on {
   height: 7px;
   border-radius: 50%;
   flex-shrink: 0;
+}
+
+.vf-template-card-path {
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--vf-border);
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .vf-template-card-cta {
@@ -7140,17 +7169,39 @@ button.vf-history-expand {
   margin-bottom: 12px;
 }
 
-.vf-export-check {
+.vf-export-config {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 3px 0;
-  font-size: var(--font-ui-small);
+  flex-direction: column;
+  gap: 12px;
 }
 
-.vf-export-check input {
-  width: auto;
+.vf-export-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.vf-export-footer .vf-export-preview {
+  flex: 1;
   margin: 0;
+}
+
+.vf-export-footer .vf-dialog-actions {
+  flex-shrink: 0;
+}
+
+.vf-export-field-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 16px;
+  color: var(--text-accent);
+  font-size: 11px;
+}
+
+.vf-export-group .vf-menu-item {
+  padding: 4px 6px;
 }
 
 .vf-export-group {
@@ -7207,4 +7258,19 @@ button.vf-history-expand {
   margin: 18px 0 10px;
   font-size: var(--font-ui-medium);
   color: var(--text-normal);
+}
+
+.vf-template-section-title.vf-template-section-gap {
+  margin-top: 36px;
+}
+
+.vf-template-section-badge {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border: 1px solid var(--interactive-accent);
+  border-radius: 999px;
+  color: var(--interactive-accent);
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
+  vertical-align: middle;
 }

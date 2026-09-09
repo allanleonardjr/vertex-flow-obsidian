@@ -468,9 +468,7 @@ function NavRow({
         onClick={onClick}
         aria-current={active ? "page" : undefined}
         style={indent ? { paddingLeft: 20 + indent * 14 } : undefined}
-        aria-label={
-          displayLabel && displayLabel !== label ? label : undefined
-        }
+        aria-label={displayLabel && displayLabel !== label ? label : undefined}
       >
         {chipColor !== undefined ? (
           <LabelChip name={text} color={chipColor} className="vf-nav-chip" />
@@ -663,7 +661,7 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
                   setExportTarget({ workspace: entry, forceMode: "template" });
                 }}
               >
-                Export Workspace as Template…
+                Export Workspace configuration as Template…
               </button>
               <div className="vf-menu-divider" aria-hidden />
               <button
@@ -1008,9 +1006,7 @@ function DashboardsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
                 <RowMenu
                   open={menuId === dashboard.id}
                   onToggle={() =>
-                    setMenuId((m) =>
-                      m === dashboard.id ? null : dashboard.id,
-                    )
+                    setMenuId((m) => (m === dashboard.id ? null : dashboard.id))
                   }
                   onClose={() => setMenuId(null)}
                 >
@@ -1118,7 +1114,9 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   const [editing, setEditing] = useState<Project | null>(null);
   const [creating, setCreating] = useState(false);
   const [deletePlan, setDeletePlan] = useState<DeletionPlan | null>(null);
-  const [exportingProject, setExportingProject] = useState<Project | null>(null);
+  const [exportingProject, setExportingProject] = useState<Project | null>(
+    null,
+  );
 
   const projects = [...snapshot.projects].sort((a, b) =>
     a.title.localeCompare(b.title),

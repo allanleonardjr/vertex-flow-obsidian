@@ -27,6 +27,14 @@ This project uses [Semantic Versioning](https://semver.org/).
   resulting file's path with actions to **Reveal in Finder / File Manager** or
   **Open in Obsidian** — useful for `.csv`/`.json`/`.ics` files, which
   Obsidian's own file list hides unless "Detect all file extensions" is on.
+- **iCalendar keeps sync metadata.** Every `VEVENT` now carries `CREATED`,
+  `LAST-MODIFIED` and `SEQUENCE` stamps derived from the task's created/updated
+  dates, so re-importing a calendar doesn't churn or lose change history.
+- **Your templates are clearly your own.** In the New Workspace gallery,
+  vault-authored templates (from your vault's `Templates/`) are set apart from
+  the built-ins: a "From your Vault" section badge, a subtle accent border on
+  the cards, a "Your template" pill on each card, and the on-disk location —
+  "Located: `Templates/<file>.md`" — shown below the settings on the card.
 
 ### Changed
 - **Template frontmatter `kind` is now `type`.** The workspace-template grammar
@@ -34,6 +42,21 @@ This project uses [Semantic Versioning](https://semver.org/).
   `kind: template`/`kind: snapshot`. Old `kind` frontmatter still loads. Files
   exported as templates get a `vertex-flow-template-` filename prefix while
   their frontmatter `id` stays unprefixed.
+- **iCalendar only lets you toggle the description.** For ICS export, the
+  dialog's field list now offers a single **Description** toggle; everything
+  else a calendar event needs (identity, status, dates, sync stamps) is emitted
+  unconditionally. An empty field selection is a valid calendar export.
+- **Export dialog layout.** **Format** and **Scope** (and the View/Project
+  sub-selects) now sit above the scrollable body so they're always visible,
+  while the task count + estimated size settle into a footer with the action
+  buttons.
+- **Export field picker uses ★-style rows instead of checkboxes.** Each field —
+  and **Include archived tasks** — is now a clickable menu row with a leading
+  ✓ for the active state, matching the picker rows used elsewhere in the app
+  (assignee, labels) rather than the browser-native checkbox.
+- **"Include archived tasks" grouped under an Options box*.** The archived-task
+  toggle now lives in its own bordered group beside the **Fields** group,
+  rather than floating alone in the body.
 
 ### Fixed
 - **iCalendar all-day event end dates.** All-day events now emit

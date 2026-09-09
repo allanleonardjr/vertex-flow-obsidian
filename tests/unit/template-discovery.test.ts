@@ -38,6 +38,7 @@ describe("discoverVaultTemplates", () => {
 		const found = await discoverVaultTemplates(io);
 		expect(found).toHaveLength(1);
 		expect(found[0].id).toBe("team");
+		expect(found[0].path).toBe("Templates/team.md");
 		expect(typeof found[0].buildExampleContent).toBe("function");
 		expect(found[0].workspace?.statuses?.length).toBe(6);
 	});

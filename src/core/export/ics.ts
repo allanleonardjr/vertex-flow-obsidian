@@ -8,6 +8,10 @@
  * verbatim: nonstandard against RFC 5545's fixed enum, but a calendar app that
  * doesn't recognize the value just ignores the property, and a readable status
  * beats dropping the field.
+ *
+ * `CREATED`, `LAST-MODIFIED` and `SEQUENCE` are always emitted when supplied —
+ * they're sync metadata a calendar app uses to reconcile events, so they aren't
+ * tied to any of the user-facing field toggles.
  */
 
 import { addDays } from "../views";
@@ -25,6 +29,19 @@ export interface IcsRow {
 	due?: string;
 	/** ISO datetime — becomes `DTSTAMP` (UTC). */
 	stamp: string;
+	/**
+	 * ISO datetime — becomes `CREATED` (UTC). Sync metadata: always present in
+	 * the export even though "Created" isn't offered as a field, so calendar
+	 * apps can reconcile events.
+	 */
+	created?: string;
+	/** ISO datetime — becomes `LAST-MODIFIED` (UTC). Same story as `created`. */
+	lastModified?: string;
+	/**
+	 * Non-negative integer — becomes `SEQUENCE`. Clamped at 0 by the emitter
+	 * (RFC 5545 requires a non-negative integer).
+	 */
+	sequence?: number;
 	description?: string;
 }
 
@@ -100,6 +117,15 @@ export function buildIcs(rows: IcsRow[], opts: IcsOptions = {}): string {
 		lines.push("BEGIN:VEVENT");
 		lines.push(line("UID", row.uid));
 		lines.push(line("DTSTAMP", toUtcStamp(row.stamp)));
+		if (row.created) lines.push(line("CREATED", toUtcStamp(row.created)));
+		if (row.lastModified) {
+			lines.push(line("LAST-MODIFIED", toUtcStamp(row.lastModified)));
+		}
+		// RFC 5545 §3.8.7.2: SEQUENCE is a non-negative integer; a task that
+		// was never edited (or has no dates to compute a diff from) sits at 0.
+		if (row.sequence != null) {
+			lines.push(line("SEQUENCE", String(Math.max(0, row.sequence))));
+		}
 		lines.push(line("SUMMARY", escapeText(row.summary)));
 		// `DUE` is a VTODO-only property — invalid on a VEVENT, so a compliant
 		// client silently drops it. Use an exclusive date-only `DTEND` instead.

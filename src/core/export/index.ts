@@ -67,6 +67,16 @@ function taskTitleMap(snapshot: WorkspaceSnapshot): Map<LinkTarget, string> {
 	return map;
 }
 
+/** RFC 5545 `SEQUENCE`: the seconds the task has been edited, i.e.
+ *  `updatedAt - createdAt`, floored. 0 for absent/unparseable dates; the ICS
+ *  emitter additionally clamps negatives to 0. */
+function sequenceOf(createdAt: string, updatedAt: string): number {
+	const created = new Date(createdAt).getTime();
+	const updated = new Date(updatedAt).getTime();
+	if (Number.isNaN(created) || Number.isNaN(updated)) return 0;
+	return Math.floor((updated - created) / 1000);
+}
+
 export function buildExport(input: ExportInput): ExportOutput {
 	const context = input.context ?? snapshotContext(input.snapshot);
 	const { tasks, scopeLabel } = resolveScopeTasks(
@@ -113,18 +123,22 @@ export function buildExport(input: ExportInput): ExportOutput {
 		};
 	}
 
-	// iCalendar
+	// iCalendar. Only `description` is user-toggleable; the identity, dates and
+// status a VEVENT needs are always emitted when the task has them.
 	const has = (id: FieldId) => fields.includes(id);
 	const rows: IcsRow[] = tasks.map((task, i) => {
 		const record = records[i];
 		const row: IcsRow = {
 			uid: `${task.id}@vertex-flow`,
-			summary: (has("title") && record.title) || task.id,
+			summary: record.title || task.id,
 			stamp: task.updatedAt || task.createdAt,
+			created: task.createdAt || task.updatedAt,
+			lastModified: task.updatedAt || task.createdAt,
+			sequence: sequenceOf(task.createdAt, task.updatedAt),
 		};
-		if (has("startDate") && task.startDate) row.start = task.startDate;
-		if (has("dueDate") && task.dueDate) row.due = task.dueDate;
-		if (has("status") && record.status) row.status = record.status;
+		if (task.startDate) row.start = task.startDate;
+		if (task.dueDate) row.due = task.dueDate;
+		if (record.status) row.status = record.status;
 		if (has("description") && record.description) {
 			row.description = record.description;
 		}

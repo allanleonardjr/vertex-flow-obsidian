@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { buildIcs, type IcsRow } from "../../src/core/export/ics";
+import { buildExport } from "../../src/core/export";
+import { sampleSnapshot } from "../../src/core/templates/instantiate";
+import { snapshotContext } from "../../src/core/views";
 
 function lines(ics: string): string[] {
 	return ics.split("\r\n");
@@ -64,6 +67,49 @@ describe("buildIcs", () => {
 		expect(l).toContain("DTEND;VALUE=DATE:20260821");
 	});
 
+	it("emits CREATED, LAST-MODIFIED and SEQUENCE as sync metadata", () => {
+		const l = lines(
+			buildIcs([
+				{
+					uid: "u",
+					summary: "s",
+					stamp: "2026-01-01T00:00:00Z",
+					created: "2026-08-20T09:00:00Z",
+					lastModified: "2026-08-26T14:45:00Z",
+					sequence: 566700,
+				},
+			]),
+		);
+		expect(l).toContain("CREATED:20260820T090000Z");
+		expect(l).toContain("LAST-MODIFIED:20260826T144500Z");
+		expect(l).toContain("SEQUENCE:566700");
+	});
+
+	it("clamps SEQUENCE to 0 when negative", () => {
+		const l = lines(
+			buildIcs([
+				{
+					uid: "u",
+					summary: "s",
+					stamp: "2026-01-01T00:00:00Z",
+					created: "2026-08-26T14:45:00Z",
+					lastModified: "2026-08-20T09:00:00Z",
+					sequence: -100,
+				},
+			]),
+		);
+		expect(l).toContain("SEQUENCE:0");
+	});
+
+	it("emits none of the sync lines when a row has no dates", () => {
+		const l = lines(
+			buildIcs([{ uid: "u", summary: "s", stamp: "2026-01-01T00:00:00Z" }]),
+		);
+		expect(l.some((line) => line.startsWith("CREATED"))).toBe(false);
+		expect(l.some((line) => line.startsWith("LAST-MODIFIED"))).toBe(false);
+		expect(l.some((line) => line.startsWith("SEQUENCE"))).toBe(false);
+	});
+
 	it("maps the workspace status name into STATUS verbatim", () => {
 		const l = lines(
 			buildIcs([
@@ -95,5 +141,63 @@ describe("buildIcs", () => {
 		expect(l[summaryIdx].length).toBeLessThanOrEqual(75);
 		// The continuation line starts with a single space.
 		expect(l[summaryIdx + 1].startsWith(" ")).toBe(true);
+	});
+});
+
+describe("buildExport iCalendar", () => {
+	const snapshot = sampleSnapshot();
+	const context = snapshotContext(snapshot);
+	const today = "2026-08-26";
+
+	function ics(fields: string[], descriptions?: Record<string, string>) {
+		return buildExport({
+			snapshot,
+			context,
+			scope: { kind: "workspace" },
+			format: "ics",
+			fields: fields as never,
+			today,
+			includeArchived: false,
+			pluginVersion: "9.9.9",
+			descriptions,
+		}).content.split("\r\n");
+	}
+
+	it("always emits identity, dates, status and sync stamps with no fields selected", () => {
+		const l = ics([]);
+		// Workspace scope excludes archived tasks by default.
+		const count = snapshot.tasks.filter((task) => !task.archived).length;
+		expect(l.filter((line) => line === "BEGIN:VEVENT").length).toBe(count);
+
+		// Per task: identity, sync stamps — non-optional.
+		for (const prefix of [
+			"UID:",
+			"SUMMARY:",
+			"DTSTAMP:",
+			"CREATED:",
+			"LAST-MODIFIED:",
+		]) {
+			expect(l.filter((line) => line.startsWith(prefix)).length).toBe(count);
+		}
+		// Tasks with dates/status carry them regardless of the field toggles.
+		expect(l.some((line) => line.startsWith("DTSTART;VALUE=DATE:"))).toBe(true);
+		expect(l.some((line) => line.startsWith("DTEND;VALUE=DATE:"))).toBe(true);
+		expect(l.some((line) => line.startsWith("STATUS:"))).toBe(true);
+		// Description is the only toggleable field — off by default.
+		expect(l.some((line) => line.startsWith("DESCRIPTION:"))).toBe(false);
+	});
+
+	it("adds DESCRIPTION only when description is selected", () => {
+		const descriptions = Object.fromEntries(
+			snapshot.tasks.slice(0, 3).map((task) => [task.id, "Some notes"]),
+		);
+		expect(
+			ics(["description"], descriptions).some((line) =>
+				line.startsWith("DESCRIPTION:"),
+			),
+		).toBe(true);
+		expect(ics([], descriptions).some((line) => line.startsWith("DESCRIPTION:"))).toBe(
+			false,
+		);
 	});
 });

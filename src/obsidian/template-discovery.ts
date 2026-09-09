@@ -17,12 +17,14 @@ import { TemplateParseError } from "../core/templates/markdown/types";
 import { WORKSPACE_TEMPLATES, type WorkspaceTemplate } from "../core/templates";
 import type { NoteIO } from "./note-io";
 
+export type VaultTemplate = WorkspaceTemplate & { path: string };
+
 export async function discoverVaultTemplates(
 	io: NoteIO,
 	onWarn: (message: string) => void = () => {},
-): Promise<WorkspaceTemplate[]> {
+): Promise<VaultTemplate[]> {
 	const builtinIds = new Set(WORKSPACE_TEMPLATES.map((template) => template.id));
-	const out: WorkspaceTemplate[] = [];
+	const out: VaultTemplate[] = [];
 	const seen = new Set<string>();
 
 	for (const file of io.listFiles("Templates")) {
@@ -42,6 +44,7 @@ export async function discoverVaultTemplates(
 			seen.add(id);
 
 			out.push({
+				path: file.path,
 				...parsed.meta,
 				workspace: parsed.workspaceOverrides,
 				mePersonId: parsed.mePersonId,
