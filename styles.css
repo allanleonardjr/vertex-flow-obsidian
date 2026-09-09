@@ -7234,7 +7234,18 @@ button.vf-history-expand {
 .vf-export-config {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+}
+
+/* Format/Scope/Options/Fields/summary are laid out by the flex `gap` on their
+   containers (.vf-export-config and .vf-dialog-body, both 14px, matching
+   .vf-dialog). Zero the per-element margins that would otherwise stack on top
+   of that and make the rhythm uneven. */
+.vf-export-dialog .vf-export-config > .vf-field,
+.vf-export-dialog .vf-dialog-body > .vf-field,
+.vf-export-dialog .vf-dialog-body > .vf-export-group,
+.vf-export-dialog .vf-dialog-body > .vf-export-preview {
+  margin: 0;
 }
 
 .vf-export-footer {
