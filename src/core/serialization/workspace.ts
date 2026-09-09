@@ -207,7 +207,7 @@ export function parseWorkspace(
 		asString(fm.newTaskPlacement) === "bottom" ? "bottom" : "top";
 
 	const workspace: WorkspaceConfig = {
-		type: "workspace",
+		type: "vertex-flow-workspace",
 		name,
 		icon: asString(fm.icon) ?? undefined,
 		idPrefix: (asString(fm.idPrefix) ?? "WRK").toUpperCase(),
@@ -239,7 +239,7 @@ export function serializeWorkspace(
 	workspace: WorkspaceConfig,
 ): Record<string, unknown> {
 	return compact({
-		type: "workspace",
+		type: "vertex-flow-workspace",
 		name: workspace.name,
 		icon: workspace.icon,
 		idPrefix: workspace.idPrefix,
@@ -308,7 +308,7 @@ export function createWorkspaceConfig(
 	icon?: string,
 ): WorkspaceConfig {
 	return {
-		type: "workspace",
+		type: "vertex-flow-workspace",
 		name,
 		icon,
 		idPrefix: idPrefix.toUpperCase(),

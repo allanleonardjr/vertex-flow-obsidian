@@ -1,6 +1,6 @@
 ---
 templateSchema: 1
-kind: template
+type: vertex-flow-workspace-template
 id: content-pipeline
 name: Content Pipeline
 description: Plan articles, videos and newsletters as Tasks under a series or campaign, each with a publish date.

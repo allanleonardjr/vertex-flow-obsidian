@@ -69,7 +69,7 @@ describe("parseTask", () => {
 		const { value, issues } = parseTask(SPEC_TASK, opts);
 		expect(issues).toEqual([]);
 		expect(value).toMatchObject({
-			type: "task",
+			type: "vertex-flow-task",
 			id: "PRD-0104",
 			taskType: "bug",
 			status: "in-progress",
@@ -253,7 +253,7 @@ describe("parseProject", () => {
 		const { value, issues } = parseProject(SPEC_PROJECT, projectOpts);
 		expect(issues).toEqual([]);
 		expect(value).toMatchObject({
-			type: "project",
+			type: "vertex-flow-project",
 			title: "Core App Experience",
 			icon: "folder",
 			status: "in-progress",
@@ -699,7 +699,7 @@ describe("parseWorkspace", () => {
 
 	it("round-trips a workspace with an explicitly empty taxonomy", () => {
 		const workspace: WorkspaceConfig = {
-			type: "workspace",
+			type: "vertex-flow-workspace",
 			name: "Blank",
 			icon: "circle",
 			idPrefix: "TST",
@@ -1158,14 +1158,30 @@ describe("parseViews", () => {
 describe("parseView (per-file)", () => {
 	it("takes its id from frontmatter and tags the note path + type", () => {
 		const { value, issues } = parseView(
-			{ id: "my-bugs", name: "My Bugs", viewType: "board" },
+			{ id: "my-bugs", name: "My Bugs", query: "layout:board group:status sort:rank" },
 			{ path: "Team/Views/my-bugs" },
 		);
 		expect(issues).toEqual([]);
-		expect(value.type).toBe("view");
+		expect(value.type).toBe("vertex-flow-view");
 		expect(value.path).toBe("Team/Views/my-bugs");
 		expect(value.id).toBe("my-bugs");
 		expect(value.viewType).toBe("board");
+	});
+
+	it("reads the whole definitional half from the query string", () => {
+		const { value } = parseView(
+			{
+				id: "v",
+				name: "V",
+				query: 'layout:board group:status sort:-rank status:todo,in-progress hide:priority',
+			},
+			{ path: "W/Views/v" },
+		);
+		expect(value.viewType).toBe("board");
+		expect(value.groupBy).toBe("status");
+		expect(value.sortDirection).toBe("desc");
+		expect(value.filters.status).toEqual(["todo", "in-progress"]);
+		expect(value.hiddenFields).toEqual(["priority"]);
 	});
 
 	it("falls back to the filename when frontmatter omits the id", () => {
@@ -1174,13 +1190,16 @@ describe("parseView (per-file)", () => {
 		expect(value.name).toBe("Nameless");
 	});
 
-	it("round-trips through serializeView, and serializeView emits type: view", () => {
+	it("round-trips through serializeView, and serializeView emits type: vertex-flow-view", () => {
 		const { value } = parseView(
-			{ id: "v", name: "V", viewType: "timeline", filters: { status: ["todo"] } },
+			{ id: "v", name: "V", query: "layout:timeline group:none sort:rank status:todo" },
 			{ path: "W/Views/v" },
 		);
 		const frontmatter = serializeView(value);
-		expect(frontmatter.type).toBe("view");
+		expect(frontmatter.type).toBe("vertex-flow-view");
+		expect(typeof frontmatter.query).toBe("string");
+		expect(frontmatter).not.toHaveProperty("viewType");
+		expect(frontmatter).not.toHaveProperty("filters");
 		expect(parseView(frontmatter, { path: "W/Views/v" }).value).toEqual(value);
 	});
 
@@ -1193,5 +1212,40 @@ describe("parseView (per-file)", () => {
 			"W/Views/b",
 		]);
 		expect(detectViewIdCollisions([a, c])).toEqual([]);
+	});
+});
+
+describe("type: discriminant — pre-1.1 bare values normalize to vertex-flow-*", () => {
+	it("parseTask stamps the prefixed value even from bare `type: task` input", () => {
+		const { value } = parseTask({ type: "task", id: "PRD-1", title: "x" }, opts);
+		expect(value.type).toBe("vertex-flow-task");
+	});
+
+	it("parseProject normalizes bare `type: project`", () => {
+		const { value } = parseProject({ type: "project", title: "P" }, projectOpts);
+		expect(value.type).toBe("vertex-flow-project");
+	});
+
+	it("parseWorkspace normalizes bare `type: workspace`", () => {
+		const { value } = parseWorkspace(
+			{ type: "workspace", name: "W", idPrefix: "W" },
+			{ path: "W/_workspace" },
+		);
+		expect(value.type).toBe("vertex-flow-workspace");
+	});
+
+	it("parseView normalizes bare `type: view`", () => {
+		const { value } = parseView(
+			{ type: "view", id: "v", name: "V" },
+			{ path: "W/Views/v" },
+		);
+		expect(value.type).toBe("vertex-flow-view");
+	});
+
+	it("serializers always emit the prefixed value", () => {
+		const task = parseTask({ id: "PRD-1", title: "x" }, opts).value;
+		expect(serializeTask(task).type).toBe("vertex-flow-task");
+		const project = parseProject({ title: "P" }, projectOpts).value;
+		expect(serializeProject(project).type).toBe("vertex-flow-project");
 	});
 });

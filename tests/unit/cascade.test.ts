@@ -15,7 +15,7 @@ import { emptyRelations, type Project, type Task } from "../../src/core/types";
 
 function task(overrides: Partial<Task> & { path: string }): Task {
 	return {
-		type: "task",
+		type: "vertex-flow-task",
 		id: overrides.path.split("/").pop() as string,
 		title: overrides.path,
 		taskType: null,
@@ -43,7 +43,7 @@ function task(overrides: Partial<Task> & { path: string }): Task {
 
 function project(path: string): Project {
 	return {
-		type: "project",
+		type: "vertex-flow-project",
 		title: path,
 		status: "queue",
 		priority: null,

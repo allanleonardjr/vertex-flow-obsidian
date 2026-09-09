@@ -338,7 +338,7 @@ export function labelView(
     (v) => v.id === labelId,
   );
   return {
-    type: "view",
+    type: "vertex-flow-view",
     path: "",
     id: `label:${labelId}`,
     name: label?.name ?? labelId,
@@ -363,7 +363,7 @@ export function personView(
 ): SavedView {
   const person = snapshot.workspace.people.find((p) => p.id === personId);
   return {
-    type: "view",
+    type: "vertex-flow-view",
     path: "",
     id: `person:${personId}`,
     name: person?.name ?? personId,
@@ -389,7 +389,7 @@ export function personView(
 export function projectView(project: Project): SavedView {
   const definition = project.view;
   return {
-    type: "view",
+    type: "vertex-flow-view",
     path: "",
     id: projectViewId(project.path),
     name: project.title,

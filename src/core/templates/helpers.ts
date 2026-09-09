@@ -40,7 +40,7 @@ export function makeProject(
 ): Project {
 	const path = joinPath(ctx.root, "Projects", title);
 	return {
-		type: "project",
+		type: "vertex-flow-project",
 		title,
 		status: "in-progress",
 		// New optional fields default to unset so every existing template call
@@ -66,7 +66,7 @@ export function makeTask(
 	overrides: Partial<Task> = {},
 ): Task {
 	return {
-		type: "task",
+		type: "vertex-flow-task",
 		id: ctx.taskPath(n).split("/").pop() as string,
 		title: "",
 		taskType: null,
@@ -108,7 +108,7 @@ export function makeView(
 ): SavedView {
 	const viewType = partial.viewType ?? "list";
 	return {
-		type: "view",
+		type: "vertex-flow-view",
 		// Real path assigned when `instantiateTemplate` emits the note.
 		path: "",
 		id,
@@ -156,7 +156,7 @@ export function makeDashboard(
 	widgets: DashboardWidget[],
 	icon = "layout-dashboard",
 ): DashboardConfig {
-	return { type: "dashboard", path: "", id, name, icon, filters: {}, widgets };
+	return { type: "vertex-flow-dashboard", path: "", id, name, icon, filters: {}, widgets };
 }
 
 /**

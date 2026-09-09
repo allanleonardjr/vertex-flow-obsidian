@@ -29,6 +29,7 @@ import { EditableTitle } from "../components/EditableTitle";
 import { Icon } from "../components/Icon";
 import { ResizeHandle } from "../components/ResizeHandle";
 import { NamedIconDialog } from "../modals/NamedIconDialog";
+import { ExportDialog } from "../modals/ExportDialog";
 import { useSelection } from "../selection";
 import {
   EmptyColumnsChip,
@@ -84,6 +85,7 @@ export function ViewControls({
   const writeSettings = useSettingsWriter();
   const selection = useSelection();
   const [savingAs, setSavingAs] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [descHeight, setDescHeight] = useState(
     plugin.settings.viewDescriptionHeight,
   );
@@ -283,6 +285,14 @@ export function ViewControls({
 
           <span className="vf-bar-spacer" />
 
+          <button
+            type="button"
+            className="vf-bar-item"
+            onClick={() => setExporting(true)}
+          >
+            Export…
+          </button>
+
           {draft.dirty && (
             <>
               <button
@@ -402,6 +412,14 @@ export function ViewControls({
           confirmLabel="Create view"
           onConfirm={saveAs}
           onClose={() => setSavingAs(false)}
+        />
+      )}
+
+      {exporting && (
+        <ExportDialog
+          snapshot={snapshot}
+          initialScope={{ kind: "view", view }}
+          onClose={() => setExporting(false)}
         />
       )}
     </>

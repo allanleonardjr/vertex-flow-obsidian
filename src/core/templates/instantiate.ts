@@ -24,6 +24,7 @@ import {
 	serializeWorkspace,
 } from "../serialization/workspace";
 import { defaultViews, isSystemViewId } from "../views/defaults";
+import { queryContext } from "../query";
 import { seedHistory } from "../history/seed";
 import type {
 	Comment,
@@ -75,8 +76,8 @@ export interface InstantiateOptions {
 	name: string;
 	idPrefix?: string;
 	icon?: string;
-	/** When false, the workspace gets the template's taxonomy/views but no
-	 *  Projects or Tasks. */
+	/** When false, the workspace gets the template's taxonomy, people, views,
+	 *  dashboards and Projects — only the example Tasks are skipped. */
 	includeExampleContent: boolean;
 	/** When set, creates the "me" person by this name — matching an existing
 	 *  register entry if there is one, otherwise appending a new one — and
@@ -171,15 +172,17 @@ export function instantiateTemplate(
 		taskPath: (n: number) => joinPath(root, "Tasks", formatTaskId(idPrefix, n)),
 	};
 
-	const content: TemplateContent | null = includeExampleContent
-		? template.buildExampleContent(ctx)
-		: null;
+	// Views, dashboards, the people register and Projects are *structure*, like
+	// the taxonomy: they always come along, example-content toggle or not. Only
+	// Tasks — and their comments/descriptions plus the seeded history
+	// walk-through — are example material, gated on `includeExampleContent`.
+	const content = template.buildExampleContent(ctx);
 
 	// --- Workspace config ---------------------------------------------------
 
 	const workspace = createWorkspaceConfig(name, idPrefix, root, options.icon);
 	applyOverrides(workspace, template.workspace);
-	applyOverrides(workspace, content?.workspace);
+	applyOverrides(workspace, content.workspace);
 	// An explicit creator choice outranks the template's own `history:` value.
 	if (options.enableHistory !== undefined)
 		workspace.history = { enabled: options.enableHistory };
@@ -211,25 +214,35 @@ export function instantiateTemplate(
 	const views: SavedView[] = [
 		defaultViews()[0],
 		...(template.views ?? []),
-		...(content?.views ?? []),
+		...(content.views ?? []),
 	].map((view) =>
 		isSystemViewId(view.id)
 			? view
 			: { ...view, path: joinPath(root, "Views", view.id) },
 	);
 
-	const dashboards: DashboardConfig[] = (content?.dashboards ?? []).map(
+	const dashboards: DashboardConfig[] = (content.dashboards ?? []).map(
 		(dashboard) => ({
 			...dashboard,
 			path: joinPath(root, "Dashboards", dashboard.id),
 		}),
 	);
 
+	// Projects are structure, Tasks are example content — see the comment above.
+	const projects = content.projects ?? [];
+	const tasks = includeExampleContent ? (content.tasks ?? []) : [];
+
 	// --- Notes ----------------------------------------------------------
 	//
 	// One file per Saved View / Dashboard, under `Views/` / `Dashboards/` —
 	// same per-file storage the live app uses. A workspace with no user views
 	// or dashboards simply has empty folders.
+
+	// Resolves the pretty tokens a view/dashboard `query:` string prints.
+	const qctx = queryContext(
+		{ workspace, projects, tasks } as WorkspaceSnapshot,
+		personId,
+	);
 
 	const notes: GeneratedNote[] = [
 		{ path: joinPath(root, "_workspace"), frontmatter: serializeWorkspace(workspace), body: "" },
@@ -239,7 +252,7 @@ export function instantiateTemplate(
 		if (isSystemViewId(view.id)) continue;
 		notes.push({
 			path: view.path,
-			frontmatter: serializeView(view),
+			frontmatter: serializeView(view, qctx),
 			body: "",
 		});
 	}
@@ -247,20 +260,18 @@ export function instantiateTemplate(
 	for (const dashboard of dashboards) {
 		notes.push({
 			path: dashboard.path,
-			frontmatter: serializeDashboard(dashboard),
+			frontmatter: serializeDashboard(dashboard, qctx),
 			body: "",
 		});
 	}
 
-	const projects = content?.projects ?? [];
-	const tasks = content?.tasks ?? [];
-
 	// A history-enabled, example-content workspace opens on a seeded log (see
 	// `seedHistory`) so the hub demonstrates itself on first visit. History off
-	// (or no content to narrate) leaves it `undefined` and the folder empty.
-	// System views aren't scaffolded notes, so they don't get seeded either.
+	// (or no example content to narrate) leaves it `undefined` and the folder
+	// empty. System views aren't scaffolded notes, so they don't get seeded
+	// either.
 	const history =
-		workspace.history.enabled && content
+		workspace.history.enabled && includeExampleContent
 			? seedHistory({
 					workspace,
 					views: views.filter((view) => !isSystemViewId(view.id)),
@@ -270,25 +281,31 @@ export function instantiateTemplate(
 					now,
 				})
 			: undefined;
-	const commentsByPath = content?.comments ?? new Map<string, Comment[]>();
-	const descriptions = content?.descriptions ?? new Map<string, string>();
+	const commentsByPath =
+		includeExampleContent ? content.comments ?? new Map<string, Comment[]>() : new Map<string, Comment[]>();
+	const descriptions =
+		includeExampleContent ? content.descriptions ?? new Map<string, string>() : new Map<string, string>();
+	// Project bodies are structure too, so they aren't gated on the toggle.
 	const projectDescriptions =
-		content?.projectDescriptions ?? new Map<string, string>();
+		content.projectDescriptions ?? new Map<string, string>();
 
-	if (content) {
+	if (includeExampleContent) {
 		// Mentions are derived from comment bodies, exactly as the indexer does.
 		deriveMentions(tasks, workspace.people, commentsByPath);
+	}
 
-		for (const project of projects) {
-			notes.push({
-				path: project.path,
-				frontmatter: serializeProject(project),
-				// No fallback copy: a template that doesn't describe a Project gets
-				// an empty body, not a restated title. `extractProjectDescription`
-				// already strips the `## Overview` heading older notes carried.
-				body: projectDescriptions.get(project.path) ?? "",
-			});
-		}
+	for (const project of projects) {
+		notes.push({
+			path: project.path,
+			frontmatter: serializeProject(project, qctx),
+			// No fallback copy: a template that doesn't describe a Project gets
+			// an empty body, not a restated title. `extractProjectDescription`
+			// already strips the `## Overview` heading older notes carried.
+			body: projectDescriptions.get(project.path) ?? "",
+		});
+	}
+
+	if (includeExampleContent) {
 		for (const task of tasks) {
 			const descriptionBlock = descriptionBlockFor(descriptions.get(task.path));
 			const block = serializeComments(commentsByPath.get(task.path) ?? []);

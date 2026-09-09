@@ -88,10 +88,16 @@ describe("template markdown — schema gate", () => {
 		expect(error.message).toMatch(/update the plugin/i);
 	});
 
-	it("rejects kind: snapshot as not yet supported", () => {
+	it("rejects the snapshot kind as not yet supported", () => {
 		expectFailure(
 			template(HEADER.replace("kind: template", "kind: snapshot")),
-			/"kind: snapshot" is not yet supported/,
+			/not yet supported/,
+		);
+		expectFailure(
+			template(
+				HEADER.replace("kind: template", "type: vertex-flow-workspace-snapshot"),
+			),
+			/not yet supported/,
 		);
 	});
 
@@ -99,6 +105,14 @@ describe("template markdown — schema gate", () => {
 		expectFailure(
 			template(HEADER.replace("kind: template", "kind: workspace")),
 			/Unknown "kind: workspace"/,
+		);
+	});
+
+	it("accepts the new type field spelling", () => {
+		build(
+			template(
+				HEADER.replace("kind: template", "type: vertex-flow-workspace-template"),
+			),
 		);
 	});
 });
@@ -152,6 +166,144 @@ describe("template markdown — card settings", () => {
 			"Labels",
 			"Default view",
 		]);
+	});
+
+	it("previews People, Projects, Views and Dashboards alongside the taxonomy", () => {
+		const parsed = parseTemplateMarkdown(
+			template(
+				[
+					HEADER,
+					"people: [You*, Jordan]",
+					"views:",
+					"  - name: Backlog",
+					"    icon: list",
+					"dashboards:",
+					"  - name: Overview",
+					"    icon: gauge",
+				].join("\n"),
+				"\n# Projects\n\n## Client A\n\n# Tasks\n",
+			),
+		);
+		const rows = new Map(parsed.meta.settings.map((s) => [s.label, s]));
+		// `people` is an override, so the default taxonomy rows come along too.
+		expect([...rows.keys()]).toEqual([
+			"Statuses",
+			"Priorities",
+			"Task Types",
+			"Labels",
+			"Default view",
+			"Views",
+			"Dashboards",
+			"Projects",
+			"People",
+		]);
+		expect(rows.get("People")!.values.map((v) => v.name)).toEqual([
+			"You",
+			"Jordan",
+		]);
+		expect(rows.get("Projects")!.values.map((v) => v.name)).toEqual([
+			"Client A",
+		]);
+		// People pills carry the user glyph; project pills ride the icon from
+		// their field line (none here, so the renderer falls back).
+		expect(rows.get("People")!.values.every((v) => v.icon === "user")).toBe(true);
+		expect(rows.get("Projects")!.values.every((v) => v.icon === undefined)).toBe(
+			true,
+		);
+		// Views/Dashboards ride as named pills carrying their icon glyph.
+		expect(rows.get("Views")!.values).toEqual([
+			{ name: "Backlog", icon: "list" },
+		]);
+		expect(rows.get("Dashboards")!.values).toEqual([
+			{ name: "Overview", icon: "gauge" },
+		]);
+	});
+
+	it("reads a Project's icon from its field line", () => {
+		const parsed = parseTemplateMarkdown(
+			template(
+				HEADER,
+				"\n# Projects\n\n## Client A\nicon: briefcase | status: todo\n",
+			),
+		);
+		expect(parsed.projects[0].icon).toBe("briefcase");
+		expect(parsed.projects[0].status).toBe("todo");
+		const content = resolveTemplateContent(parsed, context());
+		expect(content.projects[0].icon).toBe("briefcase");
+		expect(content.projects[0].status).toBe("todo");
+	});
+});
+
+describe("template markdown — frontmatter projects", () => {
+	const PROJECT_FM = [
+		HEADER,
+		"statuses: [Todo (unstarted), Done (completed)]",
+		"priorities: [High (#ef4444)]",
+		"labels: [Important (#ef4444)]",
+		"people: [Jordan]",
+		"projects:",
+		"  - title: Client A",
+		"    icon: briefcase",
+		"    description: The flagship engagement.",
+		"    status: Todo",
+		"    priority: High",
+		"    owner: Jordan",
+		"    labels: [Important]",
+		"    start: 2026-09-01",
+		"    due: 2026-09-30",
+		"    created: 2026-08-26T12:00:00.000Z",
+	].join("\n");
+
+	it("parses a Project from frontmatter with every authored field", () => {
+		const parsed = parseTemplateMarkdown(template(PROJECT_FM));
+		expect(parsed.projects).toHaveLength(1);
+		expect(parsed.projects[0]).toMatchObject({
+			title: "Client A",
+			icon: "briefcase",
+			description: "The flagship engagement.",
+			status: "Todo",
+			priority: "High",
+			owner: "Jordan",
+			labels: ["Important"],
+		});
+		expect(parsed.projects[0].start?.kind).toBe("absolute");
+		expect(parsed.projects[0].due?.kind).toBe("absolute");
+		expect(parsed.projects[0].created?.kind).toBe("absolute");
+
+		const content = resolveTemplateContent(parsed, context());
+		const project = content.projects[0];
+		expect(project.icon).toBe("briefcase");
+		expect(project.status).toBe("todo");
+		expect(project.priority).toBe("high");
+		expect(project.owner).toBe("jordan");
+		expect(project.labels).toEqual(["important"]);
+		expect(project.startDate).toBe("2026-09-01");
+		expect(project.dueDate).toBe("2026-09-30");
+		expect(project.createdAt).toBe("2026-08-26T12:00:00.000Z");
+		expect(content.projectDescriptions?.get(project.path)).toBe(
+			"The flagship engagement.\n",
+		);
+
+		// The card preview reads the icon straight from the frontmatter entry.
+		const projectsRow = parsed.meta.settings.find((s) => s.label === "Projects")!;
+		expect(projectsRow.values).toEqual([{ name: "Client A", icon: "briefcase" }]);
+	});
+
+	it("merges frontmatter and body Projects, frontmatter first", () => {
+		const parsed = parseTemplateMarkdown(
+			template(PROJECT_FM, "\n# Projects\n\n## Client B\n\n# Tasks\n"),
+		);
+		expect(parsed.projects.map((p) => p.title)).toEqual(["Client A", "Client B"]);
+	});
+
+	it("rejects a frontmatter Project without a title", () => {
+		const fm = [HEADER, "projects:", "  - icon: briefcase"].join("\n");
+		expectFailure(template(fm), /missing the required "title"/);
+	});
+
+	it("rejects a non-string label entry", () => {
+		const fm = [HEADER, "projects:", "  - title: Client A", "    labels: [1, 2]"].join("\n");
+		expectFailure(template(fm), /labels\[0\] must be a string/);
 	});
 });
 

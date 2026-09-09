@@ -1,6 +1,6 @@
 ---
 templateSchema: 1
-kind: template
+type: vertex-flow-workspace-template
 id: event-planning
 name: Event Planning
 description: Plan a one-off event as a set of Projects - venue, catering, guests - with vendors and deadlines as Tasks underneath.

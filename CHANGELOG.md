@@ -5,6 +5,137 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.15 — 2026-09-09
+
+### Added
+- **Export your tasks to CSV, JSON or iCalendar.** Pick a scope — the current
+  view, a saved view, a project, or the whole workspace — choose which CSV/JSON
+  fields to include, and decide whether archived tasks come along. Exports land
+  as real vault files under `<workspace>/Exports/`, named
+  `vertex-flow-export-<workspace>-<scope>-<date>.<ext>` so they stay
+  recognizable once they're moved or synced elsewhere.
+- **Reach export from anywhere.** Export is available from the Sidebar's
+  "Export…" row, an "Export…" command in the Command Palette, a button on the
+  view toolbar (scoped to that view), and right-click row/card menus on
+  **Workspaces**, **Views** and **Projects** — each opening the dialog already
+  locked to what you clicked.
+- **Export a workspace as a template.** "Export Workspace as Template" captures
+  the workspace's taxonomy, views, dashboards, people roster and **Projects**
+  as a portable markdown template file — no tasks. Each Project rides in the
+  file's frontmatter like a saved view: title, icon, description,
+  status/priority/owner/labels, and dates (archived projects are dropped).
+  Choose the destination folder from a picker or by typing (default
+  `Vertex Flow Templates/`, the folder the New Workspace gallery discovers; the
+  legacy `Templates/` folder is still discovered too, and a hint warns when a
+  template is saved somewhere the gallery won't see).
+- **Result view instead of a toast.** After an export, the dialog shows the
+  resulting file's path with actions to **Reveal in Finder / File Manager** or
+  **Open in Obsidian** — useful for `.csv`/`.json`/`.ics` files, which
+  Obsidian's own file list hides unless "Detect all file extensions" is on.
+- **iCalendar keeps sync metadata.** Every `VEVENT` now carries `CREATED`,
+  `LAST-MODIFIED` and `SEQUENCE` stamps derived from the task's created/updated
+  dates, so re-importing a calendar doesn't churn or lose change history.
+- **Your templates are clearly your own.** In the New Workspace gallery,
+  vault-authored templates (from your vault's `Vertex Flow Templates/`, plus
+  legacy `Templates/`) are set apart from the built-ins: a "From your Vault"
+  section badge, a subtle accent border on the cards, a "Your template" pill on
+  each card, and the on-disk location — "Located: `Vertex Flow
+  Templates/<file>.md`" — shown below the settings on the card.
+  The card previews exactly what the template will create: every card — built-in
+  or exported — shows the template's taxonomy plus the **Default view**,
+  **Views** and **Dashboards** (named pills, each with the icon that view or
+  dashboard will show), **Projects** (each with its icon), and **People** rows
+  in the same order as the workspace sidebar. Views, dashboards, the people
+  register and Projects are structure and always come with the workspace;
+  Tasks are the only example material behind the "Populate with example
+  content" toggle, which is hidden entirely on your own exported templates and
+  stays ticked by default for any built-in whose card previews Projects. The
+  whole footer (Created, Located, "Use this template →") pins to the bottom of
+  every card so the action link aligns across the grid.
+- **Exported templates now carry their timestamp.** "Export Workspace as
+  Template" stamps each exported template file with a `createdAt` timestamp in
+  its frontmatter, and the New Workspace gallery shows it as a "Created:"
+  date-time line on the card, directly above the "Located:" line. Templates
+  exported before this change — or written by hand — simply skip the Created
+  line.
+
+- **Task editor shows Created and Updated.** The property rail now has read-only
+  "Created" and "Updated" rows — Created as a full date-time, Updated as a
+  relative time ("3 hours ago") with the exact timestamp on hover.
+- **Sidebar footer shows the plugin version.** The sidebar now pins a muted,
+  centered footer to its bottom edge reading `v1.0.14 by JR Leonard`, linking
+  the name to a profile. The footer hides in the collapsed/minimized state
+  (`is-minimized`) like the rest of the sidebar chrome.
+
+### Changed
+- **The `u`+key quick field pickers can be filtered by typing.** Every
+  menu-style picker opened by the `u` chord (status, priority, type, label,
+  assignee, parent, project) now shows a search box above its option list —
+  type to narrow the rows, arrow keys and `Enter` work on the filtered list.
+  The Labels picker's search box doubles as its create field: type a name with
+  no exact match and a "Create …" row appears to create and attach it, so the
+  separate "Create label…" input is gone. The task editor rail's own pickers
+  now always show their search box too.
+- **Entity `type:` frontmatter is now `vertex-flow-`-prefixed.** Task, Project,
+  Workspace, View and Dashboard notes carry `type: vertex-flow-task`,
+  `vertex-flow-project`, and so on, matching the convention exported and
+  template files already use. Notes with the old bare values (`task`,
+  `project`, …) still load unchanged, and a background pass quietly rewrites
+  them to the new value the next time the vault is indexed — nothing you need
+  to do, and nothing changes in the app.
+- **Template frontmatter `kind` is now `type`.** The workspace-template grammar
+  uses `type: vertex-flow-workspace-template` (and `-snapshot`) instead of
+  `kind: template`/`kind: snapshot`. Old `kind` frontmatter still loads. Files
+  exported as templates get a `vertex-flow-template-` filename prefix while
+  their frontmatter `id` stays unprefixed.
+- **Saved Views and Dashboards store their filter as one query string.** A
+  view note now keeps its whole definition — filters, layout, grouping, sort,
+  hidden fields, sub-task mode — in a single `query:` line (the same syntax the
+  Query Bar shows), and a dashboard note keeps its filter in a `filter:` line,
+  instead of a block of separate `viewType:`/`filters:`/`groupBy:`/… keys. A
+  Project's embedded view block moves the same way. Old-format notes still load,
+  and a background pass rewrites each one the next time the vault is indexed —
+  nothing you need to do, and nothing changes in the app.
+- **Format migrations show up in Activity History.** When the indexer converts
+  old-format notes (the storage split, the view/dashboard query cutover, or
+  recurrence date-mode backfill), it records one `[system]` entry per note kind
+  in the History feed so there's a trail of what was touched.
+- **iCalendar only lets you toggle the description.** For ICS export, the
+  dialog's field list now offers a single **Description** toggle; everything
+  else a calendar event needs (identity, status, dates, sync stamps) is emitted
+  unconditionally. An empty field selection is a valid calendar export.
+- **Export dialog layout.** **Format** and **Scope** (and the View/Project
+  sub-selects) now sit above the scrollable body so they're always visible,
+  while the task count + estimated size settle into a footer with the action
+  buttons.
+- **Export field picker uses ★-style rows instead of checkboxes.** Each field —
+  and **Include archived tasks** — is now a clickable menu row with a leading
+  ✓ for the active state, matching the picker rows used elsewhere in the app
+  (assignee, labels) rather than the browser-native checkbox.
+- **"Include archived tasks" grouped under an Options box*.** The archived-task
+  toggle now lives in its own bordered group beside the **Fields** group,
+  rather than floating alone in the body.
+
+### Fixed
+- **Exported workspace templates no longer drop their views and dashboards.**
+  Creating a workspace from an "Export Workspace as Template" file used to come
+  out without any of the saved views or dashboards the template carried — the
+  gallery's always-off "Populate with example content" toggle silently gated
+  them away. A template that opts out of example content (an exported workspace
+  ships no tasks or projects, only configuration) now applies everything it
+  returns regardless of the toggle.
+- **iCalendar all-day event end dates.** All-day events now emit
+  `DTEND;VALUE=DATE` one day after the task's due date (exclusive end), matching
+  how calendars like Google Calendar store all-day events — previously the end
+  date came out a day early.
+- **Tall dialogs scroll their body.** The dialog's header and footer stay
+  pinned while only the content area scrolls, instead of the whole dialog
+  overflowing the window. Applies across the editor's dialogs (Replace
+  value/person, Person, Label, Widget config, Shortcuts, Export, and more).
+- **The description textarea fills its row.** The task-editor description field
+  now spans the full width of the field column instead of hugging the icon
+  column.
+
 ## 1.0.14 — 2026-09-08
 
 ### Added

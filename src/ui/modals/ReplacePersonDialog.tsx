@@ -39,6 +39,7 @@ export function ReplacePersonDialog({
 				onClick={(e) => e.stopPropagation()}
 			>
 				<h3>Delete "{plan.personName}"?</h3>
+				<div className="vf-dialog-body">
 				<p className="vf-dialog-lead">
 					They're on {describePersonUsage(plan.usage)}.{" "}
 					{canReassign
@@ -85,6 +86,7 @@ export function ReplacePersonDialog({
 						</select>
 					</label>
 				)}
+				</div>
 
 				<div className="vf-dialog-actions">
 					<button onClick={onCancel}>Cancel</button>

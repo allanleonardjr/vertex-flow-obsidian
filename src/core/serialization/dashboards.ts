@@ -37,6 +37,13 @@ import {
 } from "./coerce";
 import { parseFilters, compactFilters } from "./views";
 import { basename } from "../links";
+import {
+	parseFilterQuery,
+	printFilters,
+	emptyQueryContext,
+	type QueryContext,
+} from "../query";
+import type { ViewFilters } from "../types";
 
 function pickEnum<T extends string>(
 	raw: unknown,
@@ -172,14 +179,23 @@ function parseWidget(
 export interface DashboardParseOptions {
 	/** Vault path of the note. Its basename is the id fallback when frontmatter omits one. */
 	path: string;
+	/** Resolves the `filter:` string's names into stored ids (see `ViewParseOptions.context`). */
+	context?: QueryContext;
 }
 
-/** The definitional half of a dashboard — everything but the `type`/`path` discriminants. */
-function parseDashboardValue(
+/** Read the retired structured `filters:` block. Migration-only. */
+export function parseLegacyDashboardFilters(
+	record: Record<string, unknown>,
+): ViewFilters {
+	return parseFilters(record.filters);
+}
+
+/** Everything but `filters` — shared by the live and legacy parse paths. */
+function parseDashboardCore(
 	record: Record<string, unknown>,
 	id: string,
 	log: IssueLog,
-): Omit<DashboardConfig, "type" | "path"> {
+): Omit<DashboardConfig, "type" | "path" | "filters"> {
 	const name = asString(record.name) ?? id;
 	const icon = asString(record.icon) ?? undefined;
 
@@ -195,12 +211,24 @@ function parseDashboardValue(
 		widgets.push(widget);
 	});
 
+	return { id, name, icon, widgets };
+}
+
+/** The definitional half of a dashboard — everything but the `type`/`path` discriminants. */
+function parseDashboardValue(
+	record: Record<string, unknown>,
+	id: string,
+	log: IssueLog,
+	context: QueryContext,
+): Omit<DashboardConfig, "type" | "path"> {
+	const parsedFilter = parseFilterQuery(asString(record.filter) ?? "", context);
+	for (const issue of parsedFilter.issues) {
+		if (issue.severity === "error") log.add(`filter: ${issue.message}`);
+	}
+
 	return {
-		id,
-		name,
-		icon,
-		widgets,
-		filters: parseFilters(record.filters),
+		...parseDashboardCore(record, id, log),
+		filters: parsedFilter.filters,
 	};
 }
 
@@ -218,9 +246,9 @@ export function parseDashboard(
 
 	return {
 		value: {
-			type: "dashboard",
+			type: "vertex-flow-dashboard",
 			path: options.path,
-			...parseDashboardValue(record, id, log),
+			...parseDashboardValue(record, id, log, options.context ?? emptyQueryContext()),
 		},
 		issues: log.issues.map((issue) => `Dashboard "${id}": ${issue}`),
 	};
@@ -245,9 +273,10 @@ export function parseDashboards(raw: unknown): ParseResult<DashboardConfig[]> {
 			return;
 		}
 		dashboards.push({
-			type: "dashboard",
+			type: "vertex-flow-dashboard",
 			path: "",
-			...parseDashboardValue(entryRecord, id, log),
+			...parseDashboardCore(entryRecord, id, log),
+			filters: parseLegacyDashboardFilters(entryRecord),
 		});
 		issues.push(...log.issues.map((issue) => `Dashboard "${id}": ${issue}`));
 	});
@@ -329,9 +358,29 @@ export function serializeWidget(widget: DashboardWidget): Record<string, unknown
 
 export function serializeDashboard(
 	dashboard: DashboardConfig,
+	context: QueryContext = emptyQueryContext(),
 ): Record<string, unknown> {
 	return compact({
-		type: "dashboard",
+		type: "vertex-flow-dashboard",
+		id: dashboard.id,
+		name: dashboard.name,
+		icon: dashboard.icon,
+		filter: printFilters(dashboard.filters, context) || undefined,
+		widgets: dashboard.widgets.map(serializeWidget),
+	});
+}
+
+/**
+ * Serialize a dashboard in the retired structured shape (a `filters:` block).
+ * The plural `_dashboards` array used this on disk, so `serializeDashboards`
+ * still emits it — the pair models the retired file. The live per-file path is
+ * `serializeDashboard` (a `filter:` string).
+ */
+export function serializeLegacyDashboard(
+	dashboard: DashboardConfig,
+): Record<string, unknown> {
+	return compact({
+		type: "vertex-flow-dashboard",
 		id: dashboard.id,
 		name: dashboard.name,
 		icon: dashboard.icon,
@@ -343,5 +392,5 @@ export function serializeDashboard(
 export function serializeDashboards(
 	dashboards: DashboardConfig[],
 ): Record<string, unknown> {
-	return { dashboards: dashboards.map(serializeDashboard) };
+	return { dashboards: dashboards.map(serializeLegacyDashboard) };
 }

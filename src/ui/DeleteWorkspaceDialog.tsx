@@ -66,18 +66,20 @@ export function DeleteWorkspaceDialog({
       >
         <h3>Move workspace "{name}" to Trash?</h3>
 
-        <p className="vf-dialog-lead">
-          This hides "{name}" from your sidebar and workspace switcher. Nothing
-          on disk changes — you can restore it anytime from the Trash view.
-        </p>
-
-        {crossLinks.length > 0 && (
+        <div className="vf-dialog-body">
           <p className="vf-dialog-lead">
-            {count(crossLinks.length, "task")} in other workspaces link into
-            this one (blocks, blocked by, related, or duplicate). Those links
-            will be cleaned up automatically.
+            This hides "{name}" from your sidebar and workspace switcher. Nothing
+            on disk changes — you can restore it anytime from the Trash view.
           </p>
-        )}
+
+          {crossLinks.length > 0 && (
+            <p className="vf-dialog-lead">
+              {count(crossLinks.length, "task")} in other workspaces link into
+              this one (blocks, blocked by, related, or duplicate). Those links
+              will be cleaned up automatically.
+            </p>
+          )}
+        </div>
 
         <div className="vf-dialog-actions">
           <button disabled={busy} onClick={onClose}>

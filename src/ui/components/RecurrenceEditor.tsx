@@ -292,6 +292,7 @@ export function RecurrenceEditDialog({
       >
         <h3>Repeat</h3>
 
+        <div className="vf-dialog-body">
         {/* Live preview at the top */}
         <div className="vf-recurrence-preview">
           <strong>
@@ -641,6 +642,7 @@ export function RecurrenceEditDialog({
             note's schedule and is carried forward from here.
           </p>
         )}
+        </div>
 
         <div className="vf-dialog-actions">
           {task.recurrence && (

@@ -315,7 +315,7 @@ export function parseTask(
 	const archivedAt = asDateTime(fm.archivedAt);
 
 	const task: Task = {
-		type: "task",
+		type: "vertex-flow-task",
 		id: fileId,
 		title: asString(fm.title) ?? "",
 		taskType: asString(fm.taskType),
@@ -379,7 +379,7 @@ function hasAnyRelation(relations: TaskRelations): boolean {
  */
 export function serializeTask(task: Task): Record<string, unknown> {
 	const base = compact({
-		type: "task",
+		type: "vertex-flow-task",
 		taskType: task.taskType,
 		id: task.id,
 		title: task.title || undefined,

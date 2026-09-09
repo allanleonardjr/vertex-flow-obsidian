@@ -103,9 +103,9 @@ export function planDeletion(
 	entity: Task | Project,
 ): DeletionPlan {
 	switch (entity.type) {
-		case "task":
+		case "vertex-flow-task":
 			return planTaskDeletion(scope, entity);
-		case "project":
+		case "vertex-flow-project":
 			return planProjectDeletion(scope, entity);
 	}
 }

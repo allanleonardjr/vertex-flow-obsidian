@@ -12,12 +12,19 @@ independent workspaces as you like.
 
 - **Create** a workspace from the sidebar's **Workspaces** section — the
   template gallery walks you through naming it, choosing a folder, and picking
-  a task **ID prefix**. Everything inside lives in that folder.
+  a task **ID prefix**. Everything inside lives in that folder. The gallery
+  also lists templates you've exported from your own workspaces under **From
+  your Vault** — picking one seeds a new workspace with the exported taxonomy,
+  views, dashboards, people, and projects. See [Export & workspace
+  templates](export-and-templates.md).
 - **Switch** between workspaces from the same section. You can even open
   several workspaces side by side — each tab is tinted with its workspace's
   color so you can tell them apart at a glance.
 - **Configure** a workspace in its settings (`g` `s`): statuses, priorities,
   task types, labels, the People register, and the optional auto-archive.
+- **Export** a workspace as a template (sidebar or the Export dialog's
+  "…as a Template…" mode) to reuse its setup as the starting point of a new
+  workspace.
 - **ID prefixes are vault-wide unique**, not just per-workspace, so task IDs
   never clash between workspaces that share a vault.
 

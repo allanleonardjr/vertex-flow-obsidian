@@ -19,12 +19,15 @@ import {
 	IssueLog,
 	type ParseResult,
 } from "./coerce";
-import { parseViewDefinition, serializeViewDefinition } from "./views";
+import { parseProjectView, serializeProjectView } from "./views";
+import { emptyQueryContext, type QueryContext } from "../query";
 
 export interface EntityParseOptions {
 	path: string;
 	/** Used when the note omits `status`, same as for Tasks. `null` when the workspace has no statuses. */
 	defaultStatus: string | null;
+	/** Resolves the embedded `view.query` string (see `ViewParseOptions.context`). */
+	context?: QueryContext;
 }
 
 export function parseProject(
@@ -39,7 +42,7 @@ export function parseProject(
 
 	return {
 		value: {
-			type: "project",
+			type: "vertex-flow-project",
 			title,
 			icon: asString(fm.icon) ?? undefined,
 			status: asString(fm.status) ?? options.defaultStatus,
@@ -56,15 +59,21 @@ export function parseProject(
 			createdAt: createdAt ?? nowIso(),
 			updatedAt: asDateTime(fm.updatedAt) ?? createdAt ?? nowIso(),
 			path: options.path,
-			view: fm.view != null ? parseViewDefinition(fm.view, log) : null,
+			view:
+				fm.view != null
+					? parseProjectView(fm.view, log, options.context ?? emptyQueryContext())
+					: null,
 		},
 		issues: log.issues.map((issue) => `Project "${title}": ${issue}`),
 	};
 }
 
-export function serializeProject(project: Project): Record<string, unknown> {
+export function serializeProject(
+	project: Project,
+	context: QueryContext = emptyQueryContext(),
+): Record<string, unknown> {
 	const base = compact({
-		type: "project",
+		type: "vertex-flow-project",
 		title: project.title,
 		icon: project.icon,
 		status: project.status,
@@ -81,7 +90,7 @@ export function serializeProject(project: Project): Record<string, unknown> {
 	base.createdAt = project.createdAt;
 	base.updatedAt = project.updatedAt;
 	// Absent until the user hits Save on the embedded viewport at least once.
-	if (project.view) base.view = serializeViewDefinition(project.view);
+	if (project.view) base.view = serializeProjectView(project.view, context);
 	return base;
 }
 

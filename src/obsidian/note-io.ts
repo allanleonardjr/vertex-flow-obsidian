@@ -104,6 +104,40 @@ export class NoteIO {
 	}
 
 	/**
+	 * Write an arbitrary (non-note) file into the vault, creating its folder if
+	 * needed. Unlike `create()`/`append()`, the path is used exactly as given —
+	 * no `.md` coercion — so this is what the export feature writes `.csv` /
+	 * `.json` / `.ics` (and vault-root `Vertex Flow Templates/*.md`) through.
+	 * Refuses to overwrite, mirroring `create()`.
+	 */
+	async writeRaw(path: string, content: string): Promise<TFile> {
+		const target = normalizePath(path);
+		if (this.app.vault.getAbstractFileByPath(target)) {
+			throw new Error(`"${target}" already exists`);
+		}
+		const folder = target.split("/").slice(0, -1).join("/");
+		if (folder) await this.ensureFolder(folder);
+		return this.app.vault.create(target, content);
+	}
+
+	/** Like `availablePath()`, but for `writeRaw()`'s exact paths — the ` 2`/` 3`…
+	 *  suffix lands before the extension, not after it. */
+	availableRawPath(path: string): string {
+		const base = normalizePath(path);
+		if (!this.app.vault.getAbstractFileByPath(base)) return base;
+		const dot = base.lastIndexOf(".");
+		const slash = base.lastIndexOf("/");
+		const hasExt = dot > slash;
+		const stem = hasExt ? base.slice(0, dot) : base;
+		const ext = hasExt ? base.slice(dot) : "";
+		for (let n = 2; n < 1000; n++) {
+			const candidate = `${stem} ${n}${ext}`;
+			if (!this.app.vault.getAbstractFileByPath(candidate)) return candidate;
+		}
+		throw new Error(`No available path near "${path}"`);
+	}
+
+	/**
 	 * Write a frontmatter-only config note (`_workspace`, or one per-file
 	 * `Views/<id>` / `Dashboards/<id>`), creating it if absent.
 	 */

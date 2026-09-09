@@ -45,6 +45,7 @@ export function ReplaceValueDialog({
 				onClick={(event) => event.stopPropagation()}
 			>
 				<h3>Delete {plan.label} "{plan.valueName}"?</h3>
+				<div className="vf-dialog-body">
 				<p className="vf-dialog-lead">
 					It's used by {describeUsage(usage)}.{" "}
 					{allowRemoveAll && canReassign
@@ -91,6 +92,7 @@ export function ReplaceValueDialog({
 						</select>
 					</label>
 				)}
+				</div>
 
 				<div className="vf-dialog-actions">
 					<button onClick={onCancel}>Cancel</button>

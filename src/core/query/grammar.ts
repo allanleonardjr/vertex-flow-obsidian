@@ -292,6 +292,22 @@ export const FIELD_BY_TOKEN = indexBy(
 	Object.entries(FIELD_VALUES) as [TaskField, EnumValueSpec][],
 ) as Map<string, TaskField>;
 
+/**
+ * Clause fields that configure a view's *layout*, not its filter set. A context
+ * with no layout to configure — a dashboard's `filter:` line, a workspace
+ * template's dashboard `filter:` — rejects a query that uses any of them.
+ */
+export const LAYOUT_ONLY_CLAUSES: ReadonlySet<string> = new Set([
+	"view",
+	"layout",
+	"group",
+	"sort",
+	"hide",
+	"date",
+	"subtasks",
+	"empty",
+]);
+
 /** Every field token the parser recognises — the pool for "did you mean…". */
 export const ALL_FIELD_TOKENS: readonly string[] = [
 	...FILTER_FIELD_BY_TOKEN.keys(),

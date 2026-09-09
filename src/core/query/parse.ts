@@ -35,6 +35,7 @@ import {
 	FLAG_TOKENS,
 	GROUP_BY_TOKEN,
 	LAYOUT_BY_TOKEN,
+	LAYOUT_ONLY_CLAUSES,
 	LEGACY_TOP_LEVEL_VALUES,
 	NOT_EXPRESSIBLE,
 	SORT_BY_TOKEN,
@@ -330,6 +331,40 @@ export function parseQuery(
 
 	return {
 		definition,
+		issues,
+		ok: !issues.some((issue) => issue.severity === "error"),
+	};
+}
+
+export interface ParsedFilterQuery {
+	filters: ViewFilters;
+	issues: QueryIssue[];
+	ok: boolean;
+}
+
+/**
+ * Parse a filter-only query — the grammar a dashboard `filter:` line uses.
+ * Identical to `parseQuery` but any layout clause (`group:`/`sort:`/`hide:`/…)
+ * is an error rather than being silently applied to a definition nobody reads.
+ */
+export function parseFilterQuery(
+	source: string,
+	context: QueryContext,
+): ParsedFilterQuery {
+	const result = parseQuery(source, context);
+	const issues = [...result.issues];
+	for (const token of lex(source).tokens) {
+		if (token.kind === "clause" && LAYOUT_ONLY_CLAUSES.has(token.field)) {
+			issues.push({
+				severity: "error",
+				code: "not-expressible",
+				message: `"${token.field}:" configures a view layout, not a filter`,
+				span: token.span,
+			});
+		}
+	}
+	return {
+		filters: result.definition.filters,
 		issues,
 		ok: !issues.some((issue) => issue.severity === "error"),
 	};

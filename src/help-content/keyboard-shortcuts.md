@@ -87,11 +87,12 @@ Press `u`, then a field key, to edit a task field. For example, press `u`, then 
 
 The status, priority, type, label, assignee, parent, and project shortcuts open a picker.
 
+- Type to filter the options.
 - Use the arrow keys to change the highlighted option.
 - Press `Enter` to apply the highlighted option.
 - Press `Esc`, or click outside the picker, to close it without making a change.
 - Labels are toggled when chosen.
-- The Labels picker includes type-ahead creation: enter a new label name, then press `Enter` to create and attach it.
+- The Labels picker's search box also creates: when the text you type doesn't match an existing label, a "Create …" row appears — highlight it and press `Enter` (or click it) to create and attach that label.
 - Choosing a parent beyond the supported nesting depth prompts for confirmation.
 
 Estimate and date shortcuts open a compact input instead:

@@ -24,6 +24,8 @@ import {
 	getLastWorkspaceRoot,
 } from "./obsidian/last-workspace-storage";
 import { recurrenceNodesInChain } from "./core/recurrence";
+import { isTaskNoteType } from "./core/entity-type";
+import { migrateEntityTypes } from "./obsidian/migrate-entity-type";
 import { VertexFlowSettingTab } from "./settings/SettingTab";
 import {
 	DEFAULT_SETTINGS,
@@ -88,10 +90,13 @@ export default class VertexFlowPlugin extends Plugin {
 		this.lastActiveWorkspaceRoot = getLastWorkspaceRoot();
 
 		this.io = new NoteIO(this.app);
-		this.index = new VaultIndex(this.app, this.io);
+		// `HistoryLog` is built before `VaultIndex` because the index's one-time
+		// migrations log a `[system]` entry for what they touch. `HistoryLog`'s
+		// own dependencies never reference the index, so there's no circularity.
 		this.history = new HistoryLog(this.io, deviceId(), (root) =>
 			getMePersonId(root),
 		);
+		this.index = new VaultIndex(this.app, this.io, this.history);
 		this.mutations = new Mutations(this.app, this.io, this.index, this.history, {
 			setMePersonId: (root, personId) => setMePersonId(root, personId),
 		});
@@ -126,6 +131,10 @@ export default class VertexFlowPlugin extends Plugin {
 			this.register(
 				this.index.subscribe(() => {
 					void this.mutations.reconcileRecurrences();
+					// Rewrite any pre-1.1 bare `type:` frontmatter left on disk.
+					// Self-terminating: a scan that finds nothing converged does
+					// zero writes, so this is cheap to run on every rebuild.
+					void migrateEntityTypes(this.index, this.io);
 				}),
 			);
 			void this.index.rebuild().then(() => this.registerTaskRedirect());
@@ -166,6 +175,15 @@ export default class VertexFlowPlugin extends Plugin {
 			id: "rebuild-index",
 			name: "Rebuild index",
 			callback: () => void this.index.rebuild(),
+		});
+
+		this.addCommand({
+			id: "export",
+			name: "Export…",
+			callback: () => {
+				this.pendingExport = true;
+				void this.activateView().then(() => this.index.touch());
+			},
 		});
 
 		// Acts on the task whose editor is in front. `checkCallback` keeps the
@@ -222,7 +240,7 @@ export default class VertexFlowPlugin extends Plugin {
 				// it, and self-heals via the editor's own subscription if there's
 				// a momentary gap.
 				const cache = this.app.metadataCache.getFileCache(file);
-				if (cache?.frontmatter?.type !== "task") return;
+				if (!isTaskNoteType(cache?.frontmatter?.type)) return;
 
 				const leaf = this.app.workspace.getMostRecentLeaf();
 				if (!leaf || leaf.view.getViewType() !== "markdown") return;
@@ -259,6 +277,12 @@ export default class VertexFlowPlugin extends Plugin {
 	 * `TabsProvider`.
 	 */
 	pendingOpenView: string | null = null;
+
+	/**
+	 * Set by the "Export…" command; consumed by Sidebar's bridge effect to open
+	 * the Export dialog. Mirrors pendingEditPath/pendingOpenView.
+	 */
+	pendingExport = false;
 
 	/** Ask the view to open a task's tab, opening the view first if needed. */
 	async requestEdit(path: string): Promise<void> {

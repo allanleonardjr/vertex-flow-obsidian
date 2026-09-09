@@ -48,6 +48,7 @@ import {
 	type ViewType,
 } from "../../types";
 import {
+	iconSetting,
 	plainSetting,
 	settingsFromValues,
 	type TemplateMeta,
@@ -645,12 +646,76 @@ function parseDashboards(raw: unknown): ParsedDashboard[] {
 	});
 }
 
+/* ----------------------------------------------------------- projects ---- */
+
+/**
+ * Frontmatter `projects:` — the form exported workspace templates use, mirroring
+ * `views`/`dashboards`. Everything an exporter can write is covered: title (the
+ * filename), icon, description, the status/priority/owner/labels references
+ * (by name — re-resolved against the template's own taxonomy), and the dates.
+ * Hand-authored templates still write Projects as `##` body sections; the two
+ * forms merge at the entry point, frontmatter first.
+ */
+function parseProjects(raw: unknown): ParsedProject[] {
+	if (raw == null) return [];
+	if (!Array.isArray(raw)) fail(`"projects" must be a list`);
+
+	return raw.map((entry, index) => {
+		if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
+			fail(`projects[${index}] must be a map with at least a "title"`);
+		}
+		const data = entry as Record<string, unknown>;
+		const title = requireString(data, "title");
+		const line = 0;
+		const where = `projects["${title}"]`;
+
+		const project: ParsedProject = {
+			title,
+			anchor: slugifyPlain(title),
+			line,
+			icon: optionalString(data, "icon"),
+			description: optionalString(data, "description"),
+			status: optionalString(data, "status"),
+			priority: optionalString(data, "priority"),
+			owner: optionalString(data, "owner"),
+		};
+
+		if (data.labels != null) {
+			if (!Array.isArray(data.labels)) fail(`${where}.labels must be a list`);
+			project.labels = data.labels.map((label, i) => {
+				if (typeof label !== "string" || !label.trim()) {
+					fail(`${where}.labels[${i}] must be a string`);
+				}
+				return label.trim();
+			});
+		}
+
+		for (const key of ["start", "due", "created", "updated"] as const) {
+			const rawDate = optionalString(data, key);
+			if (rawDate) project[key] = parseDateToken(rawDate, line);
+		}
+
+		if (data.archived != null) {
+			if (typeof data.archived === "boolean") {
+				project.archived = data.archived;
+			} else if (typeof data.archived === "string") {
+				project.archived = readArchived(data.archived, line);
+			} else {
+				fail(`${where}.archived must be true, false, or a date string`);
+			}
+		}
+
+		return project;
+	});
+}
+
 /* ------------------------------------------------------- body: field line - */
 
 const PROJECT_FIELDS = new Set([
 	"status",
 	"priority",
 	"owner",
+	"icon",
 	"start",
 	"due",
 	"created",
@@ -1017,6 +1082,9 @@ function applyFields(
 			case "status":
 				node.status = value;
 				break;
+			case "icon":
+				project.icon = value;
+				break;
 			case "priority":
 				node.priority = value;
 				break;
@@ -1087,23 +1155,30 @@ function applyFields(
 /**
  * The gallery card preview.
  *
- * Derived from the frontmatter taxonomy alone — never from resolved example
+ * Derived from frontmatter and the body — never from resolved example
  * content — so rendering a card stays free of `buildExampleContent()`, exactly
  * as it is for the hand-written TypeScript templates. A taxonomy the template
  * doesn't override is shown as the workspace default *only when the template
  * overrides at least one other taxonomy*; a template that overrides nothing
  * gets no taxonomy rows at all (it's saying "use the defaults" wholesale,
- * which is what the created workspace will actually get).
+ * which is what the created workspace will actually get for those fields).
+ *
+ * Rows beyond the taxonomy mirror the workspace sidebar's order: the "Default
+ * view" the index injects, the Views/Dashboards the workspace creates, then
+ * the Projects (structure — they're always created) and the People register
+ * the template defines.
  */
-function cardSettings(overrides: TemplateWorkspaceOverrides): TemplateSetting[] {
+function cardSettings(
+	overrides: TemplateWorkspaceOverrides,
+	views: ParsedView[],
+	dashboards: ParsedDashboard[],
+	projects: ParsedProject[],
+): TemplateSetting[] {
 	// A template with *no* taxonomy override is deliberately saying "use the
 	// workspace defaults" — so the card lists nothing it configured, rather than
-	// restating the system defaults as if the template chose them. "Default view"
-	// always applies, so it stays. This keeps ("blank"-style) templates honest
-	// without special-casing any id.
-	const rows: TemplateSetting[] = [
-		plainSetting("Default view", "All Tasks (List, grouped by Status)"),
-	];
+	// restating the system defaults as if the template chose them. This keeps
+	// ("blank"-style) templates honest without special-casing any id.
+	const rows: TemplateSetting[] = [];
 	// An override counts for the card only if it carries at least one value. A
 	// template that overrides nothing, or that explicitly empties every taxonomy
 	// (a blank workspace) — the latter yields a non-empty key set but all-empty
@@ -1111,14 +1186,58 @@ function cardSettings(overrides: TemplateWorkspaceOverrides): TemplateSetting[] 
 	const hasValues = Object.values(overrides).some(
 		(arr) => Array.isArray(arr) && arr.length > 0,
 	);
-	if (!hasValues) return rows;
-	return [
-		settingsFromValues("Statuses", overrides.statuses ?? DEFAULT_STATUSES),
-		settingsFromValues("Priorities", overrides.priorities ?? DEFAULT_PRIORITIES),
-		settingsFromValues("Task Types", overrides.taskTypes ?? DEFAULT_TASK_TYPES),
-		settingsFromValues("Labels", overrides.labels ?? DEFAULT_LABELS),
-		...rows,
-	];
+	if (hasValues) {
+		rows.push(
+			settingsFromValues("Statuses", overrides.statuses ?? DEFAULT_STATUSES),
+			settingsFromValues("Priorities", overrides.priorities ?? DEFAULT_PRIORITIES),
+			settingsFromValues("Task Types", overrides.taskTypes ?? DEFAULT_TASK_TYPES),
+			settingsFromValues("Labels", overrides.labels ?? DEFAULT_LABELS),
+		);
+	}
+	// "Default view" always applies, so it stays.
+	rows.push(plainSetting("Default view", "All Tasks (List, grouped by Status)"));
+	if (views.length > 0) {
+		rows.push(
+			iconSetting(
+				"Views",
+				views.map((view) => ({ name: view.name, icon: view.icon })),
+			),
+		);
+	}
+	if (dashboards.length > 0) {
+		rows.push(
+			iconSetting(
+				"Dashboards",
+				dashboards.map((dashboard) => ({
+					name: dashboard.name,
+					icon: dashboard.icon,
+				})),
+			),
+		);
+	}
+	if (projects.length > 0) {
+		rows.push(
+			iconSetting(
+				"Projects",
+				projects.map((project) => ({
+					name: project.title,
+					icon: project.icon,
+				})),
+			),
+		);
+	}
+	if (overrides.people && overrides.people.length > 0) {
+		rows.push(
+			iconSetting(
+				"People",
+				overrides.people.map((person) => ({
+					name: person.name,
+					icon: "user",
+				})),
+			),
+		);
+	}
+	return rows;
 }
 
 /* ------------------------------------------------------------- entry ------ */
@@ -1163,13 +1282,30 @@ export function parseTemplateMarkdown(source: string): ParsedTemplate {
 		);
 	}
 
-	const kind = data.kind;
-	if (kind == null) fail(`Frontmatter is missing "kind" — add "kind: template"`, 3);
-	if (kind !== "template") {
+	// `type` is the unified discriminant every other Vertex-Flow-authored note
+	// uses; `kind` is the legacy field name. Accept either spelling and
+	// normalize to the new `type: vertex-flow-workspace-template` internally.
+	// `snapshot` stays reserved and unbuilt — only the field name and the
+	// built value's spelling change here.
+	const rawKind = data.type ?? data.kind;
+	const kindField = data.type != null ? "type" : "kind";
+	if (rawKind == null) {
 		fail(
-			kind === "snapshot"
-				? `"kind: snapshot" is not yet supported — only "kind: template" can be loaded`
-				: `Unknown "kind: ${String(kind)}" — only "kind: template" is supported`,
+			`Frontmatter is missing "type" — add "type: vertex-flow-workspace-template"`,
+			3,
+		);
+	}
+	const normalizedKind =
+		rawKind === "template" || rawKind === "vertex-flow-workspace-template"
+			? "template"
+			: rawKind === "snapshot" || rawKind === "vertex-flow-workspace-snapshot"
+				? "snapshot"
+				: null;
+	if (normalizedKind !== "template") {
+		fail(
+			normalizedKind === "snapshot"
+				? `"type: vertex-flow-workspace-snapshot" is not yet supported — only "type: vertex-flow-workspace-template" can be loaded`
+				: `Unknown "${kindField}: ${String(rawKind)}" — only "type: vertex-flow-workspace-template" is supported`,
 			3,
 		);
 	}
@@ -1204,26 +1340,18 @@ export function parseTemplateMarkdown(source: string): ParsedTemplate {
 	const history = optionalBoolean(data, "history");
 	if (history !== undefined) workspaceOverrides.history = { enabled: history };
 
-	const meta: TemplateMeta = {
-		id: requireString(data, "id"),
-		name: requireString(data, "name"),
-		description: requireString(data, "description"),
-		icon: optionalString(data, "icon"),
-		supportsExampleContent: optionalBoolean(data, "supportsExampleContent"),
-		author: optionalString(data, "author"),
-		authorUrl: optionalString(data, "authorUrl"),
-		templateVersion: optionalString(data, "templateVersion"),
-		source: optionalString(data, "source"),
-		settings: cardSettings(workspaceOverrides),
-	};
-
 	const views = parseViews(data.views);
 	const dashboards = parseDashboards(data.dashboards);
+	// Projects come from either authoring form: exported templates ride them in
+	// frontmatter, hand-authored templates write `##` body sections. Both are
+	// merged, frontmatter first.
+	const frontmatterProjects = parseProjects(data.projects);
 
 	// --- body ----------------------------------------------------------------
 	const frontmatterLines = match[0].split(/\r?\n/).length - 1;
 	const body = normalized.slice(match[0].length);
-	const { projects, tasks, warnings } = scanBody(body, frontmatterLines + 1);
+	const { projects: bodyProjects, tasks, warnings } = scanBody(body, frontmatterLines + 1);
+	const projects = [...frontmatterProjects, ...bodyProjects];
 
 	// Projects and Tasks share one anchor namespace: a `project:` reference and
 	// a `parent:` reference are resolved through the same lookup, so a collision
@@ -1239,6 +1367,24 @@ export function parseTemplateMarkdown(source: string): ParsedTemplate {
 		}
 		anchors.set(node.anchor, { title: node.title, line: node.line });
 	}
+
+	// The card preview is derived from *everything* the template declares —
+	// taxonomy and people from frontmatter, Projects from frontmatter and/or the
+	// body, and the Views/Dashboards from their frontmatter sections — which is
+	// why it is built last, once all of them are parsed.
+	const meta: TemplateMeta = {
+		id: requireString(data, "id"),
+		name: requireString(data, "name"),
+		description: requireString(data, "description"),
+		icon: optionalString(data, "icon"),
+		createdAt: optionalString(data, "createdAt"),
+		supportsExampleContent: optionalBoolean(data, "supportsExampleContent"),
+		author: optionalString(data, "author"),
+		authorUrl: optionalString(data, "authorUrl"),
+		templateVersion: optionalString(data, "templateVersion"),
+		source: optionalString(data, "source"),
+		settings: cardSettings(workspaceOverrides, views, dashboards, projects),
+	};
 
 	return {
 		meta,

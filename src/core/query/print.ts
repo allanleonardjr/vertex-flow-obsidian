@@ -15,9 +15,10 @@
 
 import { basename } from "../links";
 import { getValue, type Taxonomy } from "../taxonomy";
-import { NONE, SELF, type ViewDefinition } from "../types";
+import { NONE, SELF, type ViewDefinition, type ViewFilters } from "../types";
 import {
 	canonicalizeDefinition,
+	canonicalizeFilters,
 	FILTER_ARRAY_FIELDS,
 } from "../views/filter";
 import { DEFAULT_DEFINITION } from "../views/defaults";
@@ -187,44 +188,65 @@ function printText(text: string): string {
 	return `${TEXT_FIELD.token}:${quote(text)}`;
 }
 
-export function printQuery(
-	definition: ViewDefinition,
+/**
+ * The filter-and-flags portion of a query — everything that reads only from
+ * `filters`, and nothing that configures a *layout* (`group:`/`sort:`/`hide:`/…).
+ *
+ * `printQuery` uses this for its own filter clauses; the workspace-template
+ * serializer reuses it directly for a dashboard's `filter:` line, which the
+ * template grammar defines as filter-only.
+ */
+export function printFilters(
+	filters: ViewFilters,
 	context: QueryContext,
 ): string {
-	const canonical = canonicalizeDefinition(definition);
-	const { filters } = canonical;
+	const canonical = canonicalizeFilters(filters);
 	const parts: string[] = [];
 
 	for (const key of FILTER_ARRAY_FIELDS) {
-		const values = filters[key];
+		const values = canonical[key];
 		if (!values || values.length === 0) continue;
 		const spec = FILTER_FIELDS[key];
 		const rendered = values.map((value) => printValue(spec, value, context));
 		parts.push(`${spec.token}:${rendered.join(",")}`);
 	}
 
-	if (filters.text) parts.push(printText(filters.text));
+	if (canonical.text) parts.push(printText(canonical.text));
 
-	if (filters.archived === "included") {
+	if (canonical.archived === "included") {
 		parts.push(
 			`${FLAG_TOKENS.archivedIncluded.field}:${FLAG_TOKENS.archivedIncluded.value}`,
 		);
-	} else if (filters.archived === "only") {
+	} else if (canonical.archived === "only") {
 		parts.push(
 			`${FLAG_TOKENS.archivedOnly.field}:${FLAG_TOKENS.archivedOnly.value}`,
 		);
 	}
-	if (filters.openOnly) {
+	if (canonical.openOnly) {
 		parts.push(`${FLAG_TOKENS.openOnly.field}:${FLAG_TOKENS.openOnly.value}`);
 	}
-	if (filters.unscheduled) {
+	if (canonical.unscheduled) {
 		parts.push(
 			`${FLAG_TOKENS.unscheduled.field}:${FLAG_TOKENS.unscheduled.value}`,
 		);
 	}
-	if (filters.recurring) {
+	if (canonical.recurring) {
 		parts.push(`${FLAG_TOKENS.recurring.field}:${FLAG_TOKENS.recurring.value}`);
 	}
+
+	return parts.join(" ");
+}
+
+export function printQuery(
+	definition: ViewDefinition,
+	context: QueryContext,
+): string {
+	const canonical = canonicalizeDefinition(definition);
+	const parts: string[] = [];
+
+	const filterPart = printFilters(canonical.filters, context);
+	if (filterPart) parts.push(filterPart);
+
 	if (canonical.recurringPreview) {
 		parts.push(
 			`${FLAG_TOKENS.recurringPreview.field}:${FLAG_TOKENS.recurringPreview.value}`,

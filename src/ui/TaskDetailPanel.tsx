@@ -50,6 +50,7 @@ import { LabelEditor } from "./components/LabelEditor";
 import { RelationsEditor } from "./components/RelationsEditor";
 import { RepeatRow } from "./components/RecurrenceEditor";
 import { TaskSelectMenu } from "./components/TaskSelectMenu";
+import { formatFullDateTime, formatRelativeTime } from "./browse/shared";
 import { usePlugin } from "./context";
 
 const TASK_INFO_MIN_HEIGHT = 80;
@@ -361,6 +362,21 @@ export function TaskDetailPanel({
             </label>
           </PropertyRow>
 
+          <PropertyRow label="Created">
+            <span className="vf-prop-static">
+              {formatFullDateTime(task.createdAt)}
+            </span>
+          </PropertyRow>
+
+          <PropertyRow label="Updated">
+            <span
+              className="vf-prop-static"
+              title={formatFullDateTime(task.updatedAt)}
+            >
+              {formatRelativeTime(task.updatedAt)}
+            </span>
+          </PropertyRow>
+
           <RawSourceSection task={task} />
 
           <div className="vf-editor-rail-section">
@@ -625,12 +641,14 @@ function ReparentSubtaskDialog({
         onClick={(event) => event.stopPropagation()}
       >
         <h3>Move "{label(child)}" here?</h3>
-        <p className="vf-dialog-lead">
-          It's already a sub-task of{" "}
-          {currentParent ? `"${label(currentParent)}"` : "another task"}. A task
-          has only one parent, so moving it under "{label(newParent)}" removes
-          it from there.
-        </p>
+        <div className="vf-dialog-body">
+          <p className="vf-dialog-lead">
+            It's already a sub-task of{" "}
+            {currentParent ? `"${label(currentParent)}"` : "another task"}. A
+            task has only one parent, so moving it under "{label(newParent)}"
+            removes it from there.
+          </p>
+        </div>
         <div className="vf-dialog-actions">
           <button onClick={onClose}>Cancel</button>
           <button className="mod-cta" onClick={onConfirm}>
@@ -944,7 +962,7 @@ function CommentList({
                 onClick={() => {
                   void navigator.clipboard.writeText(comment.body).then(() => {
                     setCopiedId(comment.id);
-                    setTimeout(
+                    window.setTimeout(
                       () =>
                         setCopiedId((id) => (id === comment.id ? null : id)),
                       1500,

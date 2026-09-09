@@ -56,6 +56,8 @@ If Vertex Flow helps you stay organized, consider [sponsoring on GitHub ❤️](
 - **Fast to open, painless to keep in sync.** The index reads from Obsidian's metadata cache (no slow disk scans) and resolves @mentions in a lazy background pass, so views paint immediately and edits sync automatically.
 - **Recurring Tasks:** Automate routines with recurring schedules directly in task frontmatter that automatically instantiate the next instance — on a date cadence, or when the task reaches a status. Status-triggered repeats can set the next occurrence's Start and Due dates independently: leave them blank, land them on the spawn day, or shift them to preserve the original task's date range.
 - **Activity History Log:** Track past completed work, status updates, and workspace activity logs preserved in plain Markdown files.
+- **Export your tasks.** Export the current view, a saved view, a project, or the whole workspace to **CSV, JSON, or iCalendar** — choose which fields to include, bring archived tasks along or not, and land a real file under `<workspace>/Exports/`. Exports are reachable from the sidebar, a Command Palette command, the view toolbar, and right-click menus on workspaces, views, and projects.
+- **Reuse a workspace as a template.** **"Export Workspace as Template"** captures a workspace's statuses, priorities, task types, labels, people, saved views, and dashboards as a portable Markdown file — no tasks or projects. You pick the destination folder (type a name or browse; vault-root `Templates/` is the default), and templates saved under `Templates/` appear in the **New Workspace gallery** under "From your Vault", so you can spin up a fresh workspace already configured the way you like.
 
 
 ## Views
@@ -105,7 +107,7 @@ See dated work on a calendar.
 ## Getting started
 
 1. Install **Vertex Flow** from the Community Plugins browser.
-2. Create a workspace from the sidebar's **Workspaces** section, or open a bundled sample workspace from the onboarding template gallery to look around.
+2. Create a workspace from the sidebar's **Workspaces** section, or open a bundled sample workspace from the onboarding template gallery to look around. Templates you've exported from an existing workspace (via **"Export Workspace as Template…"**) appear in the same gallery under **From your Vault**.
 3. Add a Project, then a Task inside it.
 4. Switch between **List** and **Board** from the view bar.
 
@@ -121,7 +123,7 @@ See dated work on a calendar.
 Vertex Flow ships with a complete built-in help system available **offline in the app** — press `?` anywhere for the keyboard reference, or open **Help** in the sidebar. The source of those docs lives in this repo, so they're also readable here:
 
 - [Getting started](src/help-content/getting-started.md)
-- **Concepts** — [Workspaces](src/help-content/concepts/workspaces.md), [Projects](src/help-content/concepts/projects.md), [Tasks](src/help-content/concepts/tasks/_category.md), [Sub-tasks](src/help-content/concepts/tasks/subtasks.md), [Recurring Tasks](src/help-content/concepts/recurring-tasks.md), [Activity History](src/help-content/concepts/activity-history.md)
+- **Concepts** — [Workspaces](src/help-content/concepts/workspaces.md), [Projects](src/help-content/concepts/projects.md), [Tasks](src/help-content/concepts/tasks/_category.md), [Sub-tasks](src/help-content/concepts/tasks/subtasks.md), [Recurring Tasks](src/help-content/concepts/recurring-tasks.md), [Activity History](src/help-content/concepts/activity-history.md), [Export & workspace templates](src/help-content/concepts/export-and-templates.md)
 - **Views** — [List](src/help-content/views/list-view.md), [Board](src/help-content/views/board-view.md), [Calendar](src/help-content/views/calendar-view.md), [Saved Views](src/help-content/views/saved-views.md)
 - [Keyboard shortcuts](src/help-content/keyboard-shortcuts.md)
 - [FAQ](src/help-content/faq.md)

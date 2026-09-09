@@ -11,6 +11,7 @@ import type { SavedView, WorkspaceSnapshot } from "../../core/types";
 import { isSystemViewId, layoutIcon, newView } from "../../core/views";
 import { ConfirmDeleteDialog } from "../components/ConfirmDeleteDialog";
 import { usePlugin } from "../context";
+import { ExportDialog } from "../modals/ExportDialog";
 import { NamedIconDialog } from "../modals/NamedIconDialog";
 import { useTabs } from "../tabs-context";
 import { ViewCardContent } from "./ViewCardContent";
@@ -32,6 +33,7 @@ export function ViewsBrowseView({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   const [creating, setCreating] = useState(false);
   const [dialog, setDialog] = useState<DialogState>(null);
   const [deleting, setDeleting] = useState<SavedView | null>(null);
+  const [exportingView, setExportingView] = useState<SavedView | null>(null);
 
   const views = snapshot.views.filter((v) => !isSystemViewId(v.id));
 
@@ -92,6 +94,15 @@ export function ViewsBrowseView({ snapshot }: { snapshot: WorkspaceSnapshot }) {
                     Duplicate
                   </button>
                   <div className="vf-menu-divider" aria-hidden />
+                  <button
+                    className="vf-menu-item"
+                    onClick={() => {
+                      setMenuOpenId(null);
+                      setExportingView(view);
+                    }}
+                  >
+                    Export…
+                  </button>
                   <button
                     className="vf-menu-item"
                     onClick={() => {
@@ -164,6 +175,15 @@ export function ViewsBrowseView({ snapshot }: { snapshot: WorkspaceSnapshot }) {
             })
           }
           onClose={() => setDialog(null)}
+        />
+      )}
+
+      {exportingView && (
+        <ExportDialog
+          snapshot={snapshot}
+          lockScope
+          initialScope={{ kind: "view", view: exportingView }}
+          onClose={() => setExportingView(null)}
         />
       )}
     </div>

@@ -44,9 +44,7 @@ export function BrowseHeader({
       <div className="vf-toolbar-title">
         <h2>
           {title}
-          {idPrefix && (
-            <span className="vf-view-title-code">({idPrefix})</span>
-          )}
+          {idPrefix && <span className="vf-view-title-code">({idPrefix})</span>}
         </h2>
         <span className="vf-count">
           {count === 1 ? `1 ${noun}` : `${count} ${plural ?? `${noun}s`}`}
@@ -125,9 +123,7 @@ export function BrowseCard({
           {children}
         </button>
       ) : (
-        <div className="vf-browse-card-body">
-          {children}
-        </div>
+        <div className="vf-browse-card-body">{children}</div>
       )}
       {trailing && <div className="vf-browse-card-trailing">{trailing}</div>}
     </div>
@@ -203,6 +199,19 @@ export function formatFullDate(iso: string): string {
     month: "short",
     day: "numeric",
     year: "numeric",
+  });
+}
+
+/** `"Aug 20, 2026, 1:00 PM"` — same as `formatFullDate` but with a time-of-day. */
+export function formatFullDateTime(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso.slice(0, 10);
+  return date.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
   });
 }
 

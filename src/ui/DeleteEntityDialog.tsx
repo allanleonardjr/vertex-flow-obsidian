@@ -111,11 +111,13 @@ export function DeleteEntityDialog({
             <h3>
               Move {noun} "{current.title || UNTITLED_TASK_LABEL}" to Trash?
             </h3>
-            <p className="vf-dialog-lead">
-              {current.hasChildren
-                ? `It has ${describePlanChildren(current)} — you'll choose what happens to ${current.kind === "task" ? "them" : "those"} next.`
-                : "You can restore it at any time from the Trash view."}
-            </p>
+            <div className="vf-dialog-body">
+              <p className="vf-dialog-lead">
+                {current.hasChildren
+                  ? `It has ${describePlanChildren(current)} — you'll choose what happens to ${current.kind === "task" ? "them" : "those"} next.`
+                  : "You can restore it at any time from the Trash view."}
+              </p>
+            </div>
             <div className="vf-dialog-actions">
               <button disabled={busy} onClick={cancel}>
                 Cancel
@@ -135,10 +137,12 @@ export function DeleteEntityDialog({
             <h3>
               The {childNoun}s of "{current.title || UNTITLED_TASK_LABEL}"
             </h3>
-            <p className="vf-dialog-lead">
-              Move the {describePlanChildren(current)} to Trash too, or keep{" "}
-              {current.kind === "task" ? "them" : "those"} as top-level items?
-            </p>
+            <div className="vf-dialog-body">
+              <p className="vf-dialog-lead">
+                Move the {describePlanChildren(current)} to Trash too, or keep{" "}
+                {current.kind === "task" ? "them" : "those"} as top-level items?
+              </p>
+            </div>
             <div className="vf-dialog-actions">
               <button disabled={busy} onClick={cancel}>
                 Cancel

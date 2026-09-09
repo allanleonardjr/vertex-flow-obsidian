@@ -1,6 +1,6 @@
 ---
 templateSchema: 1
-kind: template
+type: vertex-flow-workspace-template
 id: getting-started
 name: Getting Started
 description: A complete sample workspace with three mini-projects that opens on a short hands-on intro.

@@ -29,6 +29,7 @@ import {
 	rankSeq,
 } from "./helpers";
 import {
+	iconSetting,
 	plainSetting,
 	settingsFromValues,
 	type TemplateBuildContext,
@@ -518,6 +519,19 @@ export const sampleWorkspaceTemplate: WorkspaceTemplate = {
 		settingsFromValues("Task Types", taskTypes),
 		settingsFromValues("Labels", labels),
 		plainSetting("Default view", "Board (grouped by Status)"),
+		iconSetting("Views", [{ name: "Sprint Board", icon: "kanban" }]),
+		iconSetting("Dashboards", [
+			{ name: "Sprint Overview", icon: "gauge" },
+		]),
+		iconSetting("Projects", [
+			{ name: "Core App Experience" },
+			{ name: "App Store Launch & Marketing" },
+			{ name: "Developer Platform" },
+		]),
+		iconSetting(
+			"People",
+			people.map((person) => ({ name: person.name, icon: "user" })),
+		),
 	],
 	buildExampleContent,
 };

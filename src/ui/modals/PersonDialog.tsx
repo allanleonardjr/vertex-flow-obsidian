@@ -62,36 +62,38 @@ export function PersonDialog({
 			>
 				<h3>{title}</h3>
 
-				<label className="vf-field vf-field-name">
-					<span>Name</span>
-					<input
-						type="text"
-						autoFocus
-						value={name}
-						onChange={(event) => {
-							setName(event.target.value);
-							setError(null);
-						}}
-						onKeyDown={(event) => {
-							if (event.key === "Enter") void submit();
-						}}
-					/>
-				</label>
+				<div className="vf-dialog-body">
+					<label className="vf-field vf-field-name">
+						<span>Name</span>
+						<input
+							type="text"
+							autoFocus
+							value={name}
+							onChange={(event) => {
+								setName(event.target.value);
+								setError(null);
+							}}
+							onKeyDown={(event) => {
+								if (event.key === "Enter") void submit();
+							}}
+						/>
+					</label>
 
-				<label className="vf-field">
-					<span>Aliases</span>
-					<input
-						type="text"
-						placeholder="Comma-separated"
-						value={aliases}
-						onChange={(event) => setAliases(event.target.value)}
-						onKeyDown={(event) => {
-							if (event.key === "Enter") void submit();
-						}}
-					/>
-				</label>
+					<label className="vf-field">
+						<span>Aliases</span>
+						<input
+							type="text"
+							placeholder="Comma-separated"
+							value={aliases}
+							onChange={(event) => setAliases(event.target.value)}
+							onKeyDown={(event) => {
+								if (event.key === "Enter") void submit();
+							}}
+						/>
+					</label>
 
-				{error && <p className="vf-error">{error}</p>}
+					{error && <p className="vf-error">{error}</p>}
+				</div>
 
 				<div className="vf-dialog-actions">
 					<button onClick={onClose}>Cancel</button>

@@ -38,6 +38,9 @@ export interface TemplateSettingValue {
 	/** Hex color. Present for Status/Priority/Task Type/Label values; omitted
 	 *  for settings that have no color (e.g. "Default view"). */
 	color?: string;
+	/** Obsidian icon name. Present for values that stand for a view or
+	 *  dashboard, rendered as a small glyph before the name. */
+	icon?: string;
 }
 
 export interface TemplateSetting {
@@ -51,6 +54,10 @@ export interface TemplateMeta {
 	name: string;
 	description: string; // one or two sentences, shown on the card
 	icon?: string; // Obsidian icon name
+	/** When this template was exported, as an ISO 8601 timestamp. Only set for
+	 *  vault-authored templates captured via "Export Workspace as Template" —
+	 *  built-in templates and hand-authored files leave it unset. */
+	createdAt?: string;
 	/** Whether the workspace-creation UI offers the "Populate with example
 	 *  content" checkbox. `undefined` or `true` shows it; `false` hides it and
 	 *  forces `populate: false` on creation. */
@@ -107,7 +114,11 @@ export interface WorkspaceTemplate extends TemplateMeta {
 	views?: SavedView[];
 	/** The `people` id this template marks as "me" (`"Name*"`), if any. */
 	mePersonId?: string;
-	/** Called only when the user opts to populate with example content. */
+	/** Called for every instantiation. Views, dashboards, people, taxonomy and
+	 *  Projects ride the returned content as *structure* and are applied whether
+	 *  or not the creator opts into example content; only the returned tasks
+	 *  (and their descriptions/comments) are example material, applied solely
+	 *  when the user ticks "Populate with example content". */
 	buildExampleContent(ctx: TemplateBuildContext): TemplateContent;
 }
 
@@ -128,4 +139,14 @@ export function settingsFromValues(
 /** A plain (colorless) card row, e.g. "Default view: Board (grouped by Status)". */
 export function plainSetting(label: string, ...values: string[]): TemplateSetting {
 	return { label, values: values.map((name) => ({ name })) };
+}
+
+/** A card row whose values carry an icon glyph each, e.g. "Views: …".
+ *  Used for gallery cards that preview what an exported workspace will
+ *  create (views and dashboards carry user-chosen icon names). */
+export function iconSetting(
+	label: string,
+	values: { name: string; icon?: string }[],
+): TemplateSetting {
+	return { label, values: values.map((v) => ({ name: v.name, icon: v.icon })) };
 }
