@@ -1621,7 +1621,11 @@ button.vf-swatch.is-on {
 }
 
 .vf-template-card-local {
-  border-color: color-mix(in srgb, var(--interactive-accent) 30%, var(--vf-border));
+  border-color: color-mix(
+    in srgb,
+    var(--interactive-accent) 30%,
+    var(--vf-border)
+  );
 }
 
 .vf-template-card:hover,
@@ -1650,7 +1654,8 @@ button.vf-swatch.is-on {
 
 .vf-template-card-badge {
   padding: 1px 7px;
-  border: 1px solid color-mix(in srgb, var(--interactive-accent) 45%, var(--vf-border));
+  border: 1px solid
+    color-mix(in srgb, var(--interactive-accent) 45%, var(--vf-border));
   border-radius: 999px;
   color: var(--interactive-accent);
   font-size: var(--font-ui-smaller);
@@ -1725,7 +1730,6 @@ button.vf-swatch.is-on {
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
-
 
 .vf-template-card-created,
 .vf-template-card-path {
@@ -7232,7 +7236,7 @@ button.vf-history-expand {
 }
 
 .vf-export-preview {
-  margin: 12px 0 0;
+  margin: 12px 12px 0 0;
   color: var(--text-muted);
   font-size: var(--font-ui-smaller);
 }

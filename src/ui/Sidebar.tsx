@@ -229,6 +229,12 @@ export function Sidebar({
           <div className="vf-sidebar-sep" aria-hidden />
 
           <NavRow
+            icon="download"
+            label="Export…"
+            onClick={() => setExporting(true)}
+          />
+
+          <NavRow
             icon="history"
             label="History"
             active={activeId === "history"}
@@ -240,12 +246,6 @@ export function Sidebar({
             label="Trash"
             active={activeId === "trash"}
             onClick={() => openScreen("trash")}
-          />
-
-          <NavRow
-            icon="download"
-            label="Export…"
-            onClick={() => setExporting(true)}
           />
 
           <div className="vf-sidebar-sep" aria-hidden />
@@ -661,7 +661,7 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
                   setExportTarget({ workspace: entry, forceMode: "template" });
                 }}
               >
-                Export Workspace configuration as Template…
+                Export Workspace as Template…
               </button>
               <div className="vf-menu-divider" aria-hidden />
               <button

@@ -339,7 +339,7 @@ export function ExportDialog({
                   className={`vf-bar-item${mode === "template" ? " is-on" : ""}`}
                   onClick={() => setMode("template")}
                 >
-                  Export Workspace configuration as Template
+                  Export Workspace as Template…
                 </button>
               </div>
             )}
@@ -585,8 +585,10 @@ export function ExportDialog({
                   </label>
 
                   <p className="vf-export-preview">
-                    Captures taxonomy, views, dashboards and the people roster —
-                    no tasks or projects.
+                    <strong>This exports your workspace configuration.</strong>
+                    <br />
+                    Captures statuses, priorities, task types, labels, and the
+                    people roster — no tasks, views, dashboards or projects.
                   </p>
 
                   {error && <p className="vf-error">{error}</p>}
