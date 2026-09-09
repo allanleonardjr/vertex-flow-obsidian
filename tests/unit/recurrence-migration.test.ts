@@ -45,11 +45,16 @@ class FakeIO {
 	}
 }
 
+const fakeWorkspace = { root: "W", history: { enabled: false } } as never;
+const fakeHistory = { record: () => {} } as never;
+
 const run = (io: FakeIO): Promise<boolean> =>
 	// The method is private by design — reach past it for this narrow check.
-	(new VaultIndex({} as never, io as never) as unknown as {
-		migrateOnCloseDateModes(root: string): Promise<boolean>;
-	}).migrateOnCloseDateModes("W");
+	(
+		new VaultIndex({} as never, io as never, fakeHistory) as unknown as {
+			migrateOnCloseDateModes(workspace: unknown): Promise<boolean>;
+		}
+	).migrateOnCloseDateModes(fakeWorkspace);
 
 const onClose = (extra: Record<string, unknown> = {}) => ({
 	trigger: "on-close",

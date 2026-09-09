@@ -24,6 +24,7 @@ import {
 	serializeWorkspace,
 } from "../serialization/workspace";
 import { defaultViews, isSystemViewId } from "../views/defaults";
+import { queryContext } from "../query";
 import { seedHistory } from "../history/seed";
 import type {
 	Comment,
@@ -225,11 +226,20 @@ export function instantiateTemplate(
 		}),
 	);
 
+	const projects = content?.projects ?? [];
+	const tasks = content?.tasks ?? [];
+
 	// --- Notes ----------------------------------------------------------
 	//
 	// One file per Saved View / Dashboard, under `Views/` / `Dashboards/` —
 	// same per-file storage the live app uses. A workspace with no user views
 	// or dashboards simply has empty folders.
+
+	// Resolves the pretty tokens a view/dashboard `query:` string prints.
+	const qctx = queryContext(
+		{ workspace, projects, tasks } as WorkspaceSnapshot,
+		personId,
+	);
 
 	const notes: GeneratedNote[] = [
 		{ path: joinPath(root, "_workspace"), frontmatter: serializeWorkspace(workspace), body: "" },
@@ -239,7 +249,7 @@ export function instantiateTemplate(
 		if (isSystemViewId(view.id)) continue;
 		notes.push({
 			path: view.path,
-			frontmatter: serializeView(view),
+			frontmatter: serializeView(view, qctx),
 			body: "",
 		});
 	}
@@ -247,13 +257,10 @@ export function instantiateTemplate(
 	for (const dashboard of dashboards) {
 		notes.push({
 			path: dashboard.path,
-			frontmatter: serializeDashboard(dashboard),
+			frontmatter: serializeDashboard(dashboard, qctx),
 			body: "",
 		});
 	}
-
-	const projects = content?.projects ?? [];
-	const tasks = content?.tasks ?? [];
 
 	// A history-enabled, example-content workspace opens on a seeded log (see
 	// `seedHistory`) so the hub demonstrates itself on first visit. History off
@@ -282,7 +289,7 @@ export function instantiateTemplate(
 		for (const project of projects) {
 			notes.push({
 				path: project.path,
-				frontmatter: serializeProject(project),
+				frontmatter: serializeProject(project, qctx),
 				// No fallback copy: a template that doesn't describe a Project gets
 				// an empty body, not a restated title. `extractProjectDescription`
 				// already strips the `## Overview` heading older notes carried.

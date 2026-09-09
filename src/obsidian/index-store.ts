@@ -54,10 +54,26 @@ import type {
 	SavedView,
 	Task,
 	TrashedItem,
+	WorkspaceConfig,
 	WorkspaceSnapshot,
 } from "../core/types";
 import { NoteIO, withoutExtension } from "./note-io";
 import { trashedItemKind } from "./trash-paths";
+import { HistoryLog } from "./history-log";
+import { SYSTEM_ACTOR_NAME } from "../core/history";
+import type { HistoryActor, HistoryTarget } from "../core/types";
+import {
+	parseLegacyViewDefinition,
+	parseLegacyProjectView,
+	serializeProjectView,
+} from "../core/serialization/views";
+import { parseLegacyDashboardFilters } from "../core/serialization/dashboards";
+import {
+	printQuery,
+	printFilters,
+	workspaceQueryContext,
+	type QueryContext,
+} from "../core/query";
 
 export { TRASH_FOLDER } from "./trash-paths";
 
@@ -97,6 +113,7 @@ export class VaultIndex {
 	constructor(
 		private readonly app: App,
 		private readonly io: NoteIO,
+		private readonly history: HistoryLog,
 	) {}
 
 	// -- Lifecycle ------------------------------------------------------------
@@ -334,22 +351,47 @@ export class VaultIndex {
 		// workspace has migrated. Runs before Pass 2 so the freshly-written
 		// files are classified in the same rebuild — hence the re-list.
 		let migrated = false;
-		for (const root of configs.keys()) {
-			try {
-				if (await this.migrateSharedConfigNotes(root)) migrated = true;
-			} catch (err) {
-				// A failed migration must not take the whole index down. The
-				// per-file notes it did write are already valid; the old note
-				// lingers and the next rebuild retries (writing nothing new).
-				console.error(`[vertex-flow] config-note migration failed for "${root}"`, err);
-			}
-			try {
-				if (await this.migrateOnCloseDateModes(root)) migrated = true;
-			} catch (err) {
-				console.error(`[vertex-flow] on-close date-mode migration failed for "${root}"`, err);
-			}
+		for (const [root, snapshot] of configs) {
+			const runMigration = async (
+				label: string,
+				fn: () => Promise<boolean>,
+			) => {
+				try {
+					if (await fn()) migrated = true;
+				} catch (err) {
+					// A failed migration must not take the whole index down. The
+					// notes it did write are already valid; the rest lingers and
+					// the next rebuild retries (writing nothing new).
+					console.error(`[vertex-flow] ${label} failed for "${root}"`, err);
+				}
+			};
+			await runMigration("config-note migration", () =>
+				this.migrateSharedConfigNotes(snapshot.workspace),
+			);
+			await runMigration("on-close date-mode migration", () =>
+				this.migrateOnCloseDateModes(snapshot.workspace),
+			);
+			await runMigration("view query-format migration", () =>
+				this.migrateViewQueries(snapshot.workspace),
+			);
+			await runMigration("dashboard filter-format migration", () =>
+				this.migrateDashboardFilters(snapshot.workspace),
+			);
 		}
 		if (migrated) files = this.app.vault.getMarkdownFiles();
+
+		// Query-resolution context for a workspace's `query:`/`filter:` strings.
+		// Workspace-only (no project/task lists): an unresolved entity value is
+		// preserved verbatim, so a definition round-trips without them.
+		const queryContexts = new Map<string, QueryContext>();
+		const contextFor = (snapshot: WorkspaceSnapshot): QueryContext => {
+			let ctx = queryContexts.get(snapshot.workspace.root);
+			if (!ctx) {
+				ctx = workspaceQueryContext(snapshot.workspace);
+				queryContexts.set(snapshot.workspace.root, ctx);
+			}
+			return ctx;
+		};
 
 		// Pass 2: sort every other note into its workspace.
 		for (const file of files) {
@@ -375,10 +417,12 @@ export class VaultIndex {
 			const kind = entityKindOf(frontmatter, path, snapshot.workspace.root);
 			if (!kind) continue;
 
+			const context = contextFor(snapshot);
 			const options = {
 				path,
 				defaultStatus: snapshot.workspace.defaultNewTaskStatus,
 				statuses: snapshot.workspace.statuses,
+				context,
 			};
 
 			switch (kind) {
@@ -400,7 +444,7 @@ export class VaultIndex {
 					// cache would still hold its previous (or no) contents.
 					const parsed = parseView(
 						await this.io.readConfigFrontmatter(file),
-						{ path },
+						{ path, context },
 					);
 					if (parsed.issues.length > 0) issues.set(path, parsed.issues);
 					snapshot.views.push(parsed.value);
@@ -409,7 +453,7 @@ export class VaultIndex {
 				case "dashboard": {
 					const parsed = parseDashboard(
 						await this.io.readConfigFrontmatter(file),
-						{ path },
+						{ path, context },
 					);
 					if (parsed.issues.length > 0) issues.set(path, parsed.issues);
 					snapshot.dashboards.push(parsed.value);
@@ -489,10 +533,12 @@ export class VaultIndex {
 		const stamp = frontmatter?.["vf-trashedAt"];
 		const trashedAt = typeof stamp === "string" ? stamp : "";
 
+		const context = workspaceQueryContext(snapshot.workspace);
 		const options = {
 			path,
 			defaultStatus: snapshot.workspace.defaultNewTaskStatus,
 			statuses: snapshot.workspace.statuses,
+			context,
 		};
 
 		const entity: TrashedItem["entity"] =
@@ -501,10 +547,21 @@ export class VaultIndex {
 				: kind === "project"
 					? parseProject(frontmatter, options).value
 					: kind === "view"
-						? parseView(frontmatter, { path }).value
-						: parseDashboard(frontmatter, { path }).value;
+						? parseView(frontmatter, { path, context }).value
+						: parseDashboard(frontmatter, { path, context }).value;
 
 		return { kind, trashedAt, entity };
+	}
+
+	/** Log one aggregated `[system]` entry per kind a migration touched. */
+	private logMigration(
+		workspace: WorkspaceConfig,
+		action: string,
+		targets: HistoryTarget[],
+	): void {
+		if (targets.length === 0) return;
+		const actor: HistoryActor = { kind: "system", name: SYSTEM_ACTOR_NAME };
+		this.history.record(workspace, { action, targets, actorOverride: actor });
 	}
 
 	/**
@@ -513,34 +570,47 @@ export class VaultIndex {
 	 * and safe on every `rebuild()`: the plain existence check up front makes a
 	 * second invocation a no-op. Returns whether it wrote anything.
 	 */
-	private async migrateSharedConfigNotes(root: string): Promise<boolean> {
+	private async migrateSharedConfigNotes(
+		workspace: WorkspaceConfig,
+	): Promise<boolean> {
+		const root = workspace.root;
+		const ctx = workspaceQueryContext(workspace);
 		let did = false;
+
 		// System View entries (current + legacy ids) must never become files.
-		if (
-			await this.migrateSharedConfigNote(
-				root,
-				VIEWS_NOTE,
-				FOLDERS.views,
-				(raw) => parseViews(raw),
-				serializeView,
-				(id) => !isSystemViewId(id) && id !== LEGACY_SYSTEM_VIEW_UNTRIAGED_ID,
-			)
-		) {
+		const viewTargets = await this.migrateSharedConfigNote(
+			root,
+			VIEWS_NOTE,
+			FOLDERS.views,
+			"view",
+			(raw) => parseViews(raw),
+			(item) => serializeView(item, ctx),
+			(id) => !isSystemViewId(id) && id !== LEGACY_SYSTEM_VIEW_UNTRIAGED_ID,
+		);
+		if (viewTargets) {
 			did = true;
+			this.logMigration(workspace, "view.migrate-storage", viewTargets.wrote);
 		}
+
 		// Dashboards have no System-Item equivalent — migrate every entry.
-		if (
-			await this.migrateSharedConfigNote(
-				root,
-				DASHBOARDS_NOTE,
-				FOLDERS.dashboards,
-				(raw) => parseDashboards(raw),
-				serializeDashboard,
-				() => true,
-			)
-		) {
+		const dashTargets = await this.migrateSharedConfigNote(
+			root,
+			DASHBOARDS_NOTE,
+			FOLDERS.dashboards,
+			"dashboard",
+			(raw) => parseDashboards(raw),
+			(item) => serializeDashboard(item, ctx),
+			() => true,
+		);
+		if (dashTargets) {
 			did = true;
+			this.logMigration(
+				workspace,
+				"dashboard.migrate-storage",
+				dashTargets.wrote,
+			);
 		}
+
 		return did;
 	}
 
@@ -548,25 +618,28 @@ export class VaultIndex {
 		root: string,
 		noteName: string,
 		folder: string,
+		kind: HistoryTarget["kind"],
 		parseAll: (raw: Record<string, unknown> | null) => { value: T[] },
 		serializeOne: (item: T) => Record<string, unknown>,
 		keep: (id: string) => boolean,
-	): Promise<boolean> {
+	): Promise<{ wrote: HistoryTarget[] } | null> {
 		const notePath = joinPath(root, noteName);
 		const file = this.io.getFile(notePath);
-		if (!file) return false;
+		if (!file) return null;
 
+		const wrote: HistoryTarget[] = [];
 		const { value: items } = parseAll(await this.io.readConfigFrontmatter(file));
 		for (const item of items) {
 			if (!keep(item.id)) continue;
 			const target = joinPath(root, folder, item.id);
 			if (this.io.getFile(target)) continue;
 			await this.io.create(target, serializeOne(item));
+			wrote.push({ kind, id: item.id, path: target });
 		}
 		// No `.md` — `getMarkdownFiles()` will never surface it again, and it
 		// reads as obviously inert to anyone browsing the vault.
 		await this.io.rename(file, `${notePath}.legacy`);
-		return true;
+		return { wrote };
 	}
 
 	/**
@@ -578,8 +651,11 @@ export class VaultIndex {
 	 * — a note that already has both keys is left untouched — safe on every
 	 * `rebuild()`.
 	 */
-	private async migrateOnCloseDateModes(root: string): Promise<boolean> {
-		let did = false;
+	private async migrateOnCloseDateModes(
+		workspace: WorkspaceConfig,
+	): Promise<boolean> {
+		const root = workspace.root;
+		const touched: HistoryTarget[] = [];
 		for (const file of this.io.listFiles(joinPath(root, FOLDERS.tasks))) {
 			const frontmatter = this.io.readFrontmatter(file);
 			const recurrence = frontmatter?.recurrence as
@@ -598,9 +674,121 @@ export class VaultIndex {
 				rec.onCloseStartDateMode ??= "immediate";
 				rec.onCloseDueDateMode ??= "immediate";
 			});
-			did = true;
+			touched.push({
+				kind: "task",
+				id: asId(frontmatter?.id, file.path),
+				path: withoutExtension(file.path),
+			});
 		}
-		return did;
+		this.logMigration(
+			workspace,
+			"task.migrate-recurrence-date-modes",
+			touched,
+		);
+		return touched.length > 0;
+	}
+
+	/**
+	 * Cut every `Views/*.md` and `Projects/*.md` `view:` block over from the
+	 * retired structured keys (`viewType`/`filters`/`groupBy`/…) to a single
+	 * `query:` string — the same text the Query Bar round-trips. Idempotent: a
+	 * file already carrying `query` is skipped. Runs in Pass 1 with a
+	 * workspace-only `QueryContext`; an unresolved project path / task id is
+	 * kept verbatim by the resolver, so the conversion is lossless without the
+	 * (not-yet-built) snapshot entity lists.
+	 */
+	private async migrateViewQueries(
+		workspace: WorkspaceConfig,
+	): Promise<boolean> {
+		const root = workspace.root;
+		const ctx = workspaceQueryContext(workspace);
+		let wroteAny = false;
+
+		const viewTargets: HistoryTarget[] = [];
+		for (const file of this.io.listFiles(joinPath(root, FOLDERS.views))) {
+			const fm = await this.io.readConfigFrontmatter(file);
+			if (!fm || fm.query != null) continue;
+			if (!LEGACY_VIEW_KEYS.some((key) => fm[key] != null)) continue;
+
+			const query = printQuery(parseLegacyViewDefinition(fm), ctx);
+			await this.io.updateFrontmatter(file, (draft) => {
+				for (const key of LEGACY_VIEW_KEYS) delete draft[key];
+				if (query) draft.query = query;
+			});
+			wroteAny = true;
+			viewTargets.push({
+				kind: "view",
+				id: asId(fm.id, file.path),
+				path: withoutExtension(file.path),
+			});
+		}
+		this.logMigration(workspace, "view.migrate-query-format", viewTargets);
+
+		const projectTargets: HistoryTarget[] = [];
+		for (const file of this.io.listFiles(joinPath(root, FOLDERS.projects))) {
+			const fm = await this.io.readConfigFrontmatter(file);
+			const view = fm?.view;
+			if (!view || typeof view !== "object") continue;
+			const viewRecord = view as Record<string, unknown>;
+			if (viewRecord.query != null) continue;
+			if (!LEGACY_VIEW_KEYS.some((key) => viewRecord[key] != null)) continue;
+
+			const rebuilt = serializeProjectView(
+				parseLegacyProjectView(viewRecord),
+				ctx,
+			);
+			await this.io.updateFrontmatter(file, (draft) => {
+				draft.view = rebuilt;
+			});
+			wroteAny = true;
+			projectTargets.push({
+				kind: "project",
+				id: asId(fm?.title, file.path),
+				path: withoutExtension(file.path),
+			});
+		}
+		this.logMigration(
+			workspace,
+			"project.migrate-query-format",
+			projectTargets,
+		);
+
+		return wroteAny;
+	}
+
+	/**
+	 * Cut every `Dashboards/*.md` over from the retired structured `filters:`
+	 * block to a single `filter:` string (the filters-only grammar — no layout
+	 * tokens). Same idiom and `QueryContext` handling as `migrateViewQueries`.
+	 */
+	private async migrateDashboardFilters(
+		workspace: WorkspaceConfig,
+	): Promise<boolean> {
+		const root = workspace.root;
+		const ctx = workspaceQueryContext(workspace);
+		const targets: HistoryTarget[] = [];
+
+		for (const file of this.io.listFiles(joinPath(root, FOLDERS.dashboards))) {
+			const fm = await this.io.readConfigFrontmatter(file);
+			if (!fm || fm.filter != null || fm.filters == null) continue;
+
+			const filter = printFilters(parseLegacyDashboardFilters(fm), ctx);
+			await this.io.updateFrontmatter(file, (draft) => {
+				delete draft.filters;
+				if (filter) draft.filter = filter;
+			});
+			targets.push({
+				kind: "dashboard",
+				id: asId(fm.id, file.path),
+				path: withoutExtension(file.path),
+			});
+		}
+		this.logMigration(
+			workspace,
+			"dashboard.migrate-filter-format",
+			targets,
+		);
+		return targets.length > 0;
 	}
 
 	/**
@@ -656,6 +844,29 @@ export class VaultIndex {
 
 function basenameOf(path: string): string {
 	return path.slice(path.lastIndexOf("/") + 1);
+}
+
+/** The retired structured view-definition keys, top-level on a `Views/*.md`
+ *  note and nested under `view:` on a Project. Their presence is what marks a
+ *  file as still needing the `query:` cutover. */
+const LEGACY_VIEW_KEYS = [
+	"viewType",
+	"filters",
+	"groupBy",
+	"sortBy",
+	"sortDirection",
+	"emptyColumnBehavior",
+	"hiddenFields",
+	"subtaskDisplay",
+	"calendarDateField",
+	"recurringPreview",
+] as const;
+
+/** A history target's `id`: the entity's own id/title, else the filename. */
+function asId(raw: unknown, filePath: string): string {
+	return typeof raw === "string" && raw
+		? raw
+		: withoutExtension(basenameOf(filePath));
 }
 
 /**

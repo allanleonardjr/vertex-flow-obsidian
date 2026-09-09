@@ -90,10 +90,13 @@ export default class VertexFlowPlugin extends Plugin {
 		this.lastActiveWorkspaceRoot = getLastWorkspaceRoot();
 
 		this.io = new NoteIO(this.app);
-		this.index = new VaultIndex(this.app, this.io);
+		// `HistoryLog` is built before `VaultIndex` because the index's one-time
+		// migrations log a `[system]` entry for what they touch. `HistoryLog`'s
+		// own dependencies never reference the index, so there's no circularity.
 		this.history = new HistoryLog(this.io, deviceId(), (root) =>
 			getMePersonId(root),
 		);
+		this.index = new VaultIndex(this.app, this.io, this.history);
 		this.mutations = new Mutations(this.app, this.io, this.index, this.history, {
 			setMePersonId: (root, personId) => setMePersonId(root, personId),
 		});

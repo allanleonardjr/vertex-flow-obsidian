@@ -1,17 +1,28 @@
 /**
  * `Views/<id>.md` — one Saved View definition per note.
  *
- * Filter values are written the way a human would write them (`assignee: self`,
- * `taskType: [bug]`, `project: "Projects/Kanban UI Engine"`), so parsing
- * normalizes every scalar into an array and every wikilink into a bare target.
+ * The whole definitional half of a view (`filters`, `viewType`, `groupBy`,
+ * `sortBy`/`sortDirection`, `emptyColumnBehavior`, `hiddenFields`,
+ * `subtaskDisplay`, `calendarDateField`, `recurringPreview`) is persisted as a
+ * single `query:` string — the same text the Query Bar round-trips
+ * (`core/query`'s `printQuery`/`parseQuery`). Identity (`name`/`icon`/
+ * `description`) and per-session chrome (`columns`/`timeline`/`calendar`) keep
+ * their own keys.
  *
- * `parseViews`/`serializeViews` (plural) survive only for the one-time migration
- * off the retired shared `_views.md` array — the live scan path is per-file
- * `parseView`/`serializeView`.
+ * `parseLegacyViewValue`/`parseLegacyViewDefinition` read the retired structured
+ * shape and exist only for the one-time migration (`_views.md` array split, and
+ * the per-file `query:` cutover in `VaultIndex`). Nothing on the live path calls
+ * them.
  */
 
 import { basename, parseLink } from "../links";
 import { canonicalizeHiddenFields, viewDefinition } from "../views/filter";
+import {
+	parseQuery,
+	printQuery,
+	emptyQueryContext,
+	type QueryContext,
+} from "../query";
 import {
 	SUBTASK_DISPLAYS,
 	TASK_FIELDS,
@@ -181,6 +192,13 @@ export function parseFilters(raw: unknown): ViewFilters {
 export interface ViewParseOptions {
 	/** Vault path of the note. Its basename is the id fallback when frontmatter omits one. */
 	path: string;
+	/**
+	 * Resolves the `query:` string's names into stored ids. A workspace-only
+	 * context (taxonomies + people, no project/task lists) is enough — an
+	 * unresolved project path or task id is preserved verbatim by the resolver.
+	 * Omitted means "resolve nothing", i.e. keep every value verbatim.
+	 */
+	context?: QueryContext;
 }
 
 /** Like `compact`, but drops null/undefined/empty-array members of a `ViewFilters` shape. */
@@ -194,8 +212,52 @@ export function compactFilters(filters: ViewFilters): ViewFilters {
 	return out;
 }
 
-/** The definitional half of a view — everything but the `type`/`path` discriminants. */
+/**
+ * The definitional half of a view — everything but the `type`/`path`
+ * discriminants — read from the `query:` string plus the identity/chrome keys.
+ */
 function parseViewValue(
+	record: Record<string, unknown>,
+	id: string,
+	log: IssueLog,
+	context: QueryContext,
+): Omit<SavedView, "type" | "path"> {
+	const parsed = parseQuery(asString(record.query) ?? "", context);
+	for (const issue of parsed.issues) {
+		if (issue.severity === "error") log.add(`query: ${issue.message}`);
+	}
+	const def = parsed.definition;
+	const columns = asRecord(record.columns);
+	return {
+		id,
+		name: asString(record.name) ?? id,
+		icon: asString(record.icon) ?? undefined,
+		description: asString(record.description) ?? undefined,
+		viewType: def.viewType,
+		filters: def.filters,
+		groupBy: def.groupBy,
+		sortBy: def.sortBy,
+		sortDirection: def.sortDirection,
+		columns: {
+			collapsed: asStringArray(columns.collapsed),
+			hidden: asStringArray(columns.hidden),
+		},
+		emptyColumnBehavior: def.emptyColumnBehavior,
+		hiddenFields: def.hiddenFields,
+		subtaskDisplay: def.subtaskDisplay,
+		calendarDateField: def.calendarDateField,
+		recurringPreview: def.recurringPreview,
+		timeline: parseTimeline(record.timeline),
+		calendar: parseCalendar(record.calendar),
+	};
+}
+
+/**
+ * Read the retired structured shape of a view definition. Migration-only: the
+ * `_views.md` array split and the per-file `query:` cutover both need to
+ * understand the old top-level keys one last time.
+ */
+function parseLegacyViewValue(
 	record: Record<string, unknown>,
 	id: string,
 	log: IssueLog,
@@ -280,10 +342,22 @@ export function parseView(
 		value: {
 			type: "vertex-flow-view",
 			path: options.path,
-			...parseViewValue(record, id, log),
+			...parseViewValue(record, id, log, options.context ?? emptyQueryContext()),
 		},
 		issues: log.issues.map((issue) => `View "${id}": ${issue}`),
 	};
+}
+
+/**
+ * Read a legacy structured view record (top-level `viewType`/`filters`/… keys)
+ * into a `ViewDefinition`. Used by `VaultIndex.migrateViewQueries` to convert an
+ * old file into a `query:` string. Never called on the live path.
+ */
+export function parseLegacyViewDefinition(
+	record: Record<string, unknown>,
+): ViewDefinition {
+	const value = parseLegacyViewValue(asRecord(record), "", new IssueLog());
+	return viewDefinition({ type: "vertex-flow-view", path: "", ...value });
 }
 
 /**
@@ -308,7 +382,7 @@ export function parseViews(raw: unknown): ParseResult<SavedView[]> {
 		views.push({
 			type: "vertex-flow-view",
 			path: "",
-			...parseViewValue(entryRecord, id, log),
+			...parseLegacyViewValue(entryRecord, id, log),
 		});
 		issues.push(...log.issues.map((issue) => `View "${id}": ${issue}`));
 	});
@@ -344,7 +418,96 @@ export function detectViewIdCollisions(
 	return out;
 }
 
-export function serializeView(view: SavedView): Record<string, unknown> {
+export function serializeView(
+	view: SavedView,
+	context: QueryContext = emptyQueryContext(),
+): Record<string, unknown> {
+	return compact({
+		type: "vertex-flow-view",
+		id: view.id,
+		name: view.name,
+		icon: view.icon,
+		description: view.description,
+		query: printQuery(viewDefinition(view), context) || undefined,
+		columns: {
+			collapsed: view.columns.collapsed,
+			hidden: view.columns.hidden,
+		},
+		timeline: view.timeline
+			? compact({
+					scale: view.timeline.scale,
+					scrollDate: view.timeline.scrollDate,
+				})
+			: undefined,
+		calendar: view.calendar?.visibleMonth
+			? { visibleMonth: view.calendar.visibleMonth }
+			: undefined,
+	});
+}
+
+/**
+ * Parse a Project's own `view:` frontmatter block — a `query:` string plus group
+ * collapse/hide (`columns`), which (unlike a `Views/<id>.md` note) is the only
+ * per-session furniture it carries. No id/name/icon.
+ */
+export function parseProjectView(
+	raw: unknown,
+	log: IssueLog,
+	context: QueryContext = emptyQueryContext(),
+): ProjectViewSettings {
+	const record = asRecord(raw);
+	const parsed = parseQuery(asString(record.query) ?? "", context);
+	for (const issue of parsed.issues) {
+		if (issue.severity === "error") log.add(`view query: ${issue.message}`);
+	}
+	const definition = parsed.definition;
+	const columns = asRecord(record.columns);
+	const collapsed = asStringArray(columns.collapsed);
+	const hidden = asStringArray(columns.hidden);
+	return collapsed.length || hidden.length
+		? { ...definition, columns: { collapsed, hidden } }
+		: definition;
+}
+
+/**
+ * Read the retired structured shape of a Project's `view:` block into a
+ * `ProjectViewSettings`. Migration-only — see `parseLegacyViewDefinition`.
+ */
+export function parseLegacyProjectView(raw: unknown): ProjectViewSettings {
+	const record = asRecord(raw);
+	const value = parseLegacyViewValue(record, "", new IssueLog());
+	const definition = viewDefinition({
+		type: "vertex-flow-view",
+		path: "",
+		...value,
+	});
+	const { collapsed, hidden } = value.columns;
+	return collapsed.length || hidden.length
+		? { ...definition, columns: { collapsed, hidden } }
+		: definition;
+}
+
+/** The serialized counterpart of `parseProjectView`. */
+export function serializeProjectView(
+	definition: ProjectViewSettings,
+	context: QueryContext = emptyQueryContext(),
+): Record<string, unknown> {
+	const collapsed = definition.columns?.collapsed ?? [];
+	const hidden = definition.columns?.hidden ?? [];
+	return compact({
+		query: printQuery(definition, context) || undefined,
+		columns:
+			collapsed.length || hidden.length ? { collapsed, hidden } : undefined,
+	});
+}
+
+/**
+ * Serialize a view in the retired structured shape (top-level `viewType`/
+ * `filters`/… keys). The plural `_views.md` array used this format on disk, so
+ * `serializeViews` still emits it — the pair models the retired file, read and
+ * written. The live per-file path is `serializeView` (a `query:` string).
+ */
+export function serializeLegacyView(view: SavedView): Record<string, unknown> {
 	return compact({
 		type: "vertex-flow-view",
 		id: view.id,
@@ -362,14 +525,12 @@ export function serializeView(view: SavedView): Record<string, unknown> {
 		},
 		emptyColumnBehavior: view.emptyColumnBehavior,
 		hiddenFields: view.hiddenFields,
-		// Omitted at the default, like `hiddenFields: []` — keeps a view's note diff quiet for the common case.
 		subtaskDisplay:
 			view.subtaskDisplay === "flat" ? undefined : view.subtaskDisplay,
 		calendarDateField:
 			view.calendarDateField === "dueDate"
 				? undefined
 				: view.calendarDateField,
-		// Omitted at the default; `compact` would keep a literal `false`.
 		recurringPreview: view.recurringPreview ? true : undefined,
 		timeline: view.timeline
 			? compact({
@@ -383,49 +544,6 @@ export function serializeView(view: SavedView): Record<string, unknown> {
 	});
 }
 
-/**
- * Parse a Project's own `view:` frontmatter block — the definitional half of a
- * view plus group collapse/hide (`columns`), which (unlike a `Views/<id>.md`
- * note) is the only per-session furniture it carries. No id/name/icon.
- */
-export function parseViewDefinition(
-	raw: unknown,
-	log: IssueLog,
-): ProjectViewSettings {
-	const value = parseViewValue(asRecord(raw), "", log);
-	const definition = viewDefinition({ type: "vertex-flow-view", path: "", ...value });
-	const { collapsed, hidden } = value.columns;
-	return collapsed.length || hidden.length
-		? { ...definition, columns: { collapsed, hidden } }
-		: definition;
-}
-
-/** The serialized counterpart of `parseViewDefinition`. */
-export function serializeViewDefinition(
-	definition: ProjectViewSettings,
-): Record<string, unknown> {
-	const collapsed = definition.columns?.collapsed ?? [];
-	const hidden = definition.columns?.hidden ?? [];
-	return compact({
-		viewType: definition.viewType,
-		filters: compact(definition.filters as Record<string, unknown>),
-		groupBy: definition.groupBy,
-		sortBy: definition.sortBy,
-		sortDirection: definition.sortDirection,
-		emptyColumnBehavior: definition.emptyColumnBehavior,
-		hiddenFields: definition.hiddenFields,
-		subtaskDisplay:
-			definition.subtaskDisplay === "flat" ? undefined : definition.subtaskDisplay,
-		calendarDateField:
-			definition.calendarDateField === "dueDate"
-				? undefined
-				: definition.calendarDateField,
-		recurringPreview: definition.recurringPreview ? true : undefined,
-		columns:
-			collapsed.length || hidden.length ? { collapsed, hidden } : undefined,
-	});
-}
-
 export function serializeViews(views: SavedView[]): Record<string, unknown> {
-	return { views: views.map(serializeView) };
+	return { views: views.map(serializeLegacyView) };
 }

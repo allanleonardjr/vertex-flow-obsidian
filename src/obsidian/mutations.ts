@@ -45,6 +45,11 @@ import {
 import { serializeTask } from "../core/serialization/task";
 import { serializeView } from "../core/serialization/views";
 import { serializeDashboard } from "../core/serialization/dashboards";
+import {
+  queryContext,
+  workspaceQueryContext,
+  type QueryContext,
+} from "../core/query";
 import { duplicateWidget as cloneWidget } from "../core/dashboards";
 import { serializeWorkspace } from "../core/serialization/workspace";
 import {
@@ -1246,7 +1251,7 @@ private async spawnOccurrences(
   async addView(snapshot: WorkspaceSnapshot, view: SavedView): Promise<void> {
     await this.io.writeConfigNote(
       this.viewPath(snapshot, view.id),
-      serializeView(view),
+      serializeView(view, this.queryCtx(snapshot)),
     );
     await this.index.rebuild();
 
@@ -1274,7 +1279,7 @@ private async spawnOccurrences(
   ): Promise<void> {
     const prev = this.liveView(snapshot, view.id);
     const path = prev?.path || this.viewPath(snapshot, view.id);
-    await this.io.writeConfigNote(path, serializeView(view));
+    await this.io.writeConfigNote(path, serializeView(view, this.queryCtx(snapshot)));
     await this.index.rebuild();
 
     if (prev) {
@@ -1327,7 +1332,7 @@ private async spawnOccurrences(
   ): Promise<void> {
     await this.io.writeConfigNote(
       this.dashboardPath(snapshot, dashboard.id),
-      serializeDashboard(dashboard),
+      serializeDashboard(dashboard, this.queryCtx(snapshot)),
     );
     await this.index.rebuild();
     this.history.record(snapshot.workspace, {
@@ -1349,7 +1354,7 @@ private async spawnOccurrences(
     const path =
       this.liveDashboard(snapshot, dashboard.id)?.path ||
       this.dashboardPath(snapshot, dashboard.id);
-    await this.io.writeConfigNote(path, serializeDashboard(dashboard));
+    await this.io.writeConfigNote(path, serializeDashboard(dashboard, this.queryCtx(snapshot)));
     await this.index.rebuild();
 
     if (prev) {
@@ -1481,7 +1486,8 @@ private async spawnOccurrences(
         createdAt: now,
         updatedAt: now,
         path,
-      }),
+        view: null,
+      }, this.queryCtx(snapshot)),
       // The body is the project's description, edited in the plugin's own
       // Project editor — created empty, like a Task note, unless the creation
       // dialog collected one.
@@ -1575,7 +1581,10 @@ private async spawnOccurrences(
     await this.io.processBody(file, () => withProjectDescription(text));
     await this.io.replaceFrontmatter(
       file,
-      serializeProject({ ...project, updatedAt: new Date().toISOString() }),
+      serializeProject(
+        { ...project, updatedAt: new Date().toISOString() },
+        this.queryCtxForPath(project.path),
+      ),
     );
     if (!skipHistory) {
       const workspace = this.index.workspaceFor(project.path)?.workspace;
@@ -1618,7 +1627,10 @@ private async spawnOccurrences(
       ...patch,
       updatedAt: new Date().toISOString(),
     };
-    await this.io.replaceFrontmatter(file, serializeProject(merged));
+    await this.io.replaceFrontmatter(
+      file,
+      serializeProject(merged, this.queryCtxForPath(project.path)),
+    );
     await this.index.rebuild();
 
     if (!options?.suppressHistory) {
@@ -1805,6 +1817,29 @@ private async spawnOccurrences(
 
   private projectTarget(project: Project): HistoryTarget {
     return { kind: "project", id: project.title, path: project.path };
+  }
+
+  /**
+   * Query-resolution context for serializing a view/dashboard/project `query:`
+   * string. Uses the freshest snapshot so pretty project/task tokens resolve.
+   */
+  private queryCtx(snapshot: WorkspaceSnapshot): QueryContext {
+    return queryContext(this.index.get(snapshot.workspace.root) ?? snapshot);
+  }
+
+  /** As `queryCtx`, keyed off an entity path (project mutations have no snapshot). */
+  private queryCtxForPath(path: string): QueryContext {
+    const snapshot = this.index.workspaceFor(path);
+    if (snapshot) return this.queryCtx(snapshot);
+    // A project note with no indexed workspace can't happen in practice; a
+    // people-less context still serializes a `view:` block's raw values.
+    return workspaceQueryContext({
+      people: [],
+      statuses: [],
+      priorities: [],
+      taskTypes: [],
+      labels: [],
+    } as unknown as WorkspaceConfig);
   }
 
   private workspaceTarget(workspace: WorkspaceConfig): HistoryTarget {

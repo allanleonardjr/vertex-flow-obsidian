@@ -61,6 +61,18 @@ This project uses [Semantic Versioning](https://semver.org/).
   `kind: template`/`kind: snapshot`. Old `kind` frontmatter still loads. Files
   exported as templates get a `vertex-flow-template-` filename prefix while
   their frontmatter `id` stays unprefixed.
+- **Saved Views and Dashboards store their filter as one query string.** A
+  view note now keeps its whole definition — filters, layout, grouping, sort,
+  hidden fields, sub-task mode — in a single `query:` line (the same syntax the
+  Query Bar shows), and a dashboard note keeps its filter in a `filter:` line,
+  instead of a block of separate `viewType:`/`filters:`/`groupBy:`/… keys. A
+  Project's embedded view block moves the same way. Old-format notes still load,
+  and a background pass rewrites each one the next time the vault is indexed —
+  nothing you need to do, and nothing changes in the app.
+- **Format migrations show up in Activity History.** When the indexer converts
+  old-format notes (the storage split, the view/dashboard query cutover, or
+  recurrence date-mode backfill), it records one `[system]` entry per note kind
+  in the History feed so there's a trail of what was touched.
 - **iCalendar only lets you toggle the description.** For ICS export, the
   dialog's field list now offers a single **Description** toggle; everything
   else a calendar event needs (identity, status, dates, sync stamps) is emitted

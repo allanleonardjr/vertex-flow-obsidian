@@ -1158,7 +1158,7 @@ describe("parseViews", () => {
 describe("parseView (per-file)", () => {
 	it("takes its id from frontmatter and tags the note path + type", () => {
 		const { value, issues } = parseView(
-			{ id: "my-bugs", name: "My Bugs", viewType: "board" },
+			{ id: "my-bugs", name: "My Bugs", query: "layout:board group:status sort:rank" },
 			{ path: "Team/Views/my-bugs" },
 		);
 		expect(issues).toEqual([]);
@@ -1166,6 +1166,22 @@ describe("parseView (per-file)", () => {
 		expect(value.path).toBe("Team/Views/my-bugs");
 		expect(value.id).toBe("my-bugs");
 		expect(value.viewType).toBe("board");
+	});
+
+	it("reads the whole definitional half from the query string", () => {
+		const { value } = parseView(
+			{
+				id: "v",
+				name: "V",
+				query: 'layout:board group:status sort:-rank status:todo,in-progress hide:priority',
+			},
+			{ path: "W/Views/v" },
+		);
+		expect(value.viewType).toBe("board");
+		expect(value.groupBy).toBe("status");
+		expect(value.sortDirection).toBe("desc");
+		expect(value.filters.status).toEqual(["todo", "in-progress"]);
+		expect(value.hiddenFields).toEqual(["priority"]);
 	});
 
 	it("falls back to the filename when frontmatter omits the id", () => {
@@ -1176,11 +1192,14 @@ describe("parseView (per-file)", () => {
 
 	it("round-trips through serializeView, and serializeView emits type: vertex-flow-view", () => {
 		const { value } = parseView(
-			{ id: "v", name: "V", viewType: "timeline", filters: { status: ["todo"] } },
+			{ id: "v", name: "V", query: "layout:timeline group:none sort:rank status:todo" },
 			{ path: "W/Views/v" },
 		);
 		const frontmatter = serializeView(value);
 		expect(frontmatter.type).toBe("vertex-flow-view");
+		expect(typeof frontmatter.query).toBe("string");
+		expect(frontmatter).not.toHaveProperty("viewType");
+		expect(frontmatter).not.toHaveProperty("filters");
 		expect(parseView(frontmatter, { path: "W/Views/v" }).value).toEqual(value);
 	});
 
