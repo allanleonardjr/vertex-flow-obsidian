@@ -223,9 +223,12 @@ export function ExportDialog({
         includeArchived,
         pluginVersion: plugin.manifest.version,
       });
-      return `${taskCount} task${taskCount === 1 ? "" : "s"} · ${formatBytes(content.length)}`;
+      return {
+        taskCount,
+        label: `${taskCount} task${taskCount === 1 ? "" : "s"} · ${formatBytes(content.length)}`,
+      };
     } catch {
-      return "—";
+      return { taskCount: null as number | null, label: "—" };
     }
   }, [snapshot, context, scope, format, fields, includeArchived, plugin]);
 
@@ -405,12 +408,13 @@ export function ExportDialog({
                 <div className="vf-export-config">
                   <div className="vf-field">
                     <span>Format</span>
-                    <div className="vf-export-segmented">
+                    <div className="vf-segmented" role="group">
                       {FORMATS.map((f) => (
                         <button
                           key={f.id}
                           type="button"
-                          className={`vf-bar-item${format === f.id ? " is-on" : ""}`}
+                          className={`vf-segmented-item${format === f.id ? " is-on" : ""}`}
+                          aria-pressed={format === f.id}
                           onClick={() => setFormat(f.id)}
                         >
                           {f.label}
@@ -680,8 +684,8 @@ export function ExportDialog({
                     </button>
                   </div>
 
-                  <div className="vf-field">
-                    <span>Fields</span>
+                  <details className="vf-field vf-export-fields">
+                    <summary>Fields</summary>
                     {FIELD_GROUPS.map((group) => {
                       const groupFields = group.fields.filter(
                         (id) => format !== "ics" || FIELDS[id].icalEligible,
@@ -724,7 +728,7 @@ export function ExportDialog({
                         </div>
                       );
                     })}
-                  </div>
+                  </details>
 
                   {busy && progress && (
                     <p className="vf-export-progress">
@@ -735,7 +739,7 @@ export function ExportDialog({
                 </div>
 
                 <div className="vf-export-footer">
-                  <p className="vf-export-preview">{preview}</p>
+                  <p className="vf-export-preview">{preview.label}</p>
                   <div className="vf-dialog-actions">
                     <button onClick={onClose} disabled={busy}>
                       Cancel
@@ -748,7 +752,11 @@ export function ExportDialog({
                       }
                       onClick={() => void runTaskExport()}
                     >
-                      Export
+                      {preview.taskCount == null
+                        ? "Export"
+                        : `Export ${preview.taskCount} Task${
+                            preview.taskCount === 1 ? "" : "s"
+                          }`}
                     </button>
                   </div>
                 </div>

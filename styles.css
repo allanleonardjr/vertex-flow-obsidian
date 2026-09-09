@@ -7210,15 +7210,32 @@ button.vf-history-expand {
   max-height: 82vh;
 }
 
-.vf-export-modes,
-.vf-export-segmented {
+.vf-export-fields > summary {
+  cursor: pointer;
+  list-style: none;
   display: flex;
+  align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
+  font-weight: 600;
 }
 
-.vf-export-modes {
-  margin-bottom: 12px;
+.vf-export-fields > summary::-webkit-details-marker {
+  display: none;
+}
+
+.vf-export-fields > summary::before {
+  content: "\25B8"; /* ▸ */
+  color: var(--vf-muted);
+  font-size: 10px;
+  transition: transform 0.12s ease;
+}
+
+.vf-export-fields[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.vf-export-fields[open] > summary {
+  margin-bottom: 8px;
 }
 
 .vf-export-config {

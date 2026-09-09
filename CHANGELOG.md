@@ -21,6 +21,8 @@ This project uses [Semantic Versioning](https://semver.org/).
 - The Export dialog is titled "Export Tasks" or "Export Workspace" to match the
   selected mode, and the workspace menu's "Export Tasks…" opens straight to the
   task-export form.
+- In the task-export form the Format picker is a segmented control, the Fields
+  list is collapsed by default, and the Export button reads "Export N Task(s)".
 
 ## 1.0.15 — 2026-09-09
 
