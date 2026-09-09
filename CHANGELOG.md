@@ -36,6 +36,10 @@ This project uses [Semantic Versioning](https://semver.org/).
   the cards, a "Your template" pill on each card, and the on-disk location —
   "Located: `Templates/<file>.md`" — shown below the settings on the card.
 
+- **Task editor shows Created and Updated.** The property rail now has read-only
+  "Created" and "Updated" rows — Created as a full date-time, Updated as a
+  relative time ("3 hours ago") with the exact timestamp on hover.
+
 ### Changed
 - **Entity `type:` frontmatter is now `vertex-flow-`-prefixed.** Task, Project,
   Workspace, View and Dashboard notes carry `type: vertex-flow-task`,
