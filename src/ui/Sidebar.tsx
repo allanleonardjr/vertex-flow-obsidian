@@ -892,6 +892,7 @@ function ViewsSection({
                 >
                   Export Tasks…
                 </button>
+                <div className="vf-menu-divider" aria-hidden />
                 <button
                   className="vf-menu-item"
                   onClick={() => {
@@ -1233,6 +1234,7 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
                   >
                     Export Tasks…
                   </button>
+                  <div className="vf-menu-divider" aria-hidden />
                   <button
                     className="vf-menu-item"
                     onClick={() => {

@@ -24,11 +24,14 @@ import {
   FIELD_GROUPS,
   FIELDS,
   fieldsForFormat,
+  ICS_MANDATORY_FIELDS,
   type ExportFormat,
   type ExportScope,
   type FieldId,
 } from "../../core/export";
-import { layoutIcon, snapshotContext } from "../../core/views";
+import { isSystemViewId, layoutIcon, snapshotContext } from "../../core/views";
+import { queryContext } from "../../core/query";
+import { serializeTemplateMarkdown } from "../../core/templates/markdown/serialize";
 import { workspaceTaxonomies } from "../../core/taxonomy";
 import type { WorkspaceSnapshot } from "../../core/types";
 import {
@@ -200,7 +203,7 @@ export function ExportDialog({
   );
 
   // --- template-export state ---
-  const [tplName, setTplName] = useState(`${snapshot.workspace.name} template`);
+  const [tplName, setTplName] = useState(`${snapshot.workspace.name} Template`);
   const [tplDescription, setTplDescription] = useState("");
   const [tplIcon, setTplIcon] = useState<string | undefined>(
     snapshot.workspace.icon,
@@ -213,7 +216,7 @@ export function ExportDialog({
   // snapshot. The `includeArchived` toggle is shared with the Task-export
   // path — it governs archived Projects and Tasks alike here so a full
   // snapshot keeps its cross-links resolvable.
-  const [includeTasks, setIncludeTasks] = useState(false);
+  const [includeTasks, setIncludeTasks] = useState(true);
 
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<ExportProgress | null>(null);
@@ -267,16 +270,22 @@ export function ExportDialog({
       ),
     [format],
   );
-  const selectedEligibleCount = eligibleFields.filter((id) =>
-    fields.has(id),
-  ).length;
-  const allFieldsIncluded = selectedEligibleCount === eligibleFields.length;
+  // iCalendar's mandatory data is always written, so it counts toward both the
+  // selected and the total in the Fields header.
+  const mandatoryCount = format === "ics" ? ICS_MANDATORY_FIELDS.length : 0;
+  const selectedFieldCount =
+    mandatoryCount + eligibleFields.filter((id) => fields.has(id)).length;
+  const totalFieldCount = mandatoryCount + eligibleFields.length;
+  const allFieldsIncluded = selectedFieldCount === totalFieldCount;
   const fieldsSummary = allFieldsIncluded
     ? "Fields (All included)"
-    : `Fields ${selectedEligibleCount} of ${eligibleFields.length}`;
-  const selectedFieldLabels = eligibleFields
-    .filter((id) => fields.has(id))
-    .map((id) => FIELDS[id].label);
+    : `Fields ${selectedFieldCount} of ${totalFieldCount}`;
+  const selectedFieldLabels = [
+    // iCalendar always writes its mandatory data — surface it in the summary
+    // so an .ics export doesn't read as "No fields selected".
+    ...(format === "ics" ? ICS_MANDATORY_FIELDS : []),
+    ...eligibleFields.filter((id) => fields.has(id)),
+  ].map((id) => FIELDS[id].label);
 
   const preview = useMemo(() => {
     try {
@@ -304,6 +313,48 @@ export function ExportDialog({
   const templateCarriedTasks = snapshot.tasks.filter(
     (task) => includeArchived || !task.archived,
   ).length;
+
+  // A size estimate for the footer, mirroring the task-export preview. Runs the
+  // real serializer but with empty body maps (descriptions/comments need async
+  // reads) — so it's a floor, not an exact figure, same as the task preview.
+  const templatePreview = useMemo(() => {
+    try {
+      const content = serializeTemplateMarkdown({
+        meta: {
+          id: "preview",
+          name: tplName.trim() || "template",
+          description: tplDescription.trim() || undefined,
+          icon: tplIcon,
+          createdAt: new Date().toISOString(),
+        },
+        workspace: snapshot.workspace,
+        views: snapshot.views.filter((view) => !isSystemViewId(view.id)),
+        dashboards: snapshot.dashboards,
+        projects: snapshot.projects,
+        projectDescriptions: {},
+        tasks: includeTasks ? snapshot.tasks : undefined,
+        taskDescriptions: includeTasks ? {} : undefined,
+        taskComments: includeTasks ? {} : undefined,
+        includeArchived,
+        queryContext: queryContext(snapshot, me),
+      });
+      const taskCount = includeTasks ? templateCarriedTasks : 0;
+      return {
+        label: `${taskCount} task${taskCount === 1 ? "" : "s"} · ${formatBytes(content.length)}`,
+      };
+    } catch {
+      return { label: "—" };
+    }
+  }, [
+    snapshot,
+    me,
+    tplName,
+    tplDescription,
+    tplIcon,
+    includeTasks,
+    includeArchived,
+    templateCarriedTasks,
+  ]);
 
   const folders = useMemo(
     () =>
@@ -798,6 +849,26 @@ export function ExportDialog({
                         </div>
                       );
                     })}
+
+                    {format === "ics" && (
+                      <div className="vf-export-group">
+                        <div className="vf-export-group-head">
+                          <strong>Mandatory data</strong>
+                        </div>
+                        {ICS_MANDATORY_FIELDS.map((id) => (
+                          <div
+                            key={id}
+                            className="vf-menu-item vf-export-field-locked"
+                            role="checkbox"
+                            aria-checked
+                            aria-disabled
+                          >
+                            <span className="vf-export-field-check">✓</span>
+                            {FIELDS[id].label}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </details>
 
                   <p className="vf-export-preview">
@@ -918,18 +989,6 @@ export function ExportDialog({
                     )}
                   </label>
 
-                  <p className="vf-export-preview">
-                    <strong>This exports your workspace setup.</strong>
-                    <br />
-                    Captures statuses, priorities, task types, labels, the
-                    people roster, saved views, dashboards and projects —
-                    {includeTasks
-                      ? ` plus ${templateCarriedTasks.toLocaleString()} task${
-                          templateCarriedTasks === 1 ? "" : "s"
-                        } with their descriptions and comments.`
-                      : " no tasks."}
-                  </p>
-
                   <div className="vf-export-group">
                     <div className="vf-export-group-head">
                       <strong>Options</strong>
@@ -962,20 +1021,46 @@ export function ExportDialog({
                     )}
                   </div>
 
+                  <p className="vf-export-preview">
+                    <strong>
+                      {includeTasks
+                        ? "This exports your workspace with data."
+                        : "This exports your workspace configuration."}
+                    </strong>
+                    <br />
+                    Captures statuses, priorities, task types, labels, the
+                    people roster, saved views, dashboards and projects —
+                    {includeTasks
+                      ? ` plus ${templateCarriedTasks.toLocaleString()} task${
+                          templateCarriedTasks === 1 ? "" : "s"
+                        } with their descriptions and comments.`
+                      : " no tasks."}
+                  </p>
+
+                  {busy && progress && (
+                    <p className="vf-export-progress">
+                      Exporting {progress.current}/{progress.total}…
+                    </p>
+                  )}
                   {error && <p className="vf-error">{error}</p>}
                 </div>
 
-                <div className="vf-dialog-actions">
-                  <button onClick={onClose} disabled={busy}>
-                    Cancel
-                  </button>
-                  <button
-                    className="mod-cta"
-                    disabled={busy || !templateValid}
-                    onClick={() => void runTemplateExport()}
-                  >
-                    Save template
-                  </button>
+                <div className="vf-export-footer">
+                  <p className="vf-export-preview">{templatePreview.label}</p>
+                  <div className="vf-dialog-actions">
+                    <button onClick={onClose} disabled={busy}>
+                      Cancel
+                    </button>
+                    <button
+                      className="mod-cta"
+                      disabled={busy || !templateValid}
+                      onClick={() => void runTemplateExport()}
+                    >
+                      {includeTasks
+                        ? "Export template with data"
+                        : "Export template with no data"}
+                    </button>
+                  </div>
                 </div>
               </>
             )}

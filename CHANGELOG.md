@@ -27,6 +27,16 @@ This project uses [Semantic Versioning](https://semver.org/).
   …"), the Fields header reports how many of the eligible fields are selected,
   and a forced scope renders as read-only text — its kind plus icon / colour
   dot / avatar and name — with no border.
+- For an iCalendar export the Fields list gains a read-only "Mandatory data"
+  group (UID, title, status, dates, created/updated) that's always written, and
+  the Fields count includes it.
+- The workspace-template form now includes tasks by default, moves its summary
+  below the options, shows a task-count-and-size line in the footer, and
+  labels its button "Export template with data" / "…with no data" and its
+  summary "This exports your workspace with data." / "…configuration." to match
+  the toggle.
+- View and Project sidebar menus put "Export Tasks…" between dividers, matching
+  the Label and Person menus.
 
 ## 1.0.15 — 2026-09-09
 

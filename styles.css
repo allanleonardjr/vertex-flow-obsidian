@@ -7243,6 +7243,7 @@ button.vf-history-expand {
    of that and make the rhythm uneven. */
 .vf-export-dialog .vf-export-config > .vf-field,
 .vf-export-dialog .vf-dialog-body > .vf-field,
+.vf-export-dialog .vf-dialog-body > .vf-icon-name-row,
 .vf-export-dialog .vf-dialog-body > .vf-export-group,
 .vf-export-dialog .vf-dialog-body > .vf-export-preview {
   margin: 0;
@@ -7275,6 +7276,22 @@ button.vf-history-expand {
 
 .vf-export-group .vf-menu-item {
   padding: 4px 6px;
+}
+
+/* iCalendar "Mandatory data" rows — always-on, not interactive. */
+.vf-export-field-locked {
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.vf-export-field-locked:hover {
+  background: transparent;
+}
+
+.vf-export-field-locked .vf-export-field-check {
+  color: var(--text-muted);
 }
 
 .vf-export-group {
