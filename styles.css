@@ -162,6 +162,29 @@ button.vf-sidebar-minimize:hover {
   flex: 1;
 }
 
+/* The version footer pinned to the very bottom of the sidebar. */
+.vf-sidebar-footer {
+  flex: 0 0 auto;
+  margin-top: auto;
+  padding: 10px 4px 4px;
+  text-align: center;
+  color: var(--vf-muted);
+  font-size: 11px;
+}
+
+.vf-sidebar-footer a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.vf-sidebar-footer a:hover {
+  text-decoration: underline;
+}
+
+.vf-sidebar.is-minimized .vf-sidebar-footer {
+  display: none;
+}
+
 /* Dividers at the bottom of the sidebar: one above the workspace records
    band (History / Trash) and one splitting that band from the app-level
    Help / Settings rows, plus the band fencing the All Tasks / Inbox rows

@@ -282,6 +282,10 @@ export function Sidebar({
           onClose={() => setExporting(false)}
         />
       )}
+      <div className="vf-sidebar-footer">
+        v{plugin.manifest.version} by{" "}
+        <a href="https://www.linkedin.com/in/allanleonardjr"> JR Leonard </a>
+      </div>
     </aside>
   );
 }

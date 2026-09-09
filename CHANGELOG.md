@@ -45,6 +45,10 @@ This project uses [Semantic Versioning](https://semver.org/).
 - **Task editor shows Created and Updated.** The property rail now has read-only
   "Created" and "Updated" rows — Created as a full date-time, Updated as a
   relative time ("3 hours ago") with the exact timestamp on hover.
+- **Sidebar footer shows the plugin version.** The sidebar now pins a muted,
+  centered footer to its bottom edge reading `v1.0.14 by JR Leonard`, linking
+  the name to a profile. The footer hides in the collapsed/minimized state
+  (`is-minimized`) like the rest of the sidebar chrome.
 
 ### Changed
 - **The `u`+key quick field pickers can be filtered by typing.** Every
