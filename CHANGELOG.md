@@ -25,7 +25,8 @@ This project uses [Semantic Versioning](https://semver.org/).
   list is collapsed by default, and the Export button reads "Export N Task(s)".
 - The task-export form shows a summary ("This exports N tasks." / "Captures
   …"), the Fields header reports how many of the eligible fields are selected,
-  and a forced scope renders as plain read-only text with no border.
+  and a forced scope renders as read-only text — its kind plus icon / colour
+  dot / avatar and name — with no border.
 
 ## 1.0.15 — 2026-09-09
 

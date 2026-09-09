@@ -14,7 +14,7 @@
  * can hand the user a way *out* beats a path they can't click.
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Platform, TFolder, type TFile } from "obsidian";
 import { localTodayIso } from "../../core/date";
@@ -62,15 +62,64 @@ function formatBytes(n: number): string {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function scopeDisplay(scope: ExportScope): string {
-  switch (scope.kind) {
-    case "view":
-      return scope.view.name;
-    case "project":
-      return scope.project.title;
-    case "workspace":
-      return "the whole workspace";
+/** The read-only scope shown when the dialog is opened locked to a target:
+ *  what kind it is + its icon / colour dot / avatar + name, matching how the
+ *  same thing reads in the Scope picker and the sidebar. */
+function LockedScope({
+  scope,
+  snapshot,
+}: {
+  scope: ExportScope;
+  snapshot: WorkspaceSnapshot;
+}) {
+  let kind: string;
+  let glyph: ReactNode;
+  let name: string;
+
+  if (scope.kind === "workspace") {
+    kind = "Workspace";
+    glyph = <Icon id={snapshot.workspace.icon} fallback="layers" size={13} />;
+    name = snapshot.workspace.name;
+  } else if (scope.kind === "project") {
+    kind = "Project";
+    glyph = <Icon id={scope.project.icon} fallback="folder" size={13} />;
+    name = scope.project.title;
+  } else if (scope.view.id.startsWith("label:")) {
+    const labelId = scope.view.id.slice("label:".length);
+    const color = workspaceTaxonomies(snapshot.workspace).label.values.find(
+      (v) => v.id === labelId,
+    )?.color;
+    kind = "Label";
+    glyph = (
+      <span
+        className="vf-status-dot"
+        style={{ backgroundColor: color || "var(--vf-muted)" }}
+      />
+    );
+    name = scope.view.name;
+  } else if (scope.view.id.startsWith("person:")) {
+    kind = "Person";
+    glyph = <Icon fallback="user" size={13} />;
+    name = scope.view.name;
+  } else {
+    kind = "View";
+    glyph = (
+      <Icon
+        id={scope.view.icon}
+        fallback={layoutIcon(scope.view.viewType)}
+        size={13}
+      />
+    );
+    name = scope.view.name;
   }
+
+  return (
+    <div className="vf-export-locked-scope">
+      <span className="vf-export-locked-scope-kind">{kind}</span>
+      {glyph}
+      <span className="vf-icon-select-name">{name}</span>
+    </div>
+  );
 }
 
 /** "Show in system explorer" is Obsidian's own file-reveal — a real runtime
@@ -444,9 +493,7 @@ export function ExportDialog({
                   <div className="vf-field">
                     <span>Scope</span>
                     {lockScope ? (
-                      <div className="vf-export-locked-scope">
-                        Exporting: {scopeDisplay(initialScope)}
-                      </div>
+                      <LockedScope scope={initialScope} snapshot={snapshot} />
                     ) : (
                       <SelectMenu
                         value={scopeKind}

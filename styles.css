@@ -7298,9 +7298,19 @@ button.vf-history-expand {
 }
 
 .vf-export-locked-scope {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   padding: 5px 0;
-  color: var(--vf-muted);
+  color: var(--text-normal);
   font-size: var(--font-ui-small);
+}
+
+.vf-export-locked-scope-kind {
+  color: var(--vf-muted);
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.04em;
 }
 
 .vf-export-result {
