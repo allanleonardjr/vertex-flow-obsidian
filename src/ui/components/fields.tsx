@@ -45,8 +45,14 @@ export function PropertyRow({
   );
 }
 
-/** Rows beyond this and the menu is worth filtering; below it, a box is noise. */
-const SEARCH_THRESHOLD = 8;
+/**
+ * Rows beyond this and the menu is worth filtering; below it, a box is noise.
+ *
+ * 0 for now (JR wants every picker keyboard-filterable regardless of list
+ * length) — kept as a named constant so this is easy to raise again later.
+ * Exported so QuickFieldPicker's u+<key> pickers share the same cutoff.
+ */
+export const SEARCH_THRESHOLD = 0;
 
 /** Breathing room kept between the menu and the window edge. */
 const MARGIN = 8;

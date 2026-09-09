@@ -18,7 +18,9 @@
  * nudge is skipped in batch mode (a deliberate multi-task edit already
  * implies intent).
  *
- * Labels support create-on-attach: the type-ahead input below the label list
+ * Menu kinds show a search box above the list (see `SEARCH_THRESHOLD`); typing
+ * filters the rows by display name. Labels additionally support create-on-attach:
+ * with no exact match the search text becomes a trailing "Create …" row that
  * calls `addLabel` (attach-or-create) before toggling — matching the rail's
  * LabelEditor behaviour.
  */
@@ -43,6 +45,7 @@ import { listValues, type WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { LinkTarget, Task, WorkspaceSnapshot } from "../../core/types";
 import { usePlugin } from "../context";
 import { ConfirmDeleteDialog } from "../components/ConfirmDeleteDialog";
+import { SEARCH_THRESHOLD } from "../components/fields";
 import { Icon } from "../components/Icon";
 import { PersonAvatar, StatusDot } from "../components/TaskBits";
 import { displayTitle } from "../components/TaskTitle";
@@ -65,6 +68,12 @@ const INPUT_KINDS: ReadonlySet<QuickPickerKind> = new Set([
   "startDate",
   "dueDate",
 ]);
+
+/**
+ * Sentinel id for Label's synthetic "Create …" row. Real label ids come from
+ * `newConfigId("label")` (`label-<slug>`), so this literal can't collide.
+ */
+const CREATE_LABEL_ROW_ID = "__quick_picker_create_label__";
 
 const TITLE: Record<QuickPickerKind, string> = {
   status: "Set status",
@@ -108,14 +117,13 @@ export function QuickFieldPicker({
   const plugin = usePlugin();
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const labelInputRef = useRef<HTMLInputElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
   const isInput = INPUT_KINDS.has(kind);
   const batch = tasksProp ?? [task];
 
-  // Type-ahead for the label branch's create-on-attach.
-  const [newLabelName, setNewLabelName] = useState("");
+  // Shared between the search-to-filter box and, for Label, the create text.
+  const [query, setQuery] = useState("");
 
   const createAndAttach = useCallback(
     async (name: string) => {
@@ -224,6 +232,21 @@ export function QuickFieldPicker({
     return [{ id: null, name: "No project" }, ...options, ...unknown];
   }, [kind, snapshot, task, taxonomies]);
 
+  // Filtering happens downstream of the full `rows` set. For Label, an extra
+  // synthetic "Create …" row is appended when the typed text has no exact match.
+  const showSearch = !isInput && rows.length > SEARCH_THRESHOLD;
+  const needle = query.trim().toLowerCase();
+  const filteredRows = needle
+    ? rows.filter((row) => row.name.toLowerCase().includes(needle))
+    : rows;
+  const exactMatch =
+    kind === "label" &&
+    rows.some((row) => row.name.trim().toLowerCase() === needle);
+  const canCreate = kind === "label" && needle.length > 0 && !exactMatch;
+  const shownRows: Row[] = canCreate
+    ? [...filteredRows, { id: CREATE_LABEL_ROW_ID, name: `Create "${query.trim()}"` }]
+    : filteredRows;
+
   const currentIds = useMemo<Set<string | null>>(() => {
     if (kind === "status") return new Set([task.status]);
     if (kind === "priority") return new Set([task.priority ?? null]);
@@ -242,9 +265,9 @@ export function QuickFieldPicker({
   // current pick is missing rather than resetting to the top on every snap.
   useEffect(() => {
     setActive((prev) =>
-      prev >= rows.length ? Math.max(rows.length - 1, 0) : prev,
+      prev >= shownRows.length ? Math.max(shownRows.length - 1, 0) : prev,
     );
-  }, [rows.length]);
+  }, [shownRows.length]);
 
   // Estimate / date field being edited.
   const [value, setValue] = useState(() => {
@@ -416,9 +439,6 @@ export function QuickFieldPicker({
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
-      // The "Create label…" input owns its own Enter/Escape — create-and-attach
-      // is a different action from select-existing-and-toggle below it.
-      if (kind === "label" && event.target === labelInputRef.current) return;
       if (confirmRef.current) {
         if (event.key === "Escape") {
           event.preventDefault();
@@ -431,16 +451,21 @@ export function QuickFieldPicker({
       if (event.key === "ArrowDown") {
         event.preventDefault();
         event.stopPropagation();
-        setActive((a) => (a + 1) % rows.length);
+        setActive((a) => (a + 1) % shownRows.length);
       } else if (event.key === "ArrowUp") {
         event.preventDefault();
         event.stopPropagation();
-        setActive((a) => (a - 1 + rows.length) % rows.length);
+        setActive((a) => (a - 1 + shownRows.length) % shownRows.length);
       } else if (event.key === "Enter") {
         event.preventDefault();
         event.stopPropagation();
-        const row = rows[activeRef.current];
-        if (row) choose(row.id);
+        const row = shownRows[activeRef.current];
+        if (!row) return;
+        if (row.id === CREATE_LABEL_ROW_ID) {
+          void createAndAttach(query.trim());
+        } else {
+          choose(row.id);
+        }
       } else if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
@@ -449,7 +474,7 @@ export function QuickFieldPicker({
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [rows, choose, onClose, isInput]);
+  }, [shownRows, choose, onClose, isInput, createAndAttach, query, kind]);
 
   useEffect(() => {
     if (!isInput) {
@@ -517,67 +542,73 @@ export function QuickFieldPicker({
           </div>
         ) : (
           <>
+            {showSearch && (
+              <input
+                autoFocus
+                type="text"
+                className="vf-input vf-select-search"
+                placeholder={
+                  kind === "label"
+                    ? "Search or create label…"
+                    : "Search…"
+                }
+                value={query}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setActive(0);
+                }}
+              />
+            )}
             <div
               ref={listRef}
               className="vf-option-list vf-option-list-scroll"
               role="listbox"
               tabIndex={-1}
             >
-              {rows.map((row, index) => (
-                <button
-                  key={row.id ?? "__none__"}
-                  type="button"
-                  role="option"
-                  aria-selected={currentIds.has(row.id)}
-                  data-highlighted={index === active}
-                  className={[
-                    "vf-menu-item",
-                    currentIds.has(row.id) ? "is-active" : "",
-                    index === active ? "is-highlighted" : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  onMouseEnter={() => setActive(index)}
-                  onClick={() => choose(row.id)}
-                >
-                  {row.leading ?? (
-                    <span
-                      className="vf-status-dot"
-                      style={row.color ? { background: row.color } : undefined}
-                      aria-hidden
-                    />
-                  )}
-                  {row.detail}
-                  <span className="vf-icon-select-name">{row.name}</span>
-                </button>
-              ))}
+              {shownRows.map((row, index) => {
+                const isCreate = row.id === CREATE_LABEL_ROW_ID;
+                return (
+                  <button
+                    key={row.id ?? "__none__"}
+                    type="button"
+                    role="option"
+                    aria-selected={currentIds.has(row.id)}
+                    data-highlighted={index === active}
+                    className={[
+                      "vf-menu-item",
+                      isCreate ? "vf-label-editor-create" : "",
+                      currentIds.has(row.id) ? "is-active" : "",
+                      index === active ? "is-highlighted" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    onMouseEnter={() => setActive(index)}
+                    onClick={() => {
+                      if (isCreate) {
+                        void createAndAttach(query.trim());
+                      } else {
+                        choose(row.id);
+                      }
+                    }}
+                  >
+                    {row.leading ?? (
+                      <span
+                        className="vf-status-dot"
+                        style={
+                          row.color ? { background: row.color } : undefined
+                        }
+                        aria-hidden
+                      />
+                    )}
+                    {row.detail}
+                    <span className="vf-icon-select-name">{row.name}</span>
+                  </button>
+                );
+              })}
             </div>
 
-            {kind === "label" && (
-              <div className="vf-quick-picker-create">
-                <input
-                  ref={labelInputRef}
-                  className="vf-input"
-                  placeholder="Create label…"
-                  value={newLabelName}
-                  onChange={(event) => setNewLabelName(event.target.value)}
-                  onKeyDown={(event) => {
-                    const name = newLabelName.trim();
-                    if (event.key === "Enter" && name) {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      void createAndAttach(name);
-                    } else if (event.key === "Escape") {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      onClose();
-                    }
-                  }}
-                />
-                <span className="vf-quick-picker-hint">
-                  Enter to create and attach · Esc to close
-                </span>
-              </div>
+            {shownRows.length === 0 && (
+              <p className="vf-menu-empty">No matches</p>
             )}
           </>
         )}

@@ -41,6 +41,14 @@ This project uses [Semantic Versioning](https://semver.org/).
   relative time ("3 hours ago") with the exact timestamp on hover.
 
 ### Changed
+- **The `u`+key quick field pickers can be filtered by typing.** Every
+  menu-style picker opened by the `u` chord (status, priority, type, label,
+  assignee, parent, project) now shows a search box above its option list —
+  type to narrow the rows, arrow keys and `Enter` work on the filtered list.
+  The Labels picker's search box doubles as its create field: type a name with
+  no exact match and a "Create …" row appears to create and attach it, so the
+  separate "Create label…" input is gone. The task editor rail's own pickers
+  now always show their search box too.
 - **Entity `type:` frontmatter is now `vertex-flow-`-prefixed.** Task, Project,
   Workspace, View and Dashboard notes carry `type: vertex-flow-task`,
   `vertex-flow-project`, and so on, matching the convention exported and
