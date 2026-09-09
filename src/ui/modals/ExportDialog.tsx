@@ -731,22 +731,6 @@ export function ExportDialog({
                 </div>
 
                 <div className="vf-dialog-body">
-                  <p className="vf-export-preview">
-                    <strong>
-                      This exports{" "}
-                      {preview.taskCount == null
-                        ? "your tasks"
-                        : `${preview.taskCount.toLocaleString()} task${
-                            preview.taskCount === 1 ? "" : "s"
-                          }`}
-                      .
-                    </strong>
-                    <br />
-                    {selectedFieldLabels.length > 0
-                      ? `Captures ${selectedFieldLabels.join(", ")}.`
-                      : "No fields selected."}
-                  </p>
-
                   <div className="vf-export-group">
                     <div className="vf-export-group-head">
                       <strong>Options</strong>
@@ -815,6 +799,22 @@ export function ExportDialog({
                       );
                     })}
                   </details>
+
+                  <p className="vf-export-preview">
+                    <strong>
+                      This exports{" "}
+                      {preview.taskCount == null
+                        ? "your tasks"
+                        : `${preview.taskCount.toLocaleString()} task${
+                            preview.taskCount === 1 ? "" : "s"
+                          }`}
+                      .
+                    </strong>
+                    <br />
+                    {selectedFieldLabels.length > 0
+                      ? `Captures ${selectedFieldLabels.join(", ")}.`
+                      : "No fields selected."}
+                  </p>
 
                   {busy && progress && (
                     <p className="vf-export-progress">
