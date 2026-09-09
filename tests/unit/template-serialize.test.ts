@@ -93,4 +93,27 @@ describe("serializeTemplateMarkdown round-trip", () => {
 		expect(content.tasks).toEqual([]);
 		expect(parsed.meta.supportsExampleContent).toBe(false);
 	});
+
+
+	it("round-trips an optional createdAt timestamp", () => {
+		const source = serializeTemplateMarkdown({
+			meta: {
+				id: "my-template",
+				name: "My Template",
+				createdAt: "2026-08-26T12:00:00.000Z",
+			},
+			workspace: snapshot.workspace,
+			views: snapshot.views.filter((v) => !isSystemViewId(v.id)),
+			dashboards: snapshot.dashboards,
+			queryContext: queryContext(snapshot),
+		});
+		const parsed = parseTemplateMarkdown(source);
+		expect(parsed.meta.createdAt).toBe("2026-08-26T12:00:00.000Z");
+	});
+
+
+	it("leaves createdAt undefined when the template doesn't set one", () => {
+		const { parsed } = roundTrip();
+		expect(parsed.meta.createdAt).toBeUndefined();
+	});
 });

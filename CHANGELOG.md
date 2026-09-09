@@ -35,6 +35,12 @@ This project uses [Semantic Versioning](https://semver.org/).
   the built-ins: a "From your Vault" section badge, a subtle accent border on
   the cards, a "Your template" pill on each card, and the on-disk location —
   "Located: `Templates/<file>.md`" — shown below the settings on the card.
+- **Exported templates now carry their timestamp.** "Export Workspace as
+  Template" stamps each exported template file with a `createdAt` timestamp in
+  its frontmatter, and the New Workspace gallery shows it as a "Created:"
+  date-time line on the card, directly above the "Located:" line. Templates
+  exported before this change — or written by hand — simply skip the Created
+  line.
 
 - **Task editor shows Created and Updated.** The property rail now has read-only
   "Created" and "Updated" rows — Created as a full date-time, Updated as a

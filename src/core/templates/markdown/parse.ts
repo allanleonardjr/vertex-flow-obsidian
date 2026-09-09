@@ -1226,6 +1226,7 @@ export function parseTemplateMarkdown(source: string): ParsedTemplate {
 		name: requireString(data, "name"),
 		description: requireString(data, "description"),
 		icon: optionalString(data, "icon"),
+		createdAt: optionalString(data, "createdAt"),
 		supportsExampleContent: optionalBoolean(data, "supportsExampleContent"),
 		author: optionalString(data, "author"),
 		authorUrl: optionalString(data, "authorUrl"),

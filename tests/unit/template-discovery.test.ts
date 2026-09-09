@@ -68,4 +68,22 @@ describe("discoverVaultTemplates", () => {
 		const found = await discoverVaultTemplates(io);
 		expect(found.map((t) => t.id)).toEqual(["t"]);
 	});
+
+
+	it("propagates an optional createdAt onto the VaultTemplate", async () => {
+		const source = serializeTemplateMarkdown({
+			meta: {
+				id: "dated",
+				name: "dated",
+				createdAt: "2026-08-26T12:00:00.000Z",
+			},
+			workspace: snapshot.workspace,
+			views: snapshot.views.filter((v) => !isSystemViewId(v.id)),
+			dashboards: snapshot.dashboards,
+			queryContext: queryContext(snapshot),
+		});
+		const io = fakeIo({ "dated.md": source });
+		const found = await discoverVaultTemplates(io);
+		expect(found[0].createdAt).toBe("2026-08-26T12:00:00.000Z");
+	});
 });

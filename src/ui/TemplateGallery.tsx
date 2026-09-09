@@ -21,6 +21,7 @@ import { joinPath, sanitizeFileName } from "../core/links";
 import { suggestPrefix } from "../core/ids";
 import { SYSTEM_VIEW_ALL_TASKS_ID } from "../core/views";
 import { Icon, IconField } from "./components/Icon";
+import { formatFullDateTime } from "./browse/shared";
 import {
   discoverVaultTemplates,
   type VaultTemplate,
@@ -245,7 +246,14 @@ function TemplateCard({
         ))}
       </dl>
       {template.path && (
-        <p className="vf-template-card-path">Located: {template.path}</p>
+        <div className="vf-template-card-meta">
+          {template.createdAt && (
+            <p className="vf-template-card-created">
+              Created: {formatFullDateTime(template.createdAt)}
+            </p>
+          )}
+          <p className="vf-template-card-path">Located: {template.path}</p>
+        </div>
       )}
       <span className="vf-template-card-cta">Use this template →</span>
     </div>

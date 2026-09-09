@@ -51,6 +51,10 @@ export interface TemplateMeta {
 	name: string;
 	description: string; // one or two sentences, shown on the card
 	icon?: string; // Obsidian icon name
+	/** When this template was exported, as an ISO 8601 timestamp. Only set for
+	 *  vault-authored templates captured via "Export Workspace as Template" —
+	 *  built-in templates and hand-authored files leave it unset. */
+	createdAt?: string;
 	/** Whether the workspace-creation UI offers the "Populate with example
 	 *  content" checkbox. `undefined` or `true` shows it; `false` hides it and
 	 *  forces `populate: false` on creation. */

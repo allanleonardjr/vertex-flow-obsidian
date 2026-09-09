@@ -1714,14 +1714,22 @@ button.vf-swatch.is-on {
   flex-shrink: 0;
 }
 
-.vf-template-card-path {
-  margin: 0;
+.vf-template-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   padding-top: 8px;
   border-top: 1px solid var(--vf-border);
   color: var(--vf-muted);
   font-size: var(--font-ui-smaller);
   line-height: 1.4;
   overflow-wrap: anywhere;
+}
+
+
+.vf-template-card-created,
+.vf-template-card-path {
+  margin: 0;
 }
 
 .vf-template-card-cta {

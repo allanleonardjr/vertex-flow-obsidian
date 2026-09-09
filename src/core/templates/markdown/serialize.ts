@@ -29,7 +29,7 @@ import { viewDefinition } from "../../views/filter";
 import { TEMPLATE_SCHEMA_VERSION } from "./parse";
 
 export interface TemplateSerializeInput {
-	meta: { id: string; name: string; description?: string; icon?: string };
+	meta: { id: string; name: string; description?: string; icon?: string; createdAt?: string };
 	/** Source of the taxonomy and the people roster. */
 	workspace: WorkspaceConfig;
 	/** Every Saved View to carry over — the caller drops synthetic System Views. */
@@ -160,6 +160,7 @@ export function serializeTemplateMarkdown(input: TemplateSerializeInput): string
 		description: meta.description?.trim() || meta.name,
 	};
 	if (meta.icon) frontmatter.icon = meta.icon;
+	if (meta.createdAt) frontmatter.createdAt = meta.createdAt;
 	frontmatter.supportsExampleContent = false;
 
 	frontmatter.statuses = statuses.map(statusShorthand);

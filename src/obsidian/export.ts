@@ -142,6 +142,7 @@ export async function exportAsTemplate(
 			name: form.name.trim(),
 			description: form.description?.trim() || undefined,
 			icon: form.icon,
+			createdAt: new Date().toISOString(),
 		},
 		workspace: snapshot.workspace,
 		views: snapshot.views.filter((view) => !isSystemViewId(view.id)),
