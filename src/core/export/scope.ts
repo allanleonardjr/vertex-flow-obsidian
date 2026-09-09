@@ -28,6 +28,35 @@ export interface ScopeResult {
 	scopeLabel: string;
 }
 
+/** A scope's kind and name, split apart from `scopeLabel` — used to build a
+ *  filename's `-<kind>-<name>` segments, and by the Export dialog's locked-
+ *  scope display. Label and Person scope are `{ kind: "view", view }` under
+ *  the hood (synthesised by `labelView()`/`personView()` in `ui/App.tsx`), so
+ *  they're recovered here via the `label:`/`person:` prefix those helpers
+ *  stamp on the synthesised view's `id` — the one thing that distinguishes
+ *  them from an ordinary saved view at this layer. */
+export interface ScopeIdentity {
+	kind: "workspace" | "project" | "view" | "label" | "person";
+	/** `null` only for "workspace" — a workspace export has nothing beyond
+	 *  the workspace itself to name, and it's already in the filename's
+	 *  workspace segment. */
+	name: string | null;
+}
+
+export function scopeIdentity(scope: ExportScope): ScopeIdentity {
+	if (scope.kind === "workspace") return { kind: "workspace", name: null };
+	if (scope.kind === "project") {
+		return { kind: "project", name: scope.project.title };
+	}
+	if (scope.view.id.startsWith("label:")) {
+		return { kind: "label", name: scope.view.name };
+	}
+	if (scope.view.id.startsWith("person:")) {
+		return { kind: "person", name: scope.view.name };
+	}
+	return { kind: "view", name: scope.view.name };
+}
+
 export function resolveScopeTasks(
 	snapshot: WorkspaceSnapshot,
 	scope: ExportScope,

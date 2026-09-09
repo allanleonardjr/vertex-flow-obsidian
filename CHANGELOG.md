@@ -14,27 +14,39 @@ This project uses [Semantic Versioning](https://semver.org/).
   **All Tasks**, every **Label** and every **Person** now have an
   "Export Tasks…" item that opens the dialog locked to that scope (Views,
   Projects and Workspace already had it).
+- **Both Export dialog screens preview the exact file path.** A "The following
+  file will be created:" callout shows the full destination, pinned when the
+  dialog opens so it always matches what Export writes.
+- **Separate "Include descriptions" and "Include comments" toggles** when a
+  workspace template carries tasks — descriptions default on, comments default
+  off (they more often hold private back-and-forth).
 
 ### Changed
+- **New export filename format**, shared by task exports and template exports:
+  `vertex-flow-export-<date>-<time>-<workspace>-<kind>-<name>.<ext>`. The
+  date-and-time pair keeps every export's name unique on its own, and template
+  files no longer use the old `vertex-flow-template-<id>.md` pattern. Files
+  already in a vault are not renamed.
 - The Export dialog's Scope and entity pickers, and its mode toggle, now use
   the same dropdown and segmented-control styling as the rest of the app.
 - The Export dialog is titled "Export Tasks" or "Export Workspace" to match the
   selected mode, and the workspace menu's "Export Tasks…" opens straight to the
   task-export form.
 - In the task-export form the Format picker is a segmented control, the Fields
-  list is collapsed by default, and the Export button reads "Export N Task(s)".
-- The task-export form shows a summary ("This exports N tasks." / "Captures
-  …"), the Fields header reports how many of the eligible fields are selected,
-  and a forced scope renders as read-only text — its kind plus icon / colour
-  dot / avatar and name — with no border.
+  list is collapsed by default, and the Export button reads "Export N task(s)".
+- The task-export form shows a summary ("This exports N tasks." / "Captures N
+  fields."), the Fields header reads "Fields N of M", and a forced scope
+  renders as read-only text — its kind plus icon / colour dot / avatar and
+  name — with no border.
 - For an iCalendar export the Fields list gains a read-only "Mandatory data"
   group (UID, title, status, dates, created/updated) that's always written, and
   the Fields count includes it.
 - The workspace-template form now includes tasks by default, moves its summary
   below the options, shows a task-count-and-size line in the footer, and
-  labels its button "Export template with data" / "…with no data" and its
+  labels its button "Export template with tasks" / "…without tasks" and its
   summary "This exports your workspace with data." / "…configuration." to match
-  the toggle.
+  the toggle. When tasks are excluded the summary says "starting point, not a
+  backup"; when included it names whether descriptions and comments ride along.
 - View and Project sidebar menus put "Export Tasks…" between dividers, matching
   the Label and Person menus.
 

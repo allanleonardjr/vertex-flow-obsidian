@@ -7325,6 +7325,38 @@ button.vf-history-expand {
   font-size: var(--font-ui-smaller);
 }
 
+/* The "file that will be created" callout — its own boxed block below the
+   preview text, label on one line and the path on the next, so the exact
+   destination reads at a glance and stands apart from the summary prose. */
+.vf-export-dialog .vf-dialog-body > .vf-export-filepath {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+  padding: 9px 11px;
+  border: 1px solid var(--background-modifier-border);
+  border-left: 3px solid var(--text-accent);
+  border-radius: 6px;
+  background: var(--background-secondary);
+}
+
+.vf-export-filepath-label {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.vf-export-filepath-value {
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-small);
+  line-height: 1.4;
+  color: var(--text-normal);
+  background: transparent;
+  padding: 0;
+  word-break: break-all;
+  white-space: normal;
+  user-select: text;
+}
+
 .vf-export-locked-scope {
   display: flex;
   align-items: center;

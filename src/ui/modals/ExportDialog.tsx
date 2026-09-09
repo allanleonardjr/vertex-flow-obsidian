@@ -21,15 +21,18 @@ import { localTodayIso } from "../../core/date";
 import {
   buildExport,
   DEFAULT_FIELDS,
+  exportFilename,
   FIELD_GROUPS,
   FIELDS,
   fieldsForFormat,
   ICS_MANDATORY_FIELDS,
+  scopeIdentity,
   type ExportFormat,
   type ExportScope,
   type FieldId,
 } from "../../core/export";
 import { isSystemViewId, layoutIcon, snapshotContext } from "../../core/views";
+import { joinPath } from "../../core/links";
 import { queryContext } from "../../core/query";
 import { serializeTemplateMarkdown } from "../../core/templates/markdown/serialize";
 import { workspaceTaxonomies } from "../../core/taxonomy";
@@ -201,6 +204,11 @@ export function ExportDialog({
   const [fields, setFields] = useState<Set<FieldId>>(
     () => new Set(DEFAULT_FIELDS),
   );
+  // Pinned once per dialog session (not recomputed on every render) so the
+  // "following file will be created" callout always names exactly the file
+  // Export will write, however long the dialog stays open while configuring
+  // options.
+  const [now] = useState(() => new Date());
 
   // --- template-export state ---
   const [tplName, setTplName] = useState(`${snapshot.workspace.name} Template`);
@@ -212,11 +220,14 @@ export function ExportDialog({
   // discovery target, so it's the default; picking elsewhere saves fine but
   // hides the template from the New Workspace gallery (surfaced below).
   const [tplLocation, setTplLocation] = useState(WORKSPACE_TEMPLATES_FOLDER);
-  // Off by default: a template is a blueprint, and carrying Tasks makes it a
-  // snapshot. The `includeArchived` toggle is shared with the Task-export
-  // path — it governs archived Projects and Tasks alike here so a full
-  // snapshot keeps its cross-links resolvable.
+  // Off by default: a template is a blueprint, and carrying Tasks makes it
+  // fuller, not a backup — see the caveat in the preview text below.
   const [includeTasks, setIncludeTasks] = useState(true);
+  // Descriptions default on (the expected case); comments default off, since
+  // they're more likely to hold private back-and-forth someone wouldn't want
+  // riding along with a shared template.
+  const [includeDescriptions, setIncludeDescriptions] = useState(true);
+  const [includeComments, setIncludeComments] = useState(false);
 
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<ExportProgress | null>(null);
@@ -277,9 +288,7 @@ export function ExportDialog({
     mandatoryCount + eligibleFields.filter((id) => fields.has(id)).length;
   const totalFieldCount = mandatoryCount + eligibleFields.length;
   const allFieldsIncluded = selectedFieldCount === totalFieldCount;
-  const fieldsSummary = allFieldsIncluded
-    ? "Fields (All included)"
-    : `Fields ${selectedFieldCount} of ${totalFieldCount}`;
+  const fieldsSummary = `Fields ${selectedFieldCount} of ${totalFieldCount}`;
   const selectedFieldLabels = [
     // iCalendar always writes its mandatory data — surface it in the summary
     // so an .ics export doesn't read as "No fields selected".
@@ -295,7 +304,7 @@ export function ExportDialog({
         scope,
         format,
         fields: [...fields],
-        today: localTodayIso(),
+        today: localTodayIso(now),
         includeArchived,
         pluginVersion: plugin.manifest.version,
       });
@@ -306,13 +315,41 @@ export function ExportDialog({
     } catch {
       return { taskCount: null as number | null, label: "—" };
     }
-  }, [snapshot, context, scope, format, fields, includeArchived, plugin]);
+  }, [snapshot, context, scope, format, fields, includeArchived, plugin, now]);
+
+  // Mirrors the path `runExport` actually writes to, so what's shown before
+  // clicking Export is exactly what gets created.
+  const exportFilePath = useMemo(
+    () =>
+      joinPath(
+        snapshot.workspace.root,
+        "Exports",
+        exportFilename(snapshot.workspace.name, scopeIdentity(scope), format, now),
+      ),
+    [snapshot, scope, format, now],
+  );
 
   // Template export carries the whole workspace (a template is a blueprint,
   // not a scoped slice), so this counts what the file would actually ship.
   const templateCarriedTasks = snapshot.tasks.filter(
     (task) => includeArchived || !task.archived,
   ).length;
+
+  // Mirrors the path `exportAsTemplate` actually writes to — same idea as
+  // `exportFilePath` above.
+  const templateFilePath = useMemo(() => {
+    const folder = (tplLocation.trim() || WORKSPACE_TEMPLATES_FOLDER).replace(
+      /^\/+|\/+$/g,
+      "",
+    );
+    const filename = exportFilename(
+      snapshot.workspace.name,
+      { kind: "template", name: tplName },
+      "md",
+      now,
+    );
+    return joinPath(folder, filename);
+  }, [snapshot, tplLocation, tplName, now]);
 
   // A size estimate for the footer, mirroring the task-export preview. Runs the
   // real serializer but with empty body maps (descriptions/comments need async
@@ -325,7 +362,7 @@ export function ExportDialog({
           name: tplName.trim() || "template",
           description: tplDescription.trim() || undefined,
           icon: tplIcon,
-          createdAt: new Date().toISOString(),
+          createdAt: now.toISOString(),
         },
         workspace: snapshot.workspace,
         views: snapshot.views.filter((view) => !isSystemViewId(view.id)),
@@ -333,8 +370,8 @@ export function ExportDialog({
         projects: snapshot.projects,
         projectDescriptions: {},
         tasks: includeTasks ? snapshot.tasks : undefined,
-        taskDescriptions: includeTasks ? {} : undefined,
-        taskComments: includeTasks ? {} : undefined,
+        taskDescriptions: includeTasks && includeDescriptions ? {} : undefined,
+        taskComments: includeTasks && includeComments ? {} : undefined,
         includeArchived,
         queryContext: queryContext(snapshot, me),
       });
@@ -352,8 +389,11 @@ export function ExportDialog({
     tplDescription,
     tplIcon,
     includeTasks,
+    includeDescriptions,
+    includeComments,
     includeArchived,
     templateCarriedTasks,
+    now,
   ]);
 
   const folders = useMemo(
@@ -398,6 +438,7 @@ export function ExportDialog({
         format,
         fields: selectedFields,
         includeArchived,
+        now,
         onProgress: setProgress,
       });
       setBusy(false);
@@ -419,7 +460,10 @@ export function ExportDialog({
         icon: tplIcon,
         folder: tplLocation.trim(),
         includeTasks,
+        includeDescriptions,
+        includeComments,
         includeArchived,
+        now,
         onProgress: setProgress,
       });
       setBusy(false);
@@ -469,11 +513,9 @@ export function ExportDialog({
                   : `Saved template to ${outcome.file.path}`}
               </p>
               <p className="vf-dialog-hint">
-                This file type may not appear in Obsidian's own file list — turn
-                on "Show all file types" in Obsidian's Settings:
-                <br />
-                [Settings → Files and links → Links → Show all file types] to
-                see it in Obsidian's File Explorer.
+                This file type may be hidden in Obsidian's own file list.
+                Enable it via Settings → Files and links → Links → Show all
+                file types.
               </p>
               <div className="vf-export-result-actions">
                 {showReveal && (
@@ -508,7 +550,7 @@ export function ExportDialog({
                   aria-pressed={mode === "tasks"}
                   onClick={() => setMode("tasks")}
                 >
-                  Export tasks
+                  Export Tasks
                 </button>
                 <button
                   type="button"
@@ -516,7 +558,7 @@ export function ExportDialog({
                   aria-pressed={mode === "template"}
                   onClick={() => setMode("template")}
                 >
-                  Export Workspace as Template…
+                  Export Workspace as Template
                 </button>
               </div>
             )}
@@ -882,10 +924,23 @@ export function ExportDialog({
                       .
                     </strong>
                     <br />
-                    {selectedFieldLabels.length > 0
-                      ? `Captures ${selectedFieldLabels.join(", ")}.`
-                      : "No fields selected."}
+                    {selectedFieldLabels.length === 0
+                      ? "No fields selected."
+                      : allFieldsIncluded
+                        ? "Captures all fields."
+                        : `Captures ${selectedFieldLabels.length} field${
+                            selectedFieldLabels.length === 1 ? "" : "s"
+                          }.`}
                   </p>
+
+                  <div className="vf-export-filepath">
+                    <span className="vf-export-filepath-label">
+                      The following file will be created:
+                    </span>
+                    <code className="vf-export-filepath-value">
+                      {exportFilePath}
+                    </code>
+                  </div>
 
                   {busy && progress && (
                     <p className="vf-export-progress">
@@ -911,7 +966,7 @@ export function ExportDialog({
                     >
                       {preview.taskCount == null
                         ? "Export"
-                        : `Export ${preview.taskCount} Task${
+                        : `Export ${preview.taskCount} task${
                             preview.taskCount === 1 ? "" : "s"
                           }`}
                     </button>
@@ -1006,18 +1061,46 @@ export function ExportDialog({
                       Include tasks in the template file
                     </button>
                     {includeTasks && (
-                      <button
-                        type="button"
-                        className="vf-menu-item"
-                        role="checkbox"
-                        aria-checked={includeArchived}
-                        onClick={() => setIncludeArchived(!includeArchived)}
-                      >
-                        <span className="vf-export-field-check">
-                          {includeArchived ? "✓" : ""}
-                        </span>
-                        Include archived projects and tasks
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          className="vf-menu-item"
+                          role="checkbox"
+                          aria-checked={includeDescriptions}
+                          onClick={() =>
+                            setIncludeDescriptions(!includeDescriptions)
+                          }
+                        >
+                          <span className="vf-export-field-check">
+                            {includeDescriptions ? "✓" : ""}
+                          </span>
+                          Include descriptions
+                        </button>
+                        <button
+                          type="button"
+                          className="vf-menu-item"
+                          role="checkbox"
+                          aria-checked={includeComments}
+                          onClick={() => setIncludeComments(!includeComments)}
+                        >
+                          <span className="vf-export-field-check">
+                            {includeComments ? "✓" : ""}
+                          </span>
+                          Include comments
+                        </button>
+                        <button
+                          type="button"
+                          className="vf-menu-item"
+                          role="checkbox"
+                          aria-checked={includeArchived}
+                          onClick={() => setIncludeArchived(!includeArchived)}
+                        >
+                          <span className="vf-export-field-check">
+                            {includeArchived ? "✓" : ""}
+                          </span>
+                          Include archived projects and tasks
+                        </button>
+                      </>
                     )}
                   </div>
 
@@ -1029,13 +1112,37 @@ export function ExportDialog({
                     </strong>
                     <br />
                     Captures statuses, priorities, task types, labels, the
-                    people roster, saved views, dashboards and projects —
-                    {includeTasks
-                      ? ` plus ${templateCarriedTasks.toLocaleString()} task${
-                          templateCarriedTasks === 1 ? "" : "s"
-                        } with their descriptions and comments.`
-                      : " no tasks."}
+                    people roster, saved views, dashboards and projects.{" "}
+                    {includeTasks ? (
+                      <>
+                        Plus {templateCarriedTasks.toLocaleString()} task
+                        {templateCarriedTasks === 1 ? "" : "s"} — every field
+                        {includeDescriptions || includeComments ? (
+                          <>
+                            , plus{" "}
+                            {[
+                              includeDescriptions && "descriptions",
+                              includeComments && "comments",
+                            ]
+                              .filter(Boolean)
+                              .join(" and ")}
+                          </>
+                        ) : null}
+                        .
+                      </>
+                    ) : (
+                      "Tasks stay behind by default — this is a starting point, not a backup."
+                    )}
                   </p>
+
+                  <div className="vf-export-filepath">
+                    <span className="vf-export-filepath-label">
+                      The following file will be created:
+                    </span>
+                    <code className="vf-export-filepath-value">
+                      {templateFilePath}
+                    </code>
+                  </div>
 
                   {busy && progress && (
                     <p className="vf-export-progress">
@@ -1057,8 +1164,8 @@ export function ExportDialog({
                       onClick={() => void runTemplateExport()}
                     >
                       {includeTasks
-                        ? "Export template with data"
-                        : "Export template with no data"}
+                        ? "Export template with tasks"
+                        : "Export template without tasks"}
                     </button>
                   </div>
                 </div>

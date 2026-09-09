@@ -18,10 +18,11 @@ the format you choose:
   specifically, only a **Description** toggle is offered; identity, status,
   dates, and sync metadata (`CREATED`, `LAST-MODIFIED`, `SEQUENCE`) are always
   emitted, so re-importing a calendar never churns its change history.
-- **Scope** — the current view, a saved view, a project, or the whole
-  workspace.
+- **Scope** — the current view, a saved view, a project, a label, a person, or
+  the whole workspace.
 - **Where it lands** — `<workspace>/Exports/`, named
-  `vertex-flow-export-<workspace>-<scope>-<date>.<ext>`.
+  `vertex-flow-export-<date>-<time>-<workspace>-<kind>-<name>.<ext>` (the
+  date/time pair keeps every export's filename unique on its own).
 
 You can start an export from the sidebar's **Export…** row, the **Export…**
 command in the Command Palette, a button on the view toolbar (locked to that
@@ -43,12 +44,16 @@ dashboards — each one riding in the file's frontmatter, like your **Projects**
 with their title, icon, description, status, priority, owner, labels, and
 dates. **Tasks stay behind by default** — the file is a starting point, not a
 backup. Tick **"Include tasks in the template file"** and the export also
-carries your tasks into the template's body, with their descriptions and
-comments; recurrence is written as a compact shorthand (`weekly`,
-`every 2 weeks`, `when completed`), and rules it can't express are left out.
+carries your tasks into the template's body with every field; recurrence is
+written as a compact shorthand (`weekly`, `every 2 weeks`, `when completed`),
+and rules it can't express are left out.
 
 Your exported template never ships gated material unless you ask for it:
 
+- **Descriptions travel with tasks by default; comments don't.** Untick
+  **"Include descriptions"** to leave task bodies out, or tick
+  **"Include comments"** if you want the discussion history to come along too
+  — off by default since comments are more likely to hold something private.
 - **Archived Projects and Tasks stay out** unless **"Include archived"** is
   ticked too — and when it is, archived Tasks and the archived Projects they
   link to travel together, so nothing dangles. Links to anything still excluded
@@ -59,9 +64,10 @@ Your exported template never ships gated material unless you ask for it:
 
 You give the template a **name**, **icon**, and **description**, and pick a
 destination folder — type a folder name or browse for one, with vault-root
-`Vertex Flow Templates/` as the default. Exported files carry a
-`vertex-flow-template-` filename prefix so they stay recognizable once they're
-moved or synced elsewhere.
+`Vertex Flow Templates/` as the default. Exported files share the same
+`vertex-flow-export-<date>-<time>-<workspace>-template-<name>.md` naming as
+Task exports, so they stay recognizable once they're moved or synced
+elsewhere.
 
 ## Create a workspace from your template
 
