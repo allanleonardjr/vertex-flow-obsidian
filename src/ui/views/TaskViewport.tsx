@@ -595,7 +595,10 @@ export function TaskViewport({
               kind={quickPicker.kind}
               snapshot={snapshot}
               taxonomies={taxonomies}
-              onClose={() => setQuickPicker(null)}
+              onClose={() => {
+                setQuickPicker(null);
+                containerRef?.focus();
+              }}
             />
           );
         })()}

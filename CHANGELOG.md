@@ -52,6 +52,9 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## 1.0.15 — 2026-09-09
 
+### Fixed
+- **Keyboard navigation dies after a `u`-chord picker closes.** After pressing `u` + a field key (e.g. `u p` for priority), picking an option and pressing **Enter** (or **Escape**), keyboard navigation in the task list (`j`/`k`, arrow keys, `Enter` to open, `x` to toggle selection) stopped responding until the user clicked a task row again. Focus was lost when the `QuickFieldPicker` portal unmounted, falling back to `document.body` instead of refocusing the `vf-shell` container that shortcuts bind to.
+
 ### Added
 - **Export your tasks to CSV, JSON or iCalendar.** Pick a scope — the current
   view, a saved view, a project, or the whole workspace — choose which CSV/JSON
