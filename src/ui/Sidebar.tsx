@@ -653,7 +653,7 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
                 onClick={() => {
                   setMenuRoot(null);
                   setActiveWorkspace(entry.workspace.root);
-                  setExportTarget({ workspace: entry });
+                  setExportTarget({ workspace: entry, forceMode: "tasks" });
                 }}
               >
                 Export Tasks…

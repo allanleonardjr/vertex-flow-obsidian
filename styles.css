@@ -6951,6 +6951,7 @@ button.vf-history-expand {
    overflow the dialog. */
 .vf-segmented {
   display: flex;
+  flex-shrink: 0;
   width: 100%;
   border: 1px solid var(--vf-border);
   border-radius: 6px;

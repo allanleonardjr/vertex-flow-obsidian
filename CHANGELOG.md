@@ -18,6 +18,9 @@ This project uses [Semantic Versioning](https://semver.org/).
 ### Changed
 - The Export dialog's Scope and entity pickers, and its mode toggle, now use
   the same dropdown and segmented-control styling as the rest of the app.
+- The Export dialog is titled "Export Tasks" or "Export Workspace" to match the
+  selected mode, and the workspace menu's "Export Tasks…" opens straight to the
+  task-export form.
 
 ## 1.0.15 — 2026-09-09
 

@@ -337,7 +337,7 @@ export function ExportDialog({
         role="dialog"
         onClick={(event) => event.stopPropagation()}
       >
-        <h3>Export</h3>
+        <h3>{mode === "tasks" ? "Export Tasks" : "Export Workspace"}</h3>
 
         {outcome ? (
           <>
