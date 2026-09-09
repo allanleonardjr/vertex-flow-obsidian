@@ -7306,7 +7306,10 @@ button.vf-history-expand {
   font-size: var(--font-ui-small);
 }
 
-.vf-export-locked-scope-kind {
+/* `.vf-field span` (block + margin-bottom) outranks a single class, so the
+   override has to match its specificity to keep the kind label inline and
+   centered against the icon and name. */
+.vf-field .vf-export-locked-scope-kind {
   display: inline-flex;
   align-items: center;
   margin-bottom: 0;
