@@ -6,7 +6,7 @@ import { emptyRelations, type Task } from "../../src/core/types";
 /** A task with just the fields the nesting builder reads. */
 function task(path: string, parent: string | null, rank: string): Task {
 	return {
-		type: "task",
+		type: "vertex-flow-task",
 		path,
 		id: path,
 		title: path,

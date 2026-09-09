@@ -192,7 +192,7 @@ export class Mutations {
     const project = newTaskProject(input.project, parentTask);
 
     const task: Task = {
-      type: "task",
+      type: "vertex-flow-task",
       id,
       title: (input.title ?? "").trim(),
       taskType: input.taskType ?? workspace.defaultNewTaskType,
@@ -396,7 +396,7 @@ private async spawnOccurrences(
       const path = joinPath(workspace.root, FOLDERS.tasks, id);
 
       const task: Task = {
-        type: "task",
+        type: "vertex-flow-task",
         id,
         title: source.title,
         taskType: shouldCopy("taskType") ? source.taskType : null,
@@ -1467,7 +1467,7 @@ private async spawnOccurrences(
     const file = await this.io.create(
       path,
       serializeProject({
-        type: "project",
+        type: "vertex-flow-project",
         title,
         icon,
         status: snapshot.workspace.defaultNewTaskStatus,

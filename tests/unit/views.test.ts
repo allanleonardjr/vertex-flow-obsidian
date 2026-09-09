@@ -44,7 +44,7 @@ const view = (partial: Partial<SavedView> = {}): SavedView => ({
 
 function task(overrides: Partial<Task> & { path: string }): Task {
 	return {
-		type: "task",
+		type: "vertex-flow-task",
 		id: overrides.path,
 		title: "t",
 		taskType: null,
@@ -461,7 +461,7 @@ describe("evaluateView", () => {
 	});
 
 	it("defaultViews carry the view discriminant", () => {
-		for (const v of defaultViews()) expect(v.type).toBe("view");
+		for (const v of defaultViews()) expect(v.type).toBe("vertex-flow-view");
 	});
 });
 

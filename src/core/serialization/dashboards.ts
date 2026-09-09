@@ -218,7 +218,7 @@ export function parseDashboard(
 
 	return {
 		value: {
-			type: "dashboard",
+			type: "vertex-flow-dashboard",
 			path: options.path,
 			...parseDashboardValue(record, id, log),
 		},
@@ -245,7 +245,7 @@ export function parseDashboards(raw: unknown): ParseResult<DashboardConfig[]> {
 			return;
 		}
 		dashboards.push({
-			type: "dashboard",
+			type: "vertex-flow-dashboard",
 			path: "",
 			...parseDashboardValue(entryRecord, id, log),
 		});
@@ -331,7 +331,7 @@ export function serializeDashboard(
 	dashboard: DashboardConfig,
 ): Record<string, unknown> {
 	return compact({
-		type: "dashboard",
+		type: "vertex-flow-dashboard",
 		id: dashboard.id,
 		name: dashboard.name,
 		icon: dashboard.icon,

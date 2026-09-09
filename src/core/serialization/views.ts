@@ -278,7 +278,7 @@ export function parseView(
 
 	return {
 		value: {
-			type: "view",
+			type: "vertex-flow-view",
 			path: options.path,
 			...parseViewValue(record, id, log),
 		},
@@ -306,7 +306,7 @@ export function parseViews(raw: unknown): ParseResult<SavedView[]> {
 			return;
 		}
 		views.push({
-			type: "view",
+			type: "vertex-flow-view",
 			path: "",
 			...parseViewValue(entryRecord, id, log),
 		});
@@ -346,7 +346,7 @@ export function detectViewIdCollisions(
 
 export function serializeView(view: SavedView): Record<string, unknown> {
 	return compact({
-		type: "view",
+		type: "vertex-flow-view",
 		id: view.id,
 		name: view.name,
 		icon: view.icon,
@@ -393,7 +393,7 @@ export function parseViewDefinition(
 	log: IssueLog,
 ): ProjectViewSettings {
 	const value = parseViewValue(asRecord(raw), "", log);
-	const definition = viewDefinition({ type: "view", path: "", ...value });
+	const definition = viewDefinition({ type: "vertex-flow-view", path: "", ...value });
 	const { collapsed, hidden } = value.columns;
 	return collapsed.length || hidden.length
 		? { ...definition, columns: { collapsed, hidden } }

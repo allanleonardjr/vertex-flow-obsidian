@@ -13,6 +13,34 @@
 export type EntityType = "task" | "project" | "workspace";
 
 /**
+ * The `type:` frontmatter discriminant stamped onto every file-backed entity.
+ *
+ * `vertex-flow-`-prefixed to match the convention exported/template files use
+ * and to be unmistakably this plugin's in a shared vault. Parsers accept the
+ * pre-1.1 bare values too (`task`, `project`, …) and always normalize to these;
+ * `entityKindOf` (`src/obsidian/index-store.ts`) bridges both spellings, and a
+ * post-rebuild migration rewrites any surviving bare value on disk. These are
+ * deliberately distinct from the internal `EntityKind`/`EntityType` vocabulary
+ * above, which has its own serialization surface (history logs) and stays bare.
+ */
+export const ENTITY_TYPE = {
+	task: "vertex-flow-task",
+	project: "vertex-flow-project",
+	workspace: "vertex-flow-workspace",
+	view: "vertex-flow-view",
+	dashboard: "vertex-flow-dashboard",
+} as const;
+
+/** Pre-1.1 bare `type:` value → the current `vertex-flow-`-prefixed value. */
+export const LEGACY_ENTITY_TYPE: Record<string, string> = {
+	task: ENTITY_TYPE.task,
+	project: ENTITY_TYPE.project,
+	workspace: ENTITY_TYPE.workspace,
+	view: ENTITY_TYPE.view,
+	dashboard: ENTITY_TYPE.dashboard,
+};
+
+/**
  * Every file-backed thing the vault index classifies into a `WorkspaceSnapshot`.
  *
  * Lives here rather than in `src/obsidian/index-store.ts` because it's a domain
@@ -274,7 +302,7 @@ export interface RecurrenceConfig {
 }
 
 export interface Task {
-	type: "task";
+	type: "vertex-flow-task";
 	id: string;
 	title: string;
 	taskType: string | null;
@@ -366,7 +394,7 @@ export interface TaskDocument {
 // ---------------------------------------------------------------------------
 
 export interface Project {
-	type: "project";
+	type: "vertex-flow-project";
 	title: string;
 	/** Curated icon id (see `ui/components/Icon.tsx`); optional, falls back at render. */
 	icon?: string;
@@ -494,7 +522,7 @@ export interface HistoryEntry {
 }
 
 export interface WorkspaceConfig {
-	type: "workspace";
+	type: "vertex-flow-workspace";
 	name: string;
 	/** Curated icon id (see `ui/components/Icon.tsx`); optional, falls back at render. */
 	icon?: string;
@@ -677,7 +705,7 @@ export type TaskField = (typeof TASK_FIELDS)[number];
 
 export interface SavedView {
 	/** Discriminant — this is a `Views/<id>.md` note. */
-	type: "view";
+	type: "vertex-flow-view";
 	/** Vault path of the backing note (`<root>/Views/<id>`), extension-less. */
 	path: string;
 	id: string;
@@ -908,7 +936,7 @@ export interface DashboardWidget {
 
 export interface DashboardConfig {
 	/** Discriminant — this is a `Dashboards/<id>.md` note. */
-	type: "dashboard";
+	type: "vertex-flow-dashboard";
 	/** Vault path of the backing note (`<root>/Dashboards/<id>`), extension-less. */
 	path: string;
 	id: string;

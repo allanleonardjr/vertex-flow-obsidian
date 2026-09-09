@@ -732,7 +732,17 @@ function entityKindOf(
 	return FOLDER_KINDS[folder] ?? null;
 }
 
+/**
+ * `type:` frontmatter value → `EntityKind`. Accepts both the current
+ * `vertex-flow-`-prefixed values and the pre-1.1 bare ones, mapped to the same
+ * kind — a note the post-rebuild migration hasn't reached yet still classifies
+ * correctly rather than falling through to the folder-name fallback.
+ */
 const FOLDER_KINDS_BY_TYPE: Record<string, EntityKind> = {
+	"vertex-flow-task": "task",
+	"vertex-flow-project": "project",
+	"vertex-flow-view": "view",
+	"vertex-flow-dashboard": "dashboard",
 	task: "task",
 	project: "project",
 	view: "view",

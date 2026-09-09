@@ -37,6 +37,13 @@ This project uses [Semantic Versioning](https://semver.org/).
   "Located: `Templates/<file>.md`" — shown below the settings on the card.
 
 ### Changed
+- **Entity `type:` frontmatter is now `vertex-flow-`-prefixed.** Task, Project,
+  Workspace, View and Dashboard notes carry `type: vertex-flow-task`,
+  `vertex-flow-project`, and so on, matching the convention exported and
+  template files already use. Notes with the old bare values (`task`,
+  `project`, …) still load unchanged, and a background pass quietly rewrites
+  them to the new value the next time the vault is indexed — nothing you need
+  to do, and nothing changes in the app.
 - **Template frontmatter `kind` is now `type`.** The workspace-template grammar
   uses `type: vertex-flow-workspace-template` (and `-snapshot`) instead of
   `kind: template`/`kind: snapshot`. Old `kind` frontmatter still loads. Files

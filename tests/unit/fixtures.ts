@@ -11,7 +11,7 @@ import { emptyRelations, type Project, type Task } from "../../src/core/types";
 
 export function task(partial: Partial<Task>): Task {
 	return {
-		type: "task",
+		type: "vertex-flow-task",
 		id: "TSK-1",
 		title: "T",
 		taskType: null,
@@ -40,7 +40,7 @@ export function task(partial: Partial<Task>): Task {
 
 export function project(partial: Partial<Project>): Project {
 	return {
-		type: "project",
+		type: "vertex-flow-project",
 		title: "P",
 		status: "in-progress",
 		priority: null,

@@ -28,7 +28,7 @@ export function newDashboard(
 	icon = "layout-dashboard",
 ): DashboardConfig {
 	// `path` is filled in by the glue layer on write, like a new view's.
-	return { type: "dashboard", path: "", id, name, icon, widgets: [], filters: {} };
+	return { type: "vertex-flow-dashboard", path: "", id, name, icon, widgets: [], filters: {} };
 }
 
 /**

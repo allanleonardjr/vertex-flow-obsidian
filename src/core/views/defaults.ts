@@ -44,7 +44,7 @@ export const DEFAULT_DEFINITION: ViewDefinition = {
 
 function view(partial: Partial<SavedView> & Pick<SavedView, "id" | "name">): SavedView {
 	return {
-		type: "view",
+		type: "vertex-flow-view",
 		// A real vault path is assigned by the glue layer — on write for a user
 		// view, or on injection for a System View. Core constructors don't know
 		// the workspace root, exactly as a brand-new Project's path is filled in

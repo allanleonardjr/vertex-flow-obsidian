@@ -24,6 +24,8 @@ import {
 	getLastWorkspaceRoot,
 } from "./obsidian/last-workspace-storage";
 import { recurrenceNodesInChain } from "./core/recurrence";
+import { isTaskNoteType } from "./core/entity-type";
+import { migrateEntityTypes } from "./obsidian/migrate-entity-type";
 import { VertexFlowSettingTab } from "./settings/SettingTab";
 import {
 	DEFAULT_SETTINGS,
@@ -126,6 +128,10 @@ export default class VertexFlowPlugin extends Plugin {
 			this.register(
 				this.index.subscribe(() => {
 					void this.mutations.reconcileRecurrences();
+					// Rewrite any pre-1.1 bare `type:` frontmatter left on disk.
+					// Self-terminating: a scan that finds nothing converged does
+					// zero writes, so this is cheap to run on every rebuild.
+					void migrateEntityTypes(this.index, this.io);
 				}),
 			);
 			void this.index.rebuild().then(() => this.registerTaskRedirect());
@@ -231,7 +237,7 @@ export default class VertexFlowPlugin extends Plugin {
 				// it, and self-heals via the editor's own subscription if there's
 				// a momentary gap.
 				const cache = this.app.metadataCache.getFileCache(file);
-				if (cache?.frontmatter?.type !== "task") return;
+				if (!isTaskNoteType(cache?.frontmatter?.type)) return;
 
 				const leaf = this.app.workspace.getMostRecentLeaf();
 				if (!leaf || leaf.view.getViewType() !== "markdown") return;

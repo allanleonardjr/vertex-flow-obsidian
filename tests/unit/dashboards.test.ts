@@ -85,7 +85,7 @@ describe("compatibility matrix", () => {
 
 describe("parse / serialize round-trip", () => {
 	const source: DashboardConfig = {
-		type: "dashboard",
+		type: "vertex-flow-dashboard",
 		// `serializeDashboard` never emits `path`; `parseDashboards` (plural) leaves it blank.
 		path: "",
 		id: "overview",
@@ -225,7 +225,7 @@ describe("parseDashboard (per-file)", () => {
 			{ id: "health", name: "Health", widgets: [] },
 			{ path: "W/Dashboards/health" },
 		);
-		expect(value.type).toBe("dashboard");
+		expect(value.type).toBe("vertex-flow-dashboard");
 		expect(value.path).toBe("W/Dashboards/health");
 		expect(value.id).toBe("health");
 	});
@@ -235,7 +235,7 @@ describe("parseDashboard (per-file)", () => {
 		expect(value.id).toBe("team-health");
 	});
 
-	it("round-trips through serializeDashboard, which emits type: dashboard", () => {
+	it("round-trips through serializeDashboard, which emits type: vertex-flow-dashboard", () => {
 		const { value } = parseDashboard(
 			{
 				id: "d",
@@ -246,7 +246,7 @@ describe("parseDashboard (per-file)", () => {
 			{ path: "W/Dashboards/d" },
 		);
 		const frontmatter = serializeDashboard(value);
-		expect(frontmatter.type).toBe("dashboard");
+		expect(frontmatter.type).toBe("vertex-flow-dashboard");
 		expect(parseDashboard(frontmatter, { path: "W/Dashboards/d" }).value).toEqual(value);
 	});
 

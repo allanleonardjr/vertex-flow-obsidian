@@ -30,7 +30,7 @@ const T = (id: string) => `Sample/Tasks/SMP-${id}`;
 
 function task(overrides: Partial<Task> & { path: string }): Task {
 	return {
-		type: "task",
+		type: "vertex-flow-task",
 		id: overrides.path.split("/").pop() as string,
 		title: "t",
 		taskType: null,

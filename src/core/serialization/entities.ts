@@ -39,7 +39,7 @@ export function parseProject(
 
 	return {
 		value: {
-			type: "project",
+			type: "vertex-flow-project",
 			title,
 			icon: asString(fm.icon) ?? undefined,
 			status: asString(fm.status) ?? options.defaultStatus,
@@ -64,7 +64,7 @@ export function parseProject(
 
 export function serializeProject(project: Project): Record<string, unknown> {
 	const base = compact({
-		type: "project",
+		type: "vertex-flow-project",
 		title: project.title,
 		icon: project.icon,
 		status: project.status,
