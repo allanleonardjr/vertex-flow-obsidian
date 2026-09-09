@@ -18,7 +18,6 @@ import { printFilters, printQuery, type QueryContext } from "../../query";
 import type {
 	DashboardConfig,
 	DashboardWidget,
-	LabelValue,
 	PriorityValue,
 	SavedView,
 	StatusValue,
@@ -53,7 +52,7 @@ function statusShorthand(value: StatusValue): string {
 	);
 }
 
-function flatShorthand(value: PriorityValue | TaskTypeValue | LabelValue): string {
+function flatShorthand(value: PriorityValue | TaskTypeValue): string {
 	return withDescription(`${value.name} (${value.color})`, value.description);
 }
 

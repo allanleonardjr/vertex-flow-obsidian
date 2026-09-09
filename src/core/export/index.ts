@@ -10,7 +10,6 @@ import type {
 	Comment,
 	IsoDate,
 	LinkTarget,
-	Task,
 	WorkspaceSnapshot,
 } from "../types";
 import { snapshotContext, type ViewContext } from "../views";

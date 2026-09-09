@@ -962,7 +962,7 @@ function CommentList({
                 onClick={() => {
                   void navigator.clipboard.writeText(comment.body).then(() => {
                     setCopiedId(comment.id);
-                    setTimeout(
+                    window.setTimeout(
                       () =>
                         setCopiedId((id) => (id === comment.id ? null : id)),
                       1500,
