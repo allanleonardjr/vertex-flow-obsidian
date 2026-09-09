@@ -130,6 +130,11 @@ export function ExportDialog({
   // discovery target, so it's the default; picking elsewhere saves fine but
   // hides the template from the New Workspace gallery (surfaced below).
   const [tplLocation, setTplLocation] = useState(WORKSPACE_TEMPLATES_FOLDER);
+  // Off by default: a template is a blueprint, and carrying Tasks makes it a
+  // snapshot. The `includeArchived` toggle is shared with the Task-export
+  // path — it governs archived Projects and Tasks alike here so a full
+  // snapshot keeps its cross-links resolvable.
+  const [includeTasks, setIncludeTasks] = useState(false);
 
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<ExportProgress | null>(null);
@@ -186,6 +191,12 @@ export function ExportDialog({
     }
   }, [snapshot, context, scope, format, fields, includeArchived, plugin]);
 
+  // Template export carries the whole workspace (a template is a blueprint,
+  // not a scoped slice), so this counts what the file would actually ship.
+  const templateCarriedTasks = snapshot.tasks.filter(
+    (task) => includeArchived || !task.archived,
+  ).length;
+
   const folders = useMemo(
     () =>
       plugin.app.vault
@@ -241,12 +252,16 @@ export function ExportDialog({
   const runTemplateExport = async () => {
     setBusy(true);
     setError(null);
+    setProgress(null);
     try {
       const file = await exportAsTemplate(plugin, snapshot, {
         name: tplName.trim(),
         description: tplDescription.trim() || undefined,
         icon: tplIcon,
         folder: tplLocation.trim(),
+        includeTasks,
+        includeArchived,
+        onProgress: setProgress,
       });
       setBusy(false);
       setOutcome({ kind: "template", file });
@@ -589,8 +604,45 @@ export function ExportDialog({
                     <strong>This exports your workspace setup.</strong>
                     <br />
                     Captures statuses, priorities, task types, labels, the
-                    people roster, saved views, dashboards and projects — no tasks.
+                    people roster, saved views, dashboards and projects —
+                    {includeTasks
+                      ? ` plus ${templateCarriedTasks.toLocaleString()} task${
+                          templateCarriedTasks === 1 ? "" : "s"
+                        } with their descriptions and comments.`
+                      : " no tasks."}
                   </p>
+
+                  <div className="vf-export-group">
+                    <div className="vf-export-group-head">
+                      <strong>Options</strong>
+                    </div>
+                    <button
+                      type="button"
+                      className="vf-menu-item"
+                      role="checkbox"
+                      aria-checked={includeTasks}
+                      onClick={() => setIncludeTasks(!includeTasks)}
+                    >
+                      <span className="vf-export-field-check">
+                        {includeTasks ? "✓" : ""}
+                      </span>
+                      Include tasks in the template file
+                    </button>
+                    {includeTasks && (
+                      <button
+                        type="button"
+                        className="vf-menu-item"
+                        role="checkbox"
+                        aria-checked={includeArchived}
+                        onClick={() => setIncludeArchived(!includeArchived)}
+                      >
+                        <span className="vf-export-field-check">
+                          {includeArchived ? "✓" : ""}
+                        </span>
+                        Include archived projects and tasks
+                      </button>
+                    )}
+                  </div>
 
                   {error && <p className="vf-error">{error}</p>}
                 </div>

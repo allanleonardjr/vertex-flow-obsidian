@@ -7,6 +7,13 @@ import { parseTemplateMarkdown } from "../../src/core/templates/markdown/parse";
 import { resolveTemplateContent } from "../../src/core/templates/markdown/resolve";
 import { formatTaskId } from "../../src/core/ids";
 import { joinPath } from "../../src/core/links";
+import { emptyRelations } from "../../src/core/types";
+import type {
+	RecurrenceConfig,
+	RecurrenceFrequency,
+	RecurrenceTrigger,
+	Task,
+} from "../../src/core/types";
 import type { TemplateBuildContext } from "../../src/core/templates/types";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -37,6 +44,43 @@ function roundTrip() {
 	const parsed = parseTemplateMarkdown(source);
 	const content = resolveTemplateContent(parsed, ctx());
 	return { source, parsed, content };
+}
+
+/** A minimal, valid recurrence rule for `printRepeatToken` tests. */
+function recurrence(
+	partial: Partial<RecurrenceConfig> & {
+		freq: RecurrenceFrequency;
+		interval?: number;
+		trigger?: RecurrenceTrigger;
+		triggerStatus?: string | null;
+	},
+): RecurrenceConfig {
+	return {
+		trigger: partial.trigger ?? "on-date",
+		triggerStatus: partial.triggerStatus ?? null,
+		freq: partial.freq,
+		interval: partial.interval ?? 1,
+		weekdays: [],
+		dayOfMonth: null,
+		weekdayOfMonth: null,
+		monthOfYear: null,
+		anchor: "dueDate",
+		newStatus: null,
+		endsAfter: null,
+		endsOn: null,
+		nextDate: "2026-09-01",
+		copyFields: null,
+	};
+}
+
+/** A task shaped from the sample snapshot, with controllable links. */
+function task(overrides: Partial<Task> & { id: string; title: string }): Task {
+	return {
+		...snapshot.tasks[0],
+		relations: emptyRelations(),
+		archived: false,
+		...overrides,
+	};
 }
 
 describe("serializeTemplateMarkdown round-trip", () => {
@@ -86,9 +130,11 @@ describe("serializeTemplateMarkdown round-trip", () => {
 		]);
 	});
 
-	it("carries the workspace's Projects and marks supportsExampleContent", () => {
+	it("carries the workspace's Projects (structure, not populatable material)", () => {
 		const { source, parsed, content } = roundTrip();
-		expect(parsed.meta.supportsExampleContent).toBe(true);
+		// Projects are always created, so a Projects-only template has nothing
+		// for the populate toggle to gate — `supportsExampleContent` is false.
+		expect(parsed.meta.supportsExampleContent).toBe(false);
 		expect(parsed.tasks).toEqual([]);
 		expect(parsed.projects.map((p) => p.title)).toEqual(
 			["Core App Experience", "App Store Launch & Marketing", "Developer Platform"],
@@ -160,7 +206,8 @@ describe("serializeTemplateMarkdown round-trip", () => {
 		});
 		const parsed = parseTemplateMarkdown(source);
 		expect(parsed.projects.map((p) => p.title)).not.toContain("Retired Project");
-		expect(parsed.meta.supportsExampleContent).toBe(true);
+		// A Projects-only template is still structure-only: nothing to populate.
+		expect(parsed.meta.supportsExampleContent).toBe(false);
 	});
 
 	it("a workspace with no Projects exports as a blank template", () => {
@@ -175,6 +222,273 @@ describe("serializeTemplateMarkdown round-trip", () => {
 		const parsed = parseTemplateMarkdown(source);
 		expect(parsed.projects).toEqual([]);
 		expect(parsed.meta.supportsExampleContent).toBe(false);
+	});
+
+	it("carries Tasks in the body with links, fences and names", () => {
+		const project = snapshot.projects[0];
+		const status = snapshot.workspace.statuses.find((s) => s.category === "started")!;
+		const priority = snapshot.workspace.priorities[0];
+		const taskType = snapshot.workspace.taskTypes[0];
+		const label = snapshot.workspace.labels[0];
+		const alice = snapshot.workspace.people.find((p) => p.name === "Alice")!;
+		const parent = task({
+			id: "FIX-0102",
+			title: "Parent task",
+			path: joinPath("WS", "Tasks", "FIX-0102"),
+			project: project.path,
+		});
+		const child = task({
+			id: "FIX-0103",
+			title: "Child task",
+			path: joinPath("WS", "Tasks", "FIX-0103"),
+			project: project.path,
+			parent: parent.path,
+			assignee: alice.id,
+			status: status.id,
+			priority: priority.id,
+			taskType: taskType.id,
+			labels: [label.id],
+			estimate: 3,
+			startDate: "2026-09-01",
+			dueDate: "2026-09-15",
+			createdAt: "2026-08-20T09:00:00.000Z",
+			updatedAt: "2026-08-25T14:00:00.000Z",
+			recurrence: recurrence({ freq: "weekly" }),
+			relations: {
+				blocks: [parent.path],
+				blockedBy: [],
+				related: [parent.path],
+				duplicateOf: parent.path,
+			},
+		});
+
+		const source = serializeTemplateMarkdown({
+			meta: { id: "tasked-template", name: "Tasked Template" },
+			workspace: snapshot.workspace,
+			views: [],
+			dashboards: [],
+			projects: snapshot.projects,
+			tasks: [parent, child],
+			taskDescriptions: {
+				[child.path]: "First line.\nSecond line.",
+			},
+			taskComments: {
+				[child.path]: [
+					{
+						id: "c-1",
+						author: alice.id,
+						date: "2026-08-22T11:00:00.000Z",
+						body: "Nice start.",
+						reactions: {},
+						editedAt: null,
+						replyTo: null,
+					},
+				],
+			},
+			queryContext: queryContext(snapshot),
+		});
+
+		// Tasks make the template populatable — that's what the toggle seeds.
+		const parsed = parseTemplateMarkdown(source);
+		expect(parsed.meta.supportsExampleContent).toBe(true);
+		expect(source).toContain("supportsExampleContent: true");
+		expect(parsed.tasks.map((t) => t.anchor)).toContain("FIX-0102");
+		expect(parsed.tasks.map((t) => t.anchor)).toContain("FIX-0103");
+
+		const childParsed = parsed.tasks.find((t) => t.title === "Child task")!;
+		expect(childParsed.project).toBe(project.title);
+		expect(childParsed.parent).toBe("FIX-0102");
+		// Refs are written as names/anchors and re-resolved on import.
+		expect(childParsed.status).toBe(status.name);
+		expect(childParsed.priority).toBe(priority.name);
+		expect(childParsed.type).toBe(taskType.name);
+		expect(childParsed.assignee).toBe("Alice");
+		expect(childParsed.estimate).toBe(3);
+		expect(childParsed.labels).toEqual([label.name]);
+		expect(childParsed.start?.kind).toBe("absolute");
+		expect(childParsed.blocks).toEqual(["FIX-0102"]);
+		expect(childParsed.related).toEqual(["FIX-0102"]);
+		expect(childParsed.duplicateOf).toBe("FIX-0102");
+		expect(childParsed.repeat).toMatchObject({
+			freq: "weekly",
+			interval: 1,
+			onClose: false,
+		});
+		expect(childParsed.description).toBe("First line.\nSecond line.");
+		expect(childParsed.comments).toMatchObject([
+			{ author: "Alice", body: "Nice start." },
+		]);
+
+		// And the resolved re-import lands the same ids the workspace used.
+		const content = resolveTemplateContent(parsed, ctx());
+		const resolvedProject = content.projects.find(
+			(p) => p.title === project.title,
+		)!;
+		const parentResolved = content.tasks.find(
+			(t) => t.title === "Parent task",
+		)!;
+		const childResolved = content.tasks.find((t) => t.title === "Child task")!;
+		expect(childResolved.project).toBe(resolvedProject.path);
+		expect(childResolved.parent).toBe(parentResolved.path);
+		expect(childResolved.assignee).toBe(alice.id);
+		expect(childResolved.status).toBe(status.id);
+		expect(childResolved.priority).toBe(priority.id);
+		expect(childResolved.taskType).toBe(taskType.id);
+		expect(childResolved.labels).toEqual([label.id]);
+		expect(childResolved.estimate).toBe(3);
+		expect(childResolved.startDate).toBe("2026-09-01");
+		expect(childResolved.dueDate).toBe("2026-09-15");
+		expect(childResolved.recurrence?.freq).toBe("weekly");
+		expect(childResolved.relations.blocks).toEqual([parentResolved.path]);
+		expect(childResolved.relations.related).toEqual([parentResolved.path]);
+		expect(childResolved.relations.duplicateOf).toBe(parentResolved.path);
+		expect(content.comments?.get(childResolved.path)?.[0]).toMatchObject({
+			author: alice.id,
+			body: "Nice start.",
+		});
+		expect(content.descriptions?.get(childResolved.path)).toBe(
+			"First line.\nSecond line.\n",
+		);
+	});
+
+	it("prints the repeat shorthand and skips rules it can't express", () => {
+		const serializeWith = (recurrence: RecurrenceConfig) =>
+			serializeTemplateMarkdown({
+				meta: { id: "repeating-template", name: "Repeating Template" },
+				workspace: snapshot.workspace,
+				views: [],
+				dashboards: [],
+				projects: [],
+				tasks: [
+					task({
+						id: "FIX-0104",
+						title: "Recurring task",
+						path: joinPath("WS", "Tasks", "FIX-0104"),
+						recurrence,
+					}),
+				],
+				queryContext: queryContext(snapshot),
+			});
+
+		expect(serializeWith(recurrence({ freq: "weekly" }))).toContain(
+			"repeat: weekly",
+		);
+		expect(
+			serializeWith(
+				recurrence({ freq: "weekly", interval: 2, trigger: "on-close" }),
+			),
+		).toContain("repeat: every 2 weeks when completed");
+		// An on-close rule firing on a specific status has no shorthand — it's
+		// skipped rather than silently flattened into an on-date cadence.
+		expect(
+			serializeWith(
+				recurrence({ freq: "daily", trigger: "on-close", triggerStatus: "s2" }),
+			),
+		).not.toContain("repeat:");
+	});
+
+	it("keeps archived Projects and Tasks only when includeArchived is set", () => {
+		const archivedProject = {
+			...snapshot.projects[0],
+			title: "Retired Project",
+			archived: true,
+			archivedAt: "2026-08-01T12:00:00.000Z",
+		};
+		const archivedTask = task({
+			id: "FIX-0105",
+			title: "Archived task",
+			path: joinPath("WS", "Tasks", "FIX-0105"),
+			project: archivedProject.path,
+			archived: true,
+			archivedAt: "2026-08-02T12:00:00.000Z",
+		});
+
+		const base = {
+			meta: { id: "archived-template", name: "Archived Template" },
+			workspace: snapshot.workspace,
+			views: [],
+			dashboards: [],
+			projects: [...snapshot.projects, archivedProject],
+			tasks: [archivedTask],
+			queryContext: queryContext(snapshot),
+		};
+
+		// Default: both are trash, not template payload.
+		let parsed = parseTemplateMarkdown(
+			serializeTemplateMarkdown(base),
+		);
+		expect(parsed.projects.map((p) => p.title)).not.toContain("Retired Project");
+		expect(parsed.tasks.map((t) => t.title)).not.toContain("Archived task");
+
+		// A full snapshot keeps them — and the archived Task's project link
+		// still resolves, because the archived Project rides along too.
+		const content = resolveTemplateContent(
+			parseTemplateMarkdown(
+				serializeTemplateMarkdown({ ...base, includeArchived: true }),
+			),
+			ctx(),
+		);
+		expect(content.projects.map((p) => p.title)).toContain("Retired Project");
+		const archivedResolved = content.tasks.find(
+			(t) => t.title === "Archived task",
+		)!;
+		const resolvedArchivedProject = content.projects.find(
+			(p) => p.title === archivedProject.title,
+		)!;
+		expect(archivedResolved.archived).toBe(true);
+		expect(archivedResolved.project).toBe(resolvedArchivedProject.path);
+	});
+
+	it("drops dangling task links to Tasks excluded by the archived filter", () => {
+		const kept = task({
+			id: "FIX-0106",
+			title: "Kept task",
+			path: joinPath("WS", "Tasks", "FIX-0106"),
+		});
+		const archived = task({
+			id: "FIX-0107",
+			title: "Archived task",
+			path: joinPath("WS", "Tasks", "FIX-0107"),
+			archived: true,
+			archivedAt: "2026-08-02T12:00:00.000Z",
+			relations: {
+				blocks: [kept.path],
+				blockedBy: [],
+				related: [kept.path],
+				duplicateOf: kept.path,
+			},
+		});
+
+		// Archived excluded, kept included: the archived task isn't serialized,
+		// so nothing dangles. Include archived: the kept link stays, and a link
+		// to an excluded task is dropped rather than breaking the file.
+		const full = parseTemplateMarkdown(
+			serializeTemplateMarkdown({
+				meta: { id: "dangling-template", name: "Dangling Template" },
+				workspace: snapshot.workspace,
+				views: [],
+				dashboards: [],
+				projects: [],
+				tasks: [kept, archived],
+				includeArchived: true,
+				queryContext: queryContext(snapshot),
+			}),
+		);
+		const archivedParsed = full.tasks.find((t) => t.title === "Archived task")!;
+		expect(archivedParsed.blocks).toEqual(["FIX-0106"]);
+		expect(archivedParsed.related).toEqual(["FIX-0106"]);
+		expect(archivedParsed.duplicateOf).toBe("FIX-0106");
+		expect(parseTemplateMarkdown(
+			serializeTemplateMarkdown({
+				meta: { id: "dangling-template", name: "Dangling Template" },
+				workspace: snapshot.workspace,
+				views: [],
+				dashboards: [],
+				projects: [],
+				tasks: [archived],
+				queryContext: queryContext(snapshot),
+			}),
+		).tasks).toEqual([]);
 	});
 
 

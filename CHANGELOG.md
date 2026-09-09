@@ -46,8 +46,9 @@ This project uses [Semantic Versioning](https://semver.org/).
   in the same order as the workspace sidebar. Views, dashboards, the people
   register and Projects are structure and always come with the workspace;
   Tasks are the only example material behind the "Populate with example
-  content" toggle, which is hidden entirely on your own exported templates and
-  stays ticked by default for any built-in whose card previews Projects. The
+  content" toggle, which is ticked by default for any built-in whose card
+  previews Projects and appears on your own templates whenever the export
+  carried tasks. The
   whole footer (Created, Located, "Use this template →") pins to the bottom of
   every card so the action link aligns across the grid.
 - **Exported templates now carry their timestamp.** "Export Workspace as
@@ -56,6 +57,24 @@ This project uses [Semantic Versioning](https://semver.org/).
   date-time line on the card, directly above the "Located:" line. Templates
   exported before this change — or written by hand — simply skip the Created
   line.
+- **Include tasks in an exported template.** "Export Workspace as Template"
+  gains an "Include tasks in the template file" checkbox (off by default) that
+  carries the workspace's tasks into the template's body with their
+  descriptions and comments. Recurrence is written as a compact shorthand
+  (`weekly`, `every 2 weeks`, "… when completed"); rules the shorthand can't
+  express are left out rather than flattened. The existing "Include archived"
+  toggle now covers archived Projects *and* Tasks together so cross-links stay
+  resolvable — links to anything still excluded are dropped instead of left
+  dangling.
+- **Your exported templates can seed tasks too.** A template that carries tasks
+  gains the gallery's "Populate with example content" toggle, so a new
+  workspace created from it starts with your tasks as lightweight copies, like
+  the built-in templates' sample tasks.
+- **Export entry points say what they export.** The right-click menus on
+  **Workspaces**, **Views** and **Projects** now read "Export Tasks…" and
+  "Export as Template…" instead of the ambiguous "Export…" / "Export Workspace
+  as Template…", so a menu makes clear it's exporting data, not launching the
+  template builder.
 
 - **Task editor shows Created and Updated.** The property rail now has read-only
   "Created" and "Updated" rows — Created as a full date-time, Updated as a

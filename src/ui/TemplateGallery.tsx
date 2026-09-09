@@ -317,7 +317,8 @@ function ConfigStep({
   // Projects always come along (they're structure, not example material), so
   // the toggle only gates example Tasks. A template that previews Projects on
   // its card ships those Tasks by default; blank or empty-workspace exports
-  // start unchecked. Local vault templates never see the toggle (see below).
+  // start unchecked. Local vault templates default to no Tasks being created —
+  // including a template's own exported Tasks is explicit, via the toggle.
   const [populate, setPopulate] = useState(
     template.settings.some((s) => s.label === "Projects"),
   );
@@ -384,9 +385,7 @@ function ConfigStep({
         idPrefix: prefix.trim() || undefined,
         icon,
         includeExampleContent:
-          template.supportsExampleContent !== false &&
-          !("path" in template) &&
-          populate,
+          template.supportsExampleContent !== false && populate,
         enableHistory,
         selfPersonName: selfName.trim() || undefined,
       });
@@ -507,10 +506,13 @@ function ConfigStep({
         </small>
       </label>
 
-      {/* Only built-in gallery templates offer example Tasks. A local vault
-          template (one with a `path`, from discovery) has no Tasks by
-          definition, so its toggle would be meaningless — hide it entirely. */}
-      {template.supportsExampleContent !== false && !("path" in template) && (
+      {/* "Populate with example content" gates whatever Tasks the template
+          ships — a built-in gallery template's sample work, or the Tasks a
+          vault template was exported with. `supportsExampleContent` is
+          truthful about whether there's anything to seed: explicitly `false`
+          for blanks, and derived from the `# Tasks` body when a local template
+          doesn't declare it. */}
+      {template.supportsExampleContent !== false && (
         <label className="vf-template-toggle">
           <input
             type="checkbox"
@@ -519,7 +521,11 @@ function ConfigStep({
           />
           <span>
             Populate with example content
-            <small>Adds sample Tasks you can explore, edit, or delete.</small>
+            <small>
+              {"path" in template
+                ? "Creates the template's Tasks in your new workspace."
+                : "Adds sample Tasks you can explore, edit, or delete."}
+            </small>
           </span>
         </label>
       )}

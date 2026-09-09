@@ -113,6 +113,11 @@ export async function runExport(
  * can't live inside one, and only the vault's templates folder(s) are
  * discovered by the New Workspace gallery.
  *
+ * Tasks ride along only when `includeTasks` is set — their descriptions and
+ * comments are read on demand (like Task export does) into the template's
+ * `# Tasks` body. Archived Projects and Tasks ride along only when
+ * `includeArchived` is set, so a full snapshot doesn't leave dangling links.
+ *
  * The frontmatter `id` stays unprefixed (it's what the gallery keys on); only
  * the filename gains the `vertex-flow-template-` prefix so the file stays
  * recognizable once it's out of context.
@@ -125,6 +130,9 @@ export async function exportAsTemplate(
 		description?: string;
 		icon?: string;
 		folder?: string;
+		includeTasks?: boolean;
+		includeArchived?: boolean;
+		onProgress?: (progress: ExportProgress) => void;
 	},
 ): Promise<TFile> {
 	const folder = (form.folder ?? WORKSPACE_TEMPLATES_FOLDER).replace(
@@ -143,11 +151,35 @@ export async function exportAsTemplate(
 
 	// A Project's description lives in its note body, not on the `Project`
 	// record — read it on demand, exactly like Task export reads documents.
-	const activeProjects = snapshot.projects.filter((project) => !project.archived);
+	const activeProjects = snapshot.projects.filter(
+		(project) => form.includeArchived || !project.archived,
+	);
 	const projectDescriptions: Record<string, string> = {};
 	for (const project of activeProjects) {
 		const doc = await host.mutations.readProjectDocument(project);
 		if (doc.description) projectDescriptions[project.path] = doc.description;
+	}
+
+	// Task descriptions and comments are note-body payload too. Read only what
+	// the serializer will carry (archived Tasks follow the same toggle, so the
+	// reading loop and the filtering agree on the same set).
+	let taskDescriptions: Record<string, string> | undefined;
+	let taskComments: Record<string, Comment[]> | undefined;
+	if (form.includeTasks) {
+		const carried = snapshot.tasks.filter(
+			(task) => form.includeArchived || !task.archived,
+		);
+		taskDescriptions = {};
+		taskComments = {};
+		let done = 0;
+		form.onProgress?.({ current: 0, total: carried.length });
+		for (const task of carried) {
+			const doc = await host.mutations.readDocument(task);
+			if (doc.description) taskDescriptions[task.path] = doc.description;
+			if (doc.comments.length > 0) taskComments[task.path] = doc.comments;
+			done += 1;
+			form.onProgress?.({ current: done, total: carried.length });
+		}
 	}
 
 	const content = serializeTemplateMarkdown({
@@ -163,6 +195,10 @@ export async function exportAsTemplate(
 		dashboards: snapshot.dashboards,
 		projects: snapshot.projects,
 		projectDescriptions,
+		tasks: form.includeTasks ? snapshot.tasks : undefined,
+		taskDescriptions: form.includeTasks ? taskDescriptions : undefined,
+		taskComments: form.includeTasks ? taskComments : undefined,
+		includeArchived: form.includeArchived,
 		queryContext: queryContext(snapshot, getMePersonId(snapshot.workspace.root)),
 	});
 

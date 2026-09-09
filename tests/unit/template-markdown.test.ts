@@ -118,9 +118,16 @@ describe("template markdown — schema gate", () => {
 });
 
 describe("template markdown — supportsExampleContent", () => {
-	it("is undefined when omitted", () => {
+	it("is derived from the body's Tasks when omitted — false with none", () => {
 		const parsed = parseTemplateMarkdown(template(HEADER));
-		expect(parsed.meta.supportsExampleContent).toBeUndefined();
+		expect(parsed.meta.supportsExampleContent).toBe(false);
+	});
+
+	it("is derived from the body's Tasks when omitted — true with Tasks", () => {
+		const parsed = parseTemplateMarkdown(
+			template(HEADER, "\n# Projects\n\n# Tasks\n\n## Something\n"),
+		);
+		expect(parsed.meta.supportsExampleContent).toBe(true);
 	});
 
 	it("parses supportsExampleContent: true", () => {

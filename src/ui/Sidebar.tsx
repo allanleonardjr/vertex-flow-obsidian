@@ -655,7 +655,7 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
                   setExportTarget({ workspace: entry });
                 }}
               >
-                Export…
+                Export Tasks…
               </button>
               <button
                 className="vf-menu-item"
@@ -665,7 +665,7 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
                   setExportTarget({ workspace: entry, forceMode: "template" });
                 }}
               >
-                Export Workspace as Template…
+                Export as Template…
               </button>
               <div className="vf-menu-divider" aria-hidden />
               <button
@@ -859,7 +859,7 @@ function ViewsSection({
                     setExportingView(view);
                   }}
                 >
-                  Export…
+                  Export Tasks…
                 </button>
                 <button
                   className="vf-menu-item"
@@ -1200,7 +1200,7 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
                       setExportingProject(project);
                     }}
                   >
-                    Export…
+                    Export Tasks…
                   </button>
                   <button
                     className="vf-menu-item"
