@@ -5,6 +5,8 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.15 — 2026-09-09
+
 ### Added
 - **Export your tasks to CSV, JSON or iCalendar.** Pick a scope — the current
   view, a saved view, a project, or the whole workspace — choose which CSV/JSON
