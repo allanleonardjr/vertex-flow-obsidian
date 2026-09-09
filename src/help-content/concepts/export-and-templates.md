@@ -37,29 +37,49 @@ work regardless.
 ## Export a workspace as a template
 
 **"Export Workspace as Template…"** (available from the same Export dialog and
-the sidebar) captures a workspace's *configuration* as a portable Markdown
-template file: statuses, priorities, task types, labels, the people roster,
-saved views, and dashboards. **Tasks and projects never come along** — the file
-is a starting point, not a backup.
+the sidebar) captures a workspace's setup as a portable Markdown template file:
+statuses, priorities, task types, labels, the people roster, saved views,
+dashboards, and your **Projects** (archived ones are skipped) — each one riding
+in the file's frontmatter, like saved views and dashboards, with its title,
+icon, description, status, priority, owner, labels, and dates. **Tasks never
+come along** — the file is a starting point, not a backup. It's a living
+snapshot of structure, not a copy of your work.
 
 You give the template a **name**, **icon**, and **description**, and pick a
 destination folder — type a folder name or browse for one, with vault-root
-`Templates/` as the default. Exported files carry a `vertex-flow-template-`
-filename prefix so they stay recognizable once they're moved or synced
-elsewhere.
+`Vertex Flow Templates/` as the default. Exported files carry a
+`vertex-flow-template-` filename prefix so they stay recognizable once they're
+moved or synced elsewhere.
 
 ## Create a workspace from your template
 
-The **New Workspace** gallery discovers Markdown templates in your vault's
-`Templates/` folder and shows them beside the bundled ones in a **From your
-Vault** section — each card marked with a "Your template" pill, **Views** and
-**Dashboards** rows in its settings preview (named pills, each with the icon
-the view or dashboard will show, for what the template will create), an
-on-disk **"Located: `Templates/<file>.md`"** line, and a **Created:**
-timestamp when the template carries one. Saving a template
-somewhere outside `Templates/` still works, but the dialog warns it won't
-appear in the gallery.
+The **New Workspace** gallery shows every starting point — your vault's exports
+and the built-ins — on a card that previews what it will actually create: its
+taxonomy (**Statuses**, **Priorities**, **Task Types**, **Labels**), then the
+rest in the same order as the workspace sidebar — the **Default view**, its
+**Views** and **Dashboards** as named pills (carrying the icon they'll show),
+its **Projects**, and its **People**. Your own templates appear beside the
+built-ins in a **From your Vault** section, each card marked with a "Your
+template" pill, a **"Located: `Vertex Flow Templates/<file>.md`"** line (the
+folder the file actually lives in), and a **Created:** timestamp when the file
+carries one. The gallery looks in vault-root `Vertex Flow Templates/` — the
+export default — and still honors the legacy `Templates/` folder, so templates
+exported before the rename keep showing up. Saving a template anywhere else
+still works, but the dialog warns it won't appear in the gallery.
+
+What a card previews is what you get:
+
+- **Views, dashboards, the people register, and Projects are structure.** A
+  template always creates them, whether or not you tick **"Populate with
+  example content"**.
+- **Tasks are the only example material.** The toggle adds sample Tasks (and,
+  for built-ins, the seeded history walk-through); untick it for the bare
+  structure — Projects still come along. Only built-in gallery templates offer
+  the toggle: a built-in that previews Projects starts with it on, and your
+  exported templates have no Tasks by definition, so they never show it. A
+  template exported from an empty workspace carries no Projects either, so its
+  card simply shows no Projects row.
 
 Picking one of your templates creates a fresh workspace that starts with the
-exported taxonomy, views, dashboards, and people — a new workspace that already
-feels like the one you exported.
+exported taxonomy, views, dashboards, people, and projects — a new workspace
+that already feels like the one you exported.

@@ -65,8 +65,8 @@ workspace templates** in Concepts.
 
 **Can I reuse an existing workspace as a starting point?**
 Yes — **"Export Workspace as Template"** captures a workspace's statuses,
-priorities, task types, labels, people, saved views, and dashboards as a
-portable Markdown template. Pick a destination folder (you can type one or
-browse; vault-root `Templates/` is the default), and a template saved there
-shows up in the New Workspace gallery under **From your Vault**, ready to seed
-a fresh workspace. It never includes tasks or projects.
+priorities, task types, labels, people, saved views, dashboards, and projects
+(archived ones are skipped) as a portable Markdown template. Pick a destination
+folder (you can type one or browse; vault-root `Vertex Flow Templates/` is the
+default), and a template saved there shows up in the New Workspace gallery under
+**From your Vault**, ready to seed a fresh workspace. It never includes tasks.

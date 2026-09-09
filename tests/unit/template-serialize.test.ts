@@ -31,6 +31,7 @@ function roundTrip() {
 		workspace: snapshot.workspace,
 		views: snapshot.views.filter((v) => !isSystemViewId(v.id)),
 		dashboards: snapshot.dashboards,
+		projects: snapshot.projects,
 		queryContext: queryContext(snapshot),
 	});
 	const parsed = parseTemplateMarkdown(source);
@@ -85,12 +86,94 @@ describe("serializeTemplateMarkdown round-trip", () => {
 		]);
 	});
 
-	it("emits empty Projects/Tasks and supportsExampleContent: false", () => {
-		const { parsed, content } = roundTrip();
-		expect(parsed.projects).toEqual([]);
+	it("carries the workspace's Projects and marks supportsExampleContent", () => {
+		const { source, parsed, content } = roundTrip();
+		expect(parsed.meta.supportsExampleContent).toBe(true);
 		expect(parsed.tasks).toEqual([]);
-		expect(content.projects).toEqual([]);
-		expect(content.tasks).toEqual([]);
+		expect(parsed.projects.map((p) => p.title)).toEqual(
+			["Core App Experience", "App Store Launch & Marketing", "Developer Platform"],
+		);
+		// The frontmatter entry is written in taxonomy names, so a re-import
+		// resolves status/priority against the very statuses this template ships.
+		expect(content.projects.map((p) => p.title)).toEqual(parsed.projects.map((p) => p.title));
+		expect(content.projects.map((p) => p.status)).toEqual(
+			snapshot.projects.map((p) => p.status),
+		);
+		expect(content.projects.map((p) => p.createdAt)).toEqual(
+			snapshot.projects.map((p) => p.createdAt),
+		);
+		// Projects ride in frontmatter like Views/Dashboards, not as body sections.
+		expect(source).toContain("projects:");
+		expect(source).toContain(`title: ${snapshot.projects[0].title}`);
+	});
+
+	it("carries a Project's icon, description and dates", () => {
+		const project = {
+			...snapshot.projects[0],
+			icon: "briefcase",
+			startDate: "2026-09-01",
+			dueDate: "2026-09-30",
+		};
+		const source = serializeTemplateMarkdown({
+			meta: { id: "my-template", name: "My Template" },
+			workspace: snapshot.workspace,
+			views: [],
+			dashboards: [],
+			projects: [project],
+			projectDescriptions: { [project.path]: "The flagship app." },
+			queryContext: queryContext(snapshot),
+		});
+		const parsed = parseTemplateMarkdown(source);
+		expect(parsed.projects[0]).toMatchObject({
+			title: project.title,
+			icon: "briefcase",
+			status: snapshot.workspace.statuses.find((s) => s.id === project.status)?.name,
+			description: "The flagship app.",
+		});
+		expect(parsed.projects[0].start?.kind).toBe("absolute");
+		expect(parsed.projects[0].due?.kind).toBe("absolute");
+		const content = resolveTemplateContent(parsed, ctx());
+		expect(content.projects[0].icon).toBe("briefcase");
+		expect(content.projects[0].startDate).toBe("2026-09-01");
+		expect(content.projects[0].dueDate).toBe("2026-09-30");
+		expect(content.projectDescriptions?.get(content.projects[0].path)).toBe(
+			"The flagship app.\n",
+		);
+		// The description survives as frontmatter, not a body section.
+		expect(source).toContain("description: The flagship app.");
+	});
+
+	it("drops archived projects from the template", () => {
+		const archived = {
+			...snapshot.projects[0],
+			title: "Retired Project",
+			archived: true,
+			archivedAt: "2026-08-01T12:00:00.000Z",
+		};
+		const source = serializeTemplateMarkdown({
+			meta: { id: "my-template", name: "My Template" },
+			workspace: snapshot.workspace,
+			views: [],
+			dashboards: [],
+			projects: [...snapshot.projects, archived],
+			queryContext: queryContext(snapshot),
+		});
+		const parsed = parseTemplateMarkdown(source);
+		expect(parsed.projects.map((p) => p.title)).not.toContain("Retired Project");
+		expect(parsed.meta.supportsExampleContent).toBe(true);
+	});
+
+	it("a workspace with no Projects exports as a blank template", () => {
+		const source = serializeTemplateMarkdown({
+			meta: { id: "empty-template", name: "Empty Template" },
+			workspace: snapshot.workspace,
+			views: [],
+			dashboards: [],
+			projects: [],
+			queryContext: queryContext(snapshot),
+		});
+		const parsed = parseTemplateMarkdown(source);
+		expect(parsed.projects).toEqual([]);
 		expect(parsed.meta.supportsExampleContent).toBe(false);
 	});
 
@@ -105,6 +188,7 @@ describe("serializeTemplateMarkdown round-trip", () => {
 			workspace: snapshot.workspace,
 			views: snapshot.views.filter((v) => !isSystemViewId(v.id)),
 			dashboards: snapshot.dashboards,
+			projects: snapshot.projects,
 			queryContext: queryContext(snapshot),
 		});
 		const parsed = parseTemplateMarkdown(source);

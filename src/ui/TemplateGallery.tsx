@@ -14,7 +14,6 @@ import { Notice, TFolder } from "obsidian";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   WORKSPACE_TEMPLATES,
-  iconSetting,
   type TemplateSetting,
   type WorkspaceTemplate,
 } from "../core/templates";
@@ -214,21 +213,9 @@ function TemplateCard({
   template,
   onPick,
 }: {
-  template: WorkspaceTemplate & {
-    path?: string;
-    templateViews?: { name: string; icon?: string }[];
-    templateDashboards?: { name: string; icon?: string }[];
-  };
+  template: WorkspaceTemplate & { path?: string };
   onPick: (template: WorkspaceTemplate) => void;
 }) {
-  // A template that opts out of example content (an exported workspace) always
-  // creates its views and dashboards, so they're safe to preview on the card.
-  // Built-in, example-content templates only create theirs when the user ticks
-  // "Populate with example content" — previewing them unconditionally would
-  // overpromise.
-  const guaranteesContent = template.supportsExampleContent === false;
-  const templateViews = template.templateViews ?? [];
-  const templateDashboards = template.templateDashboards ?? [];
   return (
     <div
       data-template={template.id}
@@ -257,12 +244,6 @@ function TemplateCard({
         {template.settings.map((setting) => (
           <SettingRow key={setting.label} setting={setting} />
         ))}
-        {guaranteesContent && templateViews.length > 0 && (
-          <SettingRow setting={iconSetting("Views", templateViews)} />
-        )}
-        {guaranteesContent && templateDashboards.length > 0 && (
-          <SettingRow setting={iconSetting("Dashboards", templateDashboards)} />
-        )}
       </dl>
       <div className="vf-template-card-footer">
         {template.path && (
@@ -333,7 +314,13 @@ function ConfigStep({
   // Clearing the field re-links it to the name.
   const [prefixOverride, setPrefixOverride] = useState<string | null>(null);
   const [selfName, setSelfName] = useState(mePrefill?.name ?? "");
-  const [populate, setPopulate] = useState(false);
+  // Projects always come along (they're structure, not example material), so
+  // the toggle only gates example Tasks. A template that previews Projects on
+  // its card ships those Tasks by default; blank or empty-workspace exports
+  // start unchecked. Local vault templates never see the toggle (see below).
+  const [populate, setPopulate] = useState(
+    template.settings.some((s) => s.label === "Projects"),
+  );
   // The template decides its own default (`history: true` in frontmatter
   // opts the workspace in); the creator can flip it here. Mirrors the
   // config-creation pattern of `populate`.
@@ -397,7 +384,9 @@ function ConfigStep({
         idPrefix: prefix.trim() || undefined,
         icon,
         includeExampleContent:
-          template.supportsExampleContent !== false && populate,
+          template.supportsExampleContent !== false &&
+          !("path" in template) &&
+          populate,
         enableHistory,
         selfPersonName: selfName.trim() || undefined,
       });
@@ -518,7 +507,10 @@ function ConfigStep({
         </small>
       </label>
 
-      {template.supportsExampleContent !== false && (
+      {/* Only built-in gallery templates offer example Tasks. A local vault
+          template (one with a `path`, from discovery) has no Tasks by
+          definition, so its toggle would be meaningless — hide it entirely. */}
+      {template.supportsExampleContent !== false && !("path" in template) && (
         <label className="vf-template-toggle">
           <input
             type="checkbox"
@@ -527,9 +519,7 @@ function ConfigStep({
           />
           <span>
             Populate with example content
-            <small>
-              Adds sample Projects and Tasks you can explore, edit, or delete.
-            </small>
+            <small>Adds sample Tasks you can explore, edit, or delete.</small>
           </span>
         </label>
       )}

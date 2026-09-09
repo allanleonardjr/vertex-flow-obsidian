@@ -3,10 +3,13 @@
  * `type: vertex-flow-workspace-template` markdown file the New Workspace
  * gallery can offer.
  *
- * Settings only — no Projects, no Tasks, no `history` toggle, no `*` "me"
- * marker. `# Projects` and `# Tasks` are emitted empty, exactly like
- * `templates/blank-workspace.md`. `supportsExampleContent: false` always: there
- * is nothing to populate.
+ * Configuration plus Projects — statuses, priorities, task types, labels, the
+ * people roster, saved views, dashboards, and each (non-archived) Project as a
+ * frontmatter entry (same shape as Views/Dashboards) carrying its title, icon,
+ * description, status/priority/owner/labels and dates. No Tasks, no task
+ * comments, no `history` toggle, no `*` "me" marker. `supportsExampleContent`
+ * is truthful about all of that: `true` when the template carries Projects,
+ * `false` (blank, like `blank-workspace.md`) when it has nothing to populate.
  *
  * Pure — no Obsidian import (Golden Rule); `yaml` is the one sanctioned
  * dependency, already used by `parse.ts` for the reverse direction.
@@ -19,6 +22,7 @@ import type {
 	DashboardConfig,
 	DashboardWidget,
 	PriorityValue,
+	Project,
 	SavedView,
 	StatusValue,
 	TaskTypeValue,
@@ -34,6 +38,11 @@ export interface TemplateSerializeInput {
 	/** Every Saved View to carry over — the caller drops synthetic System Views. */
 	views: SavedView[];
 	dashboards: DashboardConfig[];
+	/** The workspace's Projects; archived ones are dropped by the serializer. */
+	projects: Project[];
+	/** A project's body description — the part that doesn't live on the bare
+	 *  `Project` record — keyed by `project.path`. */
+	projectDescriptions?: Record<string, string>;
 	/** For `printQuery` / `printFilters` — build it with `queryContext(snapshot)`. */
 	queryContext: QueryContext;
 }
@@ -142,13 +151,54 @@ function viewMap(view: SavedView, context: QueryContext): Record<string, unknown
 	return map;
 }
 
+/* ----------------------------------------------------------- projects ------ */
+
+/** A Project rides in frontmatter, same shape as Views/Dashboards, so every
+ *  property survives the trip. References (status/priority/owner/labels) are
+ *  written as *names* rather than ids — the parser re-resolves them against the
+ *  same taxonomy this template ships, exactly as the old body field line did. */
+function projectMap(
+	project: Project,
+	description: string | undefined,
+	workspace: WorkspaceConfig,
+): Record<string, unknown> {
+	const nameById = (list: { id: string; name: string }[], id: string | null) =>
+		list.find((v) => v.id === id)?.name;
+
+	const map: Record<string, unknown> = { title: project.title };
+	if (project.icon) map.icon = project.icon;
+	if (description?.trim()) map.description = description.trim();
+
+	const status = nameById(workspace.statuses, project.status);
+	if (status) map.status = status;
+	const priority = nameById(workspace.priorities, project.priority);
+	if (priority) map.priority = priority;
+	if (project.labels.length > 0) {
+		map.labels = project.labels
+			.map((id) => nameById(workspace.labels, id))
+			.filter((n): n is string => Boolean(n));
+	}
+	const owner = nameById(workspace.people, project.owner);
+	if (owner) map.owner = owner;
+
+	if (project.startDate) map.start = project.startDate;
+	if (project.dueDate) map.due = project.dueDate;
+	if (project.createdAt) map.created = project.createdAt;
+	if (project.updatedAt) map.updated = project.updatedAt;
+	return map;
+}
+
 /* ------------------------------------------------------------- entry ----- */
 
 export function serializeTemplateMarkdown(input: TemplateSerializeInput): string {
-	const { meta, workspace, views, dashboards, queryContext } = input;
+	const { meta, workspace, views, dashboards, projects, projectDescriptions, queryContext } =
+		input;
 
 	const statuses = [...workspace.statuses].sort((a, b) => a.order - b.order);
 	const priorities = [...workspace.priorities].sort((a, b) => a.order - b.order);
+
+	// Archived projects are workspace trash, not template payload.
+	const activeProjects = projects.filter((p) => !p.archived);
 
 	const frontmatter: Record<string, unknown> = {
 		templateSchema: TEMPLATE_SCHEMA_VERSION,
@@ -160,7 +210,8 @@ export function serializeTemplateMarkdown(input: TemplateSerializeInput): string
 	};
 	if (meta.icon) frontmatter.icon = meta.icon;
 	if (meta.createdAt) frontmatter.createdAt = meta.createdAt;
-	frontmatter.supportsExampleContent = false;
+	// Truthful: the toggle populates something only when Projects ride along.
+	frontmatter.supportsExampleContent = activeProjects.length > 0;
 
 	frontmatter.statuses = statuses.map(statusShorthand);
 	frontmatter.priorities = priorities.map(flatShorthand);
@@ -179,7 +230,16 @@ export function serializeTemplateMarkdown(input: TemplateSerializeInput): string
 			dashboardMap(dashboard, queryContext),
 		);
 	}
+	if (activeProjects.length > 0) {
+		frontmatter.projects = activeProjects.map((project) =>
+			projectMap(project, projectDescriptions?.[project.path], workspace),
+		);
+	}
 
 	const yaml = stringifyYaml(frontmatter);
+
+	// Projects ride in frontmatter, so the body is empty scaffolding — the
+	// grammar a template's body conforms to is still exactly "# Projects" and
+	// "# Tasks", and a hand-author adding `##` sections from there works.
 	return `---\n${yaml}---\n\n# Projects\n\n# Tasks\n`;
 }

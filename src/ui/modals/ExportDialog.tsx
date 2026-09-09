@@ -35,6 +35,7 @@ import {
   runExport,
   type ExportProgress,
 } from "../../obsidian/export";
+import { WORKSPACE_TEMPLATES_FOLDER } from "../../obsidian/template-folder";
 import { usePlugin } from "../context";
 import { useMePersonId } from "../useMe";
 import { IconField } from "../components/Icon";
@@ -125,10 +126,10 @@ export function ExportDialog({
   const [tplIcon, setTplIcon] = useState<string | undefined>(
     snapshot.workspace.icon,
   );
-  // The canonical `Templates/` folder is the gallery's only discovery target,
-  // so it's the default; picking elsewhere saves fine but hides the template
-  // from the New Workspace gallery (surfaced in the UI below).
-  const [tplLocation, setTplLocation] = useState("Templates");
+  // The canonical `Vertex Flow Templates/` folder is the gallery's primary
+  // discovery target, so it's the default; picking elsewhere saves fine but
+  // hides the template from the New Workspace gallery (surfaced below).
+  const [tplLocation, setTplLocation] = useState(WORKSPACE_TEMPLATES_FOLDER);
 
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<ExportProgress | null>(null);
@@ -576,20 +577,19 @@ export function ExportDialog({
                         <option key={path} value={path} />
                       ))}
                     </datalist>
-                    {tplLocation.trim() !== "Templates" && (
+                    {tplLocation.trim() !== WORKSPACE_TEMPLATES_FOLDER && (
                       <small className="vf-field-hint">
-                        Templates outside <code>Templates/</code> won't show up
-                        in the New Workspace gallery.
+                        Templates outside <code>{WORKSPACE_TEMPLATES_FOLDER}/</code>
+                        won't show up in the New Workspace gallery.
                       </small>
                     )}
                   </label>
 
                   <p className="vf-export-preview">
-                    <strong>This exports your workspace configuration.</strong>
+                    <strong>This exports your workspace setup.</strong>
                     <br />
                     Captures statuses, priorities, task types, labels, the
-                    people roster, saved views and dashboards — no tasks or
-                    projects.
+                    people roster, saved views, dashboards and projects — no tasks.
                   </p>
 
                   {error && <p className="vf-error">{error}</p>}

@@ -431,6 +431,7 @@ export function resolveTemplateContent(
 			priority: parsedProject.priority
 				? resolvePriority(parsedProject.priority, parsedProject.line)
 				: null,
+			icon: parsedProject.icon,
 			owner: parsedProject.owner
 				? resolvePerson(parsedProject.owner, parsedProject.line)
 				: null,

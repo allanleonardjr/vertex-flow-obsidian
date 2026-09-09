@@ -114,7 +114,11 @@ export interface WorkspaceTemplate extends TemplateMeta {
 	views?: SavedView[];
 	/** The `people` id this template marks as "me" (`"Name*"`), if any. */
 	mePersonId?: string;
-	/** Called only when the user opts to populate with example content. */
+	/** Called for every instantiation. Views, dashboards, people, taxonomy and
+	 *  Projects ride the returned content as *structure* and are applied whether
+	 *  or not the creator opts into example content; only the returned tasks
+	 *  (and their descriptions/comments) are example material, applied solely
+	 *  when the user ticks "Populate with example content". */
 	buildExampleContent(ctx: TemplateBuildContext): TemplateContent;
 }
 

@@ -9,6 +9,7 @@ import {
 } from "../../src/core/serialization/description";
 import { COMMENTS_START } from "../../src/core/serialization/comments";
 import { workspaceTaxonomies } from "../../src/core/taxonomy";
+import { isSystemViewId } from "../../src/core/views";
 import type { Task } from "../../src/core/types";
 
 /** Every gallery template is expected to exist; `templateById` returning
@@ -137,6 +138,21 @@ describe("every template's example content is a full feature showcase", () => {
 					snapshot.workspace.labels.map((l) => l.name),
 				);
 			});
+
+			it("card previews match the created views and dashboards", () => {
+				const names = (label: string) =>
+					template.settings
+						.find((s) => s.label === label)
+						?.values.map((v) => v.name) ?? [];
+				expect(names("Views")).toEqual(
+					snapshot.views
+						.filter((v) => !isSystemViewId(v.id))
+						.map((v) => v.name),
+				);
+				expect(names("Dashboards")).toEqual(
+					snapshot.dashboards.map((d) => d.name),
+				);
+			});
 		});
 	}
 });
@@ -186,6 +202,41 @@ describe("instantiateTemplate — self person seeding", () => {
 		});
 		expect(workspace.people.filter((p) => p.name === "Alice")).toHaveLength(1);
 		expect(personId).toBe("alice");
+	});
+});
+
+describe("views, dashboards, people and Projects are structure, not example material", () => {
+	it("a built-in template instantiated without populate still ships them", () => {
+		const { snapshot, notes } = instantiateTemplate({
+			...base,
+			template: requireTemplate("agency-client-management"),
+			includeExampleContent: false,
+			now: new Date("2026-08-26T12:00:00Z"),
+		});
+		// The people register a template defines always lands.
+		expect(snapshot.workspace.people.map((p) => p.name)).toEqual([
+			"You",
+			"Jordan",
+		]);
+		// Its Saved Views and Dashboards are created whether or not the creator
+		// opted into example content.
+		expect(
+			snapshot.views.filter((v) => !isSystemViewId(v.id)).length,
+		).toBeGreaterThan(0);
+		expect(snapshot.dashboards.length).toBeGreaterThan(0);
+		expect(
+			notes.some((n) => n.path.startsWith(`${base.root}/Views/`)),
+		).toBe(true);
+		expect(
+			notes.some((n) => n.path.startsWith(`${base.root}/Dashboards/`)),
+		).toBe(true);
+		// Projects are structure — they come along even without populate, and
+		// their notes are emitted. Only Tasks stay gated on the toggle.
+		expect(snapshot.projects.length).toBeGreaterThan(0);
+		expect(
+			notes.some((n) => n.path.startsWith(`${base.root}/Projects/`)),
+		).toBe(true);
+		expect(snapshot.tasks).toHaveLength(0);
 	});
 });
 

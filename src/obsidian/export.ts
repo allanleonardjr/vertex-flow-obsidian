@@ -25,6 +25,7 @@ import { queryContext } from "../core/query";
 import { isSystemViewId, snapshotContext } from "../core/views";
 import type { Comment, WorkspaceSnapshot } from "../core/types";
 import type { NoteIO } from "./note-io";
+import { WORKSPACE_TEMPLATES_FOLDER } from "./template-folder";
 import type { Mutations } from "./mutations";
 import { getMePersonId } from "./me-storage";
 
@@ -105,11 +106,12 @@ export async function runExport(
 }
 
 /**
- * Capture a workspace's taxonomy, views, dashboards and people roster as a
- * `type: vertex-flow-workspace-template` markdown file under the caller's
- * chosen folder (default vault-root `Templates/`) — a template exists to create
- * a workspace, so it can't live inside one, and only the canonical `Templates/`
- * folder is discovered by the New Workspace gallery.
+ * Capture a workspace's taxonomy, views, dashboards, people roster and Projects
+ * (with their descriptions) as a `type: vertex-flow-workspace-template` markdown
+ * file under the caller's chosen folder (default vault-root
+ * `Vertex Flow Templates/`) — a template exists to create a workspace, so it
+ * can't live inside one, and only the vault's templates folder(s) are
+ * discovered by the New Workspace gallery.
  *
  * The frontmatter `id` stays unprefixed (it's what the gallery keys on); only
  * the filename gains the `vertex-flow-template-` prefix so the file stays
@@ -125,7 +127,10 @@ export async function exportAsTemplate(
 		folder?: string;
 	},
 ): Promise<TFile> {
-	const folder = (form.folder ?? "Templates").replace(/^\/+|\/+$/g, "");
+	const folder = (form.folder ?? WORKSPACE_TEMPLATES_FOLDER).replace(
+		/^\/+|\/+$/g,
+		"",
+	);
 	const existingIds = host.io
 		.listFiles(folder)
 		.filter((file) => file.extension === "md")
@@ -135,6 +140,15 @@ export async function exportAsTemplate(
 		...existingIds,
 	]);
 	const id = slugify(form.name, taken);
+
+	// A Project's description lives in its note body, not on the `Project`
+	// record — read it on demand, exactly like Task export reads documents.
+	const activeProjects = snapshot.projects.filter((project) => !project.archived);
+	const projectDescriptions: Record<string, string> = {};
+	for (const project of activeProjects) {
+		const doc = await host.mutations.readProjectDocument(project);
+		if (doc.description) projectDescriptions[project.path] = doc.description;
+	}
 
 	const content = serializeTemplateMarkdown({
 		meta: {
@@ -147,6 +161,8 @@ export async function exportAsTemplate(
 		workspace: snapshot.workspace,
 		views: snapshot.views.filter((view) => !isSystemViewId(view.id)),
 		dashboards: snapshot.dashboards,
+		projects: snapshot.projects,
+		projectDescriptions,
 		queryContext: queryContext(snapshot, getMePersonId(snapshot.workspace.root)),
 	});
 

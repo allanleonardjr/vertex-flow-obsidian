@@ -78,6 +78,7 @@ export interface ParsedProject {
 	priority?: string;
 	owner?: string;
 	labels?: string[];
+	icon?: string;
 	start?: ParsedDate;
 	due?: ParsedDate;
 	created?: ParsedDate;

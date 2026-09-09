@@ -107,8 +107,8 @@ export class NoteIO {
 	 * Write an arbitrary (non-note) file into the vault, creating its folder if
 	 * needed. Unlike `create()`/`append()`, the path is used exactly as given —
 	 * no `.md` coercion — so this is what the export feature writes `.csv` /
-	 * `.json` / `.ics` (and vault-root `Templates/*.md`) through. Refuses to
-	 * overwrite, mirroring `create()`.
+	 * `.json` / `.ics` (and vault-root `Vertex Flow Templates/*.md`) through.
+	 * Refuses to overwrite, mirroring `create()`.
 	 */
 	async writeRaw(path: string, content: string): Promise<TFile> {
 		const target = normalizePath(path);

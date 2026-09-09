@@ -15,7 +15,7 @@ independent workspaces as you like.
   a task **ID prefix**. Everything inside lives in that folder. The gallery
   also lists templates you've exported from your own workspaces under **From
   your Vault** — picking one seeds a new workspace with the exported taxonomy,
-  views, dashboards, and people. See [Export & workspace
+  views, dashboards, people, and projects. See [Export & workspace
   templates](export-and-templates.md).
 - **Switch** between workspaces from the same section. You can even open
   several workspaces side by side — each tab is tinted with its workspace's

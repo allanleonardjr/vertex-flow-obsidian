@@ -18,11 +18,14 @@ This project uses [Semantic Versioning](https://semver.org/).
   **Workspaces**, **Views** and **Projects** — each opening the dialog already
   locked to what you clicked.
 - **Export a workspace as a template.** "Export Workspace as Template" captures
-  the workspace's taxonomy, views, dashboards and people roster as a portable
-  markdown template file — no tasks or projects. Choose the destination folder
-  from a picker or by typing (default `Templates/`, the folder the New Workspace
-  gallery discovers; a hint warns when a template is saved somewhere the gallery
-  won't see).
+  the workspace's taxonomy, views, dashboards, people roster and **Projects**
+  as a portable markdown template file — no tasks. Each Project rides in the
+  file's frontmatter like a saved view: title, icon, description,
+  status/priority/owner/labels, and dates (archived projects are dropped).
+  Choose the destination folder from a picker or by typing (default
+  `Vertex Flow Templates/`, the folder the New Workspace gallery discovers; the
+  legacy `Templates/` folder is still discovered too, and a hint warns when a
+  template is saved somewhere the gallery won't see).
 - **Result view instead of a toast.** After an export, the dialog shows the
   resulting file's path with actions to **Reveal in Finder / File Manager** or
   **Open in Obsidian** — useful for `.csv`/`.json`/`.ics` files, which
@@ -31,15 +34,22 @@ This project uses [Semantic Versioning](https://semver.org/).
   `LAST-MODIFIED` and `SEQUENCE` stamps derived from the task's created/updated
   dates, so re-importing a calendar doesn't churn or lose change history.
 - **Your templates are clearly your own.** In the New Workspace gallery,
-  vault-authored templates (from your vault's `Templates/`) are set apart from
-  the built-ins: a "From your Vault" section badge, a subtle accent border on
-  the cards, a "Your template" pill on each card, and the on-disk location —
-  "Located: `Templates/<file>.md`" — shown below the settings on the card.
-  The card previews exactly what the template will create, so exported-template
-  cards add **Views** and **Dashboards** rows to their settings block — named
-  pills, each with the icon that view or dashboard will show — and the whole
-  footer (Created, Located, "Use this template →") pins to the bottom of every
-  card so the action link aligns across the grid.
+  vault-authored templates (from your vault's `Vertex Flow Templates/`, plus
+  legacy `Templates/`) are set apart from the built-ins: a "From your Vault"
+  section badge, a subtle accent border on the cards, a "Your template" pill on
+  each card, and the on-disk location — "Located: `Vertex Flow
+  Templates/<file>.md`" — shown below the settings on the card.
+  The card previews exactly what the template will create: every card — built-in
+  or exported — shows the template's taxonomy plus the **Default view**,
+  **Views** and **Dashboards** (named pills, each with the icon that view or
+  dashboard will show), **Projects** (each with its icon), and **People** rows
+  in the same order as the workspace sidebar. Views, dashboards, the people
+  register and Projects are structure and always come with the workspace;
+  Tasks are the only example material behind the "Populate with example
+  content" toggle, which is hidden entirely on your own exported templates and
+  stays ticked by default for any built-in whose card previews Projects. The
+  whole footer (Created, Located, "Use this template →") pins to the bottom of
+  every card so the action link aligns across the grid.
 - **Exported templates now carry their timestamp.** "Export Workspace as
   Template" stamps each exported template file with a `createdAt` timestamp in
   its frontmatter, and the New Workspace gallery shows it as a "Created:"

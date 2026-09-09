@@ -7,6 +7,10 @@ import { queryContext } from "../../src/core/query";
 import { isSystemViewId } from "../../src/core/views";
 import { serializeTemplateMarkdown } from "../../src/core/templates/markdown/serialize";
 import { discoverVaultTemplates } from "../../src/obsidian/template-discovery";
+import {
+	LEGACY_WORKSPACE_TEMPLATES_FOLDER,
+	WORKSPACE_TEMPLATES_FOLDER,
+} from "../../src/obsidian/template-folder";
 import type { NoteIO } from "../../src/obsidian/note-io";
 
 const snapshot = sampleSnapshot();
@@ -17,6 +21,7 @@ function templateSource(id: string): string {
 		workspace: snapshot.workspace,
 		views: snapshot.views.filter((v) => !isSystemViewId(v.id)),
 		dashboards: snapshot.dashboards,
+		projects: snapshot.projects,
 		queryContext: queryContext(snapshot),
 	});
 }
@@ -26,11 +31,12 @@ function fakeIo(files: Record<string, string>): NoteIO {
 		name,
 		basename: name.replace(/\.md$/, ""),
 		extension: name.split(".").pop() ?? "",
-		path: `Templates/${name}`,
+		path: `${WORKSPACE_TEMPLATES_FOLDER}/${name}`,
 		content,
 	}));
 	return {
-		listFiles: () => entries,
+		listFiles: (folderPath: string) =>
+			entries.filter((entry) => entry.path.startsWith(`${folderPath}/`)),
 		read: async (file: { content: string }) => file.content,
 	} as unknown as NoteIO;
 }
@@ -41,17 +47,41 @@ describe("discoverVaultTemplates", () => {
 		const found = await discoverVaultTemplates(io);
 		expect(found).toHaveLength(1);
 		expect(found[0].id).toBe("team");
-		expect(found[0].path).toBe("Templates/team.md");
+		expect(found[0].path).toBe(`${WORKSPACE_TEMPLATES_FOLDER}/team.md`);
 		expect(typeof found[0].buildExampleContent).toBe("function");
 		expect(found[0].workspace?.statuses?.length).toBe(6);
-		expect(found[0].templateViews).toEqual(
+		const labeledValueNames = (label: string) =>
+			found[0].settings
+				.find((s) => s.label === label)
+				?.values.map((v) => v.name) ?? [];
+		expect(labeledValueNames("Views")).toEqual(
 			snapshot.views
 				.filter((v) => !isSystemViewId(v.id))
-				.map((v) => ({ name: v.name, icon: v.icon })),
+				.map((v) => v.name),
 		);
-		expect(found[0].templateDashboards).toEqual(
-			snapshot.dashboards.map((d) => ({ name: d.name, icon: d.icon })),
+		expect(labeledValueNames("Dashboards")).toEqual(
+			snapshot.dashboards.map((d) => d.name),
 		);
+		// A template exported from a workspace carries its Projects.
+		expect(labeledValueNames("Projects")).toEqual(
+			snapshot.projects.map((p) => p.title),
+		);
+		expect(labeledValueNames("People")).toEqual(
+			snapshot.workspace.people.map((p) => p.name),
+		);
+		// The icon rides along on each preview row, so the pill can render a glyph.
+		const viewRow = found[0].settings.find((s) => s.label === "Views")!;
+		expect(viewRow.values.every((v, i) => v.icon === snapshot.views
+				.filter((w) => !isSystemViewId(w.id))[i].icon)).toBe(true);
+		// People pills carry the user glyph; project pills their own icon (none
+		// here, so the fallback renders — the icon field is simply optional).
+		const peopleRow = found[0].settings.find((s) => s.label === "People")!;
+		expect(peopleRow.values.every((v) => v.icon === "user")).toBe(true);
+		expect(
+			found[0].settings.find((s) => s.label === "Projects")?.values.every(
+				(v) => v.icon === undefined,
+			),
+		).toBe(true);
 	});
 
 	it("skips a malformed file without throwing, warning once", async () => {
@@ -80,6 +110,26 @@ describe("discoverVaultTemplates", () => {
 		expect(found.map((t) => t.id)).toEqual(["t"]);
 	});
 
+	it("still discovers templates in the legacy Templates/ folder", async () => {
+		const entries = {
+			"legacy.md": templateSource("legacy"),
+		};
+		const io = {
+			listFiles: () =>
+				Object.entries(entries).map(([name, content]) => ({
+					name,
+					basename: name.replace(/\.md$/, ""),
+					extension: name.split(".").pop() ?? "",
+					path: `${LEGACY_WORKSPACE_TEMPLATES_FOLDER}/${name}`,
+					content,
+				})),
+			read: async (file: { content: string }) => file.content,
+		} as unknown as NoteIO;
+		const found = await discoverVaultTemplates(io);
+		expect(found.map((t) => t.id)).toEqual(["legacy"]);
+		expect(found[0].path).toBe(`${LEGACY_WORKSPACE_TEMPLATES_FOLDER}/legacy.md`);
+	});
+
 
 	it("propagates an optional createdAt onto the VaultTemplate", async () => {
 		const source = serializeTemplateMarkdown({
@@ -91,6 +141,7 @@ describe("discoverVaultTemplates", () => {
 			workspace: snapshot.workspace,
 			views: snapshot.views.filter((v) => !isSystemViewId(v.id)),
 			dashboards: snapshot.dashboards,
+			projects: snapshot.projects,
 			queryContext: queryContext(snapshot),
 		});
 		const io = fakeIo({ "dated.md": source });
@@ -98,27 +149,28 @@ describe("discoverVaultTemplates", () => {
 		expect(found[0].createdAt).toBe("2026-08-26T12:00:00.000Z");
 	});
 
-	it("keeps views and dashboards when instantiated without example content", async () => {
-		// An exported workspace template sets `supportsExampleContent: false`, so
-		// the gallery never offers the "populate" toggle and creation runs with
-		// `includeExampleContent: false`. Its views and dashboards are
-		// configuration, not example material, and must still be born.
+	it("keeps views, dashboards and Projects when instantiated without example content", async () => {
+		// Creation runs with `includeExampleContent: false` (Tasks are the only
+		// example material). Views, dashboards and Projects are structure — not
+		// example material — and must still be born; only the Tasks must not.
 		const io = fakeIo({ "team.md": templateSource("team") });
 		const [found] = await discoverVaultTemplates(io);
-		const { snapshot } = instantiateTemplate({
+		const generated = instantiateTemplate({
 			template: found,
 			root: "WS",
 			name: "Team",
 			idPrefix: "TEA",
 			includeExampleContent: false,
 			now: new Date("2026-08-26T12:00:00Z"),
-		});
-		expect(snapshot.tasks).toHaveLength(0);
-		expect(snapshot.projects).toHaveLength(0);
+		}).snapshot;
+		expect(generated.tasks).toHaveLength(0);
+		expect(generated.projects.map((p) => p.title)).toEqual(
+			snapshot.projects.map((p) => p.title),
+		);
 		expect(
-			snapshot.views.filter((v) => !isSystemViewId(v.id)).map((v) => v.name),
+			generated.views.filter((v) => !isSystemViewId(v.id)).map((v) => v.name),
 		).toContain("Sprint Board");
-		expect(snapshot.dashboards.map((d) => d.name)).toContain(
+		expect(generated.dashboards.map((d) => d.name)).toContain(
 			"Sprint Overview",
 		);
 	});
