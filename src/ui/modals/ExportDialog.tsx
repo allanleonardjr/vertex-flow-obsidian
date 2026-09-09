@@ -28,7 +28,8 @@ import {
   type ExportScope,
   type FieldId,
 } from "../../core/export";
-import { snapshotContext } from "../../core/views";
+import { layoutIcon, snapshotContext } from "../../core/views";
+import { workspaceTaxonomies } from "../../core/taxonomy";
 import type { WorkspaceSnapshot } from "../../core/types";
 import {
   exportAsTemplate,
@@ -38,7 +39,9 @@ import {
 import { WORKSPACE_TEMPLATES_FOLDER } from "../../obsidian/template-folder";
 import { usePlugin } from "../context";
 import { useMePersonId } from "../useMe";
-import { IconField } from "../components/Icon";
+import { Icon, IconField } from "../components/Icon";
+import { SelectMenu, type SelectRow } from "../components/fields";
+import { labelView, personView } from "../App";
 import { FolderSuggestModal } from "./FolderSuggestModal";
 
 const FORMATS: { id: ExportFormat; label: string }[] = [
@@ -47,7 +50,7 @@ const FORMATS: { id: ExportFormat; label: string }[] = [
   { id: "ics", label: "iCalendar" },
 ];
 
-type ScopeKind = "current" | "view" | "project" | "workspace";
+type ScopeKind = "current" | "view" | "project" | "label" | "person" | "workspace";
 
 type ExportOutcome =
   | { kind: "tasks"; file: TFile; taskCount: number }
@@ -78,6 +81,15 @@ function canRevealInFolder(app: {
 }): boolean {
   return typeof app.showInFolder === "function";
 }
+
+const SCOPE_KIND_LABELS: Record<ScopeKind, string> = {
+  current: "Current view",
+  view: "Views",
+  project: "Projects",
+  label: "Labels",
+  person: "People",
+  workspace: "Whole workspace",
+};
 
 export function ExportDialog({
   snapshot,
@@ -114,6 +126,24 @@ export function ExportDialog({
   const [scopeViewId, setScopeViewId] = useState(snapshot.views[0]?.id ?? "");
   const [scopeProjectPath, setScopeProjectPath] = useState(
     snapshot.projects[0]?.path ?? "",
+  );
+  const orderedLabels = useMemo(
+    () =>
+      [...workspaceTaxonomies(snapshot.workspace).label.values].sort((a, b) =>
+        a.name.localeCompare(b.name),
+      ),
+    [snapshot],
+  );
+  const orderedPeople = useMemo(
+    () =>
+      [...snapshot.workspace.people].sort((a, b) =>
+        a.name.localeCompare(b.name),
+      ),
+    [snapshot],
+  );
+  const [scopeLabelId, setScopeLabelId] = useState(orderedLabels[0]?.id ?? "");
+  const [scopePersonId, setScopePersonId] = useState(
+    orderedPeople[0]?.id ?? "",
   );
   const [includeArchived, setIncludeArchived] = useState(false);
   const [fields, setFields] = useState<Set<FieldId>>(
@@ -158,6 +188,12 @@ export function ExportDialog({
       );
       if (project) return { kind: "project", project };
     }
+    if (scopeKind === "label" && scopeLabelId) {
+      return { kind: "view", view: labelView(snapshot, scopeLabelId) };
+    }
+    if (scopeKind === "person" && scopePersonId) {
+      return { kind: "view", view: personView(snapshot, scopePersonId) };
+    }
     return { kind: "workspace" };
   }, [
     lockScope,
@@ -166,6 +202,8 @@ export function ExportDialog({
     snapshot,
     scopeViewId,
     scopeProjectPath,
+    scopeLabelId,
+    scopePersonId,
   ]);
 
   const selectedFields = useMemo(
@@ -342,17 +380,19 @@ export function ExportDialog({
         ) : (
           <>
             {allowTemplateExport && !forceMode && (
-              <div className="vf-export-modes" role="tablist">
+              <div className="vf-segmented" role="group">
                 <button
                   type="button"
-                  className={`vf-bar-item${mode === "tasks" ? " is-on" : ""}`}
+                  className={`vf-segmented-item${mode === "tasks" ? " is-on" : ""}`}
+                  aria-pressed={mode === "tasks"}
                   onClick={() => setMode("tasks")}
                 >
                   Export tasks
                 </button>
                 <button
                   type="button"
-                  className={`vf-bar-item${mode === "template" ? " is-on" : ""}`}
+                  className={`vf-segmented-item${mode === "template" ? " is-on" : ""}`}
+                  aria-pressed={mode === "template"}
                   onClick={() => setMode("template")}
                 >
                   Export Workspace as Template…
@@ -379,61 +419,245 @@ export function ExportDialog({
                     </div>
                   </div>
 
-                  <label className="vf-field">
+                  <div className="vf-field">
                     <span>Scope</span>
                     {lockScope ? (
                       <div className="vf-export-locked-scope">
                         Exporting: {scopeDisplay(initialScope)}
                       </div>
                     ) : (
-                      <select
+                      <SelectMenu
                         value={scopeKind}
-                        onChange={(e) =>
-                          setScopeKind(e.target.value as ScopeKind)
+                        onChange={(v) => setScopeKind(v as ScopeKind)}
+                        trigger={
+                          <span className="vf-icon-select-name">
+                            {scopeKind === "current" &&
+                            initialScope.kind === "view"
+                              ? `Current view (${initialScope.view.name})`
+                              : SCOPE_KIND_LABELS[scopeKind]}
+                          </span>
                         }
-                      >
-                        {initialScope.kind === "view" && (
-                          <option value="current">
-                            Current view ({initialScope.view.name})
-                          </option>
-                        )}
-                        <option value="view">Saved view…</option>
-                        <option value="project">Project…</option>
-                        <option value="workspace">Whole workspace</option>
-                      </select>
+                        rows={[
+                          ...(initialScope.kind === "view"
+                            ? [
+                                {
+                                  value: "current",
+                                  node: (
+                                    <span className="vf-icon-select-name">
+                                      Current view ({initialScope.view.name})
+                                    </span>
+                                  ),
+                                  search: initialScope.view.name,
+                                } satisfies SelectRow,
+                              ]
+                            : []),
+                          {
+                            value: "view",
+                            node: (
+                              <span className="vf-icon-select-name">Views</span>
+                            ),
+                            search: "views",
+                          },
+                          {
+                            value: "project",
+                            node: (
+                              <span className="vf-icon-select-name">
+                                Projects
+                              </span>
+                            ),
+                            search: "projects",
+                          },
+                          {
+                            value: "label",
+                            node: (
+                              <span className="vf-icon-select-name">
+                                Labels
+                              </span>
+                            ),
+                            search: "labels",
+                          },
+                          {
+                            value: "person",
+                            node: (
+                              <span className="vf-icon-select-name">
+                                People
+                              </span>
+                            ),
+                            search: "people",
+                          },
+                          {
+                            value: "workspace",
+                            node: (
+                              <span className="vf-icon-select-name">
+                                Whole workspace
+                              </span>
+                            ),
+                            search: "whole workspace",
+                          },
+                        ]}
+                      />
                     )}
-                  </label>
+                  </div>
 
                   {!lockScope && scopeKind === "view" && (
-                    <label className="vf-field">
+                    <div className="vf-field">
                       <span>View</span>
-                      <select
+                      <SelectMenu
                         value={scopeViewId}
-                        onChange={(e) => setScopeViewId(e.target.value)}
-                      >
-                        {snapshot.views.map((v) => (
-                          <option key={v.id} value={v.id}>
-                            {v.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                        onChange={(v) => v && setScopeViewId(v)}
+                        trigger={(() => {
+                          const v = snapshot.views.find(
+                            (view) => view.id === scopeViewId,
+                          );
+                          return (
+                            <>
+                              <Icon
+                                id={v?.icon}
+                                fallback={layoutIcon(v?.viewType ?? "list")}
+                                size={13}
+                              />
+                              <span className="vf-icon-select-name">
+                                {v?.name ?? "Select a view"}
+                              </span>
+                            </>
+                          );
+                        })()}
+                        rows={snapshot.views.map((v) => ({
+                          value: v.id,
+                          node: (
+                            <>
+                              <Icon
+                                id={v.icon}
+                                fallback={layoutIcon(v.viewType)}
+                                size={13}
+                              />
+                              <span className="vf-icon-select-name">
+                                {v.name}
+                              </span>
+                            </>
+                          ),
+                          search: v.name,
+                        }))}
+                      />
+                    </div>
                   )}
 
                   {!lockScope && scopeKind === "project" && (
-                    <label className="vf-field">
+                    <div className="vf-field">
                       <span>Project</span>
-                      <select
+                      <SelectMenu
                         value={scopeProjectPath}
-                        onChange={(e) => setScopeProjectPath(e.target.value)}
-                      >
-                        {snapshot.projects.map((p) => (
-                          <option key={p.path} value={p.path}>
-                            {p.title}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                        onChange={(v) => v && setScopeProjectPath(v)}
+                        trigger={(() => {
+                          const p = snapshot.projects.find(
+                            (project) => project.path === scopeProjectPath,
+                          );
+                          return (
+                            <>
+                              <Icon
+                                id={p?.icon}
+                                fallback="folder"
+                                size={13}
+                              />
+                              <span className="vf-icon-select-name">
+                                {p?.title ?? "Select a project"}
+                              </span>
+                            </>
+                          );
+                        })()}
+                        rows={snapshot.projects.map((p) => ({
+                          value: p.path,
+                          node: (
+                            <>
+                              <Icon id={p.icon} fallback="folder" size={13} />
+                              <span className="vf-icon-select-name">
+                                {p.title}
+                              </span>
+                            </>
+                          ),
+                          search: p.title,
+                        }))}
+                      />
+                    </div>
+                  )}
+
+                  {!lockScope && scopeKind === "label" && (
+                    <div className="vf-field">
+                      <span>Label</span>
+                      <SelectMenu
+                        value={scopeLabelId}
+                        onChange={(v) => v && setScopeLabelId(v)}
+                        trigger={(() => {
+                          const l = orderedLabels.find(
+                            (label) => label.id === scopeLabelId,
+                          );
+                          return (
+                            <>
+                              <span
+                                className="vf-status-dot"
+                                style={{
+                                  backgroundColor:
+                                    l?.color || "var(--vf-muted)",
+                                }}
+                              />
+                              <span className="vf-icon-select-name">
+                                {l?.name ?? "Select a label"}
+                              </span>
+                            </>
+                          );
+                        })()}
+                        rows={orderedLabels.map((l) => ({
+                          value: l.id,
+                          node: (
+                            <>
+                              <span
+                                className="vf-status-dot"
+                                style={{ backgroundColor: l.color || "var(--vf-muted)" }}
+                              />
+                              <span className="vf-icon-select-name">
+                                {l.name}
+                              </span>
+                            </>
+                          ),
+                          search: l.name,
+                        }))}
+                      />
+                    </div>
+                  )}
+
+                  {!lockScope && scopeKind === "person" && (
+                    <div className="vf-field">
+                      <span>Person</span>
+                      <SelectMenu
+                        value={scopePersonId}
+                        onChange={(v) => v && setScopePersonId(v)}
+                        trigger={(() => {
+                          const person = orderedPeople.find(
+                            (p) => p.id === scopePersonId,
+                          );
+                          return (
+                            <>
+                              <Icon fallback="user" size={13} />
+                              <span className="vf-icon-select-name">
+                                {person?.name ?? "Select a person"}
+                              </span>
+                            </>
+                          );
+                        })()}
+                        rows={orderedPeople.map((p) => ({
+                          value: p.id,
+                          node: (
+                            <>
+                              <Icon fallback="user" size={13} />
+                              <span className="vf-icon-select-name">
+                                {p.name}
+                              </span>
+                            </>
+                          ),
+                          search: p.name,
+                        }))}
+                      />
+                    </div>
                   )}
                 </div>
 

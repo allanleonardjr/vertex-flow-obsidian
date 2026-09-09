@@ -5,6 +5,20 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Added
+- **Export tasks by label or person.** The Export dialog's Scope selector now
+  also offers **Labels** and **People** alongside Views, Projects and the whole
+  workspace — each resolving to the tasks carrying that label or assigned to
+  that person.
+- **"Export Tasks…" on more sidebar menus.** The row menus for **Untriaged**,
+  **All Tasks**, every **Label** and every **Person** now have an
+  "Export Tasks…" item that opens the dialog locked to that scope (Views,
+  Projects and Workspace already had it).
+
+### Changed
+- The Export dialog's Scope and entity pickers, and its mode toggle, now use
+  the same dropdown and segmented-control styling as the rest of the app.
+
 ## 1.0.15 — 2026-09-09
 
 ### Added

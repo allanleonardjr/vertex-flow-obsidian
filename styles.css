@@ -1321,6 +1321,13 @@ button.vf-icon-select-trigger:hover {
   text-overflow: ellipsis;
 }
 
+.vf-field .vf-icon-select-name,
+.vf-field .vf-icon-select-caret {
+  display: inline-block;
+  margin-bottom: 0;
+  font-weight: normal;
+}
+
 .vf-menu-divider {
   height: 1px;
   margin: 5px 4px;
