@@ -15,6 +15,28 @@ This project uses [Semantic Versioning](https://semver.org/).
   `Shift+k` mirrors it to group tops. On a List it walks the real sub-groups; on
   a Board each column is a group, so it doubles as "jump to the next/previous
   column, landing at its bottom/top."
+  - **Option/Alt+K workspace search ("Search workspace…").** A Raycast/Linear-style
+  overlay opened with `Alt`/`Option`+`K`, the new sidebar search icon, or the
+  **"Search workspace…"** command. It fuzzy-matches the active workspace's
+  Tasks, Projects, Views, Dashboards, Labels and People in one list — matching
+  titles, task descriptions / project bodies, view-dashboard-label descriptions
+  and person aliases — capped per kind to stay compact and grouped under
+  headers that pin to the top of the list while scrolling. `↑`/`↓` (or
+  `Alt`/`Option`+`j`/`k`) move the selection and keep it scrolled into view,
+  `Enter` opens, `Esc` closes.
+- **Create-actions inside the search overlay.** Create Task, Project, View,
+  Dashboard, Label and Person rows sit under the results and open the same
+  dialogs the sidebar's `+` buttons use — Create Person closes the last gap so
+  People joins the other five.
+- **Sidebar search button.** A search icon in the sidebar's top row opens the
+  overlay in one click, and stays available in the compact drawer where there's
+  no physical Alt key to press.
+
+### Changed
+- **The index caches searchable prose instead of re-reading notes.** Each pass
+  that resolves task `@mentions` now also caches the task's `## Description` and
+  each project's body in the same mtime-gated read — one body read feeds both bits
+  of derived data, so searching descriptions never touches disk per keystroke.
 
 ### Fixed
 - **`u` `<key>` picker no longer jumps to the top-left corner in a single-task
@@ -22,6 +44,12 @@ This project uses [Semantic Versioning](https://semver.org/).
   `u s`, …) now anchors just below the matching property row in the rail
   instead of pinning to `(0, 0)`. `place()` also skips any zero-sized anchor and
   falls back to screen-center as defense in depth.
+- **The search overlay's pinned section labels no longer let rows show through.**
+    With a translucent theme the sticky group titles' `--background-primary` fill
+    carries alpha, so results sliding beneath, and the app behind the overlay,
+    could faintly peek through. The labels now composite a blur over their
+    background plus a hairline divider, so passing rows read as the header's own
+    surface instead of bleeding text.
 
 ## 1.0.17 — 2026-09-09
 

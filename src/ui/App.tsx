@@ -38,6 +38,7 @@ import { TaskPane } from "./TaskPane";
 import { TaskViewport } from "./views/TaskViewport";
 import { PrefixEngine } from "./shortcuts/prefix-engine";
 import { TabSwitcher } from "./TabSwitcher";
+import { WorkspaceSearch } from "./WorkspaceSearch";
 import { RecurringOverviewScreen } from "./RecurringOverviewScreen";
 import { CompactNavProvider, useCompactNav } from "./compact-nav-context";
 import { CompactModeToggle } from "./CompactModeToggle";
@@ -229,6 +230,7 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
     >
       <PrefixEngine snapshot={snapshot} />
       <TabSwitcher snapshot={snapshot} />
+      <WorkspaceSearch snapshot={snapshot} />
       <Sidebar
         snapshot={snapshot}
         activeViewId={activeViewId}

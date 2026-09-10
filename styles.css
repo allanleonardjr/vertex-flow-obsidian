@@ -114,15 +114,19 @@ body.vf-text-comfortable {
 .vf-sidebar-top {
   display: flex;
   justify-content: flex-end;
+  gap: 2px;
   padding: 0 4px 6px;
 }
 
 .vf-sidebar.is-minimized .vf-sidebar-top {
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
   padding: 0;
 }
 
-button.vf-sidebar-minimize {
+button.vf-sidebar-minimize,
+button.vf-sidebar-search {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -135,7 +139,8 @@ button.vf-sidebar-minimize {
   cursor: pointer;
 }
 
-button.vf-sidebar-minimize:hover {
+button.vf-sidebar-minimize:hover,
+button.vf-sidebar-search:hover {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
 }
@@ -2189,9 +2194,10 @@ button.vf-color-trigger.is-on {
     transform: translateX(0);
   }
 
-  /* Wide-only rows (the minimize toggle and the drag-resize strip) make no
-     sense for a drawer. */
-  .vf-shell .vf-sidebar-top,
+  /* Wide-only affordances (the minimize toggle and the drag-resize strip) make
+     no sense for a drawer — but the workspace-search button stays: it's the
+     only pointer-driven way into the overlay without a physical Alt key. */
+  .vf-shell .vf-sidebar-top .vf-sidebar-minimize,
   .vf-shell .vf-sidebar-resize {
     display: none;
   }
@@ -4672,6 +4678,217 @@ button.vf-query-fix {
   color: var(--vf-muted);
 }
 
+/* -- The Option/Alt+K workspace-search overlay ------------------------- */
+
+.vf-wsearch-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 12vh;
+  background: rgb(0 0 0 / 30%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.vf-wsearch {
+  display: flex;
+  flex-direction: column;
+  width: min(600px, calc(100vw - 48px));
+  max-height: 60vh;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 12px;
+  background: var(--background-primary);
+  box-shadow: 0 16px 48px rgb(0 0 0 / 36%);
+  overflow: hidden;
+}
+
+.vf-wsearch-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.vf-wsearch-field-icon {
+  flex: none;
+  color: var(--text-muted);
+}
+
+.vf-wsearch-input.vf-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  padding: 6px;
+}
+
+.vf-wsearch-input.vf-input:focus {
+  box-shadow: none;
+}
+
+.vf-wsearch-scope {
+  flex: none;
+  padding: 2px 8px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 999px;
+  font-size: var(--font-ui-smallest);
+  color: var(--text-muted);
+}
+
+.vf-wsearch-empty {
+  padding: 18px 12px;
+  text-align: left;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+
+.vf-wsearch-results {
+  overflow-y: auto;
+  padding: 6px 8px 8px;
+}
+
+.vf-wsearch-group + .vf-wsearch-group {
+  margin-top: 8px;
+}
+
+.vf-wsearch-group-title {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 4px 10px 6px;
+  background: var(--background-primary);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--background-modifier-border);
+  font-size: var(--font-ui-smallest);
+  font-weight: 500;
+  color: var(--text-faint);
+}
+
+.vf-wsearch-group-title.is-actions {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.vf-wsearch button.vf-wsearch-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 20px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-normal);
+  text-align: left;
+  justify-content: flex-start;
+  cursor: pointer;
+}
+
+.vf-wsearch button.vf-wsearch-row.is-active {
+  background: var(--background-modifier-active-hover);
+}
+
+.vf-wsearch-row-lead {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 18px;
+  color: var(--text-muted);
+}
+
+.vf-wsearch-swatch.vf-label-chip {
+  width: 12px;
+  height: 12px;
+  min-width: 12px;
+  padding: 0;
+  border-radius: 3px;
+}
+
+.vf-wsearch-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.vf-wsearch-row-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-normal);
+}
+
+.vf-wsearch-row-snippet {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--font-ui-smallest);
+  color: var(--text-muted);
+}
+
+.vf-wsearch-row mark {
+  background: transparent;
+  color: var(--text-accent);
+  font-weight: 600;
+}
+
+.vf-wsearch-row-kind {
+  flex: none;
+  padding: 1px 6px;
+  background: var(--background-modifier-hover);
+  border-radius: 999px;
+  font-size: var(--font-ui-smallest);
+  color: var(--text-faint);
+  text-transform: capitalize;
+}
+
+.vf-wsearch-row-enter {
+  flex: none;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+
+.vf-wsearch-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--background-modifier-border);
+  font-size: var(--font-ui-smallest);
+  color: var(--text-faint);
+  flex: none;
+}
+
+.vf-wsearch-keys {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.vf-wsearch-keys-sep {
+  color: var(--text-faint);
+  margin: 0 1px;
+}
+
+.vf-wsearch-keys kbd {
+  font-size: var(--font-ui-smallest);
+  color: var(--text-muted);
+  background: var(--background-modifier-hover);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
 .vf-empty-tabs-hints {
   line-height: 2;
 }
@@ -6220,6 +6437,11 @@ input.vf-dash-widget-title {
   font-weight: 600;
   color: var(--text-normal);
   cursor: text;
+}
+
+.vf-dash-widget-title:focus {
+  padding: 6px 8px;
+  margin: -6px -8px; /* Offsets the expanded padding so container dimensions stay fixed */
 }
 
 .vf-dash-widget-menu {
