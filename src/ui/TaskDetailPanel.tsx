@@ -129,7 +129,13 @@ export function TaskDetailPanel({
   }, [plugin, task.path]);
 
   return (
-    <>
+    // `display: contents` keeps this wrapper inert for the flex layout of
+    // `.vf-main` while giving the `u n` / `u i` / `u c` shortcuts in
+    // `TaskPane` a `data-task-path` anchor to scope their DOM queries to —
+    // so with two task tabs open, a shortcut only ever hits this tab's own
+    // title / description / comment fields (see `CommentList`'s note on why
+    // per-task scoping matters).
+    <div data-task-path={task.path} style={{ display: "contents" }}>
       <header className="vf-editor-header">
         <StatusDot taxonomies={taxonomies} status={task.status} />
         <span className="vf-id">{task.id}</span>
@@ -401,7 +407,7 @@ export function TaskDetailPanel({
           onClose={() => setDeletePlan(null)}
         />
       )}
-    </>
+    </div>
   );
 }
 

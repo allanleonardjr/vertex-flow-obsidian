@@ -18,11 +18,12 @@
  *   Option/Alt + 1..9 — jump straight to the tab at that position in the strip.
  *     Option/Alt + 0 jumps to the last tab.
  *
- *   Option/Alt + W / + Shift + W — close the active tab / close every tab,
- *     mirroring a browser's Cmd+W / Cmd+Shift+W but under the free modifier
- *     (Cmd+W / Ctrl+W is how you close an entire Obsidian pane, so we avoid it).
- *     Escape never closes a tab (it clears focus instead, see `App.tsx`); these
- *     are the deliberate close actions.
+ *   Option/Alt + W / + Shift + W — close the active tab / close every *other*
+ *     tab (keeping the active one), mirroring a browser's Cmd+W /
+ *     Cmd+Shift+W but under the free modifier (Cmd+W / Ctrl+W is how you close
+ *     an entire Obsidian pane, so we avoid it). Escape never closes a tab (it
+ *     clears focus instead, see `App.tsx`); these are the deliberate close
+ *     actions.
  *
  * Modifier combos are deliberately *not* registered as Obsidian commands: they
  * are view-state navigation within the plugin's own tab strip (per-pane, in
@@ -75,7 +76,8 @@ function numberToIndex(digit: string, length: number): number {
 
 export function TabSwitcher({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 	const plugin = usePlugin();
-	const { tabs, activeId, activate, closeActive, closeAllTabs } = useTabs();
+	const { tabs, activeId, activate, closeActive, closeAllOtherTabs } =
+		useTabs();
 
 	// The hold-to-cycle overlay's live state: null when idle, otherwise the
 	// index currently highlighted. Entered on the first Option+Tab, advanced on
@@ -161,15 +163,20 @@ export function TabSwitcher({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 			}
 
 			// Option/Alt+W closes the active tab; Option/Alt+Shift+W closes every
-			// tab. Mirrors a browser's Cmd+W / Cmd+Shift+W, but under the free
-			// modifier (Cmd+W / Ctrl+W is how you close an entire Obsidian pane,
-			// so we avoid it). `event.code` stays "KeyW" under Option/Alt (which
-			// changes `event.key` to a symbol on macOS).
+			// *other* tab, leaving the active one. Mirrors a browser's Cmd+W /
+			// Cmd+Shift+W, but under the free modifier (Cmd+W / Ctrl+W is how you
+			// close an entire Obsidian pane, so we avoid it). `event.code` stays
+			// "KeyW" under Option/Alt (which changes `event.key` to a symbol on
+			// macOS).
 			if (event.code === "KeyW" && isTabModifier(event)) {
 				event.preventDefault();
 				event.stopPropagation();
-				if (event.shiftKey) closeAllTabs();
-				else closeActive();
+				if (event.shiftKey) {
+					const keep = activeIdRef.current;
+					if (keep) closeAllOtherTabs(keep);
+				} else {
+					closeActive();
+				}
 				return;
 			}
 
@@ -204,7 +211,7 @@ export function TabSwitcher({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 			window.removeEventListener("keydown", onKey, true);
 			window.removeEventListener("keyup", onKeyUp, true);
 		};
-	}, [commit, abort, moveHighlight, closeActive, closeAllTabs]);
+	}, [commit, abort, moveHighlight, closeActive, closeAllOtherTabs]);
 
 	if (highlight == null) return null;
 

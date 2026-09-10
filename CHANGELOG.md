@@ -30,6 +30,11 @@ This project uses [Semantic Versioning](https://semver.org/).
 - **Escape cancels an in-progress drag.** Pressing Escape after a drag lifts,
   but before the mouse is released, drops the gesture with no move — the tasks
   stay put and the selection is untouched. A completed drop is unaffected.
+- **`u` `n` renames a task.** In List/Board it opens a compact rename input over
+  the focused row (single-task only, even with several selected); in an open
+  task tab it focuses the title field already on screen. In an open task,
+  **`u` `i`** jumps to the description editor (expanding it first if collapsed)
+  and **`u` `c`** jumps to the new-comment box.
 
 ### Changed
 - **New export filename format**, shared by task exports and template exports:
@@ -59,6 +64,9 @@ This project uses [Semantic Versioning](https://semver.org/).
   backup"; when included it names whether descriptions and comments ride along.
 - View and Project sidebar menus put "Export Tasks…" between dividers, matching
   the Label and Person menus.
+- **`Option`/`Alt` + `Shift` + `W` now closes every *other* tab, keeping the
+  active one** (matching the tab menu's "Close other tabs"), instead of closing
+  the whole strip. Use the tab right-click menu's "Close all tabs" for that.
 
 ### Fixed
 - **Keyboard navigation dies after a `u`-chord picker closes.** After pressing `u` + a field key (e.g. `u p` for priority), picking an option and pressing **Enter** (or **Escape**), keyboard navigation in the task list (`j`/`k`, arrow keys, `Enter` to open, `x` to toggle selection) stopped responding until the user clicked a task row again. Focus was lost when the `QuickFieldPicker` portal unmounted, falling back to `document.body` instead of refocusing the `vf-shell` container that shortcuts bind to.

@@ -239,6 +239,7 @@ export function TaskViewport({
       e: "estimate",
       b: "startDate",
       d: "dueDate",
+      n: "title",
     }),
     [],
   );

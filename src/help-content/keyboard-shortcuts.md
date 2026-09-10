@@ -81,7 +81,18 @@ Press `u`, then a field key, to edit a task field. For example, press `u`, then 
 | `u` `e` | Set estimate |
 | `u` `b` | Set start date |
 | `u` `d` | Set due date |
+| `u` `n` | Rename the task |
 | `u` `x` | Archive or unarchive the focused or selected tasks |
+
+In a List or Board view, `u` `n` opens a compact rename input over the focused row — even with several tasks selected, it renames only the focused one (a shared title isn't a meaningful bulk edit).
+
+In an open task tab, the title, description and comments are already on screen, so these three move the cursor straight to them instead of opening anything:
+
+| Shortcut | Action |
+| --- | --- |
+| `u` `n` | Focus the title field |
+| `u` `i` | Jump to the description editor (expanding it first if collapsed) |
+| `u` `c` | Jump to the new-comment box |
 
 ### Picker behavior
 
@@ -95,7 +106,7 @@ The status, priority, type, label, assignee, parent, and project shortcuts open 
 - The Labels picker's search box also creates: when the text you type doesn't match an existing label, a "Create …" row appears — highlight it and press `Enter` (or click it) to create and attach that label.
 - Choosing a parent beyond the supported nesting depth prompts for confirmation.
 
-Estimate and date shortcuts open a compact input instead:
+Estimate, date, and rename (`u` `n`) shortcuts open a compact input instead:
 
 - Press `Enter` to save.
 - Press `Esc` to discard the change.
@@ -127,7 +138,7 @@ When you choose a label, Vertex Flow adds it to every selected task that does no
 | `?` | Open this shortcut reference |
 | `Esc` | Clear the current control focus |
 | `Option` / `Alt` + `W` | Close the active Vertex Flow tab |
-| `Option` / `Alt` + `Shift` + `W` | Close all Vertex Flow tabs |
+| `Option` / `Alt` + `Shift` + `W` | Close every other Vertex Flow tab, keeping the active one |
 | Command Palette → **Quick capture: new task** | Quickly create a task from anywhere in Obsidian |
 
 `Esc` does not close tabs. It clears focus from an input, picker, or other control so task-navigation shortcuts such as `g`, `c`, `j`, `k`, and `?` work again.
@@ -168,12 +179,13 @@ This is a hold-to-cycle interaction similar to the macOS application switcher an
 | `Option` / `Alt` + `1` through `9` | Jump to the 1st through 9th tab |
 | `Option` / `Alt` + `0` | Jump to the last tab |
 | `Option` / `Alt` + `W` | Close the active tab |
-| `Option` / `Alt` + `Shift` + `W` | Close all Vertex Flow tabs |
+| `Option` / `Alt` + `Shift` + `W` | Close every other tab, keeping the active one |
 
 Right-click a tab for additional tab-management actions:
 
 - **Close other tabs**
 - **Close tabs to the right**
+- **Close all tabs**
 - **Close all tabs**
 
 Unlike registered Obsidian commands, these tab-strip interactions are view-scoped navigation controls—similar to `j` and `k` task navigation—and are not configurable through Obsidian’s Hotkeys settings.

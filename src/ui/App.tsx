@@ -159,7 +159,8 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
   // you out of the field so the `g`/`c` chords, `j`/`k`, and `?` become live
   // again (their listener guard refuses to fire while you're still in an
   // input). Closing a tab is a deliberate modifier action: Option+W closes the
-  // active tab, Option+Shift+W closes them all (handled in `TabSwitcher`).
+  // active tab, Option+Shift+W closes every other tab (handled in
+  // `TabSwitcher`).
   //
   // Bound with `capture: true` on `window` — Obsidian registers its own
   // global Escape handling (closing suggest popups, blurring the active

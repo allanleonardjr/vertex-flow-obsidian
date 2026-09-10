@@ -50,10 +50,12 @@ export function TaskPane({ path }: { path: string }) {
 
 	// The `u` chord for the single-task editor, mirroring TaskViewport's:
 	// a bare `u` arms a one-second chord; the next key resolves it to a field
-	// picker (`u s`/`u p`/`u l`/`u t`/`u a`/`u r`/`u m`/`u e`/`u b`/`u d`)
-	// or the archive toggle (`u x`), `u u` re-arms, and anything else cancels.
-	// Bound to his tab's task — never the selection, which the editor doesn't
-	// participate in.
+	// picker (`u s`/`u p`/`u l`/`u t`/`u a`/`u r`/`u m`/`u e`/`u b`/`u d`),
+	// the archive toggle (`u x`), or a focus jump to an already-visible field
+	// (`u n` title, `u i` description, `u c` comment composer — handled as
+	// special cases below, not through this map). `u u` re-arms, anything
+	// else cancels. Bound to this tab's task — never the selection, which the
+	// editor doesn't participate in.
 	const uPickerKey: Record<string, QuickPickerKind> = useMemo(
 		() => ({
 			s: "status",
@@ -126,6 +128,68 @@ export function TaskPane({ path }: { path: string }) {
 				event.preventDefault();
 				event.stopPropagation();
 				setQuickPicker({ kind });
+				return;
+			}
+
+			// `n`/`i`/`c` don't open a picker — the title, description and
+			// comment fields are already on screen in this context, so the
+			// shortcut just moves focus there. Scoped through this tab's own
+			// `[data-task-path]` wrapper (see `TaskDetailPanel`) so a second
+			// task tab's fields are never touched. A List/Board row carries
+			// the same attribute, so pick the match that is actually the
+			// open editor.
+			const editorScope = () =>
+				[
+					...document.querySelectorAll<HTMLElement>(
+						`[data-task-path="${CSS.escape(task.path)}"]`,
+					),
+				].find((el) => el.querySelector(".vf-editor-title")) ?? null;
+
+			if (key === "n") {
+				event.preventDefault();
+				event.stopPropagation();
+				const field = editorScope()?.querySelector<HTMLTextAreaElement>(
+					".vf-editor-title",
+				);
+				field?.focus();
+				field?.select();
+				return;
+			}
+			if (key === "i") {
+				event.preventDefault();
+				event.stopPropagation();
+				const scope = editorScope();
+				if (!scope) return;
+				const toggle = scope.querySelector<HTMLButtonElement>(
+					".vf-description-toggle",
+				);
+				const wasCollapsed =
+					toggle?.getAttribute("aria-expanded") === "false";
+				if (wasCollapsed) toggle?.click();
+				const focusEditor = (attempt = 0) => {
+					const el = scope.querySelector<HTMLElement>(
+						".vf-editor-description .cm-content, .vf-editor-description .vf-markdown-edit",
+					);
+					if (el) el.focus();
+					else if (attempt < 20)
+						requestAnimationFrame(() => focusEditor(attempt + 1));
+				};
+				// The editor mounts a frame or two after the section expands.
+				if (wasCollapsed) requestAnimationFrame(() => focusEditor());
+				else focusEditor();
+				return;
+			}
+			if (key === "c") {
+				event.preventDefault();
+				event.stopPropagation();
+				const composer = editorScope()?.querySelector<HTMLElement>(
+					".vf-comment-draft",
+				);
+				if (!composer) return;
+				composer.scrollIntoView({ behavior: "smooth", block: "center" });
+				composer
+					.querySelector<HTMLElement>(".cm-content, .vf-markdown-edit")
+					?.focus();
 				return;
 			}
 			if (key === "x") {
