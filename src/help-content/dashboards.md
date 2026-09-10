@@ -1,6 +1,7 @@
 ---
 title: Dashboards
-order: 50
+icon: layout-dashboard
+order: 36
 ---
 
 A Dashboard is a grid of charts that answer "how is my work going?" at a

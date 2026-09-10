@@ -19,7 +19,7 @@ time. Templates are defined globally for the workspace, so a "Bug report" or
 
 ## Bulk actions
 
-Working with many tasks at once is supported across every list-style view:
+Working with many tasks at once is supported across every list-style layout:
 
 - **Select** tasks with `x` (add to selection), `⌘`/`Ctrl` + `a` (select all),
   or extended arrow selection.

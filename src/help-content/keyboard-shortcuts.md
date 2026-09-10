@@ -74,7 +74,7 @@ The **focused task** is the task that receives keyboard actions. Move focus with
 | `⌘` / `Ctrl` + `Shift` + `↑` | Open the parent task, or its project if it has no parent |
 | `⌘` / `Ctrl` + `Shift` + `↓` | Open the first sub-task |
 
-In a single-column List view, `←` / `→` and `h` / `l` do nothing because there are no board columns to move between.
+In a single-column List layout, `←` / `→` and `h` / `l` do nothing because there are no board columns to move between.
 
 ## Update task fields
 
@@ -95,7 +95,7 @@ Press `u`, then a field key, to edit a task field. For example, press `u`, then 
 | `u` `n` | Rename the task |
 | `u` `x` | Archive or unarchive the focused or selected tasks |
 
-In a List or Board view, `u` `n` opens a compact rename input over the focused row — even with several tasks selected, it renames only the focused one (a shared title isn't a meaningful bulk edit).
+In a List or Board layout, `u` `n` opens a compact rename input over the focused row — even with several tasks selected, it renames only the focused one (a shared title isn't a meaningful bulk edit).
 
 In an open task tab, the title, description and comments are already on screen, so these three move the cursor straight to them instead of opening anything:
 
@@ -142,6 +142,27 @@ When you choose a label, Vertex Flow adds it to every selected task that does no
 
 `u` `x` replaces the previous standalone `e` archive shortcut. Archiving now follows the same task-update pattern as every other field edit, leaving `e` available for estimates.
 
+## Workspace search
+
+Press `Option` + `K` (macOS) or `Alt` + `K` (Windows/Linux) from anywhere to open the global **Workspace Search** launcher[cite: 1, 3].
+
+| Shortcut | Action |
+| --- | --- |
+| `Option` / `Alt` + `K` | Open workspace search overlay (Tasks, Projects, Views, Dashboards, Labels, People, Actions)[cite: 1] |
+| `↑` / `↓` or `Option` / `Alt` + `j` / `k` | Navigate search results[cite: 1] |
+| `Enter` | Open selected item or execute quick action[cite: 1] |
+| `Esc` | Close search overlay[cite: 1] |
+
+## Draft management
+
+When editing filters, group settings, or widget layouts on Views, Dashboards, Projects, and System views, edits are held in a transient draft state[cite: 1, 3]. Use these shortcuts to save or discard in-memory edits[cite: 1]:
+
+| Shortcut | Action |
+| --- | --- |
+| `Option` / `Alt` + `S` | Save draft changes (when view or dashboard is modified)[cite: 1] |
+| `Option` / `Alt` + `Shift` + `S` | Save As… (clone current view/dashboard or save active filters as a new Saved View)[cite: 1] |
+| `Option` / `Alt` + `R` | Reset / discard unsaved draft edits[cite: 1] |
+
 ## Browse screens
 
 On the **Projects**, **Labels**, **People**, **Dashboards**, and **Views** hub screens:
@@ -157,6 +178,7 @@ On the **Projects**, **Labels**, **People**, **Dashboards**, and **Views** hub s
 | --- | --- |
 | `?` | Open this shortcut reference |
 | `Esc` | Clear the current control focus |
+| `Option` / `Alt` + `K` | Open workspace search overlay[cite: 1, 3] |
 | `Option` / `Alt` + `W` | Close the active Vertex Flow tab |
 | `Option` / `Alt` + `Shift` + `W` | Close every other Vertex Flow tab, keeping the active one |
 | Command Palette → **Quick capture: new task** | Quickly create a task from anywhere in Obsidian |

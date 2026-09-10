@@ -16,7 +16,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, Search } from "lucide-react";
 import {
   SYSTEM_VIEW_ALL_TASKS_ID,
   SYSTEM_VIEW_ALL_TASKS_NAME,
@@ -146,6 +146,17 @@ export function Sidebar({
       }}
     >
       <div className="vf-sidebar-top">
+        <button
+          className="vf-sidebar-search"
+          title="Search workspace"
+          aria-label="Search workspace"
+          onClick={() => {
+            plugin.pendingWorkspaceSearch = true;
+            plugin.index.touch();
+          }}
+        >
+          <Search size={16} />
+        </button>
         <button
           className="vf-sidebar-minimize"
           title={minimized ? "Expand sidebar" : "Minimize sidebar"}
@@ -799,6 +810,13 @@ function ViewsSection({
   const { openScreen } = useTabs();
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  // Bridge for the search overlay's "Create view" action — same "pending flag
+  // set outside React, consumed once inside" pattern as `pendingExport`.
+  useEffect(() => {
+    if (plugin.pendingCreateKind !== "view") return;
+    plugin.pendingCreateKind = null;
+    setCreating(true);
+  });
   const [dialog, setDialog] = useState<ViewDialogState>(null);
   const [deleting, setDeleting] = useState<SavedView | null>(null);
   const [exportingView, setExportingView] = useState<SavedView | null>(null);
@@ -986,6 +1004,12 @@ function DashboardsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   const { activeTab, openDashboard, openScreen } = useTabs();
   const [menuId, setMenuId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  // Bridge for the search overlay's "Create dashboard" action (see ViewsSection).
+  useEffect(() => {
+    if (plugin.pendingCreateKind !== "dashboard") return;
+    plugin.pendingCreateKind = null;
+    setCreating(true);
+  });
   const [dialog, setDialog] = useState<DashboardDialogState>(null);
   const [deleting, setDeleting] = useState<DashboardConfig | null>(null);
 
@@ -1149,6 +1173,12 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   const [menuPath, setMenuPath] = useState<string | null>(null);
   const [editing, setEditing] = useState<Project | null>(null);
   const [creating, setCreating] = useState(false);
+  // Bridge for the search overlay's "Create project" action (see ViewsSection).
+  useEffect(() => {
+    if (plugin.pendingCreateKind !== "project") return;
+    plugin.pendingCreateKind = null;
+    setCreating(true);
+  });
   const [deletePlan, setDeletePlan] = useState<DeletionPlan | null>(null);
   const [exportingProject, setExportingProject] = useState<Project | null>(
     null,
@@ -1524,10 +1554,14 @@ function LabelsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 
   const [menuId, setMenuId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  // Bridge for the search overlay's "Create label" action (see ViewsSection).
+  useEffect(() => {
+    if (plugin.pendingCreateKind !== "label") return;
+    plugin.pendingCreateKind = null;
+    setCreating(true);
+  });
   const [editing, setEditing] = useState<string | null>(null);
-  const [exportingLabelId, setExportingLabelId] = useState<string | null>(
-    null,
-  );
+  const [exportingLabelId, setExportingLabelId] = useState<string | null>(null);
   const [deletion, setDeletion] = useState<{
     plan: TaxonomyDeletionPlan;
     usage: TaxonomyUsage;
@@ -1732,6 +1766,13 @@ function PeopleSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   // Person deletion is never simply "blocked" — reassign-or-clear is always the
   // one dialog, so there's no separate confirm step the way Labels has.
   const [deleting, setDeleting] = useState<PersonDeletionPlan | null>(null);
+
+  // Bridge for the search overlay's "Create person" action (see ViewsSection).
+  useEffect(() => {
+    if (plugin.pendingCreateKind !== "person") return;
+    plugin.pendingCreateKind = null;
+    setCreating(true);
+  });
 
   const editPerson = people.find((p) => p.id === editing);
   const activePersonId =

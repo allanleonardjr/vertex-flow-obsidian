@@ -108,6 +108,7 @@ export function QuickFieldPicker({
   snapshot,
   taxonomies,
   onClose,
+  anchorSelector,
 }: {
   task: Task;
   /** The selection targets to apply to — defaults to `[task]`. */
@@ -116,6 +117,14 @@ export function QuickFieldPicker({
   snapshot: WorkspaceSnapshot;
   taxonomies: WorkspaceTaxonomies;
   onClose: () => void;
+  /**
+   * Optional CSS selector for the element to anchor the popup to, tried
+   * before the `[data-task-path]` row lookup. Used by the single-task tab
+   * to anchor to the specific property row being edited (e.g.
+   * `[data-field="priority"]`), since that tab's only `[data-task-path]`
+   * element is a zero-sized `display: contents` wrapper.
+   */
+  anchorSelector?: string;
 }) {
   const plugin = usePlugin();
   const listRef = useRef<HTMLDivElement>(null);
@@ -281,11 +290,28 @@ export function QuickFieldPicker({
   });
 
   const place = useCallback(() => {
-    const row = document.querySelector<HTMLElement>(
-      `[data-task-path="${CSS.escape(task.path)}"]`,
-    );
-    if (row) {
-      const rect = row.getBoundingClientRect();
+    // A zero-sized rect means the matched element isn't actually laid out
+    // (e.g. a `display: contents` wrapper) — treat it the same as "no
+    // match" and keep falling through the chain, rather than anchoring the
+    // popup to (0, 0).
+    const usableRect = (el: HTMLElement | null) => {
+      if (!el) return null;
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 || rect.height > 0 ? rect : null;
+    };
+
+    const anchorRect = anchorSelector
+      ? usableRect(document.querySelector<HTMLElement>(anchorSelector))
+      : null;
+    const rect =
+      anchorRect ??
+      usableRect(
+        document.querySelector<HTMLElement>(
+          `[data-task-path="${CSS.escape(task.path)}"]`,
+        ),
+      );
+
+    if (rect) {
       setPos({
         top: Math.min(rect.bottom + 4, window.innerHeight - 300),
         left: Math.min(rect.left + 24, window.innerWidth - 260),
@@ -296,7 +322,7 @@ export function QuickFieldPicker({
         left: window.innerWidth / 2 - 120,
       });
     }
-  }, [task.path]);
+  }, [task.path, anchorSelector]);
 
   useLayoutEffect(() => {
     place();

@@ -1,5 +1,5 @@
 ---
-title: Calendar view
+title: Calendar layout
 order: 40
 ---
 

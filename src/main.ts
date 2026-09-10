@@ -15,348 +15,385 @@ import { NoteIO } from "./obsidian/note-io";
 import { HistoryLog } from "./obsidian/history-log";
 import { deviceId } from "./obsidian/device-id";
 import {
-	configureMeStorage,
-	getMePersonId,
-	setMePersonId,
+  configureMeStorage,
+  getMePersonId,
+  setMePersonId,
 } from "./obsidian/me-storage";
 import {
-	configureLastWorkspaceStorage,
-	getLastWorkspaceRoot,
+  configureLastWorkspaceStorage,
+  getLastWorkspaceRoot,
 } from "./obsidian/last-workspace-storage";
 import { recurrenceNodesInChain } from "./core/recurrence";
 import { isTaskNoteType } from "./core/entity-type";
 import { migrateEntityTypes } from "./obsidian/migrate-entity-type";
 import { VertexFlowSettingTab } from "./settings/SettingTab";
 import {
-	DEFAULT_SETTINGS,
-	type SidebarChromeState,
-	type VertexFlowSettings,
+  DEFAULT_SETTINGS,
+  type SidebarChromeState,
+  type VertexFlowSettings,
 } from "./settings/types";
 import { applyUiTextSize, clearUiTextSize } from "./settings/ui-text-size";
 import { VERTEX_VIEW_TYPE, VertexFlowView } from "./ui/view";
 
 export default class VertexFlowPlugin extends Plugin {
-	override settings: VertexFlowSettings = { ...DEFAULT_SETTINGS };
-	io!: NoteIO;
-	index!: VaultIndex;
-	mutations!: Mutations;
-	history!: HistoryLog;
+  override settings: VertexFlowSettings = { ...DEFAULT_SETTINGS };
+  io!: NoteIO;
+  index!: VaultIndex;
+  mutations!: Mutations;
+  history!: HistoryLog;
 
-	/** One-shot: consumed by the next `file-open`, then cleared. See `suppressNextRedirect`. */
-	private redirectSuppressed = false;
+  /** One-shot: consumed by the next `file-open`, then cleared. See `suppressNextRedirect`. */
+  private redirectSuppressed = false;
 
-	/**
-	 * The task whose editor tab is in front, mirrored out of the React tree so
-	 * native commands (Stop repeating…) can act on "the current task". Set by
-	 * `TaskPane`, cleared when it unmounts.
-	 */
-	activeTaskPath: string | null = null;
+  /**
+   * The task whose editor tab is in front, mirrored out of the React tree so
+   * native commands (Stop repeating…) can act on "the current task". Set by
+   * `TaskPane`, cleared when it unmounts.
+   */
+  activeTaskPath: string | null = null;
 
-	/** One-shot: the React tree opens the Recurring Overview modal when it sees this. */
-	
-	/**
-	 * The workspace most recently active in *any* pane this session. Used to
-	 * seed newly opened panes and to pick a workspace for Quick Capture, which
-	 * isn't tied to any specific pane.
-	 *
-	 * Seeded at load from this device's `localStorage` (see
-	 * `last-workspace-storage.ts`) so a relaunch reopens the last workspace, and
-	 * written back there on every switch. Still never touches `data.json` — a
-	 * synced vault must not carry one machine's pointer to every other machine.
-	 */
-	lastActiveWorkspaceRoot: string | null = null;
+  /** One-shot: the React tree opens the Recurring Overview modal when it sees this. */
 
-	/**
-	 * Sidebar chrome (minimize/width/section-collapse) most recently touched
-	 * in *any* pane this session. Used only to seed newly opened/split panes
-	 * so they don't jarringly reset. Deliberately not persisted: writing this
-	 * to settings is exactly the global-state (and cross-machine sync) bug
-	 * we're removing.
-	 */
-	lastSidebarChrome: SidebarChromeState | null = null;
+  /**
+   * The workspace most recently active in *any* pane this session. Used to
+   * seed newly opened panes and to pick a workspace for Quick Capture, which
+   * isn't tied to any specific pane.
+   *
+   * Seeded at load from this device's `localStorage` (see
+   * `last-workspace-storage.ts`) so a relaunch reopens the last workspace, and
+   * written back there on every switch. Still never touches `data.json` — a
+   * synced vault must not carry one machine's pointer to every other machine.
+   */
+  lastActiveWorkspaceRoot: string | null = null;
 
-	override async onload(): Promise<void> {
-		await this.loadSettings();
-		applyUiTextSize(this.settings.uiTextSize);
+  /**
+   * Sidebar chrome (minimize/width/section-collapse) most recently touched
+   * in *any* pane this session. Used only to seed newly opened/split panes
+   * so they don't jarringly reset. Deliberately not persisted: writing this
+   * to settings is exactly the global-state (and cross-machine sync) bug
+   * we're removing.
+   */
+  lastSidebarChrome: SidebarChromeState | null = null;
 
-		// Stable per-vault id so per-device "me" storage can't collide across two
-		// vaults opened on the same machine.
-		const appId = (this.app as unknown as { appId?: string }).appId;
-		configureMeStorage(appId);
-		configureLastWorkspaceStorage(appId);
-		// Reopen the workspace this device last had active. A stale value (the
-		// workspace was deleted/renamed) is harmless — `activeWorkspace()` and
-		// `useActiveWorkspace()` both fall back to the first workspace.
-		this.lastActiveWorkspaceRoot = getLastWorkspaceRoot();
+  override async onload(): Promise<void> {
+    await this.loadSettings();
+    applyUiTextSize(this.settings.uiTextSize);
 
-		this.io = new NoteIO(this.app);
-		// `HistoryLog` is built before `VaultIndex` because the index's one-time
-		// migrations log a `[system]` entry for what they touch. `HistoryLog`'s
-		// own dependencies never reference the index, so there's no circularity.
-		this.history = new HistoryLog(this.io, deviceId(), (root) =>
-			getMePersonId(root),
-		);
-		this.index = new VaultIndex(this.app, this.io, this.history);
-		this.mutations = new Mutations(this.app, this.io, this.index, this.history, {
-			setMePersonId: (root, personId) => setMePersonId(root, personId),
-		});
+    // Stable per-vault id so per-device "me" storage can't collide across two
+    // vaults opened on the same machine.
+    const appId = (this.app as unknown as { appId?: string }).appId;
+    configureMeStorage(appId);
+    configureLastWorkspaceStorage(appId);
+    // Reopen the workspace this device last had active. A stale value (the
+    // workspace was deleted/renamed) is harmless — `activeWorkspace()` and
+    // `useActiveWorkspace()` both fall back to the first workspace.
+    this.lastActiveWorkspaceRoot = getLastWorkspaceRoot();
 
-		this.registerView(
-			VERTEX_VIEW_TYPE,
-			(leaf: WorkspaceLeaf) => new VertexFlowView(leaf, this),
-		);
+    this.io = new NoteIO(this.app);
+    // `HistoryLog` is built before `VaultIndex` because the index's one-time
+    // migrations log a `[system]` entry for what they touch. `HistoryLog`'s
+    // own dependencies never reference the index, so there's no circularity.
+    this.history = new HistoryLog(this.io, deviceId(), (root) =>
+      getMePersonId(root),
+    );
+    this.index = new VaultIndex(this.app, this.io, this.history);
+    this.mutations = new Mutations(
+      this.app,
+      this.io,
+      this.index,
+      this.history,
+      {
+        setMePersonId: (root, personId) => setMePersonId(root, personId),
+      },
+    );
 
-		this.addSettingTab(new VertexFlowSettingTab(this.app, this));
+    this.registerView(
+      VERTEX_VIEW_TYPE,
+      (leaf: WorkspaceLeaf) => new VertexFlowView(leaf, this),
+    );
 
-		// Always opens a fresh instance — each click adds another Vertex Flow
-		// pane (its own per-pane active workspace) rather than revealing an
-		// existing one. Use the "Open" command to jump back to an open pane
-		// instead. The ribbon icon is a Vertex Flow shell affordance,
-		// not an Obsidian searchable command, so it keeps the plugin name in
-		// the tooltip.
-		this.addRibbonIcon("kanban-square", "Open Vertex Flow in new tab", () => {
-			void this.activateView(true);
-		});
+    this.addSettingTab(new VertexFlowSettingTab(this.app, this));
 
-		this.registerCommands();
+    // Always opens a fresh instance — each click adds another Vertex Flow
+    // pane (its own per-pane active workspace) rather than revealing an
+    // existing one. Use the "Open" command to jump back to an open pane
+    // instead. The ribbon icon is a Vertex Flow shell affordance,
+    // not an Obsidian searchable command, so it keeps the plugin name in
+    // the tooltip.
+    this.addRibbonIcon("kanban-square", "Open Vertex Flow in new tab", () => {
+      void this.activateView(true);
+    });
 
-		// The metadata cache isn't populated until layout is ready; indexing
-		// before then would read an empty vault.
-		this.app.workspace.onLayoutReady(() => {
-			this.index.watch((unsubscribe) => this.register(unsubscribe));
-			// Recurrence reconcile is a post-rebuild engine: every rebuild
-			// (initial load, vault watcher, manual "Rebuild index") offers the
-			// next pass a chance to spawn. A pass that spawns nothing is a
-			// no-op, so this subscription is cheap to keep hooked up.
-			this.register(
-				this.index.subscribe(() => {
-					void this.mutations.reconcileRecurrences();
-					// Rewrite any pre-1.1 bare `type:` frontmatter left on disk.
-					// Self-terminating: a scan that finds nothing converged does
-					// zero writes, so this is cheap to run on every rebuild.
-					void migrateEntityTypes(this.index, this.io);
-				}),
-			);
-			void this.index.rebuild().then(() => this.registerTaskRedirect());
-		});
-	}
+    this.registerCommands();
 
-	override onunload(): void {
-		// Obsidian detaches registered views automatically; the one bit of
-		// global state we add is the text-size body class.
-		clearUiTextSize();
-	}
+    // The metadata cache isn't populated until layout is ready; indexing
+    // before then would read an empty vault.
+    this.app.workspace.onLayoutReady(() => {
+      this.index.watch((unsubscribe) => this.register(unsubscribe));
+      // Recurrence reconcile is a post-rebuild engine: every rebuild
+      // (initial load, vault watcher, manual "Rebuild index") offers the
+      // next pass a chance to spawn. A pass that spawns nothing is a
+      // no-op, so this subscription is cheap to keep hooked up.
+      this.register(
+        this.index.subscribe(() => {
+          void this.mutations.reconcileRecurrences();
+          // Rewrite any pre-1.1 bare `type:` frontmatter left on disk.
+          // Self-terminating: a scan that finds nothing converged does
+          // zero writes, so this is cheap to run on every rebuild.
+          void migrateEntityTypes(this.index, this.io);
+        }),
+      );
+      void this.index.rebuild().then(() => this.registerTaskRedirect());
+    });
+  }
 
-	private registerCommands(): void {
-		this.addCommand({
-			id: "open-view",
-			name: "Open",
-			callback: () => void this.activateView(),
-		});
+  override onunload(): void {
+    // Obsidian detaches registered views automatically; the one bit of
+    // global state we add is the text-size body class.
+    clearUiTextSize();
+  }
 
-		// A second, independent instance — its own tab, its own per-pane active
-		// workspace. Unlike "Open" this never reveals an existing pane; it
-		// always adds a new one.
-		this.addCommand({
-			id: "open-view-new-tab",
-			name: "Open in new tab",
-			callback: () => void this.activateView(true),
-		});
+  private registerCommands(): void {
+    this.addCommand({
+      id: "open-view",
+      name: "Open",
+      callback: () => void this.activateView(),
+    });
 
-		// Quick capture must work from anywhere in Obsidian, not just from
-		// inside the plugin's own views.
-		this.addCommand({
-			id: "quick-capture",
-			name: "Quick capture: new task",
-			callback: () => void this.quickCapture(),
-		});
+    // A second, independent instance — its own tab, its own per-pane active
+    // workspace. Unlike "Open" this never reveals an existing pane; it
+    // always adds a new one.
+    this.addCommand({
+      id: "open-view-new-tab",
+      name: "Open in new tab",
+      callback: () => void this.activateView(true),
+    });
 
-		this.addCommand({
-			id: "rebuild-index",
-			name: "Rebuild index",
-			callback: () => void this.index.rebuild(),
-		});
+    // Quick capture must work from anywhere in Obsidian, not just from
+    // inside the plugin's own views.
+    this.addCommand({
+      id: "quick-capture",
+      name: "Quick capture: new task",
+      callback: () => void this.quickCapture(),
+    });
 
-		this.addCommand({
-			id: "export",
-			name: "Export…",
-			callback: () => {
-				this.pendingExport = true;
-				void this.activateView().then(() => this.index.touch());
-			},
-		});
+    this.addCommand({
+      id: "rebuild-index",
+      name: "Rebuild index",
+      callback: () => void this.index.rebuild(),
+    });
 
-		// Acts on the task whose editor is in front. `checkCallback` keeps the
-		// command out of the palette unless that task is part of a live series.
-		this.addCommand({
-			id: "stop-recurrence",
-			name: "Stop repeating task",
-			checkCallback: (checking) => {
-				const path = this.activeTaskPath;
-				const task = path ? this.index.taskAt(path) : null;
-				const snapshot = path ? this.index.workspaceFor(path) : null;
-				const live =
-					task && snapshot
-						? recurrenceNodesInChain(snapshot, task).length > 0
-						: false;
-				if (live && !checking && task) {
-					void this.mutations.stopRecurrence(task);
-				}
-				return live;
-			},
-		});
+    this.addCommand({
+      id: "export",
+      name: "Export…",
+      callback: () => {
+        this.pendingExport = true;
+        void this.activateView().then(() => this.index.touch());
+      },
+    });
 
-		this.addCommand({
-			id: "recurring-overview",
-			name: "Recurring overview",
-			callback: () => {
-				void this.activateView().then(() => this.index.touch());
-			},
-		});
-	}
+    // Acts on the task whose editor is in front. `checkCallback` keeps the
+    // command out of the palette unless that task is part of a live series.
+    this.addCommand({
+      id: "stop-recurrence",
+      name: "Stop repeating task",
+      checkCallback: (checking) => {
+        const path = this.activeTaskPath;
+        const task = path ? this.index.taskAt(path) : null;
+        const snapshot = path ? this.index.workspaceFor(path) : null;
+        const live =
+          task && snapshot
+            ? recurrenceNodesInChain(snapshot, task).length > 0
+            : false;
+        if (live && !checking && task) {
+          void this.mutations.stopRecurrence(task);
+        }
+        return live;
+      },
+    });
 
-	/**
-	 * Redirect a task note, opened anywhere in Obsidian, into Vertex Flow's
-	 * own editor instead of the plain Markdown view — registered only after
-	 * the first index build completes, so a task note restored from the
-	 * previous session's workspace layout on a cold start isn't misjudged
-	 * before the index has anything to check against.
-	 */
-	private registerTaskRedirect(): void {
-		this.registerEvent(
-			this.app.workspace.on("file-open", (file) => {
-				if (!file || !this.settings.redirectTaskNotes) return;
+    // Discoverable/rebindable twin of the built-in Alt+K launcher (Phase 3's
+    // `WorkspaceSearch`). Like the TabSwitcher combos, the key itself isn't a
+    // command — but nothing stops a second, palette-visible way in.
+    this.addCommand({
+      id: "open-workspace-search",
+      name: "Search workspace…",
+      callback: () => {
+        this.pendingWorkspaceSearch = true;
+        void this.activateView().then(() => this.index.touch());
+      },
+    });
 
-				if (this.redirectSuppressed) {
-					this.redirectSuppressed = false;
-					return;
-				}
+    this.addCommand({
+      id: "recurring-overview",
+      name: "Recurring overview",
+      callback: () => {
+        void this.activateView().then(() => this.index.touch());
+      },
+    });
+  }
 
-				// Checked via the metadata cache rather than `this.index.taskAt`:
-				// it's robust even for a file the index hasn't processed yet (a
-				// brand-new note created outside the plugin), and doesn't require
-				// the file to sit inside a workspace folder the index recognizes.
-				// `requestEdit` still routes through the index to actually render
-				// it, and self-heals via the editor's own subscription if there's
-				// a momentary gap.
-				const cache = this.app.metadataCache.getFileCache(file);
-				if (!isTaskNoteType(cache?.frontmatter?.type)) return;
+  /**
+   * Redirect a task note, opened anywhere in Obsidian, into Vertex Flow's
+   * own editor instead of the plain Markdown view — registered only after
+   * the first index build completes, so a task note restored from the
+   * previous session's workspace layout on a cold start isn't misjudged
+   * before the index has anything to check against.
+   */
+  private registerTaskRedirect(): void {
+    this.registerEvent(
+      this.app.workspace.on("file-open", (file) => {
+        if (!file || !this.settings.redirectTaskNotes) return;
 
-				const leaf = this.app.workspace.getMostRecentLeaf();
-				if (!leaf || leaf.view.getViewType() !== "markdown") return;
+        if (this.redirectSuppressed) {
+          this.redirectSuppressed = false;
+          return;
+        }
 
-				leaf.detach();
-				void this.requestEdit(file.path.replace(/\.md$/, ""));
-			}),
-		);
-	}
+        // Checked via the metadata cache rather than `this.index.taskAt`:
+        // it's robust even for a file the index hasn't processed yet (a
+        // brand-new note created outside the plugin), and doesn't require
+        // the file to sit inside a workspace folder the index recognizes.
+        // `requestEdit` still routes through the index to actually render
+        // it, and self-heals via the editor's own subscription if there's
+        // a momentary gap.
+        const cache = this.app.metadataCache.getFileCache(file);
+        if (!isTaskNoteType(cache?.frontmatter?.type)) return;
 
-	/**
-	 * Skip the very next redirect. Used by the editor's own "open the raw
-	 * note" button — that action deliberately wants the plain Markdown view,
-	 * and without this it would immediately bounce right back.
-	 */
-	suppressNextRedirect(): void {
-		this.redirectSuppressed = true;
-	}
+        const leaf = this.app.workspace.getMostRecentLeaf();
+        if (!leaf || leaf.view.getViewType() !== "markdown") return;
 
-	/**
-	 * A task the view should open as an internal tab as soon as it mounts.
-	 *
-	 * The bridge for actions that start outside React — the Command Palette
-	 * and the task-note redirect above can't reach into the React tree
-	 * directly, so they leave the path here and the view picks it up.
-	 */
-	pendingEditPath: string | null = null;
+        leaf.detach();
+        void this.requestEdit(file.path.replace(/\.md$/, ""));
+      }),
+    );
+  }
 
-	/**
-	 * A Saved View id the tab strip should open as soon as it next mounts (or
-	 * the active workspace next changes). Set right after a workspace is
-	 * created — nothing keeps a tab open automatically anymore, so without this
-	 * a fresh workspace would land on the empty-tabs pane. Consumed once by
-	 * `TabsProvider`.
-	 */
-	pendingOpenView: string | null = null;
+  /**
+   * Skip the very next redirect. Used by the editor's own "open the raw
+   * note" button — that action deliberately wants the plain Markdown view,
+   * and without this it would immediately bounce right back.
+   */
+  suppressNextRedirect(): void {
+    this.redirectSuppressed = true;
+  }
 
-	/**
-	 * Set by the "Export…" command; consumed by Sidebar's bridge effect to open
-	 * the Export dialog. Mirrors pendingEditPath/pendingOpenView.
-	 */
-	pendingExport = false;
+  /**
+   * A task the view should open as an internal tab as soon as it mounts.
+   *
+   * The bridge for actions that start outside React — the Command Palette
+   * and the task-note redirect above can't reach into the React tree
+   * directly, so they leave the path here and the view picks it up.
+   */
+  pendingEditPath: string | null = null;
 
-	/** Ask the view to open a task's tab, opening the view first if needed. */
-	async requestEdit(path: string): Promise<void> {
-		// The task may belong to a workspace other than the one the target pane
-		// is showing; `TabsProvider.openTask` performs that per-pane switch once
-		// it picks up `pendingEditPath` below.
-		this.pendingEditPath = path;
-		await this.activateView();
-		this.index.touch();
-	}
+  /**
+   * A Saved View id the tab strip should open as soon as it next mounts (or
+   * the active workspace next changes). Set right after a workspace is
+   * created — nothing keeps a tab open automatically anymore, so without this
+   * a fresh workspace would land on the empty-tabs pane. Consumed once by
+   * `TabsProvider`.
+   */
+  pendingOpenView: string | null = null;
 
-	/**
-	 * Create a task and open it for editing — the same flow as the in-view
-	 * "New task" button, so capture behaves identically wherever it starts.
-	 */
-	private async quickCapture(): Promise<void> {
-		const snapshot = this.activeWorkspace();
-		if (!snapshot) {
-			// No workspace yet: the view's onboarding is the right destination.
-			await this.activateView();
-			return;
-		}
+  /**
+   * Set by the "Export…" command; consumed by Sidebar's bridge effect to open
+   * the Export dialog. Mirrors pendingEditPath/pendingOpenView.
+   */
+  pendingExport = false;
 
-		try {
-			const file = await this.mutations.createTask(snapshot, {});
-			await this.requestEdit(file.path.replace(/\.md$/, ""));
-		} catch (cause) {
-			new Notice(
-				`Could not create task: ${
-					cause instanceof Error ? cause.message : String(cause)
-				}`,
-			);
-		}
-	}
+  /**
+   * Set by the "Search workspace…" command; consumed once by `WorkspaceSearch`
+   * to open the Alt+K overlay. Mirrors `pendingExport`.
+   */
+  pendingWorkspaceSearch = false;
 
-	/** The workspace the main view is currently showing, if any. */
-	activeWorkspace() {
-		const root = this.lastActiveWorkspaceRoot;
-		return (root ? this.index.get(root) : null) ?? this.index.list()[0] ?? null;
-	}
+  /**
+   * Set by the search overlay's "Create project/view/dashboard/label/person" actions;
+   * consumed once by the matching `*Section` in `Sidebar.tsx`, which opens the
+   * same create dialog its own `+` button does. Mirrors `pendingWorkspaceSearch`.
+   */
+  pendingCreateKind:
+    | "project"
+    | "view"
+    | "dashboard"
+    | "label"
+    | "person"
+    | null = null;
 
-	/**
-	 * Reveal a Vertex Flow pane, opening one if none exists. With `forceNew`,
-	 * always add a fresh pane instead of revealing an existing one — used by the
-	 * "Open Vertex Flow in new tab" command so a second, independent instance
-	 * (its own per-pane active workspace) can sit alongside the first.
-	 */
-	async activateView(forceNew = false): Promise<void> {
-		const { workspace } = this.app;
+  /** Ask the view to open a task's tab, opening the view first if needed. */
+  async requestEdit(path: string): Promise<void> {
+    // The task may belong to a workspace other than the one the target pane
+    // is showing; `TabsProvider.openTask` performs that per-pane switch once
+    // it picks up `pendingEditPath` below.
+    this.pendingEditPath = path;
+    await this.activateView();
+    this.index.touch();
+  }
 
-		if (!forceNew) {
-			const existing = workspace.getLeavesOfType(VERTEX_VIEW_TYPE);
-			if (existing.length > 0) {
-				await workspace.revealLeaf(existing[0]);
-				return;
-			}
-		}
+  /**
+   * Create a task and open it for editing — the same flow as the in-view
+   * "New task" button, so capture behaves identically wherever it starts.
+   */
+  async quickCapture(): Promise<void> {
+    const snapshot = this.activeWorkspace();
+    if (!snapshot) {
+      // No workspace yet: the view's onboarding is the right destination.
+      await this.activateView();
+      return;
+    }
 
-		const leaf = workspace.getLeaf("tab");
-		await leaf.setViewState({ type: VERTEX_VIEW_TYPE, active: true });
-		await workspace.revealLeaf(leaf);
-	}
+    try {
+      const file = await this.mutations.createTask(snapshot, {});
+      await this.requestEdit(file.path.replace(/\.md$/, ""));
+    } catch (cause) {
+      new Notice(
+        `Could not create task: ${
+          cause instanceof Error ? cause.message : String(cause)
+        }`,
+      );
+    }
+  }
 
-	async loadSettings(): Promise<void> {
-		const data: unknown = await this.loadData();
-		const merged = Object.assign(
-			{},
-			DEFAULT_SETTINGS,
-			(data ?? {}) as Partial<VertexFlowSettings>,
-		);
-		this.settings = merged;
-	}
+  /** The workspace the main view is currently showing, if any. */
+  activeWorkspace() {
+    const root = this.lastActiveWorkspaceRoot;
+    return (root ? this.index.get(root) : null) ?? this.index.list()[0] ?? null;
+  }
 
-	async saveSettings(): Promise<void> {
-		await this.saveData(this.settings);
-	}
+  /**
+   * Reveal a Vertex Flow pane, opening one if none exists. With `forceNew`,
+   * always add a fresh pane instead of revealing an existing one — used by the
+   * "Open Vertex Flow in new tab" command so a second, independent instance
+   * (its own per-pane active workspace) can sit alongside the first.
+   */
+  async activateView(forceNew = false): Promise<void> {
+    const { workspace } = this.app;
+
+    if (!forceNew) {
+      const existing = workspace.getLeavesOfType(VERTEX_VIEW_TYPE);
+      if (existing.length > 0) {
+        await workspace.revealLeaf(existing[0]);
+        return;
+      }
+    }
+
+    const leaf = workspace.getLeaf("tab");
+    await leaf.setViewState({ type: VERTEX_VIEW_TYPE, active: true });
+    await workspace.revealLeaf(leaf);
+  }
+
+  async loadSettings(): Promise<void> {
+    const data: unknown = await this.loadData();
+    const merged = Object.assign(
+      {},
+      DEFAULT_SETTINGS,
+      (data ?? {}) as Partial<VertexFlowSettings>,
+    );
+    this.settings = merged;
+  }
+
+  async saveSettings(): Promise<void> {
+    await this.saveData(this.settings);
+  }
 }

@@ -470,25 +470,33 @@ export function TaskViewport({
 
     if (effective.viewType === "timeline") {
       const { scheduled, unscheduled } = partitionScheduled(evaluated.tasks);
-      return [realPaths([...scheduled, ...unscheduled])];
+      return [
+        { paths: realPaths([...scheduled, ...unscheduled]), groupStarts: [0] },
+      ];
     }
 
     // Calendar renders on a day grid, not a linear column — j/k just walks
-    // the filtered+sorted list, scheduled and unscheduled alike.
+    // the filtered+sorted list, scheduled and unscheduled alike. No
+    // sub-grouping to expose, so Shift+j/k just treats it as one group.
     if (effective.viewType === "calendar") {
-      return [realPaths(evaluated.tasks)];
+      return [{ paths: realPaths(evaluated.tasks), groupStarts: [0] }];
     }
 
     // Nested List: walk the flattened forest, groups concatenated, ghosts and
-    // collapsed subtrees excluded (they aren't focusable).
+    // collapsed subtrees excluded (they aren't focusable). Nested mode
+    // doesn't expose the same top-level grouping as flat List, so Shift+j/k
+    // treats the whole forest as one group for now.
     if (nestedGroups) {
       const real = new Set(realPaths(evaluated.tasks));
       return [
-        nestedGroups
-          .filter((group) => !group.hidden && !group.collapsed)
-          .flatMap((group) =>
-            focusableRowPaths(group.rows).filter((path) => real.has(path)),
-          ),
+        {
+          paths: nestedGroups
+            .filter((group) => !group.hidden && !group.collapsed)
+            .flatMap((group) =>
+              focusableRowPaths(group.rows).filter((path) => real.has(path)),
+            ),
+          groupStarts: [0],
+        },
       ];
     }
 
@@ -496,9 +504,33 @@ export function TaskViewport({
     const paths = (group: (typeof visible)[number]) =>
       group.collapsed ? [] : realPaths(group.tasks);
 
-    return effective.viewType === "board"
-      ? visible.map(paths)
-      : [visible.flatMap(paths)];
+    if (effective.viewType === "board") {
+      // Each column already is a single group — Shift+j lands at its
+      // bottom, Shift+k at its top, and at that boundary each advances to
+      // the next/previous column's same edge. (Distinct from moveColumn,
+      // which holds row position.)
+      return visible.map((group) => ({ paths: paths(group), groupStarts: [0] }));
+    }
+
+    // List: one column, groups concatenated in render order. Record where
+    // each surviving (non-empty) group starts so Shift+j/k can walk the real
+    // boundaries even though moveFocus treats this as a single column.
+    let offset = 0;
+    const groupStarts: number[] = [];
+    const flatPaths: string[] = [];
+    for (const group of visible) {
+      const groupPaths = paths(group);
+      if (groupPaths.length === 0) continue;
+      groupStarts.push(offset);
+      flatPaths.push(...groupPaths);
+      offset += groupPaths.length;
+    }
+    return [
+      {
+        paths: flatPaths,
+        groupStarts: groupStarts.length > 0 ? groupStarts : [0],
+      },
+    ];
   }, [evaluated.groups, evaluated.tasks, effective.viewType, nestedGroups]);
 
   useVisualLayout(layout);
@@ -517,6 +549,16 @@ export function TaskViewport({
   useShortcuts(
     containerRef,
     [
+      // Shift+j/k and Shift+arrows jump to a group boundary. These must come
+      // *before* the plain j/k/arrow bindings below: `useShortcuts` fires the
+      // first matching entry, and the plain bindings don't check `shiftKey`
+      // at all (their `shift` field is undefined), so they'd otherwise
+      // swallow the Shift-held keydown first.
+      { key: "ArrowDown", shift: true, run: () => selection.jumpGroup(1) },
+      { key: "ArrowUp", shift: true, run: () => selection.jumpGroup(-1) },
+      { key: "j", shift: true, run: () => selection.jumpGroup(1) },
+      { key: "k", shift: true, run: () => selection.jumpGroup(-1) },
+
       // j/k and the arrow keys walk the visual layout: up/down within a
       // column, left/right across board columns. vim h/l alias the column
       // movement now that `l` is no longer the Label picker (it moved behind
