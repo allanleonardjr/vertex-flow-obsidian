@@ -8,12 +8,15 @@ This project uses [Semantic Versioning](https://semver.org/).
 ### Added
 - **Canvas layout (`v` `d`) — a read-only relationship graph.** Any Saved View
   can now render as a Canvas: the view's filtered tasks are laid out by `elkjs`
-  as nodes, with each task that has a project sitting inside a labelled project
-  box. `blocks`/`blockedBy` dependencies draw as solid arrows and `parent` →
-  child hierarchy as thin arrowless connectors — both feed the layered ranking
-  and may cross project boxes; `related` links draw dashed between nodes. Pan
-  and wheel-zoom; a static legend keys the three line styles. Nothing is ever
-  written back — no dragging, no editing, no frontmatter writes.
+  as nodes. Set **Group by** to Status, Priority, Type, Assignee or Project and
+  each group (including its "None") becomes a labelled box — hidden groups drop
+  out, exactly as on the Board; Label and no grouping render flat. `blocks` /
+  `blockedBy` dependencies draw as solid arrows and `parent` → child hierarchy
+  as thin arrowless connectors — both feed the layered ranking and may cross
+  boxes; `related` links draw dashed between nodes. The **Fields** control hides
+  node badges; Sort, Collapse-all and Upcoming are hidden for Canvas. Pan and
+  wheel-zoom, a static legend keys the three line styles, and edge colours are
+  three themeable CSS variables. Nothing is ever written back.
 
 ## 1.0.18 — 2026-09-10
 

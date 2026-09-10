@@ -1,22 +1,24 @@
 /**
  * Canvas view — read-only relationship graph.
  *
- * Phase 2 renders three relationship dimensions at once, laid out by `elkjs`:
- *   - project containment — each task with a resolvable `project` sits inside a
- *     labelled ELK compound box for that project (real containment, not a
- *     post-hoc rectangle);
+ * Renders the current view's filtered tasks as an `elkjs` layered graph:
+ *   - grouping — when `view.groupBy` is a single-valued field (status, priority,
+ *     taskType, assignee, project), each non-hidden `TaskGroup` from
+ *     `evaluated.groups` becomes a real ELK compound box (the same groups the
+ *     Board renders as columns, so "No Project"/"No Status", hidden-group
+ *     filtering and per-group colour all come for free). `label` and `none`
+ *     render flat;
  *   - layered edges — `blocks`/`blockedBy` dependencies (solid, arrowed) and
  *     `parent` → child hierarchy (thin, arrowless) both feed ELK's ranking and
- *     may cross project boxes;
+ *     may cross group boxes;
  *   - `related` links — dashed, arrowless, drawn straight between final node
- *     centres and never fed into the layout.
+ *     centres, never fed into the layout.
  *
- * Still strictly read-only: pan and zoom only, nothing is written to any file.
- * Node dragging, drag-to-reparent, group-membership writes and topology picking
- * are all later phases.
+ * Strictly read-only: pan and zoom only, nothing is written to any file. Node
+ * dragging, drag-to-reparent and topology picking are later phases.
  *
- * The pure graph-building lives in `core/canvas/graph.ts` (Obsidian-free,
- * unit-tested); this component only lays it out and draws it.
+ * The pure edge-building lives in `core/canvas/graph.ts` (Obsidian-free,
+ * unit-tested); grouping and layout are this component's job.
  */
 
 import {
@@ -30,15 +32,20 @@ import {
 import ELK, { type ElkNode } from "elkjs/lib/elk.bundled.js";
 import {
 	buildCanvasGraph,
+	canvasGrouping,
 	type CanvasGraph,
 	type LayeringEdgeKind,
 } from "../../core/canvas/graph";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { EvaluatedView } from "../../core/views";
-import { layoutIcon } from "../../core/views";
-import type { SavedView, WorkspaceSnapshot } from "../../core/types";
+import { layoutIcon, renderedHiddenFields } from "../../core/views";
+import type {
+	SavedView,
+	Task,
+	TaskField,
+	WorkspaceSnapshot,
+} from "../../core/types";
 import { EmptyView } from "../components/EmptyView";
-import { Icon } from "../components/Icon";
 import { StatusDot, TaxonomyChip } from "../components/TaskBits";
 import { displayTitle } from "../components/TaskTitle";
 
@@ -52,7 +59,7 @@ export interface CanvasViewProps {
 /** Fixed node box — ELK needs concrete dimensions; CSS truncates to fit. */
 const NODE_WIDTH = 220;
 const NODE_HEIGHT = 64;
-/** Extra top padding inside a project box, leaving room for its header. */
+/** Extra top padding inside a group box, leaving room for its header. */
 const GROUP_PADDING = "[top=34.0,left=16.0,bottom=16.0,right=16.0]";
 
 const MIN_SCALE = 0.2;
@@ -68,7 +75,7 @@ interface PlacedBox {
 interface FlatLayout {
 	/** Task nodes, absolute coords. */
 	nodes: Map<string, PlacedBox>;
-	/** Project compound boxes, absolute coords. */
+	/** Group compound boxes, absolute coords, keyed by `group:${key}`. */
 	groups: Map<string, PlacedBox>;
 	/** One entry per rendered edge segment. */
 	edges: { d: string; kind: LayeringEdgeKind }[];
@@ -78,31 +85,37 @@ interface FlatLayout {
 
 const elk = new ELK();
 
-export function CanvasView({ snapshot, view, evaluated, taxonomies }: CanvasViewProps) {
-	const tasks = evaluated.tasks;
-	const projects = snapshot.projects;
+export function CanvasView({ view, evaluated, taxonomies }: CanvasViewProps) {
+	// Reuse the Board's own group set — non-hidden, non-empty — for the boxes,
+	// and the matching visible-task set. Flat when grouped by `label`/`none`.
+	const { grouped, boxes: visibleGroups, tasks: visibleTasks } = useMemo(
+		() => canvasGrouping(evaluated.groups, evaluated.tasks, view.groupBy),
+		[evaluated.groups, evaluated.tasks, view.groupBy],
+	);
+
+	const shownFields = useMemo(() => renderedHiddenFields(view), [view]);
 
 	// Memoise on the *content* that feeds the graph — visible task paths, their
-	// project/parent, and their three relation arrays — not on `evaluated`
-	// identity, which changes reference on unrelated re-renders.
-	const signature = useMemo(
-		() =>
-			tasks
-				.map(
-					(t) =>
-						`${t.path}|${t.project ?? ""}|${t.parent ?? ""}|` +
-						`${t.relations.blocks.join(",")}|${t.relations.blockedBy.join(",")}|` +
-						`${t.relations.related.join(",")}`,
-				)
-				.join(";") +
-			"::" +
-			projects.map((p) => p.path).join(","),
-		[tasks, projects],
-	);
+	// parent, their three relation arrays, and the box each sits in — not on
+	// `evaluated` identity, which changes reference on unrelated re-renders.
+	const signature = useMemo(() => {
+		const boxOf = new Map<string, string>();
+		for (const g of visibleGroups) {
+			for (const t of g.tasks) boxOf.set(t.path, g.key);
+		}
+		return visibleTasks
+			.map(
+				(t) =>
+					`${t.path}@${boxOf.get(t.path) ?? ""}|${t.parent ?? ""}|` +
+					`${t.relations.blocks.join(",")}|${t.relations.blockedBy.join(",")}|` +
+					`${t.relations.related.join(",")}`,
+			)
+			.join(";");
+	}, [visibleTasks, visibleGroups]);
 
 	// eslint-disable-next-line react-hooks/exhaustive-deps
 	const graph: CanvasGraph = useMemo(
-		() => buildCanvasGraph(tasks, projects),
+		() => buildCanvasGraph(visibleTasks),
 		[signature],
 	);
 
@@ -112,29 +125,22 @@ export function CanvasView({ snapshot, view, evaluated, taxonomies }: CanvasView
 	const [loading, setLoading] = useState(false);
 
 	useEffect(() => {
-		if (evaluated.total === 0) return;
+		if (visibleTasks.length === 0) return;
 		let cancelled = false;
 		setLoading(true);
 
-		const grouped = new Set(
-			graph.projectGroups.flatMap((g) => g.taskPaths),
-		);
 		const leaf = (id: string) => ({ id, width: NODE_WIDTH, height: NODE_HEIGHT });
-
-		const children: ElkNode[] = [
-			...graph.projectGroups.map((group) => ({
-				id: group.id,
-				layoutOptions: {
-					"elk.algorithm": "layered",
-					"elk.direction": direction,
-					"elk.padding": GROUP_PADDING,
-				},
-				children: group.taskPaths.map(leaf),
-			})),
-			...graph.nodes
-				.filter((n) => !grouped.has(n.id))
-				.map((n) => leaf(n.id)),
-		];
+		const children: ElkNode[] = grouped
+			? visibleGroups.map((g) => ({
+					id: `group:${g.key}`,
+					layoutOptions: {
+						"elk.algorithm": "layered",
+						"elk.direction": direction,
+						"elk.padding": GROUP_PADDING,
+					},
+					children: g.tasks.map((t) => leaf(t.path)),
+				}))
+			: graph.nodes.map((n) => leaf(n.id));
 
 		// `edge-${i}` carries the kind back by index after layout.
 		const kindById = new Map<string, LayeringEdgeKind>();
@@ -173,7 +179,7 @@ export function CanvasView({ snapshot, view, evaluated, taxonomies }: CanvasView
 		return () => {
 			cancelled = true;
 		};
-	}, [graph, direction, evaluated.total]);
+	}, [graph, grouped, visibleGroups, visibleTasks.length, direction]);
 
 	// --- Pan / zoom — transient component state, never persisted. -------------
 	const [transform, setTransform] = useState({ x: 24, y: 24, scale: 1 });
@@ -237,8 +243,8 @@ export function CanvasView({ snapshot, view, evaluated, taxonomies }: CanvasView
 		});
 	};
 
-	if (evaluated.total === 0) {
-		const filtered = evaluated.filteredOut > 0;
+	if (evaluated.total === 0 || visibleTasks.length === 0) {
+		const filtered = evaluated.filteredOut > 0 || evaluated.total > 0;
 		return (
 			<EmptyView
 				icon={view.icon}
@@ -256,9 +262,7 @@ export function CanvasView({ snapshot, view, evaluated, taxonomies }: CanvasView
 	}
 
 	const nodeById = new Map(graph.nodes.map((n) => [n.id, n.task]));
-	const projectById = new Map(
-		graph.projectGroups.map((g) => [g.id, g.project]),
-	);
+	const groupByKey = new Map(visibleGroups.map((g) => [`group:${g.key}`, g]));
 
 	const relatedPaths = laidOut
 		? graph.relatedEdges
@@ -283,6 +287,13 @@ export function CanvasView({ snapshot, view, evaluated, taxonomies }: CanvasView
 			onPointerCancel={endPan}
 			onWheel={onWheel}
 		>
+			{view.groupBy === "label" && (
+				<div className="vf-canvas-note">
+					Label grouping isn't shown as boxes here — a task can carry several
+					labels at once.
+				</div>
+			)}
+
 			{loading && !laidOut && (
 				<div className="vf-canvas-loading">Laying out graph…</div>
 			)}
@@ -294,29 +305,33 @@ export function CanvasView({ snapshot, view, evaluated, taxonomies }: CanvasView
 						transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
 					}}
 				>
-					{[...laidOut.groups].map(([id, box]) => (
-						<div
-							key={id}
-							className="vf-canvas-group"
-							style={{
-								left: box.x,
-								top: box.y,
-								width: box.width,
-								height: box.height,
-							}}
-						>
-							<div className="vf-canvas-group-header">
-								<Icon
-									id={projectById.get(id)?.icon}
-									fallback="folder"
-									size={13}
-								/>
-								<span className="vf-canvas-group-title">
-									{projectById.get(id)?.title ?? "Project"}
-								</span>
+					{[...laidOut.groups].map(([id, box]) => {
+						const group = groupByKey.get(id);
+						return (
+							<div
+								key={id}
+								className="vf-canvas-group"
+								style={{
+									left: box.x,
+									top: box.y,
+									width: box.width,
+									height: box.height,
+								}}
+							>
+								<div className="vf-canvas-group-header">
+									{group?.color && (
+										<span
+											className="vf-status-dot"
+											style={{ backgroundColor: group.color }}
+										/>
+									)}
+									<span className="vf-canvas-group-title">
+										{group?.label ?? "Group"}
+									</span>
+								</div>
 							</div>
-						</div>
-					))}
+						);
+					})}
 
 					<svg
 						className="vf-canvas-edges"
@@ -335,13 +350,16 @@ export function CanvasView({ snapshot, view, evaluated, taxonomies }: CanvasView
 								markerHeight="7"
 								orient="auto-start-reverse"
 							>
-								<path d="M 0 0 L 10 5 L 0 10 z" />
+								<path
+									className="vf-canvas-arrow-head"
+									d="M 0 0 L 10 5 L 0 10 z"
+								/>
 							</marker>
 						</defs>
 						{laidOut.edges.map((edge, i) => (
 							<path
 								key={i}
-								className={`vf-canvas-edge vf-canvas-edge--${edge.kind}`}
+								className={`vf-canvas-edge-${edge.kind}`}
 								d={edge.d}
 								markerEnd={
 									edge.kind === "dependency"
@@ -351,11 +369,7 @@ export function CanvasView({ snapshot, view, evaluated, taxonomies }: CanvasView
 							/>
 						))}
 						{relatedPaths.map((d, i) => (
-							<path
-								key={`rel-${i}`}
-								className="vf-canvas-edge vf-canvas-edge--related"
-								d={d}
-							/>
+							<path key={`rel-${i}`} className="vf-canvas-edge-related" d={d} />
 						))}
 					</svg>
 
@@ -363,66 +377,79 @@ export function CanvasView({ snapshot, view, evaluated, taxonomies }: CanvasView
 						const task = nodeById.get(id);
 						if (!task) return null;
 						return (
-							<div
+							<CanvasNode
 								key={id}
-								className="vf-canvas-node"
-								style={{
-									left: pos.x,
-									top: pos.y,
-									width: pos.width,
-									height: pos.height,
-								}}
-							>
-								<div className="vf-canvas-node-top">
-									<StatusDot taxonomies={taxonomies} status={task.status} />
-									<span className="vf-id">{task.id}</span>
-									<TaxonomyChip
-										taxonomies={taxonomies}
-										kind="priority"
-										id={task.priority}
-									/>
-								</div>
-								<div className="vf-canvas-node-title" title={displayTitle(task)}>
-									{displayTitle(task)}
-								</div>
-							</div>
+								task={task}
+								pos={pos}
+								taxonomies={taxonomies}
+								hiddenFields={shownFields}
+							/>
 						);
 					})}
 				</div>
 			)}
 
-			<div className="vf-canvas-legend" aria-hidden>
-				<div className="vf-canvas-legend-row">
-					<svg width="26" height="10" viewBox="0 0 26 10">
-						<path
-							className="vf-canvas-edge vf-canvas-edge--dependency"
-							d="M 1 5 L 19 5"
-						/>
-						<path
-							className="vf-canvas-legend-arrow"
-							d="M 19 2 L 25 5 L 19 8 z"
-						/>
-					</svg>
-					<span>Depends on</span>
-				</div>
-				<div className="vf-canvas-legend-row">
-					<svg width="26" height="10" viewBox="0 0 26 10">
-						<path
-							className="vf-canvas-edge vf-canvas-edge--hierarchy"
-							d="M 1 5 L 25 5"
-						/>
-					</svg>
-					<span>Sub-task of</span>
-				</div>
-				<div className="vf-canvas-legend-row">
-					<svg width="26" height="10" viewBox="0 0 26 10">
-						<path
-							className="vf-canvas-edge vf-canvas-edge--related"
-							d="M 1 5 L 25 5"
-						/>
-					</svg>
-					<span>Related</span>
-				</div>
+			<CanvasLegend />
+		</div>
+	);
+}
+
+function CanvasNode({
+	task,
+	pos,
+	taxonomies,
+	hiddenFields,
+}: {
+	task: Task;
+	pos: PlacedBox;
+	taxonomies: WorkspaceTaxonomies;
+	hiddenFields: readonly TaskField[];
+}) {
+	const off = (field: TaskField) => hiddenFields.includes(field);
+	return (
+		<div
+			className="vf-canvas-node"
+			style={{ left: pos.x, top: pos.y, width: pos.width, height: pos.height }}
+		>
+			<div className="vf-canvas-node-top">
+				<StatusDot taxonomies={taxonomies} status={task.status} />
+				<span className="vf-id">{task.id}</span>
+				{!off("priority") && (
+					<TaxonomyChip
+						taxonomies={taxonomies}
+						kind="priority"
+						id={task.priority}
+					/>
+				)}
+			</div>
+			<div className="vf-canvas-node-title" title={displayTitle(task)}>
+				{displayTitle(task)}
+			</div>
+		</div>
+	);
+}
+
+function CanvasLegend() {
+	return (
+		<div className="vf-canvas-legend" aria-hidden>
+			<div className="vf-canvas-legend-row">
+				<svg width="26" height="10" viewBox="0 0 26 10">
+					<path className="vf-canvas-edge-dependency" d="M 1 5 L 19 5" />
+					<path className="vf-canvas-arrow-head" d="M 19 2 L 25 5 L 19 8 z" />
+				</svg>
+				<span>Depends on</span>
+			</div>
+			<div className="vf-canvas-legend-row">
+				<svg width="26" height="10" viewBox="0 0 26 10">
+					<path className="vf-canvas-edge-hierarchy" d="M 1 5 L 25 5" />
+				</svg>
+				<span>Sub-task of</span>
+			</div>
+			<div className="vf-canvas-legend-row">
+				<svg width="26" height="10" viewBox="0 0 26 10">
+					<path className="vf-canvas-edge-related" d="M 1 5 L 25 5" />
+				</svg>
+				<span>Related</span>
 			</div>
 		</div>
 	);
@@ -473,7 +500,7 @@ function flattenLayout(
 				width: child.width ?? NODE_WIDTH,
 				height: child.height ?? NODE_HEIGHT,
 			};
-			if (child.id.startsWith("project:")) {
+			if (child.id.startsWith("group:")) {
 				groups.set(child.id, box);
 				visit(child, cx, cy);
 			} else {

@@ -242,7 +242,7 @@ export function ViewControls({
 							    toggle has to be reachable from both — otherwise a board
 							    inherits a "collapse all" done on the list with no way
 							    back. */}
-              {view.groupBy !== "none" && (
+              {view.groupBy !== "none" && view.viewType !== "canvas" && (
                 <CollapseAllToggle
                   view={view}
                   evaluated={evaluated}
@@ -256,16 +256,23 @@ export function ViewControls({
 					    sort field is picked here has no effect on what renders, so the
 					    control is hidden rather than left showing a setting that does
 					    nothing. */}
-          {!(view.viewType === "list" && view.subtaskDisplay === "nested") && (
-            <>
-              <span className="vf-bar-divider" />
-              <SortChip view={view} onChange={editView} />
-            </>
-          )}
+          {!(view.viewType === "list" && view.subtaskDisplay === "nested") &&
+            view.viewType !== "canvas" && (
+              <>
+                <span className="vf-bar-divider" />
+                <SortChip view={view} onChange={editView} />
+              </>
+            )}
           <span className="vf-bar-divider" />
           <SubtasksChip view={view} onChange={editView} />
-          <span className="vf-bar-divider" />
-          <RecurringPreviewChip view={view} onChange={editView} />
+          {/* Recurrence ghosts are a Calendar/Timeline date-projection feature —
+			    a relationship graph has no timeline to project onto. */}
+          {view.viewType !== "canvas" && (
+            <>
+              <span className="vf-bar-divider" />
+              <RecurringPreviewChip view={view} onChange={editView} />
+            </>
+          )}
           <span className="vf-bar-divider" />
           <FieldsControl view={view} onChange={editView} />
           <span className="vf-bar-divider" />

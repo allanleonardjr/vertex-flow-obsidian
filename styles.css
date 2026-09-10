@@ -7736,27 +7736,58 @@ button.vf-history-expand {
   pointer-events: none;
 }
 
-.vf-canvas-edge {
+/* Edge palette — swap these three values to re-theme every connector; the
+   component never names a colour. */
+.vf-canvas {
+  --vf-canvas-edge-dependency: var(--text-muted);
+  --vf-canvas-edge-hierarchy: var(--text-faint);
+  --vf-canvas-edge-related: var(--text-faint);
+}
+
+.vf-canvas-edge-dependency,
+.vf-canvas-edge-hierarchy,
+.vf-canvas-edge-related {
   fill: none;
-  stroke: var(--vf-border);
+}
+
+/* blocks/blockedBy: solid, arrowed. */
+.vf-canvas-edge-dependency {
+  stroke: var(--vf-canvas-edge-dependency);
   stroke-width: 1.5px;
 }
 
 /* parent → child: thin, arrowless, recedes behind dependency edges. */
-.vf-canvas-edge--hierarchy {
-  stroke: var(--text-faint);
+.vf-canvas-edge-hierarchy {
+  stroke: var(--vf-canvas-edge-hierarchy);
   stroke-width: 1px;
 }
 
 /* related: undirected, dashed, drawn straight between node centres. */
-.vf-canvas-edge--related {
-  stroke: var(--text-faint);
+.vf-canvas-edge-related {
+  stroke: var(--vf-canvas-edge-related);
   stroke-width: 1px;
   stroke-dasharray: 4 3;
 }
 
-#vf-canvas-arrow path {
-  fill: var(--vf-border);
+/* The one arrowhead — always matches the dependency stroke. */
+.vf-canvas-arrow-head {
+  fill: var(--vf-canvas-edge-dependency);
+  stroke: none;
+}
+
+.vf-canvas-note {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  max-width: 80%;
+  padding: 4px 12px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
 }
 
 .vf-canvas-group {
@@ -7802,10 +7833,6 @@ button.vf-history-expand {
   display: flex;
   align-items: center;
   gap: 6px;
-}
-
-.vf-canvas-legend-arrow {
-  fill: var(--vf-border);
 }
 
 .vf-canvas-node {

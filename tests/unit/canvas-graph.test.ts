@@ -1,20 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { buildCanvasGraph } from "../../src/core/canvas/graph";
 import { emptyRelations } from "../../src/core/types";
-import { project, task } from "./fixtures";
+import { task } from "./fixtures";
 
 const t = (
 	id: string,
 	overrides: {
 		relations?: Partial<ReturnType<typeof emptyRelations>>;
-		project?: string;
 		parent?: string;
 	} = {},
 ) =>
 	task({
 		id,
 		path: `W/Tasks/${id}`,
-		project: overrides.project ?? null,
 		parent: overrides.parent ?? null,
 		relations: { ...emptyRelations(), ...overrides.relations },
 	});
@@ -24,7 +22,7 @@ const deps = (g: ReturnType<typeof buildCanvasGraph>) =>
 		.filter((e) => e.kind === "dependency")
 		.map((e) => ({ source: e.source, target: e.target }));
 
-describe("buildCanvasGraph — dependency edges (Phase 1)", () => {
+describe("buildCanvasGraph — dependency edges", () => {
 	it("makes one node per task, edge order blocker → blocked", () => {
 		const a = t("A", { relations: { blocks: ["W/Tasks/B"] } });
 		const b = t("B");
@@ -42,16 +40,10 @@ describe("buildCanvasGraph — dependency edges (Phase 1)", () => {
 		]);
 	});
 
-	it("drops an edge when an endpoint is filtered out of the visible set", () => {
+	it("drops an edge when an endpoint isn't visible", () => {
 		const a = t("A", { relations: { blocks: ["W/Tasks/GONE"] } });
 		const g = buildCanvasGraph([a]);
 		expect(g.nodes).toHaveLength(1);
-		expect(g.layeringEdges).toEqual([]);
-	});
-
-	it("keeps tasks with no relations as isolated nodes", () => {
-		const g = buildCanvasGraph([t("A"), t("B"), t("C")]);
-		expect(g.nodes).toHaveLength(3);
 		expect(g.layeringEdges).toEqual([]);
 	});
 
@@ -61,50 +53,18 @@ describe("buildCanvasGraph — dependency edges (Phase 1)", () => {
 	});
 });
 
-describe("buildCanvasGraph — project grouping (Phase 2)", () => {
-	it("groups every task sharing a project into one box", () => {
-		const p = project({ path: "W/Projects/P", title: "P" });
-		const a = t("A", { project: "W/Projects/P" });
-		const b = t("B", { project: "W/Projects/P" });
-		const c = t("C");
+describe("buildCanvasGraph — hierarchy edges", () => {
+	it("adds a thin parent → child edge, independent of grouping", () => {
+		const parent = t("PAR");
+		const child = t("CHI", { parent: "W/Tasks/PAR" });
 
-		const g = buildCanvasGraph([a, b, c], [p]);
-
-		expect(g.projectGroups).toHaveLength(1);
-		expect(g.projectGroups[0]).toMatchObject({
-			id: "project:W/Projects/P",
-			taskPaths: ["W/Tasks/A", "W/Tasks/B"],
-		});
-	});
-
-	it("falls back to top-level for a broken/missing project reference", () => {
-		const a = t("A", { project: "W/Projects/GONE" });
-		const g = buildCanvasGraph([a], []);
-
-		expect(g.projectGroups).toEqual([]);
-		expect(g.nodes.map((n) => n.id)).toEqual(["W/Tasks/A"]);
-	});
-});
-
-describe("buildCanvasGraph — hierarchy edges (Phase 2)", () => {
-	it("adds a hierarchy edge parent → child crossing two projects", () => {
-		const p1 = project({ path: "W/Projects/P1" });
-		const p2 = project({ path: "W/Projects/P2" });
-		const parent = t("PAR", { project: "W/Projects/P1" });
-		const child = t("CHI", { project: "W/Projects/P2", parent: "W/Tasks/PAR" });
-
-		const g = buildCanvasGraph([parent, child], [p1, p2]);
+		const g = buildCanvasGraph([parent, child]);
 
 		expect(g.layeringEdges).toContainEqual({
 			source: "W/Tasks/PAR",
 			target: "W/Tasks/CHI",
 			kind: "hierarchy",
 		});
-		// The two still land in different boxes.
-		expect(g.projectGroups.map((grp) => grp.id).sort()).toEqual([
-			"project:W/Projects/P1",
-			"project:W/Projects/P2",
-		]);
 	});
 
 	it("drops a hierarchy edge whose parent isn't visible", () => {
@@ -113,7 +73,7 @@ describe("buildCanvasGraph — hierarchy edges (Phase 2)", () => {
 	});
 });
 
-describe("buildCanvasGraph — related edges (Phase 2)", () => {
+describe("buildCanvasGraph — related edges", () => {
 	it("dedupes a related pair regardless of which side declared it", () => {
 		const a = t("A", { relations: { related: ["W/Tasks/B"] } });
 		const b = t("B", { relations: { related: ["W/Tasks/A"] } });
