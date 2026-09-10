@@ -1,14 +1,22 @@
 /**
- * Canvas (DAG) view — Phase 1, strictly read-only.
+ * Canvas view — read-only relationship graph.
  *
- * Renders the current view's filtered tasks as nodes in a layered dependency
- * graph, with directed edges from `blocks` / `blockedBy` relations, laid out by
- * `elkjs` (Sugiyama-style layered layout). Users can pan and zoom; nothing is
- * ever written back to any file. Node dragging, edge editing, topology picking
- * and frames are all later phases.
+ * Phase 2 renders three relationship dimensions at once, laid out by `elkjs`:
+ *   - project containment — each task with a resolvable `project` sits inside a
+ *     labelled ELK compound box for that project (real containment, not a
+ *     post-hoc rectangle);
+ *   - layered edges — `blocks`/`blockedBy` dependencies (solid, arrowed) and
+ *     `parent` → child hierarchy (thin, arrowless) both feed ELK's ranking and
+ *     may cross project boxes;
+ *   - `related` links — dashed, arrowless, drawn straight between final node
+ *     centres and never fed into the layout.
  *
- * The pure graph-building lives in `core/canvas/graph.ts` so it stays
- * unit-testable and Obsidian-free; this component only lays it out and draws it.
+ * Still strictly read-only: pan and zoom only, nothing is written to any file.
+ * Node dragging, drag-to-reparent, group-membership writes and topology picking
+ * are all later phases.
+ *
+ * The pure graph-building lives in `core/canvas/graph.ts` (Obsidian-free,
+ * unit-tested); this component only lays it out and draws it.
  */
 
 import {
@@ -20,12 +28,17 @@ import {
 	type WheelEvent as ReactWheelEvent,
 } from "react";
 import ELK, { type ElkNode } from "elkjs/lib/elk.bundled.js";
-import { buildCanvasGraph } from "../../core/canvas/graph";
+import {
+	buildCanvasGraph,
+	type CanvasGraph,
+	type LayeringEdgeKind,
+} from "../../core/canvas/graph";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { EvaluatedView } from "../../core/views";
 import { layoutIcon } from "../../core/views";
 import type { SavedView, WorkspaceSnapshot } from "../../core/types";
 import { EmptyView } from "../components/EmptyView";
+import { Icon } from "../components/Icon";
 import { StatusDot, TaxonomyChip } from "../components/TaskBits";
 import { displayTitle } from "../components/TaskTitle";
 
@@ -39,21 +52,26 @@ export interface CanvasViewProps {
 /** Fixed node box — ELK needs concrete dimensions; CSS truncates to fit. */
 const NODE_WIDTH = 220;
 const NODE_HEIGHT = 64;
+/** Extra top padding inside a project box, leaving room for its header. */
+const GROUP_PADDING = "[top=34.0,left=16.0,bottom=16.0,right=16.0]";
 
 const MIN_SCALE = 0.2;
 const MAX_SCALE = 2.5;
 
-interface PlacedNode {
+interface PlacedBox {
 	x: number;
 	y: number;
 	width: number;
 	height: number;
 }
 
-interface LaidOutGraph {
-	nodes: Map<string, PlacedNode>;
-	/** One SVG path `d` string per edge. */
-	edges: string[];
+interface FlatLayout {
+	/** Task nodes, absolute coords. */
+	nodes: Map<string, PlacedBox>;
+	/** Project compound boxes, absolute coords. */
+	groups: Map<string, PlacedBox>;
+	/** One entry per rendered edge segment. */
+	edges: { d: string; kind: LayeringEdgeKind }[];
 	width: number;
 	height: number;
 }
@@ -62,27 +80,35 @@ const elk = new ELK();
 
 export function CanvasView({ snapshot, view, evaluated, taxonomies }: CanvasViewProps) {
 	const tasks = evaluated.tasks;
+	const projects = snapshot.projects;
 
-	// Memoise on the *content* that actually feeds the graph — visible task
-	// paths plus their blocks/blockedBy arrays — not on `evaluated` identity,
-	// which changes reference on unrelated re-renders.
+	// Memoise on the *content* that feeds the graph — visible task paths, their
+	// project/parent, and their three relation arrays — not on `evaluated`
+	// identity, which changes reference on unrelated re-renders.
 	const signature = useMemo(
 		() =>
 			tasks
 				.map(
 					(t) =>
-						`${t.path}|${t.relations.blocks.join(",")}|${t.relations.blockedBy.join(",")}`,
+						`${t.path}|${t.project ?? ""}|${t.parent ?? ""}|` +
+						`${t.relations.blocks.join(",")}|${t.relations.blockedBy.join(",")}|` +
+						`${t.relations.related.join(",")}`,
 				)
-				.join(";"),
-		[tasks],
+				.join(";") +
+			"::" +
+			projects.map((p) => p.path).join(","),
+		[tasks, projects],
 	);
 
 	// eslint-disable-next-line react-hooks/exhaustive-deps
-	const graph = useMemo(() => buildCanvasGraph(tasks), [signature]);
+	const graph: CanvasGraph = useMemo(
+		() => buildCanvasGraph(tasks, projects),
+		[signature],
+	);
 
 	const direction = view.canvasDirection === "TB" ? "DOWN" : "RIGHT";
 
-	const [laidOut, setLaidOut] = useState<LaidOutGraph | null>(null);
+	const [laidOut, setLaidOut] = useState<FlatLayout | null>(null);
 	const [loading, setLoading] = useState(false);
 
 	useEffect(() => {
@@ -90,32 +116,52 @@ export function CanvasView({ snapshot, view, evaluated, taxonomies }: CanvasView
 		let cancelled = false;
 		setLoading(true);
 
+		const grouped = new Set(
+			graph.projectGroups.flatMap((g) => g.taskPaths),
+		);
+		const leaf = (id: string) => ({ id, width: NODE_WIDTH, height: NODE_HEIGHT });
+
+		const children: ElkNode[] = [
+			...graph.projectGroups.map((group) => ({
+				id: group.id,
+				layoutOptions: {
+					"elk.algorithm": "layered",
+					"elk.direction": direction,
+					"elk.padding": GROUP_PADDING,
+				},
+				children: group.taskPaths.map(leaf),
+			})),
+			...graph.nodes
+				.filter((n) => !grouped.has(n.id))
+				.map((n) => leaf(n.id)),
+		];
+
+		// `edge-${i}` carries the kind back by index after layout.
+		const kindById = new Map<string, LayeringEdgeKind>();
+		const edges = graph.layeringEdges.map((e, i) => {
+			const id = `edge-${i}`;
+			kindById.set(id, e.kind);
+			return { id, sources: [e.source], targets: [e.target] };
+		});
+
 		const elkGraph: ElkNode = {
 			id: "root",
 			layoutOptions: {
 				"elk.algorithm": "layered",
 				"elk.direction": direction,
+				"elk.hierarchyHandling": "INCLUDE_CHILDREN",
 				"elk.spacing.nodeNode": "36",
 				"elk.layered.spacing.nodeNodeBetweenLayers": "64",
-				"elk.separateConnectedComponents": "true",
 			},
-			children: graph.nodes.map((n) => ({
-				id: n.id,
-				width: NODE_WIDTH,
-				height: NODE_HEIGHT,
-			})),
-			edges: graph.edges.map((e, i) => ({
-				id: `edge-${i}`,
-				sources: [e.source],
-				targets: [e.target],
-			})),
+			children,
+			edges,
 		};
 
 		elk
 			.layout(elkGraph)
 			.then((res) => {
 				if (cancelled) return;
-				setLaidOut(toLaidOut(res));
+				setLaidOut(flattenLayout(res, kindById));
 				setLoading(false);
 			})
 			.catch(() => {
@@ -210,6 +256,23 @@ export function CanvasView({ snapshot, view, evaluated, taxonomies }: CanvasView
 	}
 
 	const nodeById = new Map(graph.nodes.map((n) => [n.id, n.task]));
+	const projectById = new Map(
+		graph.projectGroups.map((g) => [g.id, g.project]),
+	);
+
+	const relatedPaths = laidOut
+		? graph.relatedEdges
+				.map(({ a, b }) => {
+					const na = laidOut.nodes.get(a);
+					const nb = laidOut.nodes.get(b);
+					if (!na || !nb) return null;
+					return (
+						`M ${na.x + na.width / 2} ${na.y + na.height / 2} ` +
+						`L ${nb.x + nb.width / 2} ${nb.y + nb.height / 2}`
+					);
+				})
+				.filter((d): d is string => d !== null)
+		: [];
 
 	return (
 		<div
@@ -231,6 +294,30 @@ export function CanvasView({ snapshot, view, evaluated, taxonomies }: CanvasView
 						transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
 					}}
 				>
+					{[...laidOut.groups].map(([id, box]) => (
+						<div
+							key={id}
+							className="vf-canvas-group"
+							style={{
+								left: box.x,
+								top: box.y,
+								width: box.width,
+								height: box.height,
+							}}
+						>
+							<div className="vf-canvas-group-header">
+								<Icon
+									id={projectById.get(id)?.icon}
+									fallback="folder"
+									size={13}
+								/>
+								<span className="vf-canvas-group-title">
+									{projectById.get(id)?.title ?? "Project"}
+								</span>
+							</div>
+						</div>
+					))}
+
 					<svg
 						className="vf-canvas-edges"
 						width={laidOut.width}
@@ -251,12 +338,23 @@ export function CanvasView({ snapshot, view, evaluated, taxonomies }: CanvasView
 								<path d="M 0 0 L 10 5 L 0 10 z" />
 							</marker>
 						</defs>
-						{laidOut.edges.map((d, i) => (
+						{laidOut.edges.map((edge, i) => (
 							<path
 								key={i}
-								className="vf-canvas-edge"
+								className={`vf-canvas-edge vf-canvas-edge--${edge.kind}`}
+								d={edge.d}
+								markerEnd={
+									edge.kind === "dependency"
+										? "url(#vf-canvas-arrow)"
+										: undefined
+								}
+							/>
+						))}
+						{relatedPaths.map((d, i) => (
+							<path
+								key={`rel-${i}`}
+								className="vf-canvas-edge vf-canvas-edge--related"
 								d={d}
-								markerEnd="url(#vf-canvas-arrow)"
 							/>
 						))}
 					</svg>
@@ -292,6 +390,40 @@ export function CanvasView({ snapshot, view, evaluated, taxonomies }: CanvasView
 					})}
 				</div>
 			)}
+
+			<div className="vf-canvas-legend" aria-hidden>
+				<div className="vf-canvas-legend-row">
+					<svg width="26" height="10" viewBox="0 0 26 10">
+						<path
+							className="vf-canvas-edge vf-canvas-edge--dependency"
+							d="M 1 5 L 19 5"
+						/>
+						<path
+							className="vf-canvas-legend-arrow"
+							d="M 19 2 L 25 5 L 19 8 z"
+						/>
+					</svg>
+					<span>Depends on</span>
+				</div>
+				<div className="vf-canvas-legend-row">
+					<svg width="26" height="10" viewBox="0 0 26 10">
+						<path
+							className="vf-canvas-edge vf-canvas-edge--hierarchy"
+							d="M 1 5 L 25 5"
+						/>
+					</svg>
+					<span>Sub-task of</span>
+				</div>
+				<div className="vf-canvas-legend-row">
+					<svg width="26" height="10" viewBox="0 0 26 10">
+						<path
+							className="vf-canvas-edge vf-canvas-edge--related"
+							d="M 1 5 L 25 5"
+						/>
+					</svg>
+					<span>Related</span>
+				</div>
+			</div>
 		</div>
 	);
 }
@@ -300,36 +432,61 @@ function clamp(n: number, lo: number, hi: number): number {
 	return Math.max(lo, Math.min(hi, n));
 }
 
-/** Flatten ELK's result into placed boxes + edge path strings + bounds. */
-function toLaidOut(root: ElkNode): LaidOutGraph {
-	const nodes = new Map<string, PlacedNode>();
-	for (const child of root.children ?? []) {
-		nodes.set(child.id, {
-			x: child.x ?? 0,
-			y: child.y ?? 0,
-			width: child.width ?? NODE_WIDTH,
-			height: child.height ?? NODE_HEIGHT,
-		});
-	}
+/**
+ * Flatten ELK's nested result into absolute coordinates.
+ *
+ * With `hierarchyHandling: INCLUDE_CHILDREN` every node's `x`/`y` is relative to
+ * its parent compound node, and an edge's section points are relative to
+ * whichever container ELK routed the edge through — so we walk the tree once,
+ * carrying each container's absolute origin, and add it into every coordinate.
+ */
+function flattenLayout(
+	root: ElkNode,
+	kindById: Map<string, LayeringEdgeKind>,
+): FlatLayout {
+	const nodes = new Map<string, PlacedBox>();
+	const groups = new Map<string, PlacedBox>();
+	const edges: { d: string; kind: LayeringEdgeKind }[] = [];
 
-	const edges: string[] = [];
-	for (const edge of root.edges ?? []) {
-		for (const section of edge.sections ?? []) {
-			const pts = [
-				section.startPoint,
-				...(section.bendPoints ?? []),
-				section.endPoint,
-			];
-			edges.push(
-				pts
-					.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
-					.join(" "),
-			);
+	const visit = (node: ElkNode, absX: number, absY: number) => {
+		for (const edge of node.edges ?? []) {
+			const kind = kindById.get(edge.id ?? "") ?? "dependency";
+			for (const section of edge.sections ?? []) {
+				const pts = [
+					section.startPoint,
+					...(section.bendPoints ?? []),
+					section.endPoint,
+				];
+				const d = pts
+					.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x + absX} ${p.y + absY}`)
+					.join(" ");
+				edges.push({ d, kind });
+			}
 		}
-	}
+
+		for (const child of node.children ?? []) {
+			const cx = absX + (child.x ?? 0);
+			const cy = absY + (child.y ?? 0);
+			const box: PlacedBox = {
+				x: cx,
+				y: cy,
+				width: child.width ?? NODE_WIDTH,
+				height: child.height ?? NODE_HEIGHT,
+			};
+			if (child.id.startsWith("project:")) {
+				groups.set(child.id, box);
+				visit(child, cx, cy);
+			} else {
+				nodes.set(child.id, box);
+			}
+		}
+	};
+
+	visit(root, 0, 0);
 
 	return {
 		nodes,
+		groups,
 		edges,
 		width: Math.max(root.width ?? 0, 1),
 		height: Math.max(root.height ?? 0, 1),

@@ -7693,7 +7693,8 @@ button.vf-history-expand {
 }
 
 /* ---------------------------------------------------------------------------
- * Canvas (DAG) view — Phase 1, read-only dependency graph.
+ * Canvas view — read-only relationship graph (projects, dependencies,
+ * hierarchy, related links).
  * ------------------------------------------------------------------------- */
 .vf-canvas {
   position: relative;
@@ -7741,7 +7742,69 @@ button.vf-history-expand {
   stroke-width: 1.5px;
 }
 
+/* parent → child: thin, arrowless, recedes behind dependency edges. */
+.vf-canvas-edge--hierarchy {
+  stroke: var(--text-faint);
+  stroke-width: 1px;
+}
+
+/* related: undirected, dashed, drawn straight between node centres. */
+.vf-canvas-edge--related {
+  stroke: var(--text-faint);
+  stroke-width: 1px;
+  stroke-dasharray: 4 3;
+}
+
 #vf-canvas-arrow path {
+  fill: var(--vf-border);
+}
+
+.vf-canvas-group {
+  position: absolute;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-secondary-alt, var(--background-secondary));
+}
+
+.vf-canvas-group-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
+}
+
+.vf-canvas-group-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.vf-canvas-legend {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  pointer-events: none;
+}
+
+.vf-canvas-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.vf-canvas-legend-arrow {
   fill: var(--vf-border);
 }
 
