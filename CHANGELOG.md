@@ -79,11 +79,14 @@ This project uses [Semantic Versioning](https://semver.org/).
   the whole strip. Use the tab right-click menu's "Close all tabs" for that.
 
 ### Fixed
-- **The focused task now shows a full ring, not a thin edge.** In List and
-  Board the `j`/`k` focus indicator was a 2px left sliver (rows) or a faint
-  border tint (cards); it's now a proper accent outline around the whole
-  row/card, painted on its own layer so it and the selection highlight show
-  together. Matches the focus ring on the Browse hub cards.
+- **The keyboard-focused item now shows a consistent ring everywhere.** The
+  `j`/`k` focus indicator was a 2px left sliver on List rows, a faint border
+  tint on Board cards, and text-colour only on Timeline row labels; it's now a
+  1px accent outline around the whole item across List, Timeline, and the
+  Browse hub cards, with Board cards keeping a thicker 2px ring. The outline is
+  its own paint layer, so a focused-and-selected item shows both the focus ring
+  and the selection highlight at once; Board card selection now uses the same
+  background tint as List rows.
 - **Keyboard navigation dies after a `u`-chord picker closes.** After pressing `u` + a field key (e.g. `u p` for priority), picking an option and pressing **Enter** (or **Escape**), keyboard navigation in the task list (`j`/`k`, arrow keys, `Enter` to open, `x` to toggle selection) stopped responding until the user clicked a task row again. Focus was lost when the `QuickFieldPicker` portal unmounted, falling back to `document.body` instead of refocusing the `vf-shell` container that shortcuts bind to.
 
 ## 1.0.15 — 2026-09-09

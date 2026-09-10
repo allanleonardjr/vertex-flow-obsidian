@@ -781,7 +781,7 @@ button.vf-list-group-toggle:hover {
 /* A real ring, painted on its own layer so a focused-and-selected row shows
    both this and `.is-selected`'s background at once. */
 .vf-row.is-focused {
-  outline: 2px solid var(--interactive-accent);
+  outline: 1px solid var(--interactive-accent);
   outline-offset: -2px;
 }
 
@@ -1017,7 +1017,8 @@ button.vf-nest-chevron {
 }
 
 .vf-card.is-selected {
-  box-shadow: 0 0 0 2px var(--interactive-accent);
+  /* box-shadow: 0 0 0 2px var(--interactive-accent); */
+  background: var(--text-selection);
 }
 
 .vf-card.is-dragging {
@@ -3498,7 +3499,7 @@ button.vf-browse-card-body {
 /* Keyboard focus (j/k/arrow nav, see `useBrowseKeyboardNav`) — the same ring
    as `.vf-row.is-focused` / `.vf-card.is-focused` in the task views. */
 button.vf-browse-card-body:focus-visible {
-  outline: 2px solid var(--interactive-accent);
+  outline: 1px solid var(--interactive-accent);
   outline-offset: -2px;
 }
 
@@ -5333,7 +5334,12 @@ button.vf-timeline-row-label:hover {
   padding: 0;
 }
 
-.vf-timeline-row-label.is-focused,
+.vf-timeline-row-label.is-focused {
+  outline: 1px solid var(--interactive-accent);
+  outline-offset: -2px;
+  /* color: var(--text-accent); */
+}
+
 .vf-timeline-row-label.is-selected {
   color: var(--text-accent);
 }
