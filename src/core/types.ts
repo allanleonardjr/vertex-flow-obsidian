@@ -563,10 +563,11 @@ export interface WorkspaceConfig {
 // ---------------------------------------------------------------------------
 
 /**
- * List and Board are v1; Timeline (Gantt) and Calendar follow. The graph
- * view is still phased in later.
+ * List and Board are v1; Timeline (Gantt) and Calendar follow. `canvas` is the
+ * read-only dependency-graph (DAG) layout — Phase 1 renders it, later phases
+ * make it interactive.
  */
-export type ViewType = "list" | "board" | "timeline" | "calendar";
+export type ViewType = "list" | "board" | "timeline" | "calendar" | "canvas";
 
 export type GroupByField =
 	| "none"
@@ -738,6 +739,13 @@ export interface SavedView {
 	 * the draft/Save cycle — not furniture like `calendar` below.
 	 */
 	calendarDateField: "dueDate" | "startDate";
+	/**
+	 * Canvas (DAG) layout direction: `"LR"` left-to-right (default) or `"TB"`
+	 * top-to-bottom. Not exposed in any UI in Phase 1 — the field exists only so
+	 * the Phase 2 toolbar can land without another view-note migration. Read it
+	 * with a `"LR"` default everywhere.
+	 */
+	canvasDirection?: "LR" | "TB";
 	/**
 	 * Whether the Calendar and Timeline render this view's recurrences as
 	 * projected, not-yet-created future occurrences. Definitional — it changes

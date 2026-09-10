@@ -50,7 +50,18 @@ import {
 	type ParseResult,
 } from "./coerce";
 
-const VIEW_TYPES: ViewType[] = ["list", "board", "timeline", "calendar"];
+const VIEW_TYPES: ViewType[] = [
+	"list",
+	"board",
+	"timeline",
+	"calendar",
+	"canvas",
+];
+
+const CANVAS_DIRECTIONS: NonNullable<SavedView["canvasDirection"]>[] = [
+	"LR",
+	"TB",
+];
 
 const CALENDAR_DATE_FIELDS: SavedView["calendarDateField"][] = [
 	"dueDate",
@@ -247,6 +258,7 @@ function parseViewValue(
 		subtaskDisplay: def.subtaskDisplay,
 		calendarDateField: def.calendarDateField,
 		recurringPreview: def.recurringPreview,
+		canvasDirection: parseCanvasDirection(record.canvasDirection),
 		timeline: parseTimeline(record.timeline),
 		calendar: parseCalendar(record.calendar),
 	};
@@ -320,9 +332,24 @@ function parseLegacyViewValue(
 				"calendarDateField",
 			),
 			recurringPreview: asBoolean(record.recurringPreview, false),
+			canvasDirection: parseCanvasDirection(record.canvasDirection),
 			timeline: parseTimeline(record.timeline),
 			calendar: parseCalendar(record.calendar),
 	};
+}
+
+/**
+ * Canvas (DAG) layout direction — a plain identity/chrome key on the view note,
+ * not part of the `query:` string. Absent or unrecognised parses to `undefined`
+ * (readers apply the `"LR"` default); it never fails validation.
+ */
+function parseCanvasDirection(
+	raw: unknown,
+): SavedView["canvasDirection"] {
+	const value = asString(raw);
+	return CANVAS_DIRECTIONS.includes(value as never)
+		? (value as SavedView["canvasDirection"])
+		: undefined;
 }
 
 /**
@@ -429,6 +456,7 @@ export function serializeView(
 		icon: view.icon,
 		description: view.description,
 		query: printQuery(viewDefinition(view), context) || undefined,
+		canvasDirection: view.canvasDirection,
 		columns: {
 			collapsed: view.columns.collapsed,
 			hidden: view.columns.hidden,
@@ -532,6 +560,7 @@ export function serializeLegacyView(view: SavedView): Record<string, unknown> {
 				? undefined
 				: view.calendarDateField,
 		recurringPreview: view.recurringPreview ? true : undefined,
+		canvasDirection: view.canvasDirection,
 		timeline: view.timeline
 			? compact({
 					scale: view.timeline.scale,

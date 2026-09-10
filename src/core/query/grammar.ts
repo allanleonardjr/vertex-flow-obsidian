@@ -128,6 +128,7 @@ export const LAYOUT_VALUES: Record<ViewType, EnumValueSpec> = {
 	board: { token: "board", aliases: ["kanban"] },
 	timeline: { token: "timeline", aliases: ["gantt"] },
 	calendar: { token: "calendar", aliases: ["cal"] },
+	canvas: { token: "canvas", aliases: [] },
 };
 
 /** Calendar-only: which date field the month grid buckets by (`date:` clause). */

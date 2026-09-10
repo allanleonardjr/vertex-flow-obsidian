@@ -52,6 +52,7 @@ import {
 } from "../shortcuts/QuickFieldPicker";
 import { BoardView } from "./BoardView";
 import { CalendarView } from "./CalendarView";
+import { CanvasView } from "./CanvasView";
 import { ListView } from "./ListView";
 import { TimelineView } from "./TimelineView";
 import { ViewControls } from "./ViewControls";
@@ -343,6 +344,9 @@ export function TaskViewport({
       b: "board",
       t: "timeline",
       c: "calendar",
+      // `d` for "DAG" — the one topology Phase 1 Canvas supports. Not "draw":
+      // Canvas has no drawing or editing capability yet.
+      d: "canvas",
     }),
     [],
   );
@@ -638,6 +642,13 @@ export function TaskViewport({
           taxonomies={taxonomies}
           onCalendarChange={draft.setCalendar}
           onChange={draft.edit}
+        />
+      ) : effective.viewType === "canvas" ? (
+        <CanvasView
+          snapshot={snapshot}
+          view={effective}
+          evaluated={evaluated}
+          taxonomies={taxonomies}
         />
       ) : effective.viewType === "board" ? (
         <BoardView

@@ -40,6 +40,7 @@ export function LayoutToggle({
 		{ value: "board", label: "Board" },
 		{ value: "timeline", label: "Timeline" },
 		{ value: "calendar", label: "Calendar" },
+		{ value: "canvas", label: "Canvas" },
 	];
 	return (
 		<div className="vf-layout-toggle" role="group" aria-label="Layout">
