@@ -38,7 +38,7 @@ This project uses [Semantic Versioning](https://semver.org/).
 - **Keyboard navigation on the Browse hubs.** `j` / `k` / `↑` / `↓` move focus
   between cards on the Projects, Labels, People, Dashboards and Views screens
   (wrapping at either end); `Enter` / `Space` opens the focused card. The
-  keyboard-focused card now shows a visible accent bar.
+  keyboard-focused card shows a visible focus ring.
 - **"Close tabs to the left"** in the tab right-click menu, mirroring the
   existing "Close tabs to the right" (disabled on the leftmost tab).
 
@@ -75,6 +75,11 @@ This project uses [Semantic Versioning](https://semver.org/).
   the whole strip. Use the tab right-click menu's "Close all tabs" for that.
 
 ### Fixed
+- **The focused task now shows a full ring, not a thin edge.** In List and
+  Board the `j`/`k` focus indicator was a 2px left sliver (rows) or a faint
+  border tint (cards); it's now a proper accent outline around the whole
+  row/card, painted on its own layer so it and the selection highlight show
+  together. Matches the focus ring on the Browse hub cards.
 - **Keyboard navigation dies after a `u`-chord picker closes.** After pressing `u` + a field key (e.g. `u p` for priority), picking an option and pressing **Enter** (or **Escape**), keyboard navigation in the task list (`j`/`k`, arrow keys, `Enter` to open, `x` to toggle selection) stopped responding until the user clicked a task row again. Focus was lost when the `QuickFieldPicker` portal unmounted, falling back to `document.body` instead of refocusing the `vf-shell` container that shortcuts bind to.
 
 ## 1.0.15 — 2026-09-09
