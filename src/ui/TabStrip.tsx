@@ -106,6 +106,7 @@ export function TabStrip({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 		close,
 		closeAllOtherTabs,
 		closeTabsToRight,
+		closeTabsToLeft,
 		closeAllTabs,
 		reorder,
 		getViewDraft,
@@ -243,6 +244,7 @@ export function TabStrip({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 						onClose={() => setContextMenu(null)}
 						onCloseOthers={() => closeAllOtherTabs(contextMenu.id)}
 						onCloseToRight={() => closeTabsToRight(contextMenu.id)}
+						onCloseToLeft={() => closeTabsToLeft(contextMenu.id)}
 						onCloseAll={() => closeAllTabs()}
 					/>,
 					document.body,
@@ -491,9 +493,10 @@ function TabRow({
 
 /**
  * The right-click menu on a tab — "Close other tabs", "Close tabs to the
- * right", and "Close all tabs". Rendered through a portal to `document.body`
- * so the tab strip's overflow/positioning never clips it, anchored at the
- * cursor. A click anywhere else, Escape, or a scroll closes it.
+ * right", "Close tabs to the left", and "Close all tabs". Rendered through a
+ * portal to `document.body` so the tab strip's overflow/positioning never
+ * clips it, anchored at the cursor. A click anywhere else, Escape, or a
+ * scroll closes it.
  */
 function TabContextMenu({
 	x,
@@ -503,6 +506,7 @@ function TabContextMenu({
 	onClose,
 	onCloseOthers,
 	onCloseToRight,
+	onCloseToLeft,
 	onCloseAll,
 }: {
 	x: number;
@@ -512,6 +516,7 @@ function TabContextMenu({
 	onClose: () => void;
 	onCloseOthers: () => void;
 	onCloseToRight: () => void;
+	onCloseToLeft: () => void;
 	onCloseAll: () => void;
 }) {
 	const run = useCallback(
@@ -559,6 +564,14 @@ function TabContextMenu({
 				onClick={() => run(onCloseToRight)}
 			>
 				Close tabs to the right
+			</button>
+			<button
+				className="vf-menu-item"
+				role="menuitem"
+				disabled={tabIndex <= 0}
+				onClick={() => run(onCloseToLeft)}
+			>
+				Close tabs to the left
 			</button>
 			<div className="vf-menu-divider" role="separator" />
 			<button

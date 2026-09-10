@@ -21,11 +21,19 @@ import {
   BrowseEmpty,
   BrowseHeader,
   BrowseList,
+  useBrowseKeyboardNav,
 } from "./shared";
 
 type DialogState = { mode: "edit"; view: SavedView } | null;
 
-export function ViewsBrowseView({ snapshot }: { snapshot: WorkspaceSnapshot }) {
+export function ViewsBrowseView({
+  snapshot,
+  containerRef,
+}: {
+  snapshot: WorkspaceSnapshot;
+  containerRef: HTMLElement | null;
+}) {
+  useBrowseKeyboardNav(containerRef);
   const plugin = usePlugin();
   const { openView } = useTabs();
 

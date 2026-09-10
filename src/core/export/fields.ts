@@ -225,6 +225,24 @@ export const ALL_FIELDS: FieldId[] = FIELD_GROUPS.flatMap(
   (group) => group.fields,
 );
 
+/**
+ * The task fields the iCalendar exporter always writes into every `VEVENT`,
+ * regardless of the toggles: UID (`id`), SUMMARY (`title`), STATUS (`status`),
+ * DTSTART (`startDate`), DTEND (`dueDate`), CREATED (`createdAt`) and
+ * LAST-MODIFIED / SEQUENCE (`updatedAt`). Listed in canonical order and shown
+ * in the dialog as a read-only "Mandatory data" group so an `.ics` export is
+ * transparent about what it carries.
+ */
+export const ICS_MANDATORY_FIELDS: FieldId[] = [
+  "id",
+  "title",
+  "status",
+  "startDate",
+  "dueDate",
+  "createdAt",
+  "updatedAt",
+];
+
 /** The default checked set — the Identity group only. */
 export const DEFAULT_FIELDS: FieldId[] = FIELD_GROUPS.filter(
   (group) => group.defaultOn,

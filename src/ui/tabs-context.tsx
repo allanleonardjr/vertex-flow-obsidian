@@ -269,6 +269,12 @@ export interface TabsApi {
 	 * `id` and everything to its left. Guarded the same way as `closeAllOtherTabs`.
 	 */
 	closeTabsToRight: (id: string) => void;
+	/**
+	 * Close every tab to the left of `id` in the strip (browser-style), leaving
+	 * `id` and everything to its right. Guarded the same way as
+	 * `closeAllOtherTabs`.
+	 */
+	closeTabsToLeft: (id: string) => void;
 	/** Close every open tab. Guarded for the active tab, then empties the strip. */
 	closeAllTabs: () => void;
 	/** Drop task tabs whose task no longer exists. Browse/settings tabs are never pruned. */
@@ -851,6 +857,18 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 		[closeSubset],
 	);
 
+	const closeTabsToLeft = useCallback(
+		(id: string) => {
+			const index = tabsRef.current.findIndex((tab) => tab.id === id);
+			if (index === -1) return;
+			void closeSubset((tab) => {
+				const i = tabsRef.current.indexOf(tab);
+				return i >= index;
+			});
+		},
+		[closeSubset],
+	);
+
 	const closeAllTabs = useCallback(() => {
 		void closeSubset(() => false);
 	}, [closeSubset]);
@@ -1002,6 +1020,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			closeAllTasks,
 			closeAllOtherTabs,
 			closeTabsToRight,
+			closeTabsToLeft,
 			closeAllTabs,
 			syncToWorkspace,
 			pruneTasks,
@@ -1052,6 +1071,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			closeAllTasks,
 			closeAllOtherTabs,
 			closeTabsToRight,
+			closeTabsToLeft,
 			closeAllTabs,
 			syncToWorkspace,
 			pruneTasks,

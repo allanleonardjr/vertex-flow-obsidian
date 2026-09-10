@@ -159,7 +159,8 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
   // you out of the field so the `g`/`c` chords, `j`/`k`, and `?` become live
   // again (their listener guard refuses to fire while you're still in an
   // input). Closing a tab is a deliberate modifier action: Option+W closes the
-  // active tab, Option+Shift+W closes them all (handled in `TabSwitcher`).
+  // active tab, Option+Shift+W closes every other tab (handled in
+  // `TabSwitcher`).
   //
   // Bound with `capture: true` on `window` — Obsidian registers its own
   // global Escape handling (closing suggest popups, blurring the active
@@ -178,12 +179,16 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
 
       // The `?` shortcuts overlay, the taxonomy quick-picker, the Option+Tab
       // switcher, and the tab right-click menu each own Escape while they're
-      // up — closing them, not clearing focus behind them.
+      // up — closing them, not clearing focus behind them. An in-progress
+      // task drag (`[data-task-drag]`) likewise owns Escape to cancel itself
+      // (see `useTaskDrag`) rather than have the selection clear out from
+      // under it.
       if (
         document.querySelector(".vf-shortcuts-dialog") ||
         document.querySelector(".vf-quick-picker") ||
         document.querySelector(".vf-tab-switcher") ||
-        document.querySelector(".vf-tab-menu")
+        document.querySelector(".vf-tab-menu") ||
+        document.querySelector("[data-task-drag]")
       ) {
         return;
       }
@@ -249,6 +254,7 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
           <ProjectsBrowseView
             snapshot={snapshot}
             taxonomies={active.taxonomies}
+            containerRef={container}
           />
         ) : activeTab.kind === "settings" ? (
           <WorkspaceSettingsView snapshot={snapshot} />
@@ -257,13 +263,13 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
         ) : activeTab.kind === "new-workspace" ? (
           <TemplateGallery onClose={() => tabs.close("new-workspace")} />
         ) : activeTab.kind === "dashboards" ? (
-          <DashboardsBrowseView snapshot={snapshot} />
+          <DashboardsBrowseView snapshot={snapshot} containerRef={container} />
         ) : activeTab.kind === "views" ? (
-          <ViewsBrowseView snapshot={snapshot} />
+          <ViewsBrowseView snapshot={snapshot} containerRef={container} />
         ) : activeTab.kind === "labels" ? (
-          <LabelsBrowseView snapshot={snapshot} />
+          <LabelsBrowseView snapshot={snapshot} containerRef={container} />
         ) : activeTab.kind === "people" ? (
-          <PeopleBrowseView snapshot={snapshot} />
+          <PeopleBrowseView snapshot={snapshot} containerRef={container} />
         ) : activeTab.kind === "person" ? (
           <PersonDetailView
             personId={activeTab.personId}

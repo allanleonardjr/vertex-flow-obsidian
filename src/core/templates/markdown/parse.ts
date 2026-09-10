@@ -1372,13 +1372,19 @@ export function parseTemplateMarkdown(source: string): ParsedTemplate {
 	// taxonomy and people from frontmatter, Projects from frontmatter and/or the
 	// body, and the Views/Dashboards from their frontmatter sections — which is
 	// why it is built last, once all of them are parsed.
+	// `supportsExampleContent` truthfully means "instantiation can seed Tasks".
+	// An explicit frontmatter value wins (a blank template says `false`); when
+	// absent, a template that ships `# Tasks` body sections is populatable and
+	// one that doesn't isn't — so task-less local templates get no dead toggle.
+	const supportsExampleContent =
+		optionalBoolean(data, "supportsExampleContent") ?? tasks.length > 0;
 	const meta: TemplateMeta = {
 		id: requireString(data, "id"),
 		name: requireString(data, "name"),
 		description: requireString(data, "description"),
 		icon: optionalString(data, "icon"),
 		createdAt: optionalString(data, "createdAt"),
-		supportsExampleContent: optionalBoolean(data, "supportsExampleContent"),
+		supportsExampleContent,
 		author: optionalString(data, "author"),
 		authorUrl: optionalString(data, "authorUrl"),
 		templateVersion: optionalString(data, "templateVersion"),

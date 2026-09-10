@@ -18,10 +18,11 @@ the format you choose:
   specifically, only a **Description** toggle is offered; identity, status,
   dates, and sync metadata (`CREATED`, `LAST-MODIFIED`, `SEQUENCE`) are always
   emitted, so re-importing a calendar never churns its change history.
-- **Scope** — the current view, a saved view, a project, or the whole
-  workspace.
+- **Scope** — the current view, a saved view, a project, a label, a person, or
+  the whole workspace.
 - **Where it lands** — `<workspace>/Exports/`, named
-  `vertex-flow-export-<workspace>-<scope>-<date>.<ext>`.
+  `vertex-flow-export-<date>-<time>-<workspace>-<kind>-<name>.<ext>` (the
+  date/time pair keeps every export's filename unique on its own).
 
 You can start an export from the sidebar's **Export…** row, the **Export…**
 command in the Command Palette, a button on the view toolbar (locked to that
@@ -38,18 +39,35 @@ work regardless.
 
 **"Export Workspace as Template…"** (available from the same Export dialog and
 the sidebar) captures a workspace's setup as a portable Markdown template file:
-statuses, priorities, task types, labels, the people roster, saved views,
-dashboards, and your **Projects** (archived ones are skipped) — each one riding
-in the file's frontmatter, like saved views and dashboards, with its title,
-icon, description, status, priority, owner, labels, and dates. **Tasks never
-come along** — the file is a starting point, not a backup. It's a living
-snapshot of structure, not a copy of your work.
+statuses, priorities, task types, labels, the people roster, saved views, and
+dashboards — each one riding in the file's frontmatter, like your **Projects**,
+with their title, icon, description, status, priority, owner, labels, and
+dates. **Tasks stay behind by default** — the file is a starting point, not a
+backup. Tick **"Include tasks in the template file"** and the export also
+carries your tasks into the template's body with every field; recurrence is
+written as a compact shorthand (`weekly`, `every 2 weeks`, `when completed`),
+and rules it can't express are left out.
+
+Your exported template never ships gated material unless you ask for it:
+
+- **Descriptions travel with tasks by default; comments don't.** Untick
+  **"Include descriptions"** to leave task bodies out, or tick
+  **"Include comments"** if you want the discussion history to come along too
+  — off by default since comments are more likely to hold something private.
+- **Archived Projects and Tasks stay out** unless **"Include archived"** is
+  ticked too — and when it is, archived Tasks and the archived Projects they
+  link to travel together, so nothing dangles. Links to anything still excluded
+  are dropped rather than left broken.
+- Tasks made the template one that can also **seed new workspaces**: a template
+  that carries tasks shows the gallery's **"Populate with example content"**
+  toggle, just like the built-ins.
 
 You give the template a **name**, **icon**, and **description**, and pick a
 destination folder — type a folder name or browse for one, with vault-root
-`Vertex Flow Templates/` as the default. Exported files carry a
-`vertex-flow-template-` filename prefix so they stay recognizable once they're
-moved or synced elsewhere.
+`Vertex Flow Templates/` as the default. Exported files share the same
+`vertex-flow-export-<date>-<time>-<workspace>-template-<name>.md` naming as
+Task exports, so they stay recognizable once they're moved or synced
+elsewhere.
 
 ## Create a workspace from your template
 
@@ -74,11 +92,10 @@ What a card previews is what you get:
   example content"**.
 - **Tasks are the only example material.** The toggle adds sample Tasks (and,
   for built-ins, the seeded history walk-through); untick it for the bare
-  structure — Projects still come along. Only built-in gallery templates offer
-  the toggle: a built-in that previews Projects starts with it on, and your
-  exported templates have no Tasks by definition, so they never show it. A
-  template exported from an empty workspace carries no Projects either, so its
-  card simply shows no Projects row.
+  structure — Projects still come along. Built-in gallery templates start with
+  it ticked; your own templates show it too, but only when the export actually
+  carried tasks. A template exported from an empty workspace carries no
+  Projects either, so its card simply shows no Projects row.
 
 Picking one of your templates creates a fresh workspace that starts with the
 exported taxonomy, views, dashboards, people, and projects — a new workspace

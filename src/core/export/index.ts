@@ -12,6 +12,7 @@ import type {
 	LinkTarget,
 	WorkspaceSnapshot,
 } from "../types";
+import { localTodayIso, localTimeStamp } from "../date";
 import { snapshotContext, type ViewContext } from "../views";
 import { buildCsv, type CsvColumn } from "./csv";
 import {
@@ -23,7 +24,10 @@ import {
 import { buildIcs, type IcsRow } from "./ics";
 import { buildWorkspaceJson, type ExportMeta } from "./json";
 import { resolveDisplayRecord, type ResolveLookups } from "./resolve";
-import { resolveScopeTasks, type ExportScope } from "./scope";
+import {
+	resolveScopeTasks,
+	type ExportScope,
+} from "./scope";
 
 export * from "./fields";
 export * from "./scope";
@@ -163,17 +167,33 @@ export function exportSlug(input: string): string {
 }
 
 /**
- * `vertex-flow-export-<workspace-slug>-<scope-slug>-<date>.<ext>`
+ * `vertex-flow-export-<date>-<time>-<workspace-slug>-<kind>-<name-slug>.<ext>`
  *
  * The `vertex-flow-export-` prefix leads so an export file stays recognizable
- * once it's out of context (moved, synced, dropped into another folder).
+ * once it's out of context (moved, synced, dropped into another folder). The
+ * date+time pair (not just a date) makes every export's filename unique on
+ * its own, without leaning on `availableRawPath`'s " 2"/" 3" collision
+ * suffix. `identity.name` is omitted when null (only the "workspace" kind
+ * does this today) — the workspace is already named in the slug just before
+ * it, so repeating it would be redundant. Templates pass an identity of
+ * their own (`{ kind: "template", name }`) rather than one derived from
+ * `scopeIdentity()`, since a template capture isn't scoped to any single
+ * `ExportScope`.
  */
 export function exportFilename(
 	workspaceName: string,
-	scopeLabel: string,
-	format: ExportFormat,
-	today: IsoDate,
+	identity: { kind: string; name: string | null },
+	format: ExportFormat | "md",
+	now: Date = new Date(),
 ): string {
 	const ext = format === "ics" ? "ics" : format;
-	return `vertex-flow-export-${exportSlug(workspaceName)}-${exportSlug(scopeLabel)}-${today}.${ext}`;
+	const parts = [
+		"vertex-flow-export",
+		localTodayIso(now),
+		localTimeStamp(now),
+		exportSlug(workspaceName),
+		identity.kind,
+		...(identity.name ? [exportSlug(identity.name)] : []),
+	];
+	return `${parts.join("-")}.${ext}`;
 }

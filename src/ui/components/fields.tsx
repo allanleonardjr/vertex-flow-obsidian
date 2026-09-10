@@ -59,7 +59,7 @@ const MARGIN = 8;
 /** Below this, opening downward isn't worth it — flip above the trigger. */
 const MIN_MENU_HEIGHT = 160;
 
-interface SelectRow {
+export interface SelectRow {
   value: string | null;
   /** Rendered in the row — and, for the current value, in the trigger. */
   node: ReactNode;
@@ -93,7 +93,7 @@ interface MenuPlacement {
  * picker: the rail is an overflow-scroll container, so an in-flow menu would be
  * clipped — worst exactly where the longest lists (Project, Assignee) sit.
  */
-function SelectMenu({
+export function SelectMenu({
   rows,
   value,
   trigger,

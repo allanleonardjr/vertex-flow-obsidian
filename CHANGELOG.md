@@ -5,6 +5,92 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.16 — 2026-09-09
+
+### Added
+- **Export tasks by label or person.** The Export dialog's Scope selector now
+  also offers **Labels** and **People** alongside Views, Projects and the whole
+  workspace — each resolving to the tasks carrying that label or assigned to
+  that person.
+- **"Export Tasks…" on more sidebar menus.** The row menus for **Untriaged**,
+  **All Tasks**, every **Label** and every **Person** now have an
+  "Export Tasks…" item that opens the dialog locked to that scope (Views,
+  Projects and Workspace already had it).
+- **Both Export dialog screens preview the exact file path.** A "The following
+  file will be created:" callout shows the full destination, pinned when the
+  dialog opens so it always matches what Export writes.
+- **Separate "Include descriptions" and "Include comments" toggles** when a
+  workspace template carries tasks — descriptions default on, comments default
+  off (they more often hold private back-and-forth).
+- **Drag a multi-selection as one batch.** In List and Board, dragging a task
+  that's part of the current selection now moves the whole selection together,
+  keeping its relative order and landing as a contiguous block. It's recorded
+  as a single move in history.
+- **The drag preview shows the batch.** When more than one task is dragged, the
+  floating preview carries a `+N` count badge and up to two fanned-out card /
+  row outlines behind it, so it reads as a stack rather than a single item.
+- **Escape cancels an in-progress drag.** Pressing Escape after a drag lifts,
+  but before the mouse is released, drops the gesture with no move — the tasks
+  stay put and the selection is untouched. A completed drop is unaffected.
+- **`u` `n` renames a task.** In List/Board it opens a compact rename input over
+  the focused row (single-task only, even with several selected); in an open
+  task tab it focuses the title field already on screen. In an open task,
+  **`u` `i`** jumps to the description editor (expanding it first if collapsed)
+  and **`u` `c`** jumps to the new-comment box.
+- **Keyboard navigation on the Browse hubs.** `j` / `k` / `↑` / `↓` move focus
+  between cards on the Projects, Labels, People, Dashboards and Views screens
+  (wrapping at either end); `Enter` / `Space` opens the focused card. The
+  keyboard-focused card shows a visible focus ring.
+- **"Close tabs to the left"** in the tab right-click menu, mirroring the
+  existing "Close tabs to the right" (disabled on the leftmost tab).
+- **`v` `l` / `b` / `t` / `c` switches the current view's layout** (List /
+  Board / Timeline / Calendar) — a two-key chord in the same shape as the
+  `u`-chord, going through the same draft-edit path as the toolbar's layout
+  toggle. Works in the embedded task lists on Project/Person/Label screens too.
+
+### Changed
+- **New export filename format**, shared by task exports and template exports:
+  `vertex-flow-export-<date>-<time>-<workspace>-<kind>-<name>.<ext>`. The
+  date-and-time pair keeps every export's name unique on its own, and template
+  files no longer use the old `vertex-flow-template-<id>.md` pattern. Files
+  already in a vault are not renamed.
+- The Export dialog's Scope and entity pickers, and its mode toggle, now use
+  the same dropdown and segmented-control styling as the rest of the app.
+- The Export dialog is titled "Export Tasks" or "Export Workspace" to match the
+  selected mode, and the workspace menu's "Export Tasks…" opens straight to the
+  task-export form.
+- In the task-export form the Format picker is a segmented control, the Fields
+  list is collapsed by default, and the Export button reads "Export N task(s)".
+- The task-export form shows a summary ("This exports N tasks." / "Captures N
+  fields."), the Fields header reads "Fields N of M", and a forced scope
+  renders as read-only text — its kind plus icon / colour dot / avatar and
+  name — with no border.
+- For an iCalendar export the Fields list gains a read-only "Mandatory data"
+  group (UID, title, status, dates, created/updated) that's always written, and
+  the Fields count includes it.
+- The workspace-template form now includes tasks by default, moves its summary
+  below the options, shows a task-count-and-size line in the footer, and
+  labels its button "Export template with tasks" / "…without tasks" and its
+  summary "This exports your workspace with data." / "…configuration." to match
+  the toggle. When tasks are excluded the summary says "starting point, not a
+  backup"; when included it names whether descriptions and comments ride along.
+- View and Project sidebar menus put "Export Tasks…" between dividers, matching
+  the Label and Person menus.
+- **`Option`/`Alt` + `Shift` + `W` now closes every *other* tab, keeping the
+  active one** (matching the tab menu's "Close other tabs"), instead of closing
+  the whole strip. Use the tab right-click menu's "Close all tabs" for that.
+
+### Fixed
+- **The keyboard-focused item now shows a consistent ring everywhere.** The
+  `j`/`k` focus indicator was a 2px left sliver on List rows, a faint border
+  tint on Board cards, and text-colour only on Timeline row labels; it's now a
+  1px accent outline around the whole item across List, Timeline, and the
+  Browse hub cards, with Board cards keeping a thicker 2px ring. The outline is
+  its own paint layer, so a focused-and-selected item shows both the focus ring
+  and the selection highlight at once; Board card selection now uses the same
+  background tint as List rows.
+- **Keyboard navigation dies after a `u`-chord picker closes.** After pressing `u` + a field key (e.g. `u p` for priority), picking an option and pressing **Enter** (or **Escape**), keyboard navigation in the task list (`j`/`k`, arrow keys, `Enter` to open, `x` to toggle selection) stopped responding until the user clicked a task row again. Focus was lost when the `QuickFieldPicker` portal unmounted, falling back to `document.body` instead of refocusing the `vf-shell` container that shortcuts bind to.
+
 ## 1.0.15 — 2026-09-09
 
 ### Added
@@ -48,8 +134,9 @@ This project uses [Semantic Versioning](https://semver.org/).
   in the same order as the workspace sidebar. Views, dashboards, the people
   register and Projects are structure and always come with the workspace;
   Tasks are the only example material behind the "Populate with example
-  content" toggle, which is hidden entirely on your own exported templates and
-  stays ticked by default for any built-in whose card previews Projects. The
+  content" toggle, which is ticked by default for any built-in whose card
+  previews Projects and appears on your own templates whenever the export
+  carried tasks. The
   whole footer (Created, Located, "Use this template →") pins to the bottom of
   every card so the action link aligns across the grid.
 - **Exported templates now carry their timestamp.** "Export Workspace as
@@ -58,6 +145,24 @@ This project uses [Semantic Versioning](https://semver.org/).
   date-time line on the card, directly above the "Located:" line. Templates
   exported before this change — or written by hand — simply skip the Created
   line.
+- **Include tasks in an exported template.** "Export Workspace as Template"
+  gains an "Include tasks in the template file" checkbox (off by default) that
+  carries the workspace's tasks into the template's body with their
+  descriptions and comments. Recurrence is written as a compact shorthand
+  (`weekly`, `every 2 weeks`, "… when completed"); rules the shorthand can't
+  express are left out rather than flattened. The existing "Include archived"
+  toggle now covers archived Projects *and* Tasks together so cross-links stay
+  resolvable — links to anything still excluded are dropped instead of left
+  dangling.
+- **Your exported templates can seed tasks too.** A template that carries tasks
+  gains the gallery's "Populate with example content" toggle, so a new
+  workspace created from it starts with your tasks as lightweight copies, like
+  the built-in templates' sample tasks.
+- **Export entry points say what they export.** The right-click menus on
+  **Workspaces**, **Views** and **Projects** now read "Export Tasks…" and
+  "Export as Template…" instead of the ambiguous "Export…" / "Export Workspace
+  as Template…", so a menu makes clear it's exporting data, not launching the
+  template builder.
 
 - **Task editor shows Created and Updated.** The property rail now has read-only
   "Created" and "Updated" rows — Created as a full date-time, Updated as a

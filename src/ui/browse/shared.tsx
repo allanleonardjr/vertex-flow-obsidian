@@ -15,6 +15,61 @@ import { ProgressBar } from "../components/TaskBits";
 import { Icon } from "../components/Icon";
 import { usePlugin } from "../context";
 
+/**
+ * `j` / `k` / `↓` / `↑` move real DOM focus between the browse cards inside
+ * `containerRef`, wrapping at either end. Enter/Space then activate the focused
+ * card for free — `.vf-browse-card-body` is a real `<button>`.
+ *
+ * DOM-driven on purpose: the buttons are already the source of truth for
+ * focus, and querying `.vf-browse-card-body` in document order matches the
+ * visual order on every hub screen without threading a per-item id through.
+ * Bound to the container (not `window`), mirroring `useShortcuts`, so it only
+ * fires while this pane holds focus.
+ */
+export function useBrowseKeyboardNav(containerRef: HTMLElement | null): void {
+  useEffect(() => {
+    if (!containerRef) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (
+        target?.isContentEditable ||
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement
+      ) {
+        return;
+      }
+      if (
+        event.key !== "j" &&
+        event.key !== "k" &&
+        event.key !== "ArrowDown" &&
+        event.key !== "ArrowUp"
+      ) {
+        return;
+      }
+
+      const buttons = Array.from(
+        containerRef.querySelectorAll<HTMLElement>(".vf-browse-card-body"),
+      );
+      if (buttons.length === 0) return;
+
+      event.preventDefault();
+      const currentIndex = buttons.indexOf(
+        document.activeElement as HTMLElement,
+      );
+      const delta = event.key === "j" || event.key === "ArrowDown" ? 1 : -1;
+      const nextIndex =
+        currentIndex === -1
+          ? 0
+          : (currentIndex + delta + buttons.length) % buttons.length;
+      buttons[nextIndex].focus();
+    };
+    containerRef.addEventListener("keydown", onKey);
+    return () => containerRef.removeEventListener("keydown", onKey);
+  }, [containerRef]);
+}
+
 export function BrowseHeader({
   title,
   noun,

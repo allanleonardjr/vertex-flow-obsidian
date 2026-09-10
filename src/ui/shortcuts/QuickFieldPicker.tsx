@@ -60,13 +60,15 @@ export type QuickPickerKind =
   | "project"
   | "estimate"
   | "startDate"
-  | "dueDate";
+  | "dueDate"
+  | "title";
 
 /** Kinds whose body is a native input rather than an options list. */
 const INPUT_KINDS: ReadonlySet<QuickPickerKind> = new Set([
   "estimate",
   "startDate",
   "dueDate",
+  "title",
 ]);
 
 /**
@@ -86,6 +88,7 @@ const TITLE: Record<QuickPickerKind, string> = {
   estimate: "Set estimate",
   startDate: "Set start date",
   dueDate: "Set due date",
+  title: "Rename task",
 };
 
 interface Row {
@@ -273,6 +276,7 @@ export function QuickFieldPicker({
   const [value, setValue] = useState(() => {
     if (kind === "estimate") return task.estimate?.toString() ?? "";
     if (kind === "startDate") return task.startDate?.slice(0, 10) ?? "";
+    if (kind === "title") return task.title;
     return task.dueDate?.slice(0, 10) ?? "";
   });
 
@@ -400,7 +404,12 @@ export function QuickFieldPicker({
   const commit = useCallback(
     (next: string | null) => {
       const m = plugin.mutations;
-      if (kind === "estimate") {
+      if (kind === "title") {
+        // Deliberately single-task only, even in batch mode — renaming a
+        // selection to one shared title isn't meaningful the way bulk
+        // status/priority is (see feature doc).
+        void m.updateTask(task, { title: (next ?? "").trim() });
+      } else if (kind === "estimate") {
         const parsed = next ? Number.parseFloat(next) : NaN;
         const value = Number.isFinite(parsed) ? parsed : null;
         if (batch.length > 1) {
@@ -503,12 +512,20 @@ export function QuickFieldPicker({
             <input
               ref={inputRef}
               className="vf-input"
-              type={kind === "estimate" ? "number" : "date"}
+              type={
+                kind === "estimate"
+                  ? "number"
+                  : kind === "title"
+                    ? "text"
+                    : "date"
+              }
               min={0}
               placeholder={
                 kind === "estimate"
                   ? "0"
-                  : `${kind === "startDate" ? "start" : "due"} date…`
+                  : kind === "title"
+                    ? "Task title…"
+                    : `${kind === "startDate" ? "start" : "due"} date…`
               }
               value={value}
               onChange={(event) => setValue(event.target.value)}

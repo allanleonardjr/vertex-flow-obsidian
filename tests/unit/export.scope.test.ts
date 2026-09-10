@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { sampleSnapshot } from "../../src/core/templates/instantiate";
 import { snapshotContext } from "../../src/core/views";
 import { makeView } from "../../src/core/templates/helpers";
-import { resolveScopeTasks } from "../../src/core/export/scope";
+import { resolveScopeTasks, scopeIdentity } from "../../src/core/export/scope";
 import { exportFilename } from "../../src/core/export";
 
 const snapshot = sampleSnapshot();
@@ -67,20 +67,81 @@ describe("resolveScopeTasks", () => {
 });
 
 describe("exportFilename", () => {
-	it("carries the vertex-flow-export- prefix and slugs workspace + scope", () => {
+	const now = new Date(2026, 7, 26, 14, 32, 5);
+
+	it("carries the vertex-flow-export- prefix, date/time up front, then workspace + kind + name", () => {
 		expect(
-			exportFilename("Studio North", "Core App Experience", "csv", today),
+			exportFilename(
+				"Studio North",
+				{ kind: "project", name: "Core App Experience" },
+				"csv",
+				now,
+			),
 		).toBe(
-			"vertex-flow-export-studio-north-core-app-experience-2026-08-26.csv",
+			"vertex-flow-export-2026-08-26-143205-studio-north-project-core-app-experience.csv",
 		);
 	});
 
 	it("maps each format to its extension and normalises stray casing", () => {
-		expect(exportFilename("A/B!C", "TODO", "json", today)).toBe(
-			"vertex-flow-export-a-b-c-todo-2026-08-26.json",
+		expect(
+			exportFilename("A/B!C", { kind: "view", name: "TODO" }, "json", now),
+		).toBe("vertex-flow-export-2026-08-26-143205-a-b-c-view-todo.json");
+	});
+
+	it("omits the name segment for an identity with no name", () => {
+		expect(
+			exportFilename(
+				"Studio North",
+				{ kind: "workspace", name: null },
+				"ics",
+				now,
+			),
+		).toBe("vertex-flow-export-2026-08-26-143205-studio-north-workspace.ics");
+	});
+
+	it("accepts a template identity too", () => {
+		expect(
+			exportFilename(
+				"Studio North",
+				{ kind: "template", name: "My Team Template" },
+				"md",
+				now,
+			),
+		).toBe(
+			"vertex-flow-export-2026-08-26-143205-studio-north-template-my-team-template.md",
 		);
-		expect(exportFilename("Studio North", "Whole workspace", "ics", today)).toBe(
-			"vertex-flow-export-studio-north-whole-workspace-2026-08-26.ics",
-		);
+	});
+});
+
+describe("scopeIdentity", () => {
+	it("treats an ordinary saved view as kind view", () => {
+		const view = makeView("bugs", "Bugs", {});
+		expect(scopeIdentity({ kind: "view", view })).toEqual({
+			kind: "view",
+			name: "Bugs",
+		});
+	});
+
+	it("recognizes a label-scoped view by its id prefix", () => {
+		const view = makeView("label:eng", "Engineering", {});
+		expect(scopeIdentity({ kind: "view", view })).toEqual({
+			kind: "label",
+			name: "Engineering",
+		});
+	});
+
+	it("recognizes a person-scoped view by its id prefix", () => {
+		const view = makeView("person:alice", "Alice", {});
+		expect(scopeIdentity({ kind: "view", view })).toEqual({
+			kind: "person",
+			name: "Alice",
+		});
+	});
+
+	it("omits a name for workspace scope", () => {
+		expect(scopeIdentity({ kind: "workspace" })).toEqual({
+			kind: "workspace",
+			name: null,
+		});
 	});
 });

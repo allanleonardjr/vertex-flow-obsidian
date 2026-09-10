@@ -14,21 +14,28 @@
  * can hand the user a way *out* beats a path they can't click.
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Platform, TFolder, type TFile } from "obsidian";
 import { localTodayIso } from "../../core/date";
 import {
   buildExport,
   DEFAULT_FIELDS,
+  exportFilename,
   FIELD_GROUPS,
   FIELDS,
   fieldsForFormat,
+  ICS_MANDATORY_FIELDS,
+  scopeIdentity,
   type ExportFormat,
   type ExportScope,
   type FieldId,
 } from "../../core/export";
-import { snapshotContext } from "../../core/views";
+import { isSystemViewId, layoutIcon, snapshotContext } from "../../core/views";
+import { joinPath } from "../../core/links";
+import { queryContext } from "../../core/query";
+import { serializeTemplateMarkdown } from "../../core/templates/markdown/serialize";
+import { workspaceTaxonomies } from "../../core/taxonomy";
 import type { WorkspaceSnapshot } from "../../core/types";
 import {
   exportAsTemplate,
@@ -38,7 +45,9 @@ import {
 import { WORKSPACE_TEMPLATES_FOLDER } from "../../obsidian/template-folder";
 import { usePlugin } from "../context";
 import { useMePersonId } from "../useMe";
-import { IconField } from "../components/Icon";
+import { Icon, IconField } from "../components/Icon";
+import { SelectMenu, type SelectRow } from "../components/fields";
+import { labelView, personView } from "../App";
 import { FolderSuggestModal } from "./FolderSuggestModal";
 
 const FORMATS: { id: ExportFormat; label: string }[] = [
@@ -47,7 +56,7 @@ const FORMATS: { id: ExportFormat; label: string }[] = [
   { id: "ics", label: "iCalendar" },
 ];
 
-type ScopeKind = "current" | "view" | "project" | "workspace";
+type ScopeKind = "current" | "view" | "project" | "label" | "person" | "workspace";
 
 type ExportOutcome =
   | { kind: "tasks"; file: TFile; taskCount: number }
@@ -59,15 +68,64 @@ function formatBytes(n: number): string {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function scopeDisplay(scope: ExportScope): string {
-  switch (scope.kind) {
-    case "view":
-      return scope.view.name;
-    case "project":
-      return scope.project.title;
-    case "workspace":
-      return "the whole workspace";
+/** The read-only scope shown when the dialog is opened locked to a target:
+ *  what kind it is + its icon / colour dot / avatar + name, matching how the
+ *  same thing reads in the Scope picker and the sidebar. */
+function LockedScope({
+  scope,
+  snapshot,
+}: {
+  scope: ExportScope;
+  snapshot: WorkspaceSnapshot;
+}) {
+  let kind: string;
+  let glyph: ReactNode;
+  let name: string;
+
+  if (scope.kind === "workspace") {
+    kind = "Workspace";
+    glyph = <Icon id={snapshot.workspace.icon} fallback="layers" size={13} />;
+    name = snapshot.workspace.name;
+  } else if (scope.kind === "project") {
+    kind = "Project";
+    glyph = <Icon id={scope.project.icon} fallback="folder" size={13} />;
+    name = scope.project.title;
+  } else if (scope.view.id.startsWith("label:")) {
+    const labelId = scope.view.id.slice("label:".length);
+    const color = workspaceTaxonomies(snapshot.workspace).label.values.find(
+      (v) => v.id === labelId,
+    )?.color;
+    kind = "Label";
+    glyph = (
+      <span
+        className="vf-status-dot"
+        style={{ backgroundColor: color || "var(--vf-muted)" }}
+      />
+    );
+    name = scope.view.name;
+  } else if (scope.view.id.startsWith("person:")) {
+    kind = "Person";
+    glyph = <Icon fallback="user" size={13} />;
+    name = scope.view.name;
+  } else {
+    kind = "View";
+    glyph = (
+      <Icon
+        id={scope.view.icon}
+        fallback={layoutIcon(scope.view.viewType)}
+        size={13}
+      />
+    );
+    name = scope.view.name;
   }
+
+  return (
+    <div className="vf-export-locked-scope">
+      <span className="vf-export-locked-scope-kind">{kind}</span>
+      {glyph}
+      <span className="vf-icon-select-name">{name}</span>
+    </div>
+  );
 }
 
 /** "Show in system explorer" is Obsidian's own file-reveal — a real runtime
@@ -78,6 +136,15 @@ function canRevealInFolder(app: {
 }): boolean {
   return typeof app.showInFolder === "function";
 }
+
+const SCOPE_KIND_LABELS: Record<ScopeKind, string> = {
+  current: "Current view",
+  view: "Views",
+  project: "Projects",
+  label: "Labels",
+  person: "People",
+  workspace: "Whole workspace",
+};
 
 export function ExportDialog({
   snapshot,
@@ -115,13 +182,36 @@ export function ExportDialog({
   const [scopeProjectPath, setScopeProjectPath] = useState(
     snapshot.projects[0]?.path ?? "",
   );
+  const orderedLabels = useMemo(
+    () =>
+      [...workspaceTaxonomies(snapshot.workspace).label.values].sort((a, b) =>
+        a.name.localeCompare(b.name),
+      ),
+    [snapshot],
+  );
+  const orderedPeople = useMemo(
+    () =>
+      [...snapshot.workspace.people].sort((a, b) =>
+        a.name.localeCompare(b.name),
+      ),
+    [snapshot],
+  );
+  const [scopeLabelId, setScopeLabelId] = useState(orderedLabels[0]?.id ?? "");
+  const [scopePersonId, setScopePersonId] = useState(
+    orderedPeople[0]?.id ?? "",
+  );
   const [includeArchived, setIncludeArchived] = useState(false);
   const [fields, setFields] = useState<Set<FieldId>>(
     () => new Set(DEFAULT_FIELDS),
   );
+  // Pinned once per dialog session (not recomputed on every render) so the
+  // "following file will be created" callout always names exactly the file
+  // Export will write, however long the dialog stays open while configuring
+  // options.
+  const [now] = useState(() => new Date());
 
   // --- template-export state ---
-  const [tplName, setTplName] = useState(`${snapshot.workspace.name} template`);
+  const [tplName, setTplName] = useState(`${snapshot.workspace.name} Template`);
   const [tplDescription, setTplDescription] = useState("");
   const [tplIcon, setTplIcon] = useState<string | undefined>(
     snapshot.workspace.icon,
@@ -130,6 +220,14 @@ export function ExportDialog({
   // discovery target, so it's the default; picking elsewhere saves fine but
   // hides the template from the New Workspace gallery (surfaced below).
   const [tplLocation, setTplLocation] = useState(WORKSPACE_TEMPLATES_FOLDER);
+  // Off by default: a template is a blueprint, and carrying Tasks makes it
+  // fuller, not a backup — see the caveat in the preview text below.
+  const [includeTasks, setIncludeTasks] = useState(true);
+  // Descriptions default on (the expected case); comments default off, since
+  // they're more likely to hold private back-and-forth someone wouldn't want
+  // riding along with a shared template.
+  const [includeDescriptions, setIncludeDescriptions] = useState(true);
+  const [includeComments, setIncludeComments] = useState(false);
 
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<ExportProgress | null>(null);
@@ -153,6 +251,12 @@ export function ExportDialog({
       );
       if (project) return { kind: "project", project };
     }
+    if (scopeKind === "label" && scopeLabelId) {
+      return { kind: "view", view: labelView(snapshot, scopeLabelId) };
+    }
+    if (scopeKind === "person" && scopePersonId) {
+      return { kind: "view", view: personView(snapshot, scopePersonId) };
+    }
     return { kind: "workspace" };
   }, [
     lockScope,
@@ -161,12 +265,36 @@ export function ExportDialog({
     snapshot,
     scopeViewId,
     scopeProjectPath,
+    scopeLabelId,
+    scopePersonId,
   ]);
 
   const selectedFields = useMemo(
     () => fieldsForFormat(format, [...fields]),
     [format, fields],
   );
+
+  const eligibleFields = useMemo(
+    () =>
+      FIELD_GROUPS.flatMap((group) => group.fields).filter(
+        (id) => format !== "ics" || FIELDS[id].icalEligible,
+      ),
+    [format],
+  );
+  // iCalendar's mandatory data is always written, so it counts toward both the
+  // selected and the total in the Fields header.
+  const mandatoryCount = format === "ics" ? ICS_MANDATORY_FIELDS.length : 0;
+  const selectedFieldCount =
+    mandatoryCount + eligibleFields.filter((id) => fields.has(id)).length;
+  const totalFieldCount = mandatoryCount + eligibleFields.length;
+  const allFieldsIncluded = selectedFieldCount === totalFieldCount;
+  const fieldsSummary = `Fields ${selectedFieldCount} of ${totalFieldCount}`;
+  const selectedFieldLabels = [
+    // iCalendar always writes its mandatory data — surface it in the summary
+    // so an .ics export doesn't read as "No fields selected".
+    ...(format === "ics" ? ICS_MANDATORY_FIELDS : []),
+    ...eligibleFields.filter((id) => fields.has(id)),
+  ].map((id) => FIELDS[id].label);
 
   const preview = useMemo(() => {
     try {
@@ -176,15 +304,97 @@ export function ExportDialog({
         scope,
         format,
         fields: [...fields],
-        today: localTodayIso(),
+        today: localTodayIso(now),
         includeArchived,
         pluginVersion: plugin.manifest.version,
       });
-      return `${taskCount} task${taskCount === 1 ? "" : "s"} · ${formatBytes(content.length)}`;
+      return {
+        taskCount,
+        label: `${taskCount} task${taskCount === 1 ? "" : "s"} · ${formatBytes(content.length)}`,
+      };
     } catch {
-      return "—";
+      return { taskCount: null as number | null, label: "—" };
     }
-  }, [snapshot, context, scope, format, fields, includeArchived, plugin]);
+  }, [snapshot, context, scope, format, fields, includeArchived, plugin, now]);
+
+  // Mirrors the path `runExport` actually writes to, so what's shown before
+  // clicking Export is exactly what gets created.
+  const exportFilePath = useMemo(
+    () =>
+      joinPath(
+        snapshot.workspace.root,
+        "Exports",
+        exportFilename(snapshot.workspace.name, scopeIdentity(scope), format, now),
+      ),
+    [snapshot, scope, format, now],
+  );
+
+  // Template export carries the whole workspace (a template is a blueprint,
+  // not a scoped slice), so this counts what the file would actually ship.
+  const templateCarriedTasks = snapshot.tasks.filter(
+    (task) => includeArchived || !task.archived,
+  ).length;
+
+  // Mirrors the path `exportAsTemplate` actually writes to — same idea as
+  // `exportFilePath` above.
+  const templateFilePath = useMemo(() => {
+    const folder = (tplLocation.trim() || WORKSPACE_TEMPLATES_FOLDER).replace(
+      /^\/+|\/+$/g,
+      "",
+    );
+    const filename = exportFilename(
+      snapshot.workspace.name,
+      { kind: "template", name: tplName },
+      "md",
+      now,
+    );
+    return joinPath(folder, filename);
+  }, [snapshot, tplLocation, tplName, now]);
+
+  // A size estimate for the footer, mirroring the task-export preview. Runs the
+  // real serializer but with empty body maps (descriptions/comments need async
+  // reads) — so it's a floor, not an exact figure, same as the task preview.
+  const templatePreview = useMemo(() => {
+    try {
+      const content = serializeTemplateMarkdown({
+        meta: {
+          id: "preview",
+          name: tplName.trim() || "template",
+          description: tplDescription.trim() || undefined,
+          icon: tplIcon,
+          createdAt: now.toISOString(),
+        },
+        workspace: snapshot.workspace,
+        views: snapshot.views.filter((view) => !isSystemViewId(view.id)),
+        dashboards: snapshot.dashboards,
+        projects: snapshot.projects,
+        projectDescriptions: {},
+        tasks: includeTasks ? snapshot.tasks : undefined,
+        taskDescriptions: includeTasks && includeDescriptions ? {} : undefined,
+        taskComments: includeTasks && includeComments ? {} : undefined,
+        includeArchived,
+        queryContext: queryContext(snapshot, me),
+      });
+      const taskCount = includeTasks ? templateCarriedTasks : 0;
+      return {
+        label: `${taskCount} task${taskCount === 1 ? "" : "s"} · ${formatBytes(content.length)}`,
+      };
+    } catch {
+      return { label: "—" };
+    }
+  }, [
+    snapshot,
+    me,
+    tplName,
+    tplDescription,
+    tplIcon,
+    includeTasks,
+    includeDescriptions,
+    includeComments,
+    includeArchived,
+    templateCarriedTasks,
+    now,
+  ]);
 
   const folders = useMemo(
     () =>
@@ -228,6 +438,7 @@ export function ExportDialog({
         format,
         fields: selectedFields,
         includeArchived,
+        now,
         onProgress: setProgress,
       });
       setBusy(false);
@@ -241,12 +452,19 @@ export function ExportDialog({
   const runTemplateExport = async () => {
     setBusy(true);
     setError(null);
+    setProgress(null);
     try {
       const file = await exportAsTemplate(plugin, snapshot, {
         name: tplName.trim(),
         description: tplDescription.trim() || undefined,
         icon: tplIcon,
         folder: tplLocation.trim(),
+        includeTasks,
+        includeDescriptions,
+        includeComments,
+        includeArchived,
+        now,
+        onProgress: setProgress,
       });
       setBusy(false);
       setOutcome({ kind: "template", file });
@@ -284,7 +502,7 @@ export function ExportDialog({
         role="dialog"
         onClick={(event) => event.stopPropagation()}
       >
-        <h3>Export</h3>
+        <h3>{mode === "tasks" ? "Export Tasks" : "Export Workspace"}</h3>
 
         {outcome ? (
           <>
@@ -295,11 +513,9 @@ export function ExportDialog({
                   : `Saved template to ${outcome.file.path}`}
               </p>
               <p className="vf-dialog-hint">
-                This file type may not appear in Obsidian's own file list — turn
-                on "Show all file types" in Obsidian's Settings:
-                <br />
-                [Settings → Files and links → Links → Show all file types] to
-                see it in Obsidian's File Explorer.
+                This file type may be hidden in Obsidian's own file list.
+                Enable it via Settings → Files and links → Links → Show all
+                file types.
               </p>
               <div className="vf-export-result-actions">
                 {showReveal && (
@@ -327,20 +543,22 @@ export function ExportDialog({
         ) : (
           <>
             {allowTemplateExport && !forceMode && (
-              <div className="vf-export-modes" role="tablist">
+              <div className="vf-segmented" role="group">
                 <button
                   type="button"
-                  className={`vf-bar-item${mode === "tasks" ? " is-on" : ""}`}
+                  className={`vf-segmented-item${mode === "tasks" ? " is-on" : ""}`}
+                  aria-pressed={mode === "tasks"}
                   onClick={() => setMode("tasks")}
                 >
-                  Export tasks
+                  Export Tasks
                 </button>
                 <button
                   type="button"
-                  className={`vf-bar-item${mode === "template" ? " is-on" : ""}`}
+                  className={`vf-segmented-item${mode === "template" ? " is-on" : ""}`}
+                  aria-pressed={mode === "template"}
                   onClick={() => setMode("template")}
                 >
-                  Export Workspace as Template…
+                  Export Workspace as Template
                 </button>
               </div>
             )}
@@ -350,12 +568,13 @@ export function ExportDialog({
                 <div className="vf-export-config">
                   <div className="vf-field">
                     <span>Format</span>
-                    <div className="vf-export-segmented">
+                    <div className="vf-segmented" role="group">
                       {FORMATS.map((f) => (
                         <button
                           key={f.id}
                           type="button"
-                          className={`vf-bar-item${format === f.id ? " is-on" : ""}`}
+                          className={`vf-segmented-item${format === f.id ? " is-on" : ""}`}
+                          aria-pressed={format === f.id}
                           onClick={() => setFormat(f.id)}
                         >
                           {f.label}
@@ -364,61 +583,243 @@ export function ExportDialog({
                     </div>
                   </div>
 
-                  <label className="vf-field">
+                  <div className="vf-field">
                     <span>Scope</span>
                     {lockScope ? (
-                      <div className="vf-export-locked-scope">
-                        Exporting: {scopeDisplay(initialScope)}
-                      </div>
+                      <LockedScope scope={initialScope} snapshot={snapshot} />
                     ) : (
-                      <select
+                      <SelectMenu
                         value={scopeKind}
-                        onChange={(e) =>
-                          setScopeKind(e.target.value as ScopeKind)
+                        onChange={(v) => setScopeKind(v as ScopeKind)}
+                        trigger={
+                          <span className="vf-icon-select-name">
+                            {scopeKind === "current" &&
+                            initialScope.kind === "view"
+                              ? `Current view (${initialScope.view.name})`
+                              : SCOPE_KIND_LABELS[scopeKind]}
+                          </span>
                         }
-                      >
-                        {initialScope.kind === "view" && (
-                          <option value="current">
-                            Current view ({initialScope.view.name})
-                          </option>
-                        )}
-                        <option value="view">Saved view…</option>
-                        <option value="project">Project…</option>
-                        <option value="workspace">Whole workspace</option>
-                      </select>
+                        rows={[
+                          ...(initialScope.kind === "view"
+                            ? [
+                                {
+                                  value: "current",
+                                  node: (
+                                    <span className="vf-icon-select-name">
+                                      Current view ({initialScope.view.name})
+                                    </span>
+                                  ),
+                                  search: initialScope.view.name,
+                                } satisfies SelectRow,
+                              ]
+                            : []),
+                          {
+                            value: "view",
+                            node: (
+                              <span className="vf-icon-select-name">Views</span>
+                            ),
+                            search: "views",
+                          },
+                          {
+                            value: "project",
+                            node: (
+                              <span className="vf-icon-select-name">
+                                Projects
+                              </span>
+                            ),
+                            search: "projects",
+                          },
+                          {
+                            value: "label",
+                            node: (
+                              <span className="vf-icon-select-name">
+                                Labels
+                              </span>
+                            ),
+                            search: "labels",
+                          },
+                          {
+                            value: "person",
+                            node: (
+                              <span className="vf-icon-select-name">
+                                People
+                              </span>
+                            ),
+                            search: "people",
+                          },
+                          {
+                            value: "workspace",
+                            node: (
+                              <span className="vf-icon-select-name">
+                                Whole workspace
+                              </span>
+                            ),
+                            search: "whole workspace",
+                          },
+                        ]}
+                      />
                     )}
-                  </label>
+                  </div>
 
                   {!lockScope && scopeKind === "view" && (
-                    <label className="vf-field">
+                    <div className="vf-field">
                       <span>View</span>
-                      <select
+                      <SelectMenu
                         value={scopeViewId}
-                        onChange={(e) => setScopeViewId(e.target.value)}
-                      >
-                        {snapshot.views.map((v) => (
-                          <option key={v.id} value={v.id}>
-                            {v.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                        onChange={(v) => v && setScopeViewId(v)}
+                        trigger={(() => {
+                          const v = snapshot.views.find(
+                            (view) => view.id === scopeViewId,
+                          );
+                          return (
+                            <>
+                              <Icon
+                                id={v?.icon}
+                                fallback={layoutIcon(v?.viewType ?? "list")}
+                                size={13}
+                              />
+                              <span className="vf-icon-select-name">
+                                {v?.name ?? "Select a view"}
+                              </span>
+                            </>
+                          );
+                        })()}
+                        rows={snapshot.views.map((v) => ({
+                          value: v.id,
+                          node: (
+                            <>
+                              <Icon
+                                id={v.icon}
+                                fallback={layoutIcon(v.viewType)}
+                                size={13}
+                              />
+                              <span className="vf-icon-select-name">
+                                {v.name}
+                              </span>
+                            </>
+                          ),
+                          search: v.name,
+                        }))}
+                      />
+                    </div>
                   )}
 
                   {!lockScope && scopeKind === "project" && (
-                    <label className="vf-field">
+                    <div className="vf-field">
                       <span>Project</span>
-                      <select
+                      <SelectMenu
                         value={scopeProjectPath}
-                        onChange={(e) => setScopeProjectPath(e.target.value)}
-                      >
-                        {snapshot.projects.map((p) => (
-                          <option key={p.path} value={p.path}>
-                            {p.title}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                        onChange={(v) => v && setScopeProjectPath(v)}
+                        trigger={(() => {
+                          const p = snapshot.projects.find(
+                            (project) => project.path === scopeProjectPath,
+                          );
+                          return (
+                            <>
+                              <Icon
+                                id={p?.icon}
+                                fallback="folder"
+                                size={13}
+                              />
+                              <span className="vf-icon-select-name">
+                                {p?.title ?? "Select a project"}
+                              </span>
+                            </>
+                          );
+                        })()}
+                        rows={snapshot.projects.map((p) => ({
+                          value: p.path,
+                          node: (
+                            <>
+                              <Icon id={p.icon} fallback="folder" size={13} />
+                              <span className="vf-icon-select-name">
+                                {p.title}
+                              </span>
+                            </>
+                          ),
+                          search: p.title,
+                        }))}
+                      />
+                    </div>
+                  )}
+
+                  {!lockScope && scopeKind === "label" && (
+                    <div className="vf-field">
+                      <span>Label</span>
+                      <SelectMenu
+                        value={scopeLabelId}
+                        onChange={(v) => v && setScopeLabelId(v)}
+                        trigger={(() => {
+                          const l = orderedLabels.find(
+                            (label) => label.id === scopeLabelId,
+                          );
+                          return (
+                            <>
+                              <span
+                                className="vf-status-dot"
+                                style={{
+                                  backgroundColor:
+                                    l?.color || "var(--vf-muted)",
+                                }}
+                              />
+                              <span className="vf-icon-select-name">
+                                {l?.name ?? "Select a label"}
+                              </span>
+                            </>
+                          );
+                        })()}
+                        rows={orderedLabels.map((l) => ({
+                          value: l.id,
+                          node: (
+                            <>
+                              <span
+                                className="vf-status-dot"
+                                style={{ backgroundColor: l.color || "var(--vf-muted)" }}
+                              />
+                              <span className="vf-icon-select-name">
+                                {l.name}
+                              </span>
+                            </>
+                          ),
+                          search: l.name,
+                        }))}
+                      />
+                    </div>
+                  )}
+
+                  {!lockScope && scopeKind === "person" && (
+                    <div className="vf-field">
+                      <span>Person</span>
+                      <SelectMenu
+                        value={scopePersonId}
+                        onChange={(v) => v && setScopePersonId(v)}
+                        trigger={(() => {
+                          const person = orderedPeople.find(
+                            (p) => p.id === scopePersonId,
+                          );
+                          return (
+                            <>
+                              <Icon fallback="user" size={13} />
+                              <span className="vf-icon-select-name">
+                                {person?.name ?? "Select a person"}
+                              </span>
+                            </>
+                          );
+                        })()}
+                        rows={orderedPeople.map((p) => ({
+                          value: p.id,
+                          node: (
+                            <>
+                              <Icon fallback="user" size={13} />
+                              <span className="vf-icon-select-name">
+                                {p.name}
+                              </span>
+                            </>
+                          ),
+                          search: p.name,
+                        }))}
+                      />
+                    </div>
                   )}
                 </div>
 
@@ -441,8 +842,13 @@ export function ExportDialog({
                     </button>
                   </div>
 
-                  <div className="vf-field">
-                    <span>Fields</span>
+                  <details className="vf-field vf-export-fields">
+                    <summary>
+                      <span className="vf-section-chevron" aria-hidden>
+                        ›
+                      </span>
+                      {fieldsSummary}
+                    </summary>
                     {FIELD_GROUPS.map((group) => {
                       const groupFields = group.fields.filter(
                         (id) => format !== "ics" || FIELDS[id].icalEligible,
@@ -485,6 +891,55 @@ export function ExportDialog({
                         </div>
                       );
                     })}
+
+                    {format === "ics" && (
+                      <div className="vf-export-group">
+                        <div className="vf-export-group-head">
+                          <strong>Mandatory data</strong>
+                        </div>
+                        {ICS_MANDATORY_FIELDS.map((id) => (
+                          <div
+                            key={id}
+                            className="vf-menu-item vf-export-field-locked"
+                            role="checkbox"
+                            aria-checked
+                            aria-disabled
+                          >
+                            <span className="vf-export-field-check">✓</span>
+                            {FIELDS[id].label}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </details>
+
+                  <p className="vf-export-preview">
+                    <strong>
+                      This exports{" "}
+                      {preview.taskCount == null
+                        ? "your tasks"
+                        : `${preview.taskCount.toLocaleString()} task${
+                            preview.taskCount === 1 ? "" : "s"
+                          }`}
+                      .
+                    </strong>
+                    <br />
+                    {selectedFieldLabels.length === 0
+                      ? "No fields selected."
+                      : allFieldsIncluded
+                        ? "Captures all fields."
+                        : `Captures ${selectedFieldLabels.length} field${
+                            selectedFieldLabels.length === 1 ? "" : "s"
+                          }.`}
+                  </p>
+
+                  <div className="vf-export-filepath">
+                    <span className="vf-export-filepath-label">
+                      The following file will be created:
+                    </span>
+                    <code className="vf-export-filepath-value">
+                      {exportFilePath}
+                    </code>
                   </div>
 
                   {busy && progress && (
@@ -496,7 +951,7 @@ export function ExportDialog({
                 </div>
 
                 <div className="vf-export-footer">
-                  <p className="vf-export-preview">{preview}</p>
+                  <p className="vf-export-preview">{preview.label}</p>
                   <div className="vf-dialog-actions">
                     <button onClick={onClose} disabled={busy}>
                       Cancel
@@ -509,7 +964,11 @@ export function ExportDialog({
                       }
                       onClick={() => void runTaskExport()}
                     >
-                      Export
+                      {preview.taskCount == null
+                        ? "Export"
+                        : `Export ${preview.taskCount} task${
+                            preview.taskCount === 1 ? "" : "s"
+                          }`}
                     </button>
                   </div>
                 </div>
@@ -585,27 +1044,130 @@ export function ExportDialog({
                     )}
                   </label>
 
+                  <div className="vf-export-group">
+                    <div className="vf-export-group-head">
+                      <strong>Options</strong>
+                    </div>
+                    <button
+                      type="button"
+                      className="vf-menu-item"
+                      role="checkbox"
+                      aria-checked={includeTasks}
+                      onClick={() => setIncludeTasks(!includeTasks)}
+                    >
+                      <span className="vf-export-field-check">
+                        {includeTasks ? "✓" : ""}
+                      </span>
+                      Include tasks in the template file
+                    </button>
+                    {includeTasks && (
+                      <>
+                        <button
+                          type="button"
+                          className="vf-menu-item"
+                          role="checkbox"
+                          aria-checked={includeDescriptions}
+                          onClick={() =>
+                            setIncludeDescriptions(!includeDescriptions)
+                          }
+                        >
+                          <span className="vf-export-field-check">
+                            {includeDescriptions ? "✓" : ""}
+                          </span>
+                          Include descriptions
+                        </button>
+                        <button
+                          type="button"
+                          className="vf-menu-item"
+                          role="checkbox"
+                          aria-checked={includeComments}
+                          onClick={() => setIncludeComments(!includeComments)}
+                        >
+                          <span className="vf-export-field-check">
+                            {includeComments ? "✓" : ""}
+                          </span>
+                          Include comments
+                        </button>
+                        <button
+                          type="button"
+                          className="vf-menu-item"
+                          role="checkbox"
+                          aria-checked={includeArchived}
+                          onClick={() => setIncludeArchived(!includeArchived)}
+                        >
+                          <span className="vf-export-field-check">
+                            {includeArchived ? "✓" : ""}
+                          </span>
+                          Include archived projects and tasks
+                        </button>
+                      </>
+                    )}
+                  </div>
+
                   <p className="vf-export-preview">
-                    <strong>This exports your workspace setup.</strong>
+                    <strong>
+                      {includeTasks
+                        ? "This exports your workspace with data."
+                        : "This exports your workspace configuration."}
+                    </strong>
                     <br />
                     Captures statuses, priorities, task types, labels, the
-                    people roster, saved views, dashboards and projects — no tasks.
+                    people roster, saved views, dashboards and projects.{" "}
+                    {includeTasks ? (
+                      <>
+                        Plus {templateCarriedTasks.toLocaleString()} task
+                        {templateCarriedTasks === 1 ? "" : "s"} — every field
+                        {includeDescriptions || includeComments ? (
+                          <>
+                            , plus{" "}
+                            {[
+                              includeDescriptions && "descriptions",
+                              includeComments && "comments",
+                            ]
+                              .filter(Boolean)
+                              .join(" and ")}
+                          </>
+                        ) : null}
+                        .
+                      </>
+                    ) : (
+                      "Tasks stay behind by default — this is a starting point, not a backup."
+                    )}
                   </p>
 
+                  <div className="vf-export-filepath">
+                    <span className="vf-export-filepath-label">
+                      The following file will be created:
+                    </span>
+                    <code className="vf-export-filepath-value">
+                      {templateFilePath}
+                    </code>
+                  </div>
+
+                  {busy && progress && (
+                    <p className="vf-export-progress">
+                      Exporting {progress.current}/{progress.total}…
+                    </p>
+                  )}
                   {error && <p className="vf-error">{error}</p>}
                 </div>
 
-                <div className="vf-dialog-actions">
-                  <button onClick={onClose} disabled={busy}>
-                    Cancel
-                  </button>
-                  <button
-                    className="mod-cta"
-                    disabled={busy || !templateValid}
-                    onClick={() => void runTemplateExport()}
-                  >
-                    Save template
-                  </button>
+                <div className="vf-export-footer">
+                  <p className="vf-export-preview">{templatePreview.label}</p>
+                  <div className="vf-dialog-actions">
+                    <button onClick={onClose} disabled={busy}>
+                      Cancel
+                    </button>
+                    <button
+                      className="mod-cta"
+                      disabled={busy || !templateValid}
+                      onClick={() => void runTemplateExport()}
+                    >
+                      {includeTasks
+                        ? "Export template with tasks"
+                        : "Export template without tasks"}
+                    </button>
+                  </div>
                 </div>
               </>
             )}

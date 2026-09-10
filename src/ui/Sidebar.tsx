@@ -31,6 +31,7 @@ import { newConfigId } from "../core/ids";
 import { isProjectTitleTaken } from "../core/serialization";
 import { planDeletion, scopeOf, type DeletionPlan } from "../core/hierarchy";
 import { withoutExtension } from "../obsidian/note-io";
+import { labelView, personView } from "./App";
 import { MeIdentityBanner } from "./components/MeIdentityBanner";
 import { useMePersonId } from "./useMe";
 import {
@@ -652,10 +653,10 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
                 onClick={() => {
                   setMenuRoot(null);
                   setActiveWorkspace(entry.workspace.root);
-                  setExportTarget({ workspace: entry });
+                  setExportTarget({ workspace: entry, forceMode: "tasks" });
                 }}
               >
-                Export…
+                Export Tasks…
               </button>
               <button
                 className="vf-menu-item"
@@ -665,7 +666,7 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
                   setExportTarget({ workspace: entry, forceMode: "template" });
                 }}
               >
-                Export Workspace as Template…
+                Export as Template…
               </button>
               <div className="vf-menu-divider" aria-hidden />
               <button
@@ -739,15 +740,45 @@ function PermanentViewRow({
   onSelectView: (id: string) => void;
 }) {
   const view = snapshot.views.find((v) => v.id === viewId);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
   return (
-    <NavRow
-      icon={view?.icon ?? fallbackIcon}
-      iconFallback={fallbackIcon}
-      label={view?.name ?? name}
-      variant="view"
-      active={activeViewId === viewId}
-      onClick={() => onSelectView(viewId)}
-    />
+    <>
+      <NavRow
+        icon={view?.icon ?? fallbackIcon}
+        iconFallback={fallbackIcon}
+        label={view?.name ?? name}
+        variant="view"
+        active={activeViewId === viewId}
+        onClick={() => onSelectView(viewId)}
+        trailing={
+          <RowMenu
+            open={menuOpen}
+            onToggle={() => setMenuOpen((o) => !o)}
+            onClose={() => setMenuOpen(false)}
+          >
+            <button
+              className="vf-menu-item"
+              onClick={() => {
+                setMenuOpen(false);
+                setExporting(true);
+              }}
+            >
+              Export Tasks…
+            </button>
+          </RowMenu>
+        }
+      />
+      {exporting && view && (
+        <ExportDialog
+          snapshot={snapshot}
+          lockScope
+          initialScope={{ kind: "view", view }}
+          onClose={() => setExporting(false)}
+        />
+      )}
+    </>
   );
 }
 
@@ -859,8 +890,9 @@ function ViewsSection({
                     setExportingView(view);
                   }}
                 >
-                  Export…
+                  Export Tasks…
                 </button>
+                <div className="vf-menu-divider" aria-hidden />
                 <button
                   className="vf-menu-item"
                   onClick={() => {
@@ -1200,8 +1232,9 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
                       setExportingProject(project);
                     }}
                   >
-                    Export…
+                    Export Tasks…
                   </button>
+                  <div className="vf-menu-divider" aria-hidden />
                   <button
                     className="vf-menu-item"
                     onClick={() => {
@@ -1492,6 +1525,9 @@ function LabelsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   const [menuId, setMenuId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
+  const [exportingLabelId, setExportingLabelId] = useState<string | null>(
+    null,
+  );
   const [deletion, setDeletion] = useState<{
     plan: TaxonomyDeletionPlan;
     usage: TaxonomyUsage;
@@ -1569,6 +1605,16 @@ function LabelsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
                     }}
                   >
                     Edit
+                  </button>
+                  <div className="vf-menu-divider" aria-hidden />
+                  <button
+                    className="vf-menu-item"
+                    onClick={() => {
+                      setMenuId(null);
+                      setExportingLabelId(label.id);
+                    }}
+                  >
+                    Export Tasks…
                   </button>
                   <div className="vf-menu-divider" aria-hidden />
                   <button
@@ -1651,6 +1697,18 @@ function LabelsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
           }}
         />
       )}
+
+      {exportingLabelId && (
+        <ExportDialog
+          snapshot={snapshot}
+          lockScope
+          initialScope={{
+            kind: "view",
+            view: labelView(snapshot, exportingLabelId),
+          }}
+          onClose={() => setExportingLabelId(null)}
+        />
+      )}
     </Section>
   );
 }
@@ -1668,6 +1726,9 @@ function PeopleSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   const [menuId, setMenuId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
+  const [exportingPersonId, setExportingPersonId] = useState<string | null>(
+    null,
+  );
   // Person deletion is never simply "blocked" — reassign-or-clear is always the
   // one dialog, so there's no separate confirm step the way Labels has.
   const [deleting, setDeleting] = useState<PersonDeletionPlan | null>(null);
@@ -1737,6 +1798,16 @@ function PeopleSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
                 </button>
                 <div className="vf-menu-divider" aria-hidden />
                 <button
+                  className="vf-menu-item"
+                  onClick={() => {
+                    setMenuId(null);
+                    setExportingPersonId(person.id);
+                  }}
+                >
+                  Export Tasks…
+                </button>
+                <div className="vf-menu-divider" aria-hidden />
+                <button
                   className="vf-menu-item vf-menu-item-danger"
                   onClick={() => {
                     setMenuId(null);
@@ -1793,6 +1864,18 @@ function PeopleSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
             );
             setDeleting(null);
           }}
+        />
+      )}
+
+      {exportingPersonId && (
+        <ExportDialog
+          snapshot={snapshot}
+          lockScope
+          initialScope={{
+            kind: "view",
+            view: personView(snapshot, exportingPersonId),
+          }}
+          onClose={() => setExportingPersonId(null)}
         />
       )}
     </Section>

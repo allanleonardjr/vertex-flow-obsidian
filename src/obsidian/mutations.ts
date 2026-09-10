@@ -16,7 +16,7 @@ import {
 } from "../core/ids";
 import { localTodayIso } from "../core/date";
 import { formatLink, joinPath, sanitizeFileName } from "../core/links";
-import { planReorder, rankAfter, rankForNewTask, rankForPosition, sortTasksByRank } from "../core/ranking";
+import { planReorder, planReorderMany, rankAfter, rankForNewTask, rankForPosition, sortTasksByRank } from "../core/ranking";
 import {
   describeRecurrence,
   nextInChain,
@@ -588,6 +588,52 @@ private async spawnOccurrences(
         action: "task.move",
         targets: [this.taskTarget(after)],
         changes: diffTaskFields(task, after),
+      });
+    }
+  }
+
+  /**
+   * Apply a drag for a batch of tasks dragged together, preserving their
+   * existing relative order. `siblings` is the destination column verbatim,
+   * same contract as `moveTask`. Logged as one `task.move` entry covering the
+   * whole batch, matching how `bulkUpdate` collapses per-task deltas into a
+   * single ledger entry.
+   */
+  async moveTasks(
+    tasks: Task[],
+    siblings: Task[],
+    toIndex: number,
+    fieldEdit?: Partial<Task>,
+  ): Promise<void> {
+    if (tasks.length === 0) return;
+    if (tasks.length === 1) {
+      return this.moveTask(tasks[0], siblings, toIndex, fieldEdit);
+    }
+
+    const assignments = planReorderMany(tasks, siblings, toIndex);
+    const changes: HistoryChange[] = [];
+    const afters: Task[] = [];
+
+    for (const { taskPath, rank } of assignments) {
+      const task = tasks.find((t) => t.path === taskPath);
+      if (!task) continue;
+      const after: Task = {
+        ...task,
+        ...fieldEdit,
+        rank,
+        updatedAt: new Date().toISOString(),
+      };
+      await this.updateTask(task, { rank, ...fieldEdit }, { suppressHistory: true });
+      changes.push(...diffTaskFields(task, after));
+      afters.push(after);
+    }
+
+    const workspace = this.index.workspaceFor(tasks[0].path)?.workspace;
+    if (workspace) {
+      this.history.record(workspace, {
+        action: "task.move",
+        targets: afters.map((after) => this.taskTarget(after)),
+        changes,
       });
     }
   }
