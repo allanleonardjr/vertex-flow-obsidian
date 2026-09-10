@@ -5,6 +5,11 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.17 — 2026-09-09
+
+### Fixed
+- Fixed a regression in the Task detail panel's `u` chord handling. (requestAnimationFrame() -> window.requestAnimationFrame())
+
 ## 1.0.16 — 2026-09-09
 
 ### Added
