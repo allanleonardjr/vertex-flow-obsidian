@@ -41,6 +41,10 @@ This project uses [Semantic Versioning](https://semver.org/).
   keyboard-focused card shows a visible focus ring.
 - **"Close tabs to the left"** in the tab right-click menu, mirroring the
   existing "Close tabs to the right" (disabled on the leftmost tab).
+- **`v` `l` / `b` / `t` / `c` switches the current view's layout** (List /
+  Board / Timeline / Calendar) — a two-key chord in the same shape as the
+  `u`-chord, going through the same draft-edit path as the toolbar's layout
+  toggle. Works in the embedded task lists on Project/Person/Label screens too.
 
 ### Changed
 - **New export filename format**, shared by task exports and template exports:

@@ -30,7 +30,12 @@ import { localTodayIso } from "../../core/date";
 import { childTasks, primaryParent, scopeOf } from "../../core/hierarchy";
 import { sortTasksByRank } from "../../core/ranking";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
-import type { SavedView, Task, WorkspaceSnapshot } from "../../core/types";
+import type {
+  SavedView,
+  Task,
+  ViewType,
+  WorkspaceSnapshot,
+} from "../../core/types";
 import { useCreateTask } from "../actions";
 import { usePlugin } from "../context";
 import { useUnsavedGuard } from "../components/useUnsavedGuard";
@@ -328,6 +333,86 @@ export function TaskViewport({
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   }, [active, clearPendingU, armU, plugin, setQuickPicker, uPickerKey]);
+
+  // Layout-switch chord: `v <key>` swaps this view's viewType. Mirrors the
+  // `u`-chord's shape but is otherwise independent — different prefix key,
+  // different resolution table, no interaction with quick-picker state.
+  const layoutKeys: Record<string, ViewType> = useMemo(
+    () => ({
+      l: "list",
+      b: "board",
+      t: "timeline",
+      c: "calendar",
+    }),
+    [],
+  );
+
+  const pendingV = useRef(false);
+  const vTimer = useRef<number | null>(null);
+  const clearPendingV = useCallback(() => {
+    pendingV.current = false;
+    if (vTimer.current != null) window.clearTimeout(vTimer.current);
+    vTimer.current = null;
+  }, []);
+  const armV = useCallback(() => {
+    pendingV.current = true;
+    if (vTimer.current != null) window.clearTimeout(vTimer.current);
+    vTimer.current = window.setTimeout(clearPendingV, CHORD_TIMEOUT_MS);
+  }, [clearPendingV]);
+
+  // Read fresh inside the listener without re-binding it on every render —
+  // same pattern as `selectionRef`/`evaluatedRef` just above.
+  const effectiveRef = useRef(effective);
+  effectiveRef.current = effective;
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+
+  useEffect(() => {
+    if (!active) return;
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (
+        target?.isContentEditable ||
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement
+      ) {
+        clearPendingV();
+        return;
+      }
+      if (event.metaKey || event.ctrlKey || event.altKey) {
+        clearPendingV();
+        return;
+      }
+
+      if (event.key === "v") {
+        armV();
+        return;
+      }
+      if (!pendingV.current) return;
+
+      const key = event.key.toLowerCase();
+      if (key === "v") {
+        armV();
+        return;
+      }
+      clearPendingV();
+
+      const viewType = layoutKeys[key];
+      if (viewType) {
+        event.preventDefault();
+        event.stopPropagation();
+        const current = effectiveRef.current;
+        if (current.viewType !== viewType) {
+          draftRef.current.edit({ ...current, viewType });
+        }
+        return;
+      }
+      // Any other key cancels the chord and falls through.
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [active, clearPendingV, armV, layoutKeys]);
 
   /**
    * The nested List view's rows — one forest per rendered group. `null`

@@ -44,6 +44,17 @@ Press `c`, then a key, to create something new. There is intentionally no standa
 | `c` `v` | Create a new blank view |
 | `c` `w` | Create a new workspace |
 
+## Switch layout
+
+Press `v`, then a layout key, to change how the current view is displayed.
+
+| Shortcut | Action |
+| --- | --- |
+| `v` `l` | List layout |
+| `v` `b` | Board layout |
+| `v` `t` | Timeline layout |
+| `v` `c` | Calendar layout |
+
 ## Focused task
 
 The **focused task** is the task that receives keyboard actions. Move focus with the arrow keys, Vim-style navigation keys, or by clicking a task.
