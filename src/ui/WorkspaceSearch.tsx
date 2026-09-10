@@ -45,16 +45,6 @@ import { LabelChip, PersonAvatar } from "./components/TaskBits";
 const IS_MAC = Platform.isMacOS;
 const ALT_KEY_LABEL = IS_MAC ? "⌥" : "Alt+";
 
-function isTypingTarget(target: EventTarget | null): boolean {
-  const el = target as HTMLElement | null;
-  return Boolean(
-    el?.isContentEditable ||
-      el instanceof HTMLInputElement ||
-      el instanceof HTMLTextAreaElement ||
-      el instanceof HTMLSelectElement,
-  );
-}
-
 /** Fixed render order, and how each group is labelled. */
 const GROUPS: { label: string; kinds: SearchResultKind[] }[] = [
   { label: "Tasks", kinds: ["task"] },
