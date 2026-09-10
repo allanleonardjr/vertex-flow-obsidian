@@ -230,6 +230,7 @@ export function TaskPane({ path }: { path: string }) {
           snapshot={snapshot}
           taxonomies={workspaceTaxonomies(owner.workspace)}
           onClose={() => setQuickPicker(null)}
+          anchorSelector={`[data-field="${quickPicker.kind}"]`}
         />
       )}
     </>

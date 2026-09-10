@@ -25,15 +25,23 @@ import { LabelChip, PersonAvatar, PriorityIcon } from "./TaskBits";
 export function PropertyRow({
   label,
   labelAdornment,
+  field,
   children,
 }: {
   label: string;
   /** Small trailing element after the label text (e.g. a help glyph). */
   labelAdornment?: ReactNode;
+  /**
+   * The `QuickPickerKind` this row edits, when one applies. Lets the
+   * single-task tab's `u <key>` picker anchor to the actual row being
+   * edited instead of the tab's own (zero-sized, `display: contents`)
+   * wrapper — see `QuickFieldPicker`'s `anchorSelector` prop.
+   */
+  field?: string;
   children: ReactNode;
 }) {
   return (
-    <div className="vf-prop">
+    <div className="vf-prop" data-field={field}>
       <span
         className={`vf-prop-label${labelAdornment ? " vf-prop-label--adorned" : ""}`}
       >
