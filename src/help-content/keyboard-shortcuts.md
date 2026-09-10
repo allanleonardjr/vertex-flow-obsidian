@@ -131,6 +131,15 @@ When you choose a label, Vertex Flow adds it to every selected task that does no
 
 `u` `x` replaces the previous standalone `e` archive shortcut. Archiving now follows the same task-update pattern as every other field edit, leaving `e` available for estimates.
 
+## Browse screens
+
+On the **Projects**, **Labels**, **People**, **Dashboards**, and **Views** hub screens:
+
+| Shortcut | Action |
+| --- | --- |
+| `↑` / `↓` or `j` / `k` | Move focus between cards (wraps at either end) |
+| `Enter` / `Space` | Open the focused card |
+
 ## Everywhere
 
 | Shortcut | Action |
@@ -185,7 +194,6 @@ Right-click a tab for additional tab-management actions:
 
 - **Close other tabs**
 - **Close tabs to the right**
-- **Close all tabs**
 - **Close all tabs**
 
 Unlike registered Obsidian commands, these tab-strip interactions are view-scoped navigation controls—similar to `j` and `k` task navigation—and are not configurable through Obsidian’s Hotkeys settings.

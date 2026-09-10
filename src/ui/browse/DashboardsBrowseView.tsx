@@ -20,15 +20,19 @@ import {
 	BrowseEmpty,
 	BrowseHeader,
 	BrowseList,
+	useBrowseKeyboardNav,
 } from "./shared";
 
 type DialogState = { mode: "edit"; dashboard: DashboardConfig } | null;
 
 export function DashboardsBrowseView({
 	snapshot,
+	containerRef,
 }: {
 	snapshot: WorkspaceSnapshot;
+	containerRef: HTMLElement | null;
 }) {
+	useBrowseKeyboardNav(containerRef);
 	const plugin = usePlugin();
 	const { openDashboard } = useTabs();
 

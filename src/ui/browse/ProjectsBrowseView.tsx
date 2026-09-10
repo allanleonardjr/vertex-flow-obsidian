@@ -41,6 +41,7 @@ import {
   BrowseEmpty,
   BrowseHeader,
   BrowseList,
+  useBrowseKeyboardNav,
 } from "./shared";
 
 /**
@@ -70,10 +71,13 @@ const HERO_PRIORITY_WIDGET: DashboardWidget = {
 export function ProjectsBrowseView({
   snapshot,
   taxonomies,
+  containerRef,
 }: {
   snapshot: WorkspaceSnapshot;
   taxonomies: WorkspaceTaxonomies;
+  containerRef: HTMLElement | null;
 }) {
+  useBrowseKeyboardNav(containerRef);
   const plugin = usePlugin();
   const tabs = useTabs();
 

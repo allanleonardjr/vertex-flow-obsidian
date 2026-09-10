@@ -37,6 +37,7 @@ import {
 	BrowseEmpty,
 	BrowseHeader,
 	BrowseList,
+	useBrowseKeyboardNav,
 } from "./shared";
 
 /**
@@ -63,7 +64,14 @@ const HERO_STATUS_WIDGET: DashboardWidget = {
 	layout: { x: 0, y: 0, w: 0, h: 0 },
 };
 
-export function PeopleBrowseView({ snapshot }: { snapshot: WorkspaceSnapshot }) {
+export function PeopleBrowseView({
+	snapshot,
+	containerRef,
+}: {
+	snapshot: WorkspaceSnapshot;
+	containerRef: HTMLElement | null;
+}) {
+	useBrowseKeyboardNav(containerRef);
 	const plugin = usePlugin();
 	const { openPerson } = useTabs();
 	const people = [...snapshot.workspace.people].sort((a, b) =>

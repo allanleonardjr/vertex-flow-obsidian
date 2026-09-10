@@ -35,6 +35,10 @@ This project uses [Semantic Versioning](https://semver.org/).
   task tab it focuses the title field already on screen. In an open task,
   **`u` `i`** jumps to the description editor (expanding it first if collapsed)
   and **`u` `c`** jumps to the new-comment box.
+- **Keyboard navigation on the Browse hubs.** `j` / `k` / `↑` / `↓` move focus
+  between cards on the Projects, Labels, People, Dashboards and Views screens
+  (wrapping at either end); `Enter` / `Space` opens the focused card. The
+  keyboard-focused card now shows a visible accent bar.
 
 ### Changed
 - **New export filename format**, shared by task exports and template exports:

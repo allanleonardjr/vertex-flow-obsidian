@@ -254,6 +254,7 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
           <ProjectsBrowseView
             snapshot={snapshot}
             taxonomies={active.taxonomies}
+            containerRef={container}
           />
         ) : activeTab.kind === "settings" ? (
           <WorkspaceSettingsView snapshot={snapshot} />
@@ -262,13 +263,13 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
         ) : activeTab.kind === "new-workspace" ? (
           <TemplateGallery onClose={() => tabs.close("new-workspace")} />
         ) : activeTab.kind === "dashboards" ? (
-          <DashboardsBrowseView snapshot={snapshot} />
+          <DashboardsBrowseView snapshot={snapshot} containerRef={container} />
         ) : activeTab.kind === "views" ? (
-          <ViewsBrowseView snapshot={snapshot} />
+          <ViewsBrowseView snapshot={snapshot} containerRef={container} />
         ) : activeTab.kind === "labels" ? (
-          <LabelsBrowseView snapshot={snapshot} />
+          <LabelsBrowseView snapshot={snapshot} containerRef={container} />
         ) : activeTab.kind === "people" ? (
-          <PeopleBrowseView snapshot={snapshot} />
+          <PeopleBrowseView snapshot={snapshot} containerRef={container} />
         ) : activeTab.kind === "person" ? (
           <PersonDetailView
             personId={activeTab.personId}

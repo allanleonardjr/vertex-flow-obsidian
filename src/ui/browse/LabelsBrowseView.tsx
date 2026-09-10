@@ -37,6 +37,7 @@ import {
 	BrowseEmpty,
 	BrowseHeader,
 	BrowseList,
+	useBrowseKeyboardNav,
 } from "./shared";
 
 /**
@@ -63,7 +64,14 @@ const HERO_PRIORITY_WIDGET: DashboardWidget = {
 	layout: { x: 0, y: 0, w: 0, h: 0 },
 };
 
-export function LabelsBrowseView({ snapshot }: { snapshot: WorkspaceSnapshot }) {
+export function LabelsBrowseView({
+	snapshot,
+	containerRef,
+}: {
+	snapshot: WorkspaceSnapshot;
+	containerRef: HTMLElement | null;
+}) {
+	useBrowseKeyboardNav(containerRef);
 	const plugin = usePlugin();
 	const { openLabel } = useTabs();
 	const labels = workspaceTaxonomies(snapshot.workspace).label;
