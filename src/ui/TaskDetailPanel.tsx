@@ -384,6 +384,14 @@ export function TaskDetailPanel({
             </span>
           </PropertyRow>
 
+          <PropertyRow label="Completed">
+            {task.completedAt && (
+              <span className="vf-prop-static">
+                {formatFullDateTime(task.completedAt)}
+              </span>
+            )}
+          </PropertyRow>
+
           <RawSourceSection task={task} />
 
           <div className="vf-editor-rail-section">

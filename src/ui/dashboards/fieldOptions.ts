@@ -32,7 +32,7 @@ export const GROUPING_OPTIONS: Option<DashboardGroupingField>[] = (
 ).map((value) => ({ value, label: groupingFieldLabel(value) }));
 
 export const TEMPORAL_OPTIONS: Option<DashboardTemporalField>[] = (
-	["dueDate", "startDate", "createdAt"] as const
+	["dueDate", "startDate", "createdAt", "updatedAt", "completedAt"] as const
 ).map((value) => ({ value, label: temporalFieldLabel(value) }));
 
 export const BUCKET_OPTIONS: Option<DashboardTimeBucket>[] = [

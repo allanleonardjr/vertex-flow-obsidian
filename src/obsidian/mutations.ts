@@ -56,6 +56,7 @@ import {
   addValue,
   applyTaxonomyDeletion,
   findValueByName,
+  isCompleted,
   reassignValue,
   reassignValues,
   updateValue,
@@ -218,6 +219,7 @@ export class Mutations {
       relations: emptyRelations(),
       createdAt: now,
       updatedAt: now,
+      completedAt: null,
       path,
       mentions: [],
     };
@@ -423,6 +425,7 @@ private async spawnOccurrences(
         relations: emptyRelations(),
         createdAt: now,
         updatedAt: now,
+        completedAt: null,
         path,
         mentions: [],
       };
@@ -485,10 +488,34 @@ private async spawnOccurrences(
     options?: { suppressHistory?: boolean; actorOverride?: HistoryActor },
   ): Promise<void> {
     const file = this.requireFile(task.path);
+    const now = new Date().toISOString();
+
+    // `completedAt` is auto-derived from `status` crossing the taxonomy's
+    // "completed" boundary — latest completion wins, reopening clears it.
+    let completedAt = task.completedAt;
+    if (patch.status !== undefined && patch.status !== task.status) {
+      const workspace = this.index.workspaceFor(task.path)?.workspace;
+      const statusTaxonomy = workspace
+        ? workspaceTaxonomies(workspace).status
+        : null;
+      const wasCompleted = statusTaxonomy
+        ? isCompleted(statusTaxonomy, task.status)
+        : false;
+      const nowCompleted = statusTaxonomy
+        ? isCompleted(statusTaxonomy, patch.status)
+        : false;
+      if (nowCompleted) {
+        completedAt = now; // latest completion always wins, even on re-completion
+      } else if (wasCompleted && !nowCompleted) {
+        completedAt = null; // reopened — no longer counts as done
+      }
+    }
+
     const merged: Task = {
       ...task,
       ...patch,
-      updatedAt: new Date().toISOString(),
+      updatedAt: now,
+      completedAt,
     };
     await this.io.replaceFrontmatter(file, serializeTask(merged));
     this.logUpdate(task, merged, options);
