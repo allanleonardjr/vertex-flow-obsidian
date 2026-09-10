@@ -43,6 +43,13 @@ This project uses [Semantic Versioning](https://semver.org/).
   that resolves task `@mentions` now also caches the task's `## Description` and
   each project's body in the same mtime-gated read — one body read feeds both bits
   of derived data, so searching descriptions never touches disk per keystroke.
+- **Help terminology: List, Board, Timeline, and Calendar are now "layouts."**
+  The help tree gained a dedicated **Layouts** section for the four rendering
+  modes, the **Views** section now covers the view entity itself (System views
+  such as All Tasks and Untriaged, hub views, Saved Views and Project views),
+  and **Dashboards** is its own top-level topic. Help pages can now cross-link
+  between topics (`help://` links jump within the Help pane instead of opening
+  in the vault).
 
 ### Fixed
 - **`u` `<key>` picker no longer jumps to the top-left corner in a single-task

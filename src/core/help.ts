@@ -62,3 +62,24 @@ export function findHeadingSlugs(markdown: string): string[] {
 	}
 	return slugs;
 }
+
+/**
+ * Cross-topic links inside help markdown use a custom scheme, e.g.
+ * `[Layouts](help://layouts)` or `[Query language](help://views-saved-views#query-language)`.
+ * Obsidian's MarkdownRenderer renders them as ordinary anchors; HelpView
+ * intercepts the click and navigates internally. Keeping both the prefix and
+ * the parser in core means the renderer and the safety test can't drift.
+ */
+export const HELP_LINK_PREFIX = "help://";
+
+/**
+ * Turn a rendered help cross-link href back into a deep-link target.
+ * Returns null for anything that isn't a `help://` link.
+ */
+export function parseHelpLink(href: string): { topicId: string; anchor?: string } | null {
+	if (!href.startsWith(HELP_LINK_PREFIX)) return null;
+	const rest = href.slice(HELP_LINK_PREFIX.length);
+	const [topicId, anchor] = rest.split("#", 2);
+	if (!topicId) return null;
+	return { topicId, anchor };
+}

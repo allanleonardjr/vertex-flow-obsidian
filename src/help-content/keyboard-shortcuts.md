@@ -74,7 +74,7 @@ The **focused task** is the task that receives keyboard actions. Move focus with
 | `⌘` / `Ctrl` + `Shift` + `↑` | Open the parent task, or its project if it has no parent |
 | `⌘` / `Ctrl` + `Shift` + `↓` | Open the first sub-task |
 
-In a single-column List view, `←` / `→` and `h` / `l` do nothing because there are no board columns to move between.
+In a single-column List layout, `←` / `→` and `h` / `l` do nothing because there are no board columns to move between.
 
 ## Update task fields
 
@@ -95,7 +95,7 @@ Press `u`, then a field key, to edit a task field. For example, press `u`, then 
 | `u` `n` | Rename the task |
 | `u` `x` | Archive or unarchive the focused or selected tasks |
 
-In a List or Board view, `u` `n` opens a compact rename input over the focused row — even with several tasks selected, it renames only the focused one (a shared title isn't a meaningful bulk edit).
+In a List or Board layout, `u` `n` opens a compact rename input over the focused row — even with several tasks selected, it renames only the focused one (a shared title isn't a meaningful bulk edit).
 
 In an open task tab, the title, description and comments are already on screen, so these three move the cursor straight to them instead of opening anything:
 

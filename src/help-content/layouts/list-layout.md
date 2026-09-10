@@ -1,10 +1,10 @@
 ---
-title: List view
+title: List layout
 order: 10
 ---
 
-The List view is the dense, high-density heart of Vertex Flow: every task as a
-row, grouped and sorted however you like. It's the most information-dense way
+The List layout is the dense, high-density heart of Vertex Flow: every task as
+a row, grouped and sorted however you like. It's the most information-dense way
 to see your work.
 
 ## Grouping and sorting
@@ -25,19 +25,19 @@ Dragging a task from one group to another updates that field live.
 
 ## Selection and bulk actions
 
-List view supports multi-select — `x` to add to a selection, `⌘`/`Ctrl` + `a`
-to select all, or extended arrow selection — then bulk **set status** or
+The List layout supports multi-select — `x` to add to a selection, `⌘`/`Ctrl` +
+`a` to select all, or extended arrow selection — then bulk **set status** or
 **archive/unarchive** from the view bar.
 
 ## Keyboard-first
 
 Move focus with the arrow keys or `j` / `k`, press **Enter** to open a task,
 `s`/`p`/`l`/`t` to set a field on the focused task, and `?` for the full
-shortcut reference. A List view like any other can be saved as part of a
+shortcut reference. A List layout, like any other, can be saved as part of a
 **Saved View**.
 
 ## Projects
 
 Projects live in their own tabbed editor and are managed from the **Projects**
-hub — the List view concentrates on tasks. Open a project to see its tasks
+hub — the List layout concentrates on tasks. Open a project to see its tasks
 filtered in place.
