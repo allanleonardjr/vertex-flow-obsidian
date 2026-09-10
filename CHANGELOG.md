@@ -5,6 +5,67 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.18 — 2026-09-10
+
+### Added
+- **Wraparound focus navigation.** `j`/`k` and the arrow keys now wrap at the
+  ends of a column — pressing `j` on the last row jumps to the first, and `k` on
+  the first jumps to the last. Wrapping stays within the current column; `h`/`l`
+  column movement is unchanged and still clamps.
+- **`Shift+j` / `Shift+k` jump to group boundaries.** `Shift+j` moves to the
+  bottom of the current group, then the bottom of the next group (wrapping);
+  `Shift+k` mirrors it to group tops. On a List it walks the real sub-groups; on
+  a Board each column is a group, so it doubles as "jump to the next/previous
+  column, landing at its bottom/top."
+  - **Option/Alt+K workspace search ("Search workspace…").** A Raycast/Linear-style
+  overlay opened with `Alt`/`Option`+`K`, the new sidebar search icon, or the
+  **"Search workspace…"** command. It fuzzy-matches the active workspace's
+  Tasks, Projects, Views, Dashboards, Labels and People in one list — matching
+  titles, task descriptions / project bodies, view-dashboard-label descriptions
+  and person aliases — capped per kind to stay compact and grouped under
+  headers that pin to the top of the list while scrolling. `↑`/`↓` (or
+  `Alt`/`Option`+`j`/`k`) move the selection and keep it scrolled into view,
+  `Enter` opens, `Esc` closes.
+- **Create-actions inside the search overlay.** Create Task, Project, View,
+  Dashboard, Label and Person rows sit under the results and open the same
+  dialogs the sidebar's `+` buttons use — Create Person closes the last gap so
+  People joins the other five.
+- **Sidebar search button.** A search icon in the sidebar's top row opens the
+  overlay in one click, and stays available in the compact drawer where there's
+  no physical Alt key to press.
+- **Draft keyboard shortcuts for Views and Dashboards.** Save or discard in-memory edits without reaching for the toolbar across Views, Dashboards, Projects, and System views:
+  - `Option`/`Alt` + `S`: Save draft changes[cite: 1, 3]
+  - `Option`/`Alt` + `Shift` + `S`: Open "Save view/dashboard as…" dialog[cite: 1, 3]
+  - `Option`/`Alt` + `R`: Discard unsaved edits and revert to saved state[cite: 1, 3]
+  Uses physical key codes (`event.code`) to prevent macOS `Option` key character mutations (`ß`, `®`) from breaking bindings[cite: 1].
+- **Link to full documentation in shortcut reference modal.** The `?` keyboard shortcuts overlay now includes an "Open full documentation" link at the bottom-left, taking you straight to the Help pane's shortcut topic[cite: 1, 3].
+
+### Changed
+- **The index caches searchable prose instead of re-reading notes.** Each pass
+  that resolves task `@mentions` now also caches the task's `## Description` and
+  each project's body in the same mtime-gated read — one body read feeds both bits
+  of derived data, so searching descriptions never touches disk per keystroke.
+- **Help terminology: List, Board, Timeline, and Calendar are now "layouts."**
+  The help tree gained a dedicated **Layouts** section for the four rendering
+  modes, the **Views** section now covers the view entity itself (System views
+  such as All Tasks and Untriaged, hub views, Saved Views and Project views),
+  and **Dashboards** is its own top-level topic. Help pages can now cross-link
+  between topics (`help://` links jump within the Help pane instead of opening
+  in the vault).
+
+### Fixed
+- **`u` `<key>` picker no longer jumps to the top-left corner in a single-task
+  tab.** When a task is opened in its own tab, the quick-field picker (`u p`,
+  `u s`, …) now anchors just below the matching property row in the rail
+  instead of pinning to `(0, 0)`. `place()` also skips any zero-sized anchor and
+  falls back to screen-center as defense in depth.
+- **The search overlay's pinned section labels no longer let rows show through.**
+    With a translucent theme the sticky group titles' `--background-primary` fill
+    carries alpha, so results sliding beneath, and the app behind the overlay,
+    could faintly peek through. The labels now composite a blur over their
+    background plus a hairline divider, so passing rows read as the header's own
+    surface instead of bleeding text.
+
 ## 1.0.17 — 2026-09-09
 
 ### Fixed

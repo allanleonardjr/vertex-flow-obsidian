@@ -30,8 +30,19 @@ import {
 } from "react";
 import type { Task } from "../core/types";
 
-/** Visual layout: one array of task paths per column, in render order. */
-export type FocusLayout = string[][];
+/**
+ * Visual layout: one entry per column, in render order.
+ *
+ * `groupStarts` records where each group begins within `paths` (ascending
+ * indices, first always 0). Board's columns already are the groups, so they
+ * report a single `[0]`; List concatenates multiple groups into one column
+ * and needs the real boundaries so `jumpGroup` can walk them.
+ */
+export interface FocusColumn {
+	paths: string[];
+	groupStarts: number[];
+}
+export type FocusLayout = FocusColumn[];
 
 export interface SelectionState {
 	focusedPath: string | null;
@@ -46,6 +57,8 @@ export interface SelectionApi extends SelectionState {
 	moveFocus: (delta: number) => void;
 	/** Move between columns, holding the row position (←/→, h/l). */
 	moveColumn: (delta: number) => void;
+	/** Jump to a group boundary (Shift+j/k, Shift+↓/↑). See `jumpGroup`. */
+	jumpGroup: (delta: number) => void;
 	/** Click semantics: plain = focus only, cmd = toggle, shift = range. */
 	select: (path: string, modifiers?: { toggle?: boolean; range?: boolean }) => void;
 	/** Toggle selection of the currently focused task (Spacebar). */
@@ -63,14 +76,14 @@ const SelectionCtx = createContext<SelectionApi | null>(null);
 function locate(layout: FocusLayout, path: string | null): [number, number] | null {
 	if (!path) return null;
 	for (let column = 0; column < layout.length; column++) {
-		const row = layout[column].indexOf(path);
+		const row = layout[column].paths.indexOf(path);
 		if (row !== -1) return [column, row];
 	}
 	return null;
 }
 
 function flatten(layout: FocusLayout): string[] {
-	return layout.flat();
+	return layout.flatMap((column) => column.paths);
 }
 
 export function SelectionProvider({ children }: { children: ReactNode }) {
@@ -98,20 +111,24 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
 			// Arrowing with nothing focused enters from the appropriate end of
 			// the first non-empty column.
 			if (!at) {
-				const column = columns.find((entries) => entries.length > 0);
+				const column = columns.find((entries) => entries.paths.length > 0);
 				if (!column) return current;
-				const next = delta > 0 ? column[0] : column[column.length - 1];
+				const next =
+					delta > 0 ? column.paths[0] : column.paths[column.paths.length - 1];
 				anchor.current = next;
 				return next;
 			}
 
 			const [columnIndex, row] = at;
 			const column = columns[columnIndex];
-			// Clamped, not wrapped: hitting the end of a column and jumping to
-			// the top of the next one is disorienting on a board.
-			const nextRow = Math.max(0, Math.min(column.length - 1, row + delta));
-			anchor.current = column[nextRow];
-			return column[nextRow];
+			// Wrapped within the column: bottom -> top and top -> bottom, same as
+			// the Hubs' useBrowseKeyboardNav. Never crosses into an adjacent
+			// column — that would still be the disorienting jump this used to
+			// guard against; moveColumn handles deliberate column changes.
+			const nextRow =
+				(row + delta + column.paths.length) % column.paths.length;
+			anchor.current = column.paths[nextRow];
+			return column.paths[nextRow];
 		});
 	}, []);
 
@@ -122,10 +139,10 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
 		setFocusedPath((current) => {
 			const at = locate(columns, current);
 			if (!at) {
-				const index = columns.findIndex((entries) => entries.length > 0);
+				const index = columns.findIndex((entries) => entries.paths.length > 0);
 				if (index === -1) return current;
-				anchor.current = columns[index][0];
-				return columns[index][0];
+				anchor.current = columns[index].paths[0];
+				return columns[index].paths[0];
 			}
 
 			const [columnIndex, row] = at;
@@ -133,14 +150,93 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
 			// Skip empty columns rather than stalling on them — an empty status
 			// column is a real drop target but nothing to focus.
 			let next = columnIndex + delta;
-			while (next >= 0 && next < columns.length && columns[next].length === 0) {
+			while (
+				next >= 0 &&
+				next < columns.length &&
+				columns[next].paths.length === 0
+			) {
 				next += delta;
 			}
 			if (next < 0 || next >= columns.length) return current;
 
 			const column = columns[next];
 			// Hold the row position where possible, the way a spreadsheet does.
-			const path = column[Math.min(row, column.length - 1)];
+			const path = column.paths[Math.min(row, column.paths.length - 1)];
+			anchor.current = path;
+			return path;
+		});
+	}, []);
+
+	/**
+	 * Jump to a group boundary (Shift+j/k, Shift+↓/↑).
+	 *
+	 * Walks a flattened, column-major sequence of group ranges built from
+	 * each column's `groupStarts` — one range per group, in reading order
+	 * across all columns. On Board that's one range per column (each column
+	 * already is a single group), so this doubles as "next/previous column,
+	 * landing at its top/bottom." On List it walks the real sub-groups
+	 * within the one flattened column.
+	 *
+	 * delta > 0 (Shift+j): jump to the last item of the current group; if
+	 * already there, jump to the last item of the next group (wrapping past
+	 * the last group back to the first).
+	 *
+	 * delta < 0 (Shift+k): mirror image — first item of the current group,
+	 * else the first item of the previous group, wrapping.
+	 */
+	const jumpGroup = useCallback((delta: number) => {
+		const columns = layout.current;
+		if (columns.length === 0) return;
+
+		type Range = { columnIndex: number; start: number; end: number };
+		const ranges: Range[] = [];
+		columns.forEach((column, columnIndex) => {
+			const starts = column.groupStarts.length > 0 ? column.groupStarts : [0];
+			starts.forEach((start, i) => {
+				const end =
+					(i + 1 < starts.length ? starts[i + 1] : column.paths.length) - 1;
+				if (end >= start) ranges.push({ columnIndex, start, end });
+			});
+		});
+		if (ranges.length === 0) return;
+
+		setFocusedPath((current) => {
+			const at = locate(columns, current);
+
+			if (!at) {
+				const range = delta > 0 ? ranges[0] : ranges[ranges.length - 1];
+				const path =
+					columns[range.columnIndex].paths[delta > 0 ? range.end : range.start];
+				anchor.current = path;
+				return path;
+			}
+
+			const [columnIndex, row] = at;
+			const rangeIndex = ranges.findIndex(
+				(r) => r.columnIndex === columnIndex && row >= r.start && row <= r.end,
+			);
+			if (rangeIndex === -1) return current;
+			const range = ranges[rangeIndex];
+
+			if (delta > 0) {
+				if (row !== range.end) {
+					const path = columns[columnIndex].paths[range.end];
+					anchor.current = path;
+					return path;
+				}
+				const next = ranges[(rangeIndex + 1) % ranges.length];
+				const path = columns[next.columnIndex].paths[next.end];
+				anchor.current = path;
+				return path;
+			}
+
+			if (row !== range.start) {
+				const path = columns[columnIndex].paths[range.start];
+				anchor.current = path;
+				return path;
+			}
+			const prev = ranges[(rangeIndex - 1 + ranges.length) % ranges.length];
+			const path = columns[prev.columnIndex].paths[prev.start];
 			anchor.current = path;
 			return path;
 		});
@@ -210,6 +306,7 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
 			focus,
 			moveFocus,
 			moveColumn,
+			jumpGroup,
 			select,
 			toggleFocused,
 			clearSelection,
@@ -230,6 +327,7 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
 			focus,
 			moveFocus,
 			moveColumn,
+			jumpGroup,
 			select,
 			toggleFocused,
 			clearSelection,

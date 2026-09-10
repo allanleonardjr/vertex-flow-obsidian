@@ -20,9 +20,11 @@ import {
 import { mergeCommentCounts } from "../core/people";
 import {
 	detectProjectTitleCollisions,
+	extractProjectDescription,
 	parseProject,
 } from "../core/serialization/entities";
 import { parseTask } from "../core/serialization/task";
+import { parseDescription } from "../core/serialization/description";
 import {
 	detectViewIdCollisions,
 	parseView,
@@ -103,6 +105,15 @@ export class VaultIndex {
 		string,
 		{ mtime: number; mentions: string[]; commentCounts: Record<string, number> }
 	>();
+
+	/**
+	 * path → { mtime, text }: the `## Description` prose of a task, and the whole
+	 * body of a project, so the workspace-search overlay has that text to match
+	 * against without re-reading every note per keystroke. Filled by the same
+	 * mtime-gated body-read pass as `mentionCache` (`refreshMentions`), and — like
+	 * `mentions` — reads empty until that async pass first completes.
+	 */
+	private descriptionCache = new Map<string, { mtime: number; text: string }>();
 
 	private readonly scheduleRebuild = debounce(
 		() => void this.rebuild(),
@@ -250,6 +261,23 @@ export class VaultIndex {
 			if (cached) tallies.push(cached.commentCounts);
 		}
 		return mergeCommentCounts(tallies);
+	}
+
+	/**
+	 * The `## Description` text of a task, cached from its note body. Returns `""`
+	 * until the lazy body-read pass has seen the file (same "empty until the pass
+	 * finishes" contract as `mentions`) and after the note is deleted.
+	 */
+	taskDescription(path: string): string {
+		return this.descriptionCache.get(path)?.text ?? "";
+	}
+
+	/**
+	 * A project's description (its whole note body, trimmed), cached from disk.
+	 * Same "empty until the lazy pass finishes" contract as `taskDescription`.
+	 */
+	projectDescription(path: string): string {
+		return this.descriptionCache.get(path)?.text ?? "";
 	}
 
 	hasView(viewId: string): boolean {
@@ -792,46 +820,86 @@ export class VaultIndex {
 	}
 
 	/**
-	 * Read task bodies to resolve `@mentions`, skipping files whose mtime hasn't
-	 * moved. Runs after the structural index is already published, so it never
-	 * delays a render.
+	 * Read task and project bodies, skipping files whose mtime hasn't moved.
+	 * Resolves task `@mentions` (+ the per-author comment tally) and caches the
+	 * task-description / project-body text for the workspace-search overlay —
+	 * every note is read **at most once** per pass, both derived values coming
+	 * out of the same string. Runs after the structural index is already
+	 * published, so it never delays a render.
 	 */
 	private async refreshMentions(): Promise<void> {
 		let changed = false;
-		const live = new Set<string>();
+		const liveTasks = new Set<string>();
+		const describable = new Set<string>();
 
 		for (const snapshot of this.snapshots.values()) {
 			const people = snapshot.workspace.people;
-			if (people.length === 0) continue;
 
 			for (const task of snapshot.tasks) {
-				live.add(task.path);
+				liveTasks.add(task.path);
+				describable.add(task.path);
 				const file = this.io.getFile(task.path);
 				if (!file) continue;
 
-				const cached = this.mentionCache.get(task.path);
-				if (cached && cached.mtime === file.stat.mtime) {
-					task.mentions = cached.mentions;
+				const cachedMention = this.mentionCache.get(task.path);
+				const cachedDesc = this.descriptionCache.get(task.path);
+				// With no People register there's nothing to resolve, so an
+				// absent mention-cache entry is not itself a reason to re-read.
+				const mentionFresh =
+					people.length === 0 ||
+					(cachedMention != null && cachedMention.mtime === file.stat.mtime);
+				const descFresh =
+					cachedDesc != null && cachedDesc.mtime === file.stat.mtime;
+				if (mentionFresh && descFresh) {
+					if (cachedMention) task.mentions = cachedMention.mentions;
 					continue;
 				}
 
-				// One body read, two derived values — `@mention` resolution and
-				// the per-author comment tally both come out of the same string.
 				const body = await this.io.readBody(file);
-				const mentions = mentionsInNote(body, people);
-				this.mentionCache.set(task.path, {
+
+				if (people.length > 0) {
+					// `@mention` resolution and the per-author comment tally both
+					// come out of this one string.
+					const mentions = mentionsInNote(body, people);
+					this.mentionCache.set(task.path, {
+						mtime: file.stat.mtime,
+						mentions,
+						commentCounts: commentCountsInBody(body),
+					});
+					task.mentions = mentions;
+				}
+				this.descriptionCache.set(task.path, {
 					mtime: file.stat.mtime,
-					mentions,
-					commentCounts: commentCountsInBody(body),
+					text: parseDescription(body),
 				});
-				task.mentions = mentions;
+				changed = true;
+			}
+
+			// Projects: their whole body is the description. `refreshMentions`
+			// doesn't otherwise touch them, so this is a separate, smaller loop.
+			for (const project of snapshot.projects) {
+				describable.add(project.path);
+				const file = this.io.getFile(project.path);
+				if (!file) continue;
+
+				const cached = this.descriptionCache.get(project.path);
+				if (cached && cached.mtime === file.stat.mtime) continue;
+
+				const body = await this.io.readBody(file);
+				this.descriptionCache.set(project.path, {
+					mtime: file.stat.mtime,
+					text: extractProjectDescription(body),
+				});
 				changed = true;
 			}
 		}
 
 		// Drop cache entries for notes that no longer exist.
 		for (const path of [...this.mentionCache.keys()]) {
-			if (!live.has(path)) this.mentionCache.delete(path);
+			if (!liveTasks.has(path)) this.mentionCache.delete(path);
+		}
+		for (const path of [...this.descriptionCache.keys()]) {
+			if (!describable.has(path)) this.descriptionCache.delete(path);
 		}
 
 		if (changed) this.notify();

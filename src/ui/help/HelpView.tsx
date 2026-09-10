@@ -7,9 +7,9 @@
  * browse screens — no modal. Content lives in `core/help.ts`, not the vault.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEventHandler } from "react";
 import { ChevronRight } from "lucide-react";
-import { HELP_TOPICS, findHelpTopic, slugifyHeading, type HelpTopic } from "../../core/help";
+import { HELP_LINK_PREFIX, HELP_TOPICS, findHelpTopic, parseHelpLink, slugifyHeading, type HelpTopic } from "../../core/help";
 import { Icon } from "../components/Icon";
 import { MarkdownContent } from "../components/Markdown";
 import { useTabs } from "../tabs-context";
@@ -155,6 +155,24 @@ export function HelpView() {
 	const selected = selectedId ? findHelpTopic(HELP_TOPICS, selectedId) : null;
 	const breadcrumbs = selected ? ancestorTopics(HELP_TOPICS, selected.id) : [];
 
+	// In-content cross-links (`[Layouts](help://layouts)`) render as ordinary
+	// anchors from Obsidian's MarkdownRenderer; catch them here (the bubble
+	// phase beats Obsidian's document-level listeners) and navigate without
+	// leaving the pane.
+	const navigateFromLink: MouseEventHandler<HTMLDivElement> = (event) => {
+		const anchor = (event.target as Element | null)?.closest(`a[href^="${HELP_LINK_PREFIX}"]`);
+		if (!anchor) return;
+		const target = parseHelpLink(anchor.getAttribute("href") ?? "");
+		if (!target) return;
+		const topic = findHelpTopic(HELP_TOPICS, target.topicId);
+		if (!topic) return;
+		event.preventDefault();
+		event.stopPropagation();
+		contentRef.current?.scrollTo({ top: 0 });
+		select(topic);
+		if (target.anchor) setPendingAnchor(target.anchor);
+	};
+
 	return (
 		<div className="vf-help">
 			<nav className="vf-help-toc" style={{ width, flexBasis: width }} aria-label="Help topics">
@@ -200,7 +218,7 @@ export function HelpView() {
 				title="Drag to resize — double-click to reset"
 			/>
 
-			<div className="vf-help-content" ref={contentRef}>
+			<div className="vf-help-content" ref={contentRef} onClick={navigateFromLink}>
 				{selected ? (
 					<>
 						<header className="vf-help-header">

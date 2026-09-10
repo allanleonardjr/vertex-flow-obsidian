@@ -50,6 +50,7 @@ import { activeReadonlyFilterKeys } from "./viewOptions";
 import { QueryBar } from "./QueryBar";
 import { InlineHelpIcon } from "../components/InlineHelpIcon";
 import type { ViewDraft } from "./useViewDraft";
+import { useDraftShortcuts } from "../components/useDraftShortcuts";
 
 export function ViewControls({
   snapshot,
@@ -118,6 +119,15 @@ export function ViewControls({
   // instead (see `useViewWriter`). A synthesised label view has neither, so
   // an ad-hoc filter there becomes a *new* view or nothing at all.
   const canOverwrite = inSavedViews || isProjectViewId(savedView.id);
+
+  // Wire up Alt+S, Alt+Shift+S, and Alt+R for all view targets
+  useDraftShortcuts({
+    dirty: draft.dirty,
+    canSave: canOverwrite,
+    onSave: draft.save,
+    onSaveAs: () => setSavingAs(true),
+    onReset: draft.reset,
+  });
 
   // Name/icon and the description section: real user views only.
   const canEditIdentity = inSavedViews && !permanentView;

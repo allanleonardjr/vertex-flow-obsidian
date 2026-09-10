@@ -12,7 +12,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { HELP_TOPICS, findHelpTopic, findHeadingSlugs, slugifyHeading } from "../../src/core/help";
+import { HELP_TOPICS, findHelpTopic, findHeadingSlugs, parseHelpLink, slugifyHeading } from "../../src/core/help";
 import { HELP_TOPIC } from "../../src/core/help-links";
 
 const CONTENT_DIR = join(__dirname, "../../src/help-content");
@@ -87,6 +87,47 @@ describe("HELP_TOPIC links resolve", () => {
 			const rel = file.replace(CONTENT_DIR, "").replace(/^\/+/, "").replace(/\.md$/, "");
 			const id = rel.split("/").join("-").replace(/[^a-zA-Z0-9]+/g, "-");
 			expect(findHelpTopic(HELP_TOPICS, id), `unresolvable generated id "${id}"`).not.toBeNull();
+		}
+	});
+});
+
+describe("parseHelpLink", () => {
+	it("parses a bare topic href", () => {
+		expect(parseHelpLink("help://layouts")).toEqual({ topicId: "layouts" });
+	});
+
+	it("parses a topic href with an anchor", () => {
+		expect(parseHelpLink("help://views-saved-views#query-language")).toEqual({
+			topicId: "views-saved-views",
+			anchor: "query-language",
+		});
+	});
+
+	it("rejects anything that isn't a help:// link", () => {
+		expect(parseHelpLink("https://example.com")).toBeNull();
+		expect(parseHelpLink("help://")).toBeNull();
+		expect(parseHelpLink("")).toBeNull();
+		expect(parseHelpLink("[[layouts]]")).toBeNull();
+	});
+});
+
+describe("help:// cross-links resolve", () => {
+	it("every help:// link inside help content reaches a real topic (and anchor)", () => {
+		const hrefPattern = /\]\((help:\/\/[^)\s]+)\)/g;
+		for (const file of markdownFiles(CONTENT_DIR)) {
+			const md = readFileSync(file, "utf8");
+			for (const match of md.matchAll(hrefPattern)) {
+				const target = parseHelpLink(match[1]);
+				expect(target, `unparseable help link "${match[1]}" in ${file}`).not.toBeNull();
+				const topic = findHelpTopic(HELP_TOPICS, target!.topicId);
+				expect(topic, `missing topic "${target!.topicId}" linked from ${file}`).not.toBeNull();
+				if (target!.anchor != null) {
+					expect(topic!.content, `topic "${target!.topicId}" has no content`).toBeTruthy();
+					const slugs = findHeadingSlugs(topic!.content!);
+					expect(slugs, `topic "${target!.topicId}" has no heading "${target!.anchor}"`)
+						.toContain(target!.anchor);
+				}
+			}
 		}
 	});
 });

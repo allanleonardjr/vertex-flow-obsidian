@@ -270,7 +270,7 @@ export function TaskDetailPanel({
         </div>
 
         <EditorRail>
-          <PropertyRow label="Status">
+          <PropertyRow label="Status" field="status">
             <StatusSelect
               taxonomy={taxonomies.status}
               value={task.status}
@@ -278,7 +278,7 @@ export function TaskDetailPanel({
             />
           </PropertyRow>
 
-          <PropertyRow label="Priority">
+          <PropertyRow label="Priority" field="priority">
             <PrioritySelect
               taxonomy={taxonomies.priority}
               value={task.priority}
@@ -288,6 +288,7 @@ export function TaskDetailPanel({
 
           <PropertyRow
             label="Type"
+            field="taskType"
             labelAdornment={
               !snapshot.workspace.defaultNewTaskType && <DefaultTaskTypeHint />
             }
@@ -299,7 +300,7 @@ export function TaskDetailPanel({
             />
           </PropertyRow>
 
-          <PropertyRow label="Assignee">
+          <PropertyRow label="Assignee" field="assignee">
             <PersonSelect
               people={snapshot.workspace.people}
               value={task.assignee}
@@ -308,7 +309,7 @@ export function TaskDetailPanel({
             />
           </PropertyRow>
 
-          <PropertyRow label="Labels">
+          <PropertyRow label="Labels" field="label">
             <LabelEditor
               snapshot={snapshot}
               taxonomy={taxonomies.label}
@@ -326,7 +327,7 @@ export function TaskDetailPanel({
 
           <ProjectPicker task={task} snapshot={snapshot} onChange={update} />
 
-          <PropertyRow label="Estimate">
+          <PropertyRow label="Estimate" field="estimate">
             <NumberField
               value={task.estimate}
               placeholder={snapshot.workspace.estimateUnitLabel ?? "—"}
@@ -334,14 +335,14 @@ export function TaskDetailPanel({
             />
           </PropertyRow>
 
-          <PropertyRow label="Start">
+          <PropertyRow label="Start" field="startDate">
             <DateField
               value={task.startDate}
               onChange={(startDate) => update({ startDate })}
             />
           </PropertyRow>
 
-          <PropertyRow label="Due">
+          <PropertyRow label="Due" field="dueDate">
             <DateField
               value={task.dueDate}
               onChange={(dueDate) => update({ dueDate })}
@@ -709,7 +710,7 @@ function ParentPicker({
   };
 
   return (
-    <PropertyRow label="Parent">
+    <PropertyRow label="Parent" field="parent">
       {tooDeep && (
         <ConfirmDeleteDialog
           title={`Nest "${displayTitle(task)}" ${depthUnder(scopeOf(snapshot), tooDeep)} levels deep?`}
@@ -790,7 +791,7 @@ function ProjectPicker({
     .sort((a, b) => a.label.localeCompare(b.label));
 
   return (
-    <PropertyRow label="Project">
+    <PropertyRow label="Project" field="project">
       <OptionSelect
         options={options}
         value={task.project}

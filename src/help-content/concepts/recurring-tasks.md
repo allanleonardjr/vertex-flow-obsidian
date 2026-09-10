@@ -85,7 +85,7 @@ nothing live behind.
 ## Preview ghosts
 
 Add `show:recurring` to a Saved View or the query bar and upcoming on-date
-occurrences are projected onto the **Calendar** and **Timeline** views as
+occurrences are projected onto the **Calendar** and **Timeline** layouts as
 non-interactive "ghost" rows — a look ahead before the engine actually
 spawns them. Projection runs about **30** days out and is capped at **12**
 ghost rows per series. On-close series have no calendar date, so they don't
