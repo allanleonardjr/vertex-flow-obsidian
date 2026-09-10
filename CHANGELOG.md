@@ -5,6 +5,17 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Added
+- **Wraparound focus navigation.** `j`/`k` and the arrow keys now wrap at the
+  ends of a column — pressing `j` on the last row jumps to the first, and `k` on
+  the first jumps to the last. Wrapping stays within the current column; `h`/`l`
+  column movement is unchanged and still clamps.
+- **`Shift+j` / `Shift+k` jump to group boundaries.** `Shift+j` moves to the
+  bottom of the current group, then the bottom of the next group (wrapping);
+  `Shift+k` mirrors it to group tops. On a List it walks the real sub-groups; on
+  a Board each column is a group, so it doubles as "jump to the next/previous
+  column, landing at its bottom/top."
+
 ### Fixed
 - **`u` `<key>` picker no longer jumps to the top-left corner in a single-task
   tab.** When a task is opened in its own tab, the quick-field picker (`u p`,
