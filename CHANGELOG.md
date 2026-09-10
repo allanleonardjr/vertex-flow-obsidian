@@ -5,6 +5,8 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.18 — 2026-09-10
+
 ### Added
 - **Wraparound focus navigation.** `j`/`k` and the arrow keys now wrap at the
   ends of a column — pressing `j` on the last row jumps to the first, and `k` on
