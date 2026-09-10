@@ -4748,7 +4748,8 @@ button.vf-query-fix {
 
 .vf-wsearch-results {
   overflow-y: auto;
-  padding: 6px 8px 8px;
+  padding: 0px 8px 8px;
+  scroll-padding-top: 35px;
 }
 
 .vf-wsearch-group + .vf-wsearch-group {
@@ -4759,7 +4760,7 @@ button.vf-query-fix {
   position: sticky;
   top: 0;
   z-index: 1;
-  padding: 4px 10px 6px;
+  padding: 8px 10px 6px;
   background: var(--background-primary);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
