@@ -31,6 +31,12 @@ This project uses [Semantic Versioning](https://semver.org/).
 - **Sidebar search button.** A search icon in the sidebar's top row opens the
   overlay in one click, and stays available in the compact drawer where there's
   no physical Alt key to press.
+- **Draft keyboard shortcuts for Views and Dashboards.** Save or discard in-memory edits without reaching for the toolbar across Views, Dashboards, Projects, and System views:
+  - `Option`/`Alt` + `S`: Save draft changes[cite: 1, 3]
+  - `Option`/`Alt` + `Shift` + `S`: Open "Save view/dashboard as…" dialog[cite: 1, 3]
+  - `Option`/`Alt` + `R`: Discard unsaved edits and revert to saved state[cite: 1, 3]
+  Uses physical key codes (`event.code`) to prevent macOS `Option` key character mutations (`ß`, `®`) from breaking bindings[cite: 1].
+- **Link to full documentation in shortcut reference modal.** The `?` keyboard shortcuts overlay now includes an "Open full documentation" link at the bottom-left, taking you straight to the Help pane's shortcut topic[cite: 1, 3].
 
 ### Changed
 - **The index caches searchable prose instead of re-reading notes.** Each pass

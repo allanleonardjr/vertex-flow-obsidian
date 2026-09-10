@@ -46,6 +46,7 @@ import { NamedIconDialog } from "../modals/NamedIconDialog";
 import { AddWidgetTile } from "./AddWidgetTile";
 import { DashboardGrid } from "./DashboardGrid";
 import { useDashboardDraft } from "./useDashboardDraft";
+import { useDraftShortcuts } from "../components/useDraftShortcuts";
 import {
   WidgetConfigDialog,
   type WidgetConfigResult,
@@ -130,6 +131,14 @@ function DashboardBody({
   const filterClause = useFilterClauseState();
 
   const canOverwrite = snapshot.dashboards.some((d) => d.id === dashboard.id);
+
+  useDraftShortcuts({
+    dirty: draft.dirty,
+    canSave: canOverwrite,
+    onSave: () => draft.save(),
+    onSaveAs: () => setDialog({ mode: "save-as" }),
+    onReset: draft.reset,
+  });
 
   // Switching tabs unmounts this component and drops the draft — guard it.
   const leaveGuard = useUnsavedGuard({
