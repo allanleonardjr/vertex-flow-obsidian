@@ -7,7 +7,7 @@
  */
 
 import type { Task } from "../types";
-import { compareRanks, rankForPosition, rankBetween, ranksBetween, sortByRank } from "./lexorank";
+import { compareRanks, rankForPosition, ranksBetween, sortByRank } from "./lexorank";
 
 export * from "./lexorank";
 
@@ -43,8 +43,8 @@ export function planReorderMany(
 	const orderedMoved = sortTasksByRank(moved);
 
 	const index = Math.max(0, Math.min(toIndex, others.length));
-	const prev = index > 0 ? (others[index - 1].rank as string) : null;
-	const next = index < others.length ? (others[index].rank as string | null) : null;
+	const prev = index > 0 ? others[index - 1].rank : null;
+	const next = index < others.length ? others[index].rank : null;
 	const ranks = ranksBetween(prev, next, orderedMoved.length);
 
 	return orderedMoved.map((task, i) => ({

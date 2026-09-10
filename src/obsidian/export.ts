@@ -86,7 +86,7 @@ export async function runExport(
 		}
 	}
 
-	const { content, taskCount, scopeLabel } = buildExport({
+	const { content, taskCount } = buildExport({
 		snapshot,
 		context,
 		scope: input.scope,

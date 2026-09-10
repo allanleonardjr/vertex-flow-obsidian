@@ -38,7 +38,6 @@ import { deriveMentions } from "./helpers";
 import { sampleWorkspaceTemplate } from "./sample-workspace";
 import type {
 	TemplateBuildContext,
-	TemplateContent,
 	TemplateWorkspaceOverrides,
 	WorkspaceTemplate,
 } from "./types";

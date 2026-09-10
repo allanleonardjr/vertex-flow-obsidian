@@ -27,7 +27,6 @@ import { resolveDisplayRecord, type ResolveLookups } from "./resolve";
 import {
 	resolveScopeTasks,
 	type ExportScope,
-	type ScopeIdentity,
 } from "./scope";
 
 export * from "./fields";
