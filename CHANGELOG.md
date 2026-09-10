@@ -5,6 +5,8 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.16 — 2026-09-09
+
 ### Added
 - **Export tasks by label or person.** The Export dialog's Scope selector now
   also offers **Labels** and **People** alongside Views, Projects and the whole
