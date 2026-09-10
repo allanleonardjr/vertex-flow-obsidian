@@ -5,6 +5,13 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Fixed
+- **`u` `<key>` picker no longer jumps to the top-left corner in a single-task
+  tab.** When a task is opened in its own tab, the quick-field picker (`u p`,
+  `u s`, …) now anchors just below the matching property row in the rail
+  instead of pinning to `(0, 0)`. `place()` also skips any zero-sized anchor and
+  falls back to screen-center as defense in depth.
+
 ## 1.0.17 — 2026-09-09
 
 ### Fixed
