@@ -194,6 +194,7 @@ Right-click a tab for additional tab-management actions:
 
 - **Close other tabs**
 - **Close tabs to the right**
+- **Close tabs to the left**
 - **Close all tabs**
 
 Unlike registered Obsidian commands, these tab-strip interactions are view-scoped navigation controls—similar to `j` and `k` task navigation—and are not configurable through Obsidian’s Hotkeys settings.

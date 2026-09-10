@@ -39,6 +39,8 @@ This project uses [Semantic Versioning](https://semver.org/).
   between cards on the Projects, Labels, People, Dashboards and Views screens
   (wrapping at either end); `Enter` / `Space` opens the focused card. The
   keyboard-focused card now shows a visible accent bar.
+- **"Close tabs to the left"** in the tab right-click menu, mirroring the
+  existing "Close tabs to the right" (disabled on the leftmost tab).
 
 ### Changed
 - **New export filename format**, shared by task exports and template exports:
