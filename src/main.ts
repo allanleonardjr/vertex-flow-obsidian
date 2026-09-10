@@ -26,6 +26,7 @@ import {
 import { recurrenceNodesInChain } from "./core/recurrence";
 import { isTaskNoteType } from "./core/entity-type";
 import { migrateEntityTypes } from "./obsidian/migrate-entity-type";
+import { migrateCompletedAt } from "./obsidian/migrate-completed-at";
 import { VertexFlowSettingTab } from "./settings/SettingTab";
 import {
   DEFAULT_SETTINGS,
@@ -141,6 +142,9 @@ export default class VertexFlowPlugin extends Plugin {
           // Self-terminating: a scan that finds nothing converged does
           // zero writes, so this is cheap to run on every rebuild.
           void migrateEntityTypes(this.index, this.io);
+          // Backfill `completedAt` for tasks completed before that field
+          // shipped. Self-terminating, same as the pass above.
+          void migrateCompletedAt(this.index, this.io);
         }),
       );
       void this.index.rebuild().then(() => this.registerTaskRedirect());

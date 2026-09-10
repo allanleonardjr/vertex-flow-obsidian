@@ -6,6 +6,15 @@ This project uses [Semantic Versioning](https://semver.org/).
 ## Unreleased
 
 ### Added
+- **`completedAt` tracking.** Every task now records when it last crossed into a
+  Done-category status — auto-stamped when the status changes, cleared if the
+  task is reopened, and overwritten on re-completion. It shows as a **Completed**
+  row in the task detail panel, is offered as an **Updated** / **Completed**
+  time-axis option on Line and Timeline dashboard widgets (alongside Due / Start
+  / Created), and can be included as a column in CSV and JSON exports. A one-time
+  migration backfills `completedAt` (from `updatedAt`) for tasks that were
+  already Done before this shipped. The iCal export is unchanged — `VEVENT` has
+  no standard completion property.
 - **Canvas layout (`v` `d`) — a read-only relationship graph.** Any Saved View
   can now render as a Canvas: the view's filtered tasks are laid out by `elkjs`
   as nodes. Set **Group by** to Status, Priority, Type, Assignee or Project and
