@@ -118,6 +118,14 @@ This project uses [Semantic Versioning](https://semver.org/).
   repaints the card in place without requesting a re-layout. (A slow stale
   ELK resolution can no longer overwrite a fresher pass either — only the most
   recent layout request may commit.)
+- **Overlay dependency edges in tree mode ran through the target card.** The
+  straight `blocks`/`blockedBy` lines (and their arrowheads) were drawn
+  centre-to-centre, ending at the target node's centre and vanishing behind
+  the card. They're now snapped with `core/canvas/layout`'s
+  `canvasEdgeLinePath` helper — which intersects the centre-to-centre ray
+  with each card's boundary for both endpoints and pulls the target end back
+  ~7px so the arrowhead stays fully outside the card. Related edges are
+  unchanged (still centre-to-centre, dashed, arrowless).
 
 ## 1.0.19 — 2026-09-10
 

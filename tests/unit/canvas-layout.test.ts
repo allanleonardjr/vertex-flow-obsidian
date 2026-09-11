@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
 	DEFAULT_GROUP_PADDING as PAD,
+	canvasEdgeLinePath,
+	canvasEdgePoints,
 	createLayoutGuard,
 	flattenCanvasLayout,
 	type EdgeMeta,
@@ -201,5 +203,81 @@ describe("createLayoutGuard — out-of-order ELK resolutions", () => {
 
 	it("a fresh guard has nothing current", () => {
 		expect(createLayoutGuard().isCurrent(1)).toBe(false);
+	});
+});
+
+describe("canvasEdgePoints — snapped overlay edge geometry", () => {
+	// Cards are 100×40: `src` centre (50, 20), each `tgt` centre is chosen so
+	// the numbers come out clean. Default target inset is 7.
+
+	it("horizontal: exits the source right edge, enters the target left edge", () => {
+		// `tgt` centre (250, 20), directly right of the source.
+		const pts = canvasEdgePoints(
+			{ x: 0, y: 0, width: 100, height: 40 },
+			{ x: 200, y: 0, width: 100, height: 40 },
+		)!;
+		expect(pts.start).toEqual({ x: 100, y: 20 });
+		expect(pts.end).toEqual({ x: 193, y: 20 }); // 200 − 7
+	});
+
+	it("reverse direction: source right of target", () => {
+		// `tgt` centre (50, 20), directly left of the source.
+		const pts = canvasEdgePoints(
+			{ x: 200, y: 0, width: 100, height: 40 }, // centre (250, 20)
+			{ x: 0, y: 0, width: 100, height: 40 }, // centre (50, 20)
+		)!;
+		expect(pts.start).toEqual({ x: 200, y: 20 });
+		// End sits on the target's right edge, pulled back *toward the source*
+		// (still +x), so it never pokes inside the target.
+		expect(pts.end).toEqual({ x: 107, y: 20 }); // 100 + 7
+	});
+
+	it("vertical: exits the source bottom edge, enters the target top edge", () => {
+		// `tgt` centre (50, 120), directly below the source.
+		const pts = canvasEdgePoints(
+			{ x: 0, y: 0, width: 100, height: 40 },
+			{ x: 0, y: 100, width: 100, height: 40 },
+		)!;
+		expect(pts.start).toEqual({ x: 50, y: 40 });
+		expect(pts.end).toEqual({ x: 50, y: 93 });
+	});
+
+	it("diagonal: exits whichever boundary the ray hits first, both ends on the line", () => {
+		// `tgt` centre (290, 200). The ray (0.8, 0.6) reaches the source's
+		// bottom edge (t = 20/0.6 ≈ 33.33) before its right edge (t = 62.5),
+		// and the target's top edge at the same t from its centre.
+		const pts = canvasEdgePoints(
+			{ x: 0, y: 0, width: 100, height: 40 },
+			{ x: 240, y: 180, width: 100, height: 40 },
+		)!;
+		expect(pts.start.x).toBeCloseTo(76.666667, 6);
+		expect(pts.start.y).toBeCloseTo(40, 6);
+		expect(pts.end.x).toBeCloseTo(257.733333, 6); // 263.333 − 0.8·7
+		expect(pts.end.y).toBeCloseTo(175.8, 6); // 180 − 0.6·7
+		// Both endpoints stay exactly on the centre-to-centre line.
+		expect((pts.end.y - 20) / (pts.end.x - 50)).toBeCloseTo(0.75, 6);
+		expect((pts.start.y - 20) / (pts.start.x - 50)).toBeCloseTo(0.75, 6);
+	});
+
+	it("target inset only moves the end, by the requested amount, along the line", () => {
+		const src = { x: 0, y: 0, width: 100, height: 40 };
+		const tgt = { x: 200, y: 0, width: 100, height: 40 };
+
+		// inset 0 → the end lands exactly on the target's boundary.
+		const flush = canvasEdgePoints(src, tgt, 0)!;
+		expect(flush.end).toEqual({ x: 200, y: 20 });
+		// The start is not inset — it stays on the source's boundary.
+		expect(flush.start).toEqual({ x: 100, y: 20 });
+
+		// default inset pulls back 7; a custom inset pulls back exactly 3.5.
+		expect(canvasEdgePoints(src, tgt)!.end.x).toBe(193);
+		expect(canvasEdgePoints(src, tgt, 3.5)!.end).toEqual({ x: 196.5, y: 20 });
+	});
+
+	it("formats the M…L path and returns null for coincident centres", () => {
+		const src = { x: 0, y: 0, width: 100, height: 40 };
+		const tgt = { x: 200, y: 0, width: 100, height: 40 };
+		expect(canvasEdgeLinePath(src, tgt)).toBe("M 100 20 L 193 20");
+		expect(canvasEdgeLinePath(src, src)).toBeNull();
 	});
 });

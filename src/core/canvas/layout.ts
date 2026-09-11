@@ -262,3 +262,85 @@ export function createLayoutGuard(): {
 		},
 	};
 }
+
+export interface CanvasPoint {
+	x: number;
+	y: number;
+}
+
+export interface CanvasEdgePoints {
+	start: CanvasPoint;
+	end: CanvasPoint;
+}
+
+/**
+ * How far the target endpoint of an overlay edge is pulled back along the
+ * line, so the `markerEnd` arrowhead (which straddles the path's final
+ * vertex, ~0.7px on its pointy end over a 7-unit marker) stays fully outside
+ * the target card.
+ */
+export const DEFAULT_CANVAS_EDGE_INSET = 7;
+
+/**
+ * Edge endpoints for a straight, marker-ended canvas overlay edge.
+ *
+ * Both task cards are axis-aligned rectangles (absolute `PlacedBox`es). The
+ * connector runs along the source-centre → target-centre line: the start is
+ * where that ray exits the source rectangle, the end is where it enters the
+ * target rectangle, pulled back toward the source by `targetInset` so the
+ * arrowhead tip never pokes inside the card. Returns `null` when both boxes
+ * share a centre (no meaningful direction).
+ */
+export function canvasEdgePoints(
+	source: PlacedBox,
+	target: PlacedBox,
+	targetInset = DEFAULT_CANVAS_EDGE_INSET,
+): CanvasEdgePoints | null {
+	const sx = source.x + source.width / 2;
+	const sy = source.y + source.height / 2;
+	const tx = target.x + target.width / 2;
+	const ty = target.y + target.height / 2;
+
+	const dx = tx - sx;
+	const dy = ty - sy;
+	const len = Math.hypot(dx, dy);
+	if (len === 0) return null;
+	const ux = dx / len;
+	const uy = dy / len;
+
+	const start = exitThrough(source, sx, sy, ux, uy);
+	const end = exitThrough(target, tx, ty, -ux, -uy);
+
+	return {
+		start,
+		end: { x: end.x - ux * targetInset, y: end.y - uy * targetInset },
+	};
+}
+
+/** The point where the ray `from cx,cy along (ux,uy)` leaves `box`. */
+function exitThrough(
+	box: PlacedBox,
+	cx: number,
+	cy: number,
+	ux: number,
+	uy: number,
+): CanvasPoint {
+	const halfW = box.width / 2;
+	const halfH = box.height / 2;
+	const t = Math.min(
+		ux !== 0 ? halfW / Math.abs(ux) : Infinity,
+		uy !== 0 ? halfH / Math.abs(uy) : Infinity,
+	);
+	return { x: cx + ux * t, y: cy + uy * t };
+}
+
+/** The `M start.x start.y L end.x end.y` path for the snapped edge. */
+export function canvasEdgeLinePath(
+	source: PlacedBox,
+	target: PlacedBox,
+	targetInset = DEFAULT_CANVAS_EDGE_INSET,
+): string | null {
+	const points = canvasEdgePoints(source, target, targetInset);
+	if (!points) return null;
+	return `M ${points.start.x} ${points.start.y} L ${points.end.x} ${points.end.y}`;
+}

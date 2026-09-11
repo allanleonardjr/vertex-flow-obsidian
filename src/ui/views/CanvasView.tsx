@@ -14,8 +14,10 @@
  *       `parent` → child thin + arrowless) feeds ELK's ranking and may cross
  *       group boxes;
  *       `tree` — only `parent` → child edges feed ELK (an `mrtree` pass);
- *       `blocks`/`blockedBy` edges are drawn between final node centres after
- *       layout, overlay-style, like `related` (which is always an overlay).
+ *       `blocks`/`blockedBy` edges are drawn edge-to-edge after layout,
+ *       overlay-style (snapped to each card's boundary, arrowhead inset clear
+ *       of the target), like `related` (which is always an overlay, straight
+ *       centre-to-centre).
  *       With no visible hierarchy edge the pass silently falls back to `flow`;
  *   - `related` links — dashed, arrowless, drawn straight between final node
  *     centres, never fed into the layout.
@@ -56,6 +58,7 @@ import {
 } from "../../core/canvas/graph";
 import {
   DEFAULT_GROUP_PADDING,
+  canvasEdgeLinePath,
   createLayoutGuard,
   elkPaddingOption,
   flattenCanvasLayout,
@@ -859,22 +862,20 @@ export function CanvasView({
     : [];
 
   // Tree-mode `blocks`/`blockedBy` edges — excluded from ELK's ranking, drawn
-  // straight between final node centres after layout with the same styling and
-  // arrowhead as an in-flow dependency edge. Selectable and deletable exactly
-  // like one.
+  // after layout with the same styling and arrowhead as an in-flow dependency
+  // edge. Selectable and deletable exactly like one. The path snaps from the
+  // source card's edge to the target card's edge (inset back by
+  // `DEFAULT_CANVAS_EDGE_INSET` so the arrowhead clears the card) instead of
+  // running centre-to-centre through the target.
   const overlayDependencyPaths = laidOut
     ? plan.overlayDependencyEdges
         .map(({ source, target }) => {
           const na = laidOut.nodes.get(source);
           const nb = laidOut.nodes.get(target);
           if (!na || !nb) return null;
-          return {
-            source,
-            target,
-            d:
-              `M ${na.x + na.width / 2} ${na.y + na.height / 2} ` +
-              `L ${nb.x + nb.width / 2} ${nb.y + nb.height / 2}`,
-          };
+          const d = canvasEdgeLinePath(na, nb);
+          if (d === null) return null;
+          return { source, target, d };
         })
         .filter(
           (e): e is { source: string; target: string; d: string } => e !== null,
