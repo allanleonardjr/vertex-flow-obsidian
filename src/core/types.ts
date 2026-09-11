@@ -347,6 +347,13 @@ export interface Task {
 	relations: TaskRelations;
 	createdAt: IsoDate;
 	updatedAt: IsoDate;
+	/**
+	 * When the task last crossed into a `"completed"`-category status, or `null`
+	 * if it isn't currently completed. Auto-stamped/cleared by `Mutations.updateTask`
+	 * on a status change — never hand-set, and (like `updatedAt`) excluded from
+	 * history diffing. The latest completion always wins; reopening clears it.
+	 */
+	completedAt: IsoDate | null;
 
 	// --- Derived at index time; never written to frontmatter. -----------------
 
@@ -832,12 +839,19 @@ export const DASHBOARD_GROUPING_FIELDS: readonly DashboardGroupingField[] = [
 ] as const;
 
 /** X-axis fields a line/timeline chart can plot against. */
-export type DashboardTemporalField = "dueDate" | "startDate" | "createdAt";
+export type DashboardTemporalField =
+	| "dueDate"
+	| "startDate"
+	| "createdAt"
+	| "updatedAt"
+	| "completedAt";
 
 export const DASHBOARD_TEMPORAL_FIELDS: readonly DashboardTemporalField[] = [
 	"dueDate",
 	"startDate",
 	"createdAt",
+	"updatedAt",
+	"completedAt",
 ] as const;
 
 /** How a line/timeline chart buckets its temporal axis. */

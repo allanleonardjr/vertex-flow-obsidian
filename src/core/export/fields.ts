@@ -33,6 +33,7 @@ export type FieldId =
   | "createdAt"
   | "updatedAt"
   | "archivedAt"
+  | "completedAt"
   // rich data
   | "description"
   | "comments"
@@ -162,6 +163,13 @@ export const FIELDS: Record<FieldId, FieldSpec> = {
     icalEligible: false,
     needsDocument: false,
   },
+  completedAt: {
+    id: "completedAt",
+    label: "Completed",
+    group: "dates",
+    icalEligible: false,
+    needsDocument: false,
+  },
 
   description: {
     id: "description",
@@ -210,7 +218,7 @@ export const FIELD_GROUPS: FieldGroup[] = [
     id: "dates",
     label: "Dates",
     defaultOn: true,
-    fields: ["dueDate", "startDate", "createdAt", "updatedAt", "archivedAt"],
+    fields: ["dueDate", "startDate", "createdAt", "updatedAt", "archivedAt", "completedAt"],
   },
   {
     id: "rich",

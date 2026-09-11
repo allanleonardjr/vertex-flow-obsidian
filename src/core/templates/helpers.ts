@@ -87,6 +87,7 @@ export function makeTask(
 		relations: emptyRelations(),
 		createdAt: ctx.iso(-10),
 		updatedAt: ctx.iso(-1),
+		completedAt: null,
 		path: ctx.taskPath(n),
 		mentions: [],
 		...overrides,

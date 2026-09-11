@@ -5,6 +5,19 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.20 — 2026-09-10
+
+### Added
+- **`completedAt` tracking.** Every task now records when it last crossed into a
+  Done-category status — auto-stamped when the status changes, cleared if the
+  task is reopened, and overwritten on re-completion. It shows as a **Completed**
+  row in the task detail panel, is offered as an **Updated** / **Completed**
+  time-axis option on Line and Timeline dashboard widgets (alongside Due / Start
+  / Created), and can be included as a column in CSV and JSON exports. A one-time
+  migration backfills `completedAt` (from `updatedAt`) for tasks that were
+  already Done before this shipped. The iCal export is unchanged — `VEVENT` has
+  no standard completion property.
+
 ## 1.0.19 — 2026-09-10
 
 ### Added
@@ -24,6 +37,17 @@ This project uses [Semantic Versioning](https://semver.org/).
   events that didn't originate inside its own pane container.
 - When editing a comment, the [Cancle] and [Save] buttons weren't vertically aligned.
 - Inconsitent padding for meta information on Person Detail View.
+- **Canvas layout (`v` `d`) — a read-only relationship graph.** Any Saved View
+  can now render as a Canvas: the view's filtered tasks are laid out by `elkjs`
+  as nodes. Set **Group by** to Status, Priority, Type, Assignee or Project and
+  each group (including its "None") becomes a labelled box — hidden groups drop
+  out, exactly as on the Board; Label and no grouping render flat. `blocks` /
+  `blockedBy` dependencies draw as solid arrows and `parent` → child hierarchy
+  as thin arrowless connectors — both feed the layered ranking and may cross
+  boxes; `related` links draw dashed between nodes. The **Fields** control hides
+  node badges; Sort, Collapse-all and Upcoming are hidden for Canvas. Pan and
+  wheel-zoom, a static legend keys the three line styles, and edge colours are
+  three themeable CSS variables. Nothing is ever written back.
 
 ## 1.0.18 — 2026-09-10
 

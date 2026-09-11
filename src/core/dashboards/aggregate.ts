@@ -150,7 +150,11 @@ function temporalValue(task: Task, field: DashboardTemporalField): Date | null {
 			? task.dueDate
 			: field === "startDate"
 				? task.startDate
-				: task.createdAt;
+				: field === "createdAt"
+					? task.createdAt
+					: field === "updatedAt"
+						? task.updatedAt
+						: task.completedAt;
 	if (!raw) return null;
 	const date = new Date(raw);
 	if (Number.isNaN(date.getTime())) return null;

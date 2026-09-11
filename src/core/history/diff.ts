@@ -23,7 +23,9 @@ import type {
 
 /**
  * Fields the ledger reads naturally when a Task changes, excluding
- * always-churn fields (`updatedAt`) and noisy/fine-grained ones (`rank` —
+ * always-churn fields (`updatedAt`; `completedAt` too — it's auto-derived from
+ * `status`, and the status change itself is already logged) and noisy/
+ * fine-grained ones (`rank` —
  * it changes on literally every drag; `relations`/`mentions` edit via
  * frontmatter they're derived from — nothing to log; `createdAt`/`path`).
  */
