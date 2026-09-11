@@ -39,7 +39,13 @@ function isTypingTarget(target: EventTarget | null): boolean {
 	);
 }
 
-export function PrefixEngine({ snapshot }: { snapshot: WorkspaceSnapshot }) {
+export function PrefixEngine({
+	snapshot,
+	container,
+}: {
+	snapshot: WorkspaceSnapshot;
+	container: HTMLDivElement | null;
+}) {
 	const tabs = useTabs();
 	const plugin = usePlugin();
 	const createTask = useCreateTask();
@@ -144,6 +150,20 @@ case "r":
 
 	useEffect(() => {
 		const onKey = (event: KeyboardEvent) => {
+			// Only handle keys that actually landed in this pane. Bound on
+			// `window` (needed so a chord works no matter which element inside
+			// the pane has focus), but with split panes there's one
+			// `PrefixEngine` instance per pane, each with its own global
+			// listener — without this check, every keystroke anywhere in
+			// Obsidian would fire in every open Vertex Flow pane at once.
+			if (
+				!container ||
+				!(event.target instanceof Node) ||
+				!container.contains(event.target)
+			) {
+				return;
+			}
+
 			// Never touch modifier combinations — those are (or should be) real
 			// Obsidian commands.
 			if (event.metaKey || event.ctrlKey || event.altKey) {
@@ -212,7 +232,7 @@ case "r":
 			window.removeEventListener("keydown", onKey, true);
 			clearPending();
 		};
-	}, [runChord, clearPending]);
+	}, [runChord, clearPending, container]);
 
 	return helpOpen ? (
 		<ShortcutsHelpDialog onClose={() => setHelpOpen(false)} />

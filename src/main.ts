@@ -307,6 +307,19 @@ export default class VertexFlowPlugin extends Plugin {
   pendingExport = false;
 
   /**
+   * Set by a workspace row's "Export Tasks…" / "Export as Template…" menu
+   * item when the target isn't the active workspace. Switching workspaces
+   * remounts the whole `<Workspace>` subtree (see `App.tsx`), which would
+   * otherwise discard the `exportTarget` state set in the same click.
+   * Consumed by `WorkspacesSection`'s bridge effect once the fresh instance
+   * mounts. Mirrors `pendingExport`.
+   */
+  pendingWorkspaceExport: {
+    root: string;
+    forceMode: "tasks" | "template";
+  } | null = null;
+
+  /**
    * Set by the "Search workspace…" command; consumed once by `WorkspaceSearch`
    * to open the Alt+K overlay. Mirrors `pendingExport`.
    */
