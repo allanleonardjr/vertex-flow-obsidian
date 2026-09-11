@@ -8079,13 +8079,46 @@ button.vf-canvas-zoom-fit {
   max-width: 100%;
 }
 
+/* The top row (StatusDot, ID, Type chip, Priority icon) is a no-wrap flex
+   row with no truncation of its own — a long ID or Type label would
+   otherwise overflow the row's width and get silently cut off mid-character
+   by the card's own `overflow: hidden`. Truncate each in place instead.
+   Scoped to Canvas: `.vf-id`/`.vf-label-chip` outside `.vf-canvas-node-row`
+   (List, Board, filters, …) are untouched. Deliberately not wrapping the
+   row — that reopens the "how tall can a card get" question this phase
+   already answers once, cleanly, for the title. */
+.vf-canvas-node-row .vf-id {
+  max-width: 70px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vf-canvas-node-row .vf-label-chip {
+  min-width: 0;
+  max-width: 90px;
+}
+
+.vf-canvas-node-row .vf-label-chip-name {
+  /* Flex items default to `min-width: auto` (their content's intrinsic
+     width), which silently defeats `text-overflow: ellipsis` no matter what
+     the parent's own max-width says — this is the one line that actually
+     makes the chip's existing ellipsis rule (`.vf-label-chip-name`) apply. */
+  min-width: 0;
+}
+
 .vf-canvas-node-title {
   color: var(--text-normal);
   font-size: var(--font-ui-small);
   line-height: 1.3;
   overflow: hidden;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  /* The card itself grows to fit up to this many lines (see CanvasView's
+     `estimateTitleLines`/`MAX_TITLE_LINES`) — this clamp only catches the
+     rare title that estimates beyond the cap, so it still ends in a clean
+     ellipsis instead of visually overflowing the now-taller-but-still-finite
+     card. The full text is always available via the native `title=` tooltip. */
+  -webkit-line-clamp: 6;
   -webkit-box-orient: vertical;
 }
 

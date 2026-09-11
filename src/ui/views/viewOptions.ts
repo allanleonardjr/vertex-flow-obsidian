@@ -16,6 +16,7 @@ import {
   type CanvasDirection,
   type EmptyColumnBehavior,
   type GroupByField,
+  type SavedView,
   type SortField,
   type SubtaskDisplay,
   type TaskField,
@@ -23,6 +24,7 @@ import {
   type ViewType,
   type WorkspaceSnapshot,
 } from "../../core/types";
+import { renderedHiddenFields } from "../../core/views";
 
 /** Re-exported so bar components import field metadata from one place. */
 export { TASK_FIELDS };
@@ -111,18 +113,16 @@ export const canvasArrangeSummary = (
   )?.summary ?? "Arrange";
 
 /**
- * The task fields a view can hide, in `TASK_FIELDS` (canonical) order.
- * `type` renders on Board cards and List rows; Table/Calendar/Timeline
- * ignore it, but the toggle is always offered.
- */
-/**
  * The field checklist, in the order it reads best — not `TASK_FIELDS` order,
  * which exists to keep `hide:` output stable.
  *
  * `hint` explains a field whose behaviour isn't obvious from its name.
- * `unsupportedFor` scopes an entry out of a view type's Fields popover — its
- * toggle would otherwise do nothing there. Only Canvas (Phase 4) currently
- * curates its field set this way; every other layout still offers all ten.
+ * `unsupportedFor` scopes an entry out of a view type's Fields popover *and*
+ * out of what actually renders there — `layoutHiddenFields` below folds it
+ * into `renderedHiddenFields`, so an entry here is a real exclusion, not a
+ * hidden-but-still-rendered toggle. Canvas (Phase 4) curates five fields down
+ * to its compact card; `type` is curated to Board/List/Canvas only, since a
+ * type badge doesn't fit a date-oriented layout (Timeline/Calendar).
  */
 export const FIELD_OPTIONS: {
   value: TaskField;
@@ -130,7 +130,7 @@ export const FIELD_OPTIONS: {
   hint?: string;
   unsupportedFor?: ViewType[];
 }[] = [
-  { value: "type", label: "Type", hint: "Board, List & Canvas" },
+  { value: "type", label: "Type", unsupportedFor: ["timeline", "calendar"] },
   {
     value: "project",
     label: "Project",
@@ -150,6 +150,22 @@ export const FIELD_OPTIONS: {
   },
   { value: "relations", label: "Relations", unsupportedFor: ["canvas"] },
 ];
+
+/**
+ * The hidden-field set a view's rows/cards should actually render with —
+ * `renderedHiddenFields()` plus whatever `FIELD_OPTIONS` marks
+ * `unsupportedFor` this view's layout. This is what keeps the Fields popover
+ * and the real render in agreement: an entry excluded from the popover is
+ * guaranteed to also be excluded here, for every layout, not just Canvas.
+ */
+export function layoutHiddenFields(
+  view: Pick<SavedView, "filters" | "hiddenFields" | "viewType">,
+): TaskField[] {
+  const unsupported = FIELD_OPTIONS.filter((o) =>
+    o.unsupportedFor?.includes(view.viewType),
+  ).map((o) => o.value);
+  return [...new Set([...renderedHiddenFields(view), ...unsupported])];
+}
 
 export const optionLabel = <T extends string>(
   options: { value: T; label: string }[],

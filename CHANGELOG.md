@@ -140,6 +140,22 @@ This project uses [Semantic Versioning](https://semver.org/).
   with each card's boundary for both endpoints and pulls the target end back
   ~7px so the arrowhead stays fully outside the card. Related edges are
   unchanged (still centre-to-centre, dashed, arrowless).
+- **Canvas cards clipped titles past 2 lines.** A card's fixed height meant a
+  longer title just got cut short by `-webkit-line-clamp: 2`, with no signal
+  a title was hiding text beyond the native `title=` tooltip. Cards now grow
+  past the base height for titles that wrap to more than 2 lines (measured
+  per layout pass against the real rendered font and line-height, capped at 6
+  lines, beyond which the old clamp-and-tooltip behavior still applies) — and
+  the top row's ID and Type chip, which could previously overflow the card
+  and get cut mid-character, now truncate in place with an ellipsis instead.
+- **`Type` field rendered on Timeline/Calendar despite being scoped out.**
+  `unsupportedFor` on `FIELD_OPTIONS` only ever hid a field from the Fields
+  popover, not from what actually rendered — so `Type` (documented as
+  Board/List/Canvas-only) still showed in Timeline's row-label column and
+  Calendar's Unscheduled tray regardless. A new `layoutHiddenFields()` folds
+  `unsupportedFor` into the render path itself, and `Type` now carries
+  `unsupportedFor: ["timeline", "calendar"]`, so the popover and the render
+  can no longer drift apart for any field.
 
 ## 1.0.19 — 2026-09-10
 

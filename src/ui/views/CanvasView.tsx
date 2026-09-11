@@ -73,7 +73,7 @@ import {
 import { linksMatch } from "../../core/links";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { EvaluatedView } from "../../core/views";
-import { layoutIcon, renderedHiddenFields } from "../../core/views";
+import { layoutIcon } from "../../core/views";
 import {
   CANVAS_RELATION_KINDS,
   type CanvasArrangement,
@@ -97,6 +97,7 @@ import {
 } from "../components/TaskBits";
 import { displayTitle } from "../components/TaskTitle";
 import { useTabs } from "../tabs-context";
+import { layoutHiddenFields } from "./viewOptions";
 
 export interface CanvasViewProps {
   snapshot: WorkspaceSnapshot;
@@ -112,7 +113,18 @@ export interface CanvasViewProps {
  * with headroom for the "comfortable" UI text scale.
  */
 const NODE_WIDTH = 240;
-const NODE_HEIGHT = 136;
+const NODE_HEIGHT = 100;
+/**
+ * A title needing more than 2 lines grows the card past `NODE_HEIGHT` by this
+ * many extra pixels per extra line — a title beyond `MAX_TITLE_LINES` still
+ * clips (with the card's native `title=` tooltip as the escape hatch), so the
+ * card never grows unboundedly. `resolveTitleMetrics` measures the real
+ * computed line-height each layout pass; this is only the fallback for when
+ * that measurement can't be read.
+ */
+const TITLE_LINE_HEIGHT_FALLBACK_PX = 17;
+/** Matches `.vf-canvas-node-title`'s `-webkit-line-clamp`. */
+const MAX_TITLE_LINES = 6;
 /** `elk.padding` inside a group box, kept in sync with the render-side fit. */
 const GROUP_PADDING = elkPaddingOption(DEFAULT_GROUP_PADDING);
 /**
@@ -147,6 +159,93 @@ export const RELATION_KIND_LABELS: Record<CanvasRelationKind, string> = {
 
 const elk = new ELK();
 
+/* --------------------------------------------- title-height estimation --- */
+
+let titleMeasureCanvas: HTMLCanvasElement | null = null;
+
+/**
+ * Greedy word-wrap simulation over `Canvas2D.measureText` — an estimate of how
+ * many lines `title` would wrap to at `maxWidthPx`, not a real render. Pure
+ * aside from the DOM canvas it measures against, so it never needs `font`
+ * re-resolved per call — the caller resolves that once per layout pass (see
+ * `resolveTitleMetrics`) and reuses it across every task being measured.
+ */
+function estimateTitleLines(
+  title: string,
+  maxWidthPx: number,
+  font: string,
+): number {
+  titleMeasureCanvas ??= document.createElement("canvas");
+  const ctx = titleMeasureCanvas.getContext("2d");
+  if (!ctx) return 1;
+  ctx.font = font;
+
+  const words = title.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return 1;
+
+  let lines = 1;
+  let lineWidth = 0;
+  const spaceWidth = ctx.measureText(" ").width;
+  for (const word of words) {
+    const wordWidth = ctx.measureText(word).width;
+    const nextWidth =
+      lineWidth === 0 ? wordWidth : lineWidth + spaceWidth + wordWidth;
+    if (nextWidth > maxWidthPx && lineWidth > 0) {
+      lines += 1;
+      lineWidth = wordWidth;
+    } else {
+      lineWidth = nextWidth;
+    }
+  }
+  return lines;
+}
+
+/**
+ * `ctx.font` needs a fully resolved shorthand ("13px Inter"), not a CSS
+ * custom property string — `measureText` can't resolve `var(--font-ui-small)`
+ * itself. Reads it (and the title's real computed line-height, so the
+ * per-line height budget tracks the active theme/text-scale rather than a
+ * hardcoded guess) off a throwaway, off-screen `.vf-canvas-node-title`, once
+ * per layout pass.
+ */
+function resolveTitleMetrics(): { font: string; lineHeightPx: number } {
+  const probe = document.createElement("span");
+  probe.className = "vf-canvas-node-title";
+  probe.style.position = "fixed";
+  probe.style.visibility = "hidden";
+  probe.style.left = "-9999px";
+  probe.style.top = "-9999px";
+  document.body.appendChild(probe);
+  const style = getComputedStyle(probe);
+  const font = style.font;
+  const lineHeightPx =
+    parseFloat(style.lineHeight) || TITLE_LINE_HEIGHT_FALLBACK_PX;
+  document.body.removeChild(probe);
+  return { font, lineHeightPx };
+}
+
+/**
+ * The card's actual inner content width available to the title — `NODE_WIDTH`
+ * minus `.vf-canvas-node`'s real horizontal padding, read live rather than
+ * re-guessed (it's shifted across earlier Canvas phases already).
+ */
+function resolveTitleMaxWidth(): number {
+  const probe = document.createElement("div");
+  probe.className = "vf-canvas-node";
+  probe.style.position = "fixed";
+  probe.style.visibility = "hidden";
+  probe.style.left = "-9999px";
+  probe.style.top = "-9999px";
+  probe.style.width = `${NODE_WIDTH}px`;
+  document.body.appendChild(probe);
+  const style = getComputedStyle(probe);
+  const horizontalPadding =
+    (parseFloat(style.paddingLeft) || 0) +
+    (parseFloat(style.paddingRight) || 0);
+  document.body.removeChild(probe);
+  return NODE_WIDTH - horizontalPadding;
+}
+
 export function CanvasView({
   snapshot,
   view,
@@ -167,7 +266,7 @@ export function CanvasView({
     [evaluated.groups, evaluated.tasks, view.groupBy],
   );
 
-  const shownFields = useMemo(() => renderedHiddenFields(view), [view]);
+  const shownFields = useMemo(() => layoutHiddenFields(view), [view]);
 
   // Stable key for the hidden-relation set — the array identity churns.
   const hiddenKinds = view.canvasHiddenRelationKinds ?? [];
@@ -235,11 +334,28 @@ export function CanvasView({
 
     const elkOptions = getCanvasElkOptions(effectiveArrangement, direction);
 
-    const leaf = (id: string) => ({
-      id,
-      width: NODE_WIDTH,
-      height: NODE_HEIGHT,
-    });
+    // Resolved once per layout pass (not per task, not per render) — the same
+    // triggers that already rebuild `children`/`elkGraph` below.
+    const titleMetrics = resolveTitleMetrics();
+    const titleMaxWidth = resolveTitleMaxWidth();
+
+    const leaf = (task: Task) => {
+      const lines = Math.min(
+        estimateTitleLines(
+          displayTitle(task),
+          titleMaxWidth,
+          titleMetrics.font,
+        ),
+        MAX_TITLE_LINES,
+      );
+      // The base NODE_HEIGHT budget already covers a 2-line title.
+      const extraLines = Math.max(0, lines - 2);
+      return {
+        id: task.path,
+        width: NODE_WIDTH,
+        height: NODE_HEIGHT + extraLines * titleMetrics.lineHeightPx,
+      };
+    };
     const children: ElkNode[] = grouped
       ? visibleGroups.map((g) => ({
           id: `group:${g.key}`,
@@ -248,9 +364,9 @@ export function CanvasView({
             "elk.padding": GROUP_PADDING,
             ...ELK_SPACING,
           },
-          children: g.tasks.map((t) => leaf(t.path)),
+          children: g.tasks.map((t) => leaf(t)),
         }))
-      : graph.nodes.map((n) => leaf(n.id));
+      : graph.nodes.map((n) => leaf(n.task));
 
     // `edge-${i}` carries the kind + endpoints back by index after layout. In
     // tree mode this is just the parent→child edges (`plan.layoutEdges`);

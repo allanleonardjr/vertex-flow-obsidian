@@ -33,7 +33,7 @@ import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, ChevronsUpDown } from "lucide-react";
 import { getValue, type WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { EvaluatedView } from "../../core/views";
-import { layoutIcon, renderedHiddenFields } from "../../core/views";
+import { layoutIcon } from "../../core/views";
 import {
   barDates,
   dateRangeOf,
@@ -60,6 +60,7 @@ import { useTabs } from "../tabs-context";
 import { useBarDrag, type BarDragZone } from "./useBarDrag";
 import { useScheduleDrag } from "./useScheduleDrag";
 import { PREVIEW_OFFSET_PX } from "./useTaskDrag";
+import { layoutHiddenFields } from "./viewOptions";
 
 /** Named zoom presets — pixels per day (the UI owns these values). */
 const ZOOM_PRESETS: { id: string; label: string; scale: number }[] = [
@@ -115,7 +116,7 @@ export function TimelineView({
   onTimelineChange,
 }: TimelineViewProps) {
   // Fields the view saved as hidden, plus any the filters make redundant.
-  const shownFields = useMemo(() => renderedHiddenFields(view), [view]);
+  const shownFields = useMemo(() => layoutHiddenFields(view), [view]);
 
   const plugin = usePlugin();
   const selection = useSelection();
