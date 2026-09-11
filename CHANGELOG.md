@@ -5,6 +5,8 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.19 — 2026-09-10
+
 ### Added
 - Added search icon and name in the compact mode toggle.
 
