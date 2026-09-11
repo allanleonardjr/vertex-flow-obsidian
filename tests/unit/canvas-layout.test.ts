@@ -102,4 +102,77 @@ describe("flattenCanvasLayout — group box sizing", () => {
 			},
 		]);
 	});
+
+	it("offsets within-group edges by their container, not the root", () => {
+		// ELK hoists every edge onto `root.edges`. An edge between two nodes
+		// inside the same compound carries `container` = that compound and its
+		// section points *relative to it* — flattening it against the root
+		// origin would start the line ~12px inside the source card (hidden
+		// behind it, visible only through a hover-dimmed card).
+		const meta = new Map<string, EdgeMeta>([
+			["within1", { kind: "hierarchy", source: "A", target: "B" }],
+		]);
+		const root: ElkLayoutNode = {
+			id: "root",
+			children: [
+				{
+					id: "group:todo",
+					x: 12,
+					y: 12,
+					width: 4000,
+					height: 4000,
+					children: [
+						{ id: "A", x: 16, y: 34, width: 220, height: 64 },
+						{ id: "B", x: 16, y: 234, width: 220, height: 64 },
+					],
+				},
+			],
+			edges: [
+				{
+					id: "within1",
+					container: "group:todo",
+					sections: [
+						{
+							// A and B's boundaries in group-local space —
+							// A's bottom edge centre (126, 98) and B's top
+							// edge centre (126, 234).
+							startPoint: { x: 126, y: 98 },
+							endPoint: { x: 126, y: 234 },
+						},
+					],
+				},
+			],
+		};
+
+		const flat = flattenCanvasLayout(root, meta, OPTS);
+
+		// Absolute anchors: A's bottom edge at 12+98 = 110, B's top at 246.
+		expect(flat.edges).toEqual([
+			{
+				d: "M 138 110 L 138 246",
+				kind: "hierarchy",
+				source: "A",
+				target: "B",
+			},
+		]);
+	});
+
+	it("treats a missing container as the root origin", () => {
+		const meta = new Map<string, EdgeMeta>([
+			["e0", { kind: "dependency", source: "A", target: "B" }],
+		]);
+		const root: ElkLayoutNode = {
+			id: "root",
+			children: [{ id: "A", x: 0, y: 0, width: 220, height: 64 }],
+			edges: [
+				{
+					id: "e0",
+					sections: [{ startPoint: { x: 2, y: 3 }, endPoint: { x: 9, y: 8 } }],
+				},
+			],
+		};
+
+		const flat = flattenCanvasLayout(root, meta, OPTS);
+		expect(flat.edges[0].d).toBe("M 2 3 L 9 8");
+	});
 });

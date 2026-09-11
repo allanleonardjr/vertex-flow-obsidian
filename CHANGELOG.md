@@ -89,6 +89,14 @@ This project uses [Semantic Versioning](https://semver.org/).
   Related has no direction, so it gets Delete only. Both actions call the
   same `Mutations` methods the drag-to-connect/Backspace paths already use —
   no new mutation capability.
+- **Canvas edges inside a group started behind the cards.** `elkjs` reports
+  the sections of an edge whose endpoints are both inside the same compound
+  box as *relative to that box*, while hoisting the edge onto the root's edge
+  list — flattening it against the root origin drew the line a bit over a
+  third of the node height up inside the source card, so it was hidden behind
+  it and only showed through a hover-dimmed card. Each edge is now translated
+  by its `container`'s absolute origin instead, so Blocks and Parent-of lines
+  connect exactly from card edge to card edge.
 
 ## 1.0.19 — 2026-09-10
 

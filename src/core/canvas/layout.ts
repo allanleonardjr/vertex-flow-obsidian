@@ -16,6 +16,14 @@
  *   - the **root's `width`/`height`**: the SVG canvas is sized to the union of
  *     everything actually placed.
  *
+ * Both *edge* coordinate spaces are trusted: ELK hoists every edge onto
+ * `root.edges` and tags it with the node whose space its section points live
+ * in (`container` — the root for cross-group/top-level edges, a compound's id
+ * for edges between two nodes inside that compound). `flattenCanvasLayout`
+ * translates each edge's points by its container's absolute origin, so an
+ * edge inside a group box starts and ends exactly on the card boundaries it
+ * connects rather than 12px inside one of them.
+ *
  * ELK's reported *positions* (`x`/`y`, relative to the parent) are trusted —
  * only sizes are recomputed.
  */
@@ -36,6 +44,15 @@ export interface ElkLayoutEdgeSection {
 export interface ElkLayoutEdge {
 	id?: string;
 	sections?: ElkLayoutEdgeSection[];
+	/**
+	 * The id of the node whose coordinate space the sections live in. ELK
+	 * hoists every laid-out edge onto `root.edges`; edges that connect two
+	 * nodes *inside* the same compound (`hierarchyHandling: INCLUDE_CHILDREN`)
+	 * report this as that compound's id and keep their points relative to it,
+	 * while cross-group and top-level edges report `root`. Absent, or for an id
+	 * we don't know, defaults to the root's origin `(0, 0)`.
+	 */
+	container?: string;
 }
 
 export interface ElkLayoutNode {
@@ -117,6 +134,24 @@ export function flattenCanvasLayout(
 	const edges: FlatLayeringEdge[] = [];
 	/** Leaf boxes enclosed by each group id, for the tight-fit pass. */
 	const groupLeaves = new Map<string, PlacedBox[]>();
+	/**
+	 * Absolute origin (top-left) of every node id, for translating edge
+	 * sections whose `container` isn't the root into absolute coordinates.
+	 * Root itself is `(0, 0)`.
+	 */
+	const origins = new Map<string, ElkPoint>([["root", { x: 0, y: 0 }]]);
+
+	// First pass: record every node's absolute origin. Edges must not be
+	// flattened until all of them are known — ELK hoists within-compound edges
+	// onto `root.edges` with *group-relative* sections, and the group they
+	// reference may not have been visited yet if we interleaved the two.
+	const collectOrigins = (node: ElkLayoutNode, x: number, y: number) => {
+		origins.set(node.id, { x, y });
+		for (const child of node.children ?? []) {
+			collectOrigins(child, x + (child.x ?? 0), y + (child.y ?? 0));
+		}
+	};
+	collectOrigins(root, 0, 0);
 
 	const visit = (
 		node: ElkLayoutNode,
@@ -126,6 +161,10 @@ export function flattenCanvasLayout(
 	) => {
 		for (const edge of node.edges ?? []) {
 			const meta = edgeMeta.get(edge.id ?? "");
+			// Points are in the edge's *container*'s space, not the node whose
+			// `edges` array it happened to be hoisted onto — offset by that
+			// container's absolute origin (root when unspecified/unknown).
+			const origin = origins.get(edge.container ?? "root") ?? { x: 0, y: 0 };
 			for (const section of edge.sections ?? []) {
 				const pts = [
 					section.startPoint,
@@ -133,7 +172,10 @@ export function flattenCanvasLayout(
 					section.endPoint,
 				];
 				const d = pts
-					.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x + absX} ${p.y + absY}`)
+					.map(
+						(p, i) =>
+							`${i === 0 ? "M" : "L"} ${p.x + origin.x} ${p.y + origin.y}`,
+					)
 					.join(" ");
 				edges.push({
 					d,
