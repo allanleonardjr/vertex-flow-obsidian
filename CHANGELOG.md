@@ -15,7 +15,7 @@ This project uses [Semantic Versioning](https://semver.org/).
   migration backfills `completedAt` (from `updatedAt`) for tasks that were
   already Done before this shipped. The iCal export is unchanged — `VEVENT` has
   no standard completion property.
-- **Canvas layout (`v` `d`) — a read-only relationship graph.** Any Saved View
+- **Canvas layout (`v` `d`) — a relationship graph.** Any Saved View
   can now render as a Canvas: the view's filtered tasks are laid out by `elkjs`
   as nodes. Set **Group by** to Status, Priority, Type, Assignee or Project and
   each group (including its "None") becomes a labelled box — hidden groups drop
@@ -37,8 +37,23 @@ This project uses [Semantic Versioning](https://semver.org/).
   button; clicking a card opens its task (the same way Board's cards do); and
   hovering a card dims every unconnected card and edge, across dependency,
   hierarchy and related links alike. The "BETA" marker moved off the graph
-  surface into a small badge next to Canvas in the layout picker. Nothing is
-  ever written back.
+  surface into a small badge next to Canvas in the layout picker.
+- **Canvas can now draw and delete relations, not just display them.** A small
+  handle appears on a card on hover — drag it to another card to create the
+  relation kind currently selected in the new top-left mode switch (Blocks /
+  Sub-task of / Related); the drop target is highlighted, and turns red when
+  completing it would be refused. Self-loops and already-existing links are
+  silently no-ops; a dependency or hierarchy cycle is refused outright with a
+  clear message before anything is written; giving a task that already has a
+  different parent a new one asks for confirmation first. Click an edge to
+  select it (a visible highlight), then Delete/Backspace to remove it — no
+  confirmation, the same as re-drawing it would undo the removal. A new zoom
+  slider joins the −/+ buttons, anchored to the viewport centre. New
+  `Mutations.addDependency`/`removeDependency`/`addRelated`/`removeRelated`
+  write both sides of a link at once and revert the first write if the second
+  fails; cycle detection (`wouldCreateDependencyCycle`/
+  `wouldCreateHierarchyCycle`) is checked against the whole workspace, not
+  just what Canvas currently has filtered into view.
 
 ## 1.0.19 — 2026-09-10
 

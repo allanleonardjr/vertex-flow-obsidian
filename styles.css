@@ -7787,6 +7787,40 @@ button.vf-history-expand {
   opacity: 0.15;
 }
 
+/* Clicked — a visible, distinct state from unselected (thicker + accent). */
+.vf-canvas-edge-dependency.is-selected,
+.vf-canvas-edge-hierarchy.is-selected,
+.vf-canvas-edge-related.is-selected {
+  stroke: var(--interactive-accent);
+  stroke-width: 2.5px;
+}
+
+/* A wide, invisible click target laid over every edge's thin visible stroke —
+   `pointer-events: stroke` hit-tests along the path even though it's
+   transparent, without widening what's actually drawn. */
+.vf-canvas-edge-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 12px;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+/* The live line while dragging from a node's handle — dashed so it never
+   reads as an already-created edge. Red when the current drop target would
+   be refused (self-loop or a cycle). */
+.vf-canvas-connect-preview {
+  fill: none;
+  stroke: var(--interactive-accent);
+  stroke-width: 1.5px;
+  stroke-dasharray: 5 4;
+  pointer-events: none;
+}
+
+.vf-canvas-connect-preview.is-invalid {
+  stroke: var(--text-error, #e03131);
+}
+
 .vf-canvas-note {
   position: absolute;
   top: 12px;
@@ -7823,6 +7857,43 @@ button.vf-history-expand {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+/* Top-left — the Beta badge's old spot, now free. Which relation kind a
+   completed drag-to-connect creates; ephemeral UI state, not a SavedView
+   field. Guarded out of the background-pan onPointerDown the same way the
+   zoom cluster is. */
+.vf-canvas-draw-mode {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  gap: 1px;
+  padding: 3px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-secondary);
+}
+
+button.vf-canvas-draw-opt {
+  padding: 3px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+}
+
+button.vf-canvas-draw-opt:hover {
+  background: var(--background-modifier-hover);
+}
+
+button.vf-canvas-draw-opt.is-on {
+  color: var(--text-accent);
+  font-weight: 500;
+  background: var(--background-modifier-hover);
 }
 
 /* Mirrors the legend's bottom-right corner. Buttons stop propagation to the
@@ -7879,6 +7950,15 @@ button.vf-canvas-zoom-btn:disabled:hover {
   font-variant-numeric: tabular-nums;
 }
 
+/* No cursor position to anchor to (unlike wheel-zoom or +/-), so moving this
+   zooms around the viewport's centre — same `transform`/clamp as everything
+   else in this cluster. */
+.vf-canvas-zoom-slider {
+  width: 70px;
+  margin: 0 2px;
+  accent-color: var(--interactive-accent);
+}
+
 button.vf-canvas-zoom-fit {
   font-size: var(--font-ui-smaller);
 }
@@ -7931,6 +8011,47 @@ button.vf-canvas-zoom-fit {
 /* Dims a node not connected to whichever card is currently hovered. */
 .vf-canvas-node.is-dimmed {
   opacity: 0.35;
+}
+
+/* A connect-drag is hovering this card as the drop target. */
+.vf-canvas-node.is-connect-target {
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 2px var(--interactive-accent);
+}
+
+/* ...and dropping here right now would be refused (self-loop or a cycle). */
+.vf-canvas-node.is-connect-invalid {
+  border-color: var(--text-error, #e03131);
+  box-shadow: 0 0 0 2px var(--text-error, #e03131);
+  cursor: not-allowed;
+}
+
+/* The drag-to-connect handle: invisible until the card is hovered, sitting in
+   a corner away from the card body (the click-to-open target) so the two
+   gestures never fight over the same pixels. Inset within the card's own
+   clipped bounds rather than overhanging them. */
+.vf-canvas-node-handle {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 12px;
+  height: 12px;
+  z-index: 1;
+  border: 2px solid var(--background-secondary);
+  border-radius: 50%;
+  background: var(--vf-muted);
+  opacity: 0;
+  cursor: crosshair;
+  transition: opacity 0.1s ease;
+  touch-action: none;
+}
+
+.vf-canvas-node:hover .vf-canvas-node-handle {
+  opacity: 1;
+}
+
+.vf-canvas-node-handle:hover {
+  background: var(--interactive-accent);
 }
 
 .vf-canvas-node-row {

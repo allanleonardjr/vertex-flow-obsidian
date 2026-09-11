@@ -14,8 +14,14 @@
  *   - `related` links — dashed, arrowless, drawn straight between final node
  *     centres, never fed into the layout.
  *
- * Strictly read-only: pan and zoom only, nothing is written to any file. Node
- * dragging, drag-to-reparent and topology picking are later phases.
+ * Reading/rendering is still exactly the above. The one thing that writes:
+ * drag from a node's small corner handle to another node to draw a new
+ * relation (whichever kind the top-left mode selector currently has active),
+ * and click an edge then press Delete/Backspace to remove it. Both go through
+ * `Mutations.add*`/`remove*Dependency`/`*Related`/`setParent` — cycle checks
+ * (`core/hierarchy/cycles.ts`) run against the *whole* workspace before any
+ * file is touched, and a hierarchy overwrite confirms first. No group-frame
+ * drag-to-reassign yet — that's still future work.
  *
  * The pure edge-building lives in `core/canvas/graph.ts` (Obsidian-free,
  * unit-tested); grouping and layout are this component's job.
@@ -30,6 +36,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent,
 } from "react";
+import { Notice } from "obsidian";
 import ELK, { type ElkNode } from "elkjs/lib/elk.bundled.js";
 import {
   buildCanvasGraph,
@@ -45,6 +52,11 @@ import {
   type FlatCanvasLayout,
   type PlacedBox,
 } from "../../core/canvas/layout";
+import {
+  wouldCreateDependencyCycle,
+  wouldCreateHierarchyCycle,
+} from "../../core/hierarchy";
+import { linksMatch } from "../../core/links";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { EvaluatedView } from "../../core/views";
 import { layoutIcon, renderedHiddenFields } from "../../core/views";
@@ -56,6 +68,8 @@ import {
   type TaskField,
   type WorkspaceSnapshot,
 } from "../../core/types";
+import { usePlugin } from "../context";
+import { ConfirmDeleteDialog } from "../components/ConfirmDeleteDialog";
 import { EmptyView } from "../components/EmptyView";
 import {
   Assignee,
@@ -250,7 +264,11 @@ export function CanvasView({
     // A press on a node or on the zoom widget does its own thing — neither
     // pans the background.
     const target = e.target as HTMLElement;
-    if (target.closest(".vf-canvas-node") || target.closest(".vf-canvas-zoom")) {
+    if (
+      target.closest(".vf-canvas-node") ||
+      target.closest(".vf-canvas-zoom") ||
+      target.closest(".vf-canvas-draw-mode")
+    ) {
       return;
     }
     panMoved.current = false;
@@ -308,6 +326,24 @@ export function CanvasView({
     });
   }, []);
 
+  // The slider has no cursor position to anchor to (unlike wheel-zoom or the
+  // +/- buttons, which keep a point fixed) — zoom around the viewport's
+  // visual centre instead, same as the +/- buttons already do.
+  const zoomTo = useCallback((nextScale: number) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    const cx = rect ? rect.width / 2 : 0;
+    const cy = rect ? rect.height / 2 : 0;
+    setTransform((t) => {
+      const next = clamp(nextScale, MIN_SCALE, MAX_SCALE);
+      const ratio = next / t.scale;
+      return {
+        scale: next,
+        x: cx - (cx - t.x) * ratio,
+        y: cy - (cy - t.y) * ratio,
+      };
+    });
+  }, []);
+
   const fitToView = useCallback(() => {
     if (!laidOut) return;
     const rect = canvasRef.current?.getBoundingClientRect();
@@ -327,6 +363,18 @@ export function CanvasView({
       y: (rect.height - laidOut.height * next) / 2,
     });
   }, [laidOut]);
+
+  // Auto-fit once, the first time layout finishes after mount — not on
+  // every subsequent re-layout (filter/group/relation-visibility changes
+  // also produce a new `laidOut`, and re-fitting then would undo any
+  // manual pan/zoom already in place).
+  const hasFitOnLoad = useRef(false);
+  useEffect(() => {
+    if (laidOut && !hasFitOnLoad.current) {
+      fitToView();
+      hasFitOnLoad.current = true;
+    }
+  }, [laidOut, fitToView]);
 
   const onWheel = (e: ReactWheelEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -370,11 +418,209 @@ export function CanvasView({
 
   const connectedToHover = hoveredPath ? adjacency.get(hoveredPath) : undefined;
   const isDimmed = (path: string) =>
-    hoveredPath != null &&
-    path !== hoveredPath &&
-    !connectedToHover?.has(path);
+    hoveredPath != null && path !== hoveredPath && !connectedToHover?.has(path);
   const isEdgeDimmed = (a: string, b: string) =>
     hoveredPath != null && a !== hoveredPath && b !== hoveredPath;
+
+  // --- Drawing mode — which relation kind a completed drag creates. ---------
+  // Local, ephemeral UI state (like `transform`): it changes what a *future*
+  // drag does, it isn't a display preference, so it doesn't belong on
+  // `SavedView`.
+  const [drawKind, setDrawKind] = useState<CanvasRelationKind>("dependency");
+
+  // --- Edge selection + deletion. --------------------------------------------
+  type EdgeRef =
+    | { kind: "dependency" | "hierarchy"; source: string; target: string }
+    | { kind: "related"; a: string; b: string };
+  const [selectedEdge, setSelectedEdge] = useState<EdgeRef | null>(null);
+
+  const plugin = usePlugin();
+  const nodeById = new Map(graph.nodes.map((n) => [n.id, n.task]));
+
+  // A plain function, not a `setState` updater — `setState(fn)` updaters run
+  // twice under StrictMode, and these have side effects (file writes), so the
+  // write has to happen outside the updater, not inside it.
+  const deleteSelectedEdge = () => {
+    const edge = selectedEdge;
+    if (!edge) return;
+    setSelectedEdge(null);
+    if (edge.kind === "related") {
+      const a = nodeById.get(edge.a);
+      const b = nodeById.get(edge.b);
+      if (a && b) void plugin.mutations.removeRelated(a, b);
+    } else if (edge.kind === "dependency") {
+      const blocker = nodeById.get(edge.source);
+      const blocked = nodeById.get(edge.target);
+      if (blocker && blocked) void plugin.mutations.removeDependency(blocker, blocked);
+    } else {
+      // hierarchy: source = parent, target = child (see drag direction below).
+      const child = nodeById.get(edge.target);
+      if (child) void plugin.mutations.setParent(child, null);
+    }
+  };
+
+  useEffect(() => {
+    if (!selectedEdge) return;
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      const typing =
+        el?.isContentEditable ||
+        el instanceof HTMLInputElement ||
+        el instanceof HTMLTextAreaElement;
+      if (typing) return;
+      if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        deleteSelectedEdge();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectedEdge, deleteSelectedEdge]);
+
+  // --- Drag-to-connect. -------------------------------------------------------
+  // A drag from a node's corner handle to another node draws a new relation of
+  // whichever kind `drawKind` currently is. Direction matches the existing
+  // edge convention: dependency source→target means "source blocks target";
+  // hierarchy source→target means "source is the parent of target" — same
+  // orientation `buildCanvasGraph` already uses.
+  interface ConnectDrag {
+    pointerId: number;
+    source: string;
+    x: number;
+    y: number;
+    targetPath: string | null;
+    /** Set when dropping on `targetPath` right now would be refused outright. */
+    invalid: "self" | "cycle" | null;
+  }
+  const [connectDrag, setConnectDrag] = useState<ConnectDrag | null>(null);
+
+  const [pendingReparent, setPendingReparent] = useState<{
+    child: Task;
+    newParent: Task;
+  } | null>(null);
+
+  const toSurfacePoint = useCallback(
+    (clientX: number, clientY: number) => {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      const ox = rect ? clientX - rect.left : clientX;
+      const oy = rect ? clientY - rect.top : clientY;
+      return {
+        x: (ox - transform.x) / transform.scale,
+        y: (oy - transform.y) / transform.scale,
+      };
+    },
+    [transform],
+  );
+
+  const connectGuard = useCallback(
+    (source: string, target: string): ConnectDrag["invalid"] => {
+      if (source === target) return "self";
+      if (drawKind === "related") return null;
+      if (drawKind === "dependency") {
+        return wouldCreateDependencyCycle(snapshot.tasks, source, target)
+          ? "cycle"
+          : null;
+      }
+      // hierarchy: source would become target's parent.
+      return wouldCreateHierarchyCycle(snapshot.tasks, target, source)
+        ? "cycle"
+        : null;
+    },
+    [drawKind, snapshot.tasks],
+  );
+
+  const startConnect = (
+    source: string,
+    e: ReactPointerEvent<HTMLDivElement>,
+  ) => {
+    e.stopPropagation();
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const p = toSurfacePoint(e.clientX, e.clientY);
+    setConnectDrag({
+      pointerId: e.pointerId,
+      source,
+      x: p.x,
+      y: p.y,
+      targetPath: null,
+      invalid: null,
+    });
+  };
+
+  const moveConnect = (e: ReactPointerEvent<HTMLDivElement>) => {
+    setConnectDrag((cd) => {
+      if (!cd || cd.pointerId !== e.pointerId) return cd;
+      const p = toSurfacePoint(e.clientX, e.clientY);
+      const el = document.elementFromPoint(
+        e.clientX,
+        e.clientY,
+      ) as HTMLElement | null;
+      const targetEl = el?.closest(".vf-canvas-node") as HTMLElement | null;
+      const targetPath = targetEl?.dataset.taskPath ?? null;
+      const invalid = targetPath ? connectGuard(cd.source, targetPath) : null;
+      return { ...cd, x: p.x, y: p.y, targetPath, invalid };
+    });
+  };
+
+  const completeConnect = async (source: string, target: string) => {
+    const sourceTask = nodeById.get(source);
+    const targetTask = nodeById.get(target);
+    if (!sourceTask || !targetTask) return;
+
+    if (drawKind === "dependency") {
+      if (wouldCreateDependencyCycle(snapshot.tasks, source, target)) {
+        new Notice(
+          `Can't link — "${sourceTask.id}" and "${targetTask.id}" would block each other in a cycle.`,
+        );
+        return;
+      }
+      await plugin.mutations.addDependency(sourceTask, targetTask);
+      return;
+    }
+
+    if (drawKind === "related") {
+      await plugin.mutations.addRelated(sourceTask, targetTask);
+      return;
+    }
+
+    // hierarchy: source becomes target's parent.
+    if (wouldCreateHierarchyCycle(snapshot.tasks, target, source)) {
+      new Notice(
+        `Can't move — "${sourceTask.id}" is a descendant of "${targetTask.id}".`,
+      );
+      return;
+    }
+    if (targetTask.parent && linksMatch(targetTask.parent, source)) return; // already the parent
+    if (targetTask.parent) {
+      setPendingReparent({ child: targetTask, newParent: sourceTask });
+      return;
+    }
+    await plugin.mutations.setParent(targetTask, source);
+  };
+
+  // A plain function, not a `setState` updater — completing a connection
+  // writes a file, and updater functions run twice under StrictMode.
+  const endConnect = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const cd = connectDrag;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+    if (!cd || cd.pointerId !== e.pointerId) return;
+    setConnectDrag(null);
+    if (cd.targetPath && cd.invalid == null) {
+      suppressClick.current = true; // the trailing click lands on the drop target
+      void completeConnect(cd.source, cd.targetPath);
+    }
+  };
+
+  useEffect(() => {
+    if (!connectDrag) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setConnectDrag(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [connectDrag]);
 
   if (evaluated.total === 0 || visibleTasks.length === 0) {
     const filtered = evaluated.filteredOut > 0 || evaluated.total > 0;
@@ -394,7 +640,6 @@ export function CanvasView({
     );
   }
 
-  const nodeById = new Map(graph.nodes.map((n) => [n.id, n.task]));
   const groupByKey = new Map(visibleGroups.map((g) => [`group:${g.key}`, g]));
 
   const relatedPaths = laidOut
@@ -423,6 +668,7 @@ export function CanvasView({
       onPointerUp={endPan}
       onPointerCancel={endPan}
       onWheel={onWheel}
+      onClick={() => setSelectedEdge(null)}
     >
       {view.groupBy === "label" && (
         <div className="vf-canvas-note">
@@ -493,34 +739,91 @@ export function CanvasView({
                 />
               </marker>
             </defs>
-            {laidOut.edges.map((edge, i) => (
-              <path
-                key={i}
-                className={`vf-canvas-edge-${edge.kind}${
-                  isEdgeDimmed(edge.source, edge.target) ? " is-dimmed" : ""
-                }`}
-                d={edge.d}
-                markerEnd={
-                  edge.kind === "dependency"
-                    ? "url(#vf-canvas-arrow)"
-                    : undefined
-                }
-              />
-            ))}
-            {relatedPaths.map(({ a, b, d }, i) => (
-              <path
-                key={`rel-${i}`}
-                className={`vf-canvas-edge-related${
-                  isEdgeDimmed(a, b) ? " is-dimmed" : ""
-                }`}
-                d={d}
-              />
-            ))}
+            {laidOut.edges.map((edge, i) => {
+              const selected =
+                selectedEdge?.kind === edge.kind &&
+                "source" in selectedEdge &&
+                selectedEdge.source === edge.source &&
+                selectedEdge.target === edge.target;
+              return (
+                <g key={i}>
+                  <path
+                    className={`vf-canvas-edge-${edge.kind}${
+                      isEdgeDimmed(edge.source, edge.target) ? " is-dimmed" : ""
+                    }${selected ? " is-selected" : ""}`}
+                    d={edge.d}
+                    markerEnd={
+                      edge.kind === "dependency"
+                        ? "url(#vf-canvas-arrow)"
+                        : undefined
+                    }
+                  />
+                  <path
+                    className="vf-canvas-edge-hit"
+                    d={edge.d}
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      setSelectedEdge({
+                        kind: edge.kind,
+                        source: edge.source,
+                        target: edge.target,
+                      });
+                    }}
+                  />
+                </g>
+              );
+            })}
+            {relatedPaths.map(({ a, b, d }, i) => {
+              const selected =
+                selectedEdge?.kind === "related" &&
+                ((selectedEdge.a === a && selectedEdge.b === b) ||
+                  (selectedEdge.a === b && selectedEdge.b === a));
+              return (
+                <g key={`rel-${i}`}>
+                  <path
+                    className={`vf-canvas-edge-related${
+                      isEdgeDimmed(a, b) ? " is-dimmed" : ""
+                    }${selected ? " is-selected" : ""}`}
+                    d={d}
+                  />
+                  <path
+                    className="vf-canvas-edge-hit"
+                    d={d}
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      setSelectedEdge({ kind: "related", a, b });
+                    }}
+                  />
+                </g>
+              );
+            })}
+            {connectDrag &&
+              (() => {
+                const src = laidOut.nodes.get(connectDrag.source);
+                if (!src) return null;
+                const d =
+                  `M ${src.x + src.width / 2} ${src.y + src.height / 2} ` +
+                  `L ${connectDrag.x} ${connectDrag.y}`;
+                return (
+                  <path
+                    className={`vf-canvas-connect-preview${
+                      connectDrag.invalid ? " is-invalid" : ""
+                    }`}
+                    d={d}
+                  />
+                );
+              })()}
           </svg>
 
           {[...laidOut.nodes].map(([id, pos]) => {
             const task = nodeById.get(id);
             if (!task) return null;
+            const connectTarget: "valid" | "invalid" | null =
+              connectDrag?.targetPath === id
+                ? connectDrag.invalid
+                  ? "invalid"
+                  : "valid"
+                : null;
             return (
               <CanvasNode
                 key={id}
@@ -533,11 +836,34 @@ export function CanvasView({
                 dimmed={isDimmed(id)}
                 onHover={setHoveredPath}
                 consumePanClick={consumePanClick}
+                connectTarget={connectTarget}
+                onHandleDown={startConnect}
+                onHandleMove={moveConnect}
+                onHandleUp={endConnect}
               />
             );
           })}
         </div>
       )}
+
+      <div
+        className="vf-canvas-draw-mode"
+        role="group"
+        aria-label="Draw relation"
+      >
+        {CANVAS_RELATION_KINDS.map((kind) => (
+          <button
+            key={kind}
+            type="button"
+            className={`vf-canvas-draw-opt${drawKind === kind ? " is-on" : ""}`}
+            aria-pressed={drawKind === kind}
+            title={`Drag between cards to draw "${RELATION_KIND_LABELS[kind]}"`}
+            onClick={() => setDrawKind(kind)}
+          >
+            {RELATION_KIND_LABELS[kind]}
+          </button>
+        ))}
+      </div>
 
       <div className="vf-canvas-zoom">
         <button
@@ -548,6 +874,16 @@ export function CanvasView({
         >
           −
         </button>
+        <input
+          type="range"
+          className="vf-canvas-zoom-slider"
+          aria-label="Zoom level"
+          min={MIN_SCALE}
+          max={MAX_SCALE}
+          step={0.01}
+          value={transform.scale}
+          onChange={(e) => zoomTo(Number(e.target.value))}
+        />
         <span className="vf-canvas-zoom-pct">
           {Math.round(transform.scale * 100)}%
         </span>
@@ -572,6 +908,31 @@ export function CanvasView({
       </div>
 
       <CanvasLegend hidden={hiddenKindSet} />
+
+      {pendingReparent &&
+        (() => {
+          const oldParent = pendingReparent.child.parent
+            ? snapshot.tasks.find((t) =>
+                linksMatch(t.path, pendingReparent.child.parent),
+              )
+            : null;
+          return (
+            <ConfirmDeleteDialog
+              title={`Move "${displayTitle(pendingReparent.child)}" from under "${
+                oldParent ? oldParent.id : "its current parent"
+              }" to under "${pendingReparent.newParent.id}"?`}
+              body="This replaces its existing parent — a task can't have two."
+              confirmLabel="Move"
+              destructive={false}
+              onCancel={() => setPendingReparent(null)}
+              onConfirm={() => {
+                const { child, newParent } = pendingReparent;
+                setPendingReparent(null);
+                void plugin.mutations.setParent(child, newParent.path);
+              }}
+            />
+          );
+        })()}
     </div>
   );
 }
@@ -596,6 +957,10 @@ function CanvasNode({
   dimmed,
   onHover,
   consumePanClick,
+  connectTarget,
+  onHandleDown,
+  onHandleMove,
+  onHandleUp,
 }: {
   task: Task;
   pos: PlacedBox;
@@ -605,23 +970,48 @@ function CanvasNode({
   showProject: boolean;
   dimmed: boolean;
   onHover: (path: string | null) => void;
-  /** True when the click that follows was really the end of a pan gesture. */
+  /** True when the click that follows was really the end of a pan/connect gesture. */
   consumePanClick: () => boolean;
+  /** Set while a connect-drag is hovering this node as a potential drop target. */
+  connectTarget: "valid" | "invalid" | null;
+  onHandleDown: (source: string, e: ReactPointerEvent<HTMLDivElement>) => void;
+  onHandleMove: (e: ReactPointerEvent<HTMLDivElement>) => void;
+  onHandleUp: (e: ReactPointerEvent<HTMLDivElement>) => void;
 }) {
   const off = (field: TaskField) => hiddenFields.includes(field);
   // Same mechanism Board's own cards open a task with — no Canvas-only path.
   const tabs = useTabs();
   return (
     <div
-      className={`vf-canvas-node${dimmed ? " is-dimmed" : ""}`}
+      className={[
+        "vf-canvas-node",
+        dimmed && "is-dimmed",
+        connectTarget === "valid" && "is-connect-target",
+        connectTarget === "invalid" && "is-connect-invalid",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      data-task-path={task.path}
       style={{ left: pos.x, top: pos.y, width: pos.width, height: pos.height }}
       onPointerEnter={() => onHover(task.path)}
       onPointerLeave={() => onHover(null)}
-      onClick={() => {
+      onClick={(e) => {
+        e.stopPropagation();
         if (consumePanClick()) return;
         tabs.openTask(task.path);
       }}
     >
+      {/* Drag from here to draw a new relation — the click-to-open target is
+          the card body, so the handle sits apart from it in a corner. */}
+      <div
+        className="vf-canvas-node-handle"
+        title="Drag to another card to link them"
+        onPointerDown={(e) => onHandleDown(task.path, e)}
+        onPointerMove={onHandleMove}
+        onPointerUp={onHandleUp}
+        onPointerCancel={onHandleUp}
+        onClick={(e) => e.stopPropagation()}
+      />
       <div className="vf-canvas-node-row">
         <StatusDot taxonomies={taxonomies} status={task.status} />
         <span className="vf-id">{task.id}</span>
