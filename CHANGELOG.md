@@ -5,6 +5,19 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Fixed
+- **Cross-workspace "Export Tasks…" / "Export as Template…" from the sidebar
+  now works on the first click.** Choosing either item on a non-active
+  workspace's row switched workspaces (remounting the sidebar and discarding
+  the just-set dialog state), so nothing happened until a second click. The
+  target now rides on a plugin-instance flag consumed by a bridge effect after
+  the remount, matching the existing `pendingExport` pattern.
+- **`g…` / `c…` prefix-chord shortcuts fired in every open pane.** With two or
+  more Vertex Flow panes open side by side, a chord like `c t` ("New task") ran
+  once per open pane instead of only in the focused one. Each pane's
+  `PrefixEngine` binds a `window` capture listener; it now ignores keydown
+  events that didn't originate inside its own pane container.
+
 ## 1.0.18 — 2026-09-10
 
 ### Added

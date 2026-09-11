@@ -568,6 +568,21 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
     forceMode?: "tasks" | "template";
   } | null>(null);
 
+  // Bridge for a cross-workspace "Export Tasks…" / "Export as Template…"
+  // click — kept as a plugin-instance flag (not local state) because
+  // switching workspaces remounts this whole component (see `App.tsx`),
+  // which would otherwise discard `exportTarget` before it could render.
+  // No dependency array: re-checks every render so it catches the flag as
+  // soon as the fresh instance mounts. Mirrors the `pendingExport` bridge
+  // in `Sidebar`.
+  useEffect(() => {
+    if (!plugin.pendingWorkspaceExport) return;
+    const { root, forceMode } = plugin.pendingWorkspaceExport;
+    plugin.pendingWorkspaceExport = null;
+    const target = workspaces.find((w) => w.workspace.root === root);
+    if (target) setExportTarget({ workspace: target, forceMode });
+  });
+
   const editing = workspaces.find((w) => w.workspace.root === editRoot);
   const deleting = workspaces.find((w) => w.workspace.root === deleteRoot);
 
@@ -664,7 +679,10 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
                 onClick={() => {
                   setMenuRoot(null);
                   setActiveWorkspace(entry.workspace.root);
-                  setExportTarget({ workspace: entry, forceMode: "tasks" });
+                  plugin.pendingWorkspaceExport = {
+                    root: entry.workspace.root,
+                    forceMode: "tasks",
+                  };
                 }}
               >
                 Export Tasks…
@@ -674,7 +692,10 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
                 onClick={() => {
                   setMenuRoot(null);
                   setActiveWorkspace(entry.workspace.root);
-                  setExportTarget({ workspace: entry, forceMode: "template" });
+                  plugin.pendingWorkspaceExport = {
+                    root: entry.workspace.root,
+                    forceMode: "template",
+                  };
                 }}
               >
                 Export as Template…
