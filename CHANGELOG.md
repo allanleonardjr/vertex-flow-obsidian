@@ -40,20 +40,30 @@ This project uses [Semantic Versioning](https://semver.org/).
   surface into a small badge next to Canvas in the layout picker.
 - **Canvas can now draw and delete relations, not just display them.** A small
   handle appears on a card on hover — drag it to another card to create the
-  relation kind currently selected in the new top-left mode switch (Blocks /
-  Sub-task of / Related); the drop target is highlighted, and turns red when
-  completing it would be refused. Self-loops and already-existing links are
-  silently no-ops; a dependency or hierarchy cycle is refused outright with a
-  clear message before anything is written; giving a task that already has a
-  different parent a new one asks for confirmation first. Click an edge to
-  select it (a visible highlight), then Delete/Backspace to remove it — no
-  confirmation, the same as re-drawing it would undo the removal. A new zoom
-  slider joins the −/+ buttons, anchored to the viewport centre. New
+  relation kind currently selected by the top-left **Connect** control, off by
+  default (nothing draws until you pick Blocks / Sub-task of / Related; the
+  handle itself doesn't render while it's off). The drop target is
+  highlighted, and turns red when completing it would be refused. Self-loops
+  and already-existing links are silently no-ops; a dependency or hierarchy
+  cycle is refused outright with a clear message before anything is written;
+  giving a task that already has a different parent a new one asks for
+  confirmation first. Click an edge to select it (a visible highlight), then
+  Delete/Backspace to remove it — no confirmation, the same as re-drawing it
+  would undo the removal. A new zoom slider joins the −/+ buttons, anchored to
+  the viewport centre. New
   `Mutations.addDependency`/`removeDependency`/`addRelated`/`removeRelated`
   write both sides of a link at once and revert the first write if the second
   fails; cycle detection (`wouldCreateDependencyCycle`/
   `wouldCreateHierarchyCycle`) is checked against the whole workspace, not
   just what Canvas currently has filtered into view.
+
+### Fixed
+- **Clicking a Canvas edge now actually selects it.** The background-pan
+  handler was capturing the pointer before the edge's own click handler got a
+  chance to fire, so selecting an edge (and then deleting it) was never
+  reachable. Also: hovering a card no longer dims other cards/edges while a
+  connect-drag is in progress — the two highlight states were fighting for the
+  same nodes.
 
 ## 1.0.19 — 2026-09-10
 

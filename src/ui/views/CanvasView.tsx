@@ -71,6 +71,7 @@ import {
 import { usePlugin } from "../context";
 import { ConfirmDeleteDialog } from "../components/ConfirmDeleteDialog";
 import { EmptyView } from "../components/EmptyView";
+import { Popover } from "../components/Popover";
 import {
   Assignee,
   DueDate,
@@ -261,13 +262,16 @@ export function CanvasView({
   };
 
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-    // A press on a node or on the zoom widget does its own thing — neither
-    // pans the background.
+    // A press on a node, the zoom widget, the draw-mode control, or an edge's
+    // click target does its own thing — none of these pan the background.
+    // (An edge's hit-path in particular must not be captured here first, or
+    // its own onClick — which selects it — never gets a chance to fire.)
     const target = e.target as HTMLElement;
     if (
       target.closest(".vf-canvas-node") ||
       target.closest(".vf-canvas-zoom") ||
-      target.closest(".vf-canvas-draw-mode")
+      target.closest(".vf-canvas-draw-mode") ||
+      target.closest(".vf-canvas-edge-hit")
     ) {
       return;
     }
@@ -417,16 +421,27 @@ export function CanvasView({
   }, [graph]);
 
   const connectedToHover = hoveredPath ? adjacency.get(hoveredPath) : undefined;
+  // Suppressed entirely during an active connect-drag — otherwise ordinary
+  // hover-dimming keeps applying on top of the drag, dimming exactly the
+  // candidate drop targets the drag is asking you to evaluate.
   const isDimmed = (path: string) =>
-    hoveredPath != null && path !== hoveredPath && !connectedToHover?.has(path);
+    !connectDrag &&
+    hoveredPath != null &&
+    path !== hoveredPath &&
+    !connectedToHover?.has(path);
   const isEdgeDimmed = (a: string, b: string) =>
-    hoveredPath != null && a !== hoveredPath && b !== hoveredPath;
+    !connectDrag &&
+    hoveredPath != null &&
+    a !== hoveredPath &&
+    b !== hoveredPath;
 
   // --- Drawing mode — which relation kind a completed drag creates. ---------
   // Local, ephemeral UI state (like `transform`): it changes what a *future*
   // drag does, it isn't a display preference, so it doesn't belong on
-  // `SavedView`.
-  const [drawKind, setDrawKind] = useState<CanvasRelationKind>("dependency");
+  // `SavedView`. Defaults to "off" — nothing writes unless explicitly opted
+  // into, and the drag handle itself doesn't even render while it's off.
+  const [drawKind, setDrawKind] = useState<CanvasRelationKind | "off">("off");
+  const [drawOpen, setDrawOpen] = useState(false);
 
   // --- Edge selection + deletion. --------------------------------------------
   type EdgeRef =
@@ -515,7 +530,7 @@ export function CanvasView({
   const connectGuard = useCallback(
     (source: string, target: string): ConnectDrag["invalid"] => {
       if (source === target) return "self";
-      if (drawKind === "related") return null;
+      if (drawKind === "off" || drawKind === "related") return null;
       if (drawKind === "dependency") {
         return wouldCreateDependencyCycle(snapshot.tasks, source, target)
           ? "cycle"
@@ -533,6 +548,10 @@ export function CanvasView({
     source: string,
     e: ReactPointerEvent<HTMLDivElement>,
   ) => {
+    // Defense in depth — the handle itself doesn't render while off, so this
+    // shouldn't be reachable, but never start a connection with no kind to
+    // create.
+    if (drawKind === "off") return;
     e.stopPropagation();
     e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -563,6 +582,7 @@ export function CanvasView({
   };
 
   const completeConnect = async (source: string, target: string) => {
+    if (drawKind === "off") return; // shouldn't be reachable — see startConnect
     const sourceTask = nodeById.get(source);
     const targetTask = nodeById.get(target);
     if (!sourceTask || !targetTask) return;
@@ -837,6 +857,7 @@ export function CanvasView({
                 onHover={setHoveredPath}
                 consumePanClick={consumePanClick}
                 connectTarget={connectTarget}
+                showHandle={drawKind !== "off"}
                 onHandleDown={startConnect}
                 onHandleMove={moveConnect}
                 onHandleUp={endConnect}
@@ -846,23 +867,48 @@ export function CanvasView({
         </div>
       )}
 
-      <div
-        className="vf-canvas-draw-mode"
-        role="group"
-        aria-label="Draw relation"
-      >
-        {CANVAS_RELATION_KINDS.map((kind) => (
+      <div className="vf-canvas-draw-mode">
+        <span className="vf-control-anchor">
           <button
-            key={kind}
             type="button"
-            className={`vf-canvas-draw-opt${drawKind === kind ? " is-on" : ""}`}
-            aria-pressed={drawKind === kind}
-            title={`Drag between cards to draw "${RELATION_KIND_LABELS[kind]}"`}
-            onClick={() => setDrawKind(kind)}
+            className={`vf-bar-item${drawKind !== "off" ? " is-on" : ""}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setDrawOpen((v) => !v);
+            }}
           >
-            {RELATION_KIND_LABELS[kind]}
+            <span className="vf-bar-label">Connect</span>
+            <span className="vf-bar-value">
+              {drawKind === "off" ? "Off" : RELATION_KIND_LABELS[drawKind]}
+            </span>
+            <span className="vf-bar-caret" aria-hidden>
+              ⌄
+            </span>
           </button>
-        ))}
+          {drawOpen && (
+            <Popover align="left" onClose={() => setDrawOpen(false)}>
+              <div className="vf-field-list">
+                {(["off", ...CANVAS_RELATION_KINDS] as const).map((kind) => (
+                  <button
+                    key={kind}
+                    type="button"
+                    className={`vf-field-row${drawKind === kind ? " is-on" : ""}`}
+                    onClick={() => {
+                      setDrawKind(kind);
+                      setDrawOpen(false);
+                    }}
+                  >
+                    <span className="vf-field-label">
+                      {kind === "off"
+                        ? "Off — click around safely"
+                        : RELATION_KIND_LABELS[kind]}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </Popover>
+          )}
+        </span>
       </div>
 
       <div className="vf-canvas-zoom">
@@ -958,6 +1004,7 @@ function CanvasNode({
   onHover,
   consumePanClick,
   connectTarget,
+  showHandle,
   onHandleDown,
   onHandleMove,
   onHandleUp,
@@ -974,6 +1021,8 @@ function CanvasNode({
   consumePanClick: () => boolean;
   /** Set while a connect-drag is hovering this node as a potential drop target. */
   connectTarget: "valid" | "invalid" | null;
+  /** False while the draw mode is "off" — the handle isn't just inert, it isn't rendered. */
+  showHandle: boolean;
   onHandleDown: (source: string, e: ReactPointerEvent<HTMLDivElement>) => void;
   onHandleMove: (e: ReactPointerEvent<HTMLDivElement>) => void;
   onHandleUp: (e: ReactPointerEvent<HTMLDivElement>) => void;
@@ -1002,16 +1051,21 @@ function CanvasNode({
       }}
     >
       {/* Drag from here to draw a new relation — the click-to-open target is
-          the card body, so the handle sits apart from it in a corner. */}
-      <div
-        className="vf-canvas-node-handle"
-        title="Drag to another card to link them"
-        onPointerDown={(e) => onHandleDown(task.path, e)}
-        onPointerMove={onHandleMove}
-        onPointerUp={onHandleUp}
-        onPointerCancel={onHandleUp}
-        onClick={(e) => e.stopPropagation()}
-      />
+          the card body, so the handle sits apart from it in a corner. Not
+          rendered at all while "Connect" is off — a visibly-absent handle
+          reads as "nothing here creates a connection" more clearly than one
+          that's merely inert. */}
+      {showHandle && (
+        <div
+          className="vf-canvas-node-handle"
+          title="Drag to another card to link them"
+          onPointerDown={(e) => onHandleDown(task.path, e)}
+          onPointerMove={onHandleMove}
+          onPointerUp={onHandleUp}
+          onPointerCancel={onHandleUp}
+          onClick={(e) => e.stopPropagation()}
+        />
+      )}
       <div className="vf-canvas-node-row">
         <StatusDot taxonomies={taxonomies} status={task.status} />
         <span className="vf-id">{task.id}</span>

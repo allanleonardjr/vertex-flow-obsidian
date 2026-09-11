@@ -7860,40 +7860,20 @@ button.vf-history-expand {
 }
 
 /* Top-left — the Beta badge's old spot, now free. Which relation kind a
-   completed drag-to-connect creates; ephemeral UI state, not a SavedView
-   field. Guarded out of the background-pan onPointerDown the same way the
-   zoom cluster is. */
+   completed drag-to-connect creates ("off" by default); ephemeral UI state,
+   not a SavedView field. A single `vf-bar-item` + `Popover`, the same shape
+   as `GroupChip`/`FieldsControl` elsewhere in the view toolbar — its `is-on`
+   state (whenever a real kind, not "off", is active) reuses that shared
+   accent-color treatment rather than a bespoke indicator. Guarded out of the
+   background-pan onPointerDown the same way the zoom cluster is. */
 .vf-canvas-draw-mode {
   position: absolute;
   top: 12px;
   left: 12px;
-  display: flex;
-  gap: 1px;
-  padding: 3px;
+  padding: 2px;
   border: 1px solid var(--vf-border);
   border-radius: var(--vf-radius);
   background: var(--background-secondary);
-}
-
-button.vf-canvas-draw-opt {
-  padding: 3px 8px;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  box-shadow: none;
-  color: var(--vf-muted);
-  font-size: var(--font-ui-smaller);
-  cursor: pointer;
-}
-
-button.vf-canvas-draw-opt:hover {
-  background: var(--background-modifier-hover);
-}
-
-button.vf-canvas-draw-opt.is-on {
-  color: var(--text-accent);
-  font-weight: 500;
-  background: var(--background-modifier-hover);
 }
 
 /* Mirrors the legend's bottom-right corner. Buttons stop propagation to the
