@@ -32,6 +32,7 @@ import { NamedIconDialog } from "../modals/NamedIconDialog";
 import { ExportDialog } from "../modals/ExportDialog";
 import { useSelection } from "../selection";
 import {
+  CanvasRelationsChip,
   EmptyColumnsChip,
   FieldsControl,
   GroupChip,
@@ -275,6 +276,13 @@ export function ViewControls({
           )}
           <span className="vf-bar-divider" />
           <FieldsControl view={view} onChange={editView} />
+          {/* Canvas-only: which relationship kinds the graph draws. */}
+          {view.viewType === "canvas" && (
+            <>
+              <span className="vf-bar-divider" />
+              <CanvasRelationsChip view={view} onChange={editView} />
+            </>
+          )}
           <span className="vf-bar-divider" />
           <AddFilterTrigger view={view} clause={filterClause} />
 

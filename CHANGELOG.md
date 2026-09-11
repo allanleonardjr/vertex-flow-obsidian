@@ -23,9 +23,13 @@ This project uses [Semantic Versioning](https://semver.org/).
   `blockedBy` dependencies draw as solid arrows and `parent` → child hierarchy
   as thin arrowless connectors — both feed the layered ranking and may cross
   boxes; `related` links draw dashed between nodes. The **Fields** control hides
-  node badges; Sort, Collapse-all and Upcoming are hidden for Canvas. Pan and
-  wheel-zoom, a static legend keys the three line styles, and edge colours are
-  three themeable CSS variables. Nothing is ever written back.
+  node badges and the new **Relations** control toggles each line style off —
+  hiding a dependency or hierarchy edge also removes it from the layout ranking;
+  Sort, Collapse-all and Upcoming are hidden for Canvas. Pan and wheel-zoom, a
+  static legend keys the three line styles (dimmed when toggled off), and edge
+  colours are three themeable CSS variables. Group boxes always tight-wrap their
+  own nodes regardless of `elkjs`'s reported compound size. Nothing is ever
+  written back.
 
 ## 1.0.18 — 2026-09-10
 

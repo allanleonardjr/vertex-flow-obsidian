@@ -39,7 +39,16 @@ import { useViewWriter } from "./useViewWriter";
  * `filters` in token order on every keystroke, would hit that constantly.
  */
 function definitionOf(view: SavedView) {
-	return JSON.stringify(canonicalizeDefinition(viewDefinition(view)));
+	return JSON.stringify({
+		def: canonicalizeDefinition(viewDefinition(view)),
+		// Canvas-only settings live outside the `query:` string (like the
+		// per-session chrome keys) but are still definitional — editing one from
+		// the toolbar must mark the view unsaved.
+		canvasDirection: view.canvasDirection ?? null,
+		canvasHiddenRelationKinds: [
+			...(view.canvasHiddenRelationKinds ?? []),
+		].sort(),
+	});
 }
 
 export interface ViewDraft {

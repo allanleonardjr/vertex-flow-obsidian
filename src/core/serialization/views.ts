@@ -24,8 +24,10 @@ import {
 	type QueryContext,
 } from "../query";
 import {
+	CANVAS_RELATION_KINDS,
 	SUBTASK_DISPLAYS,
 	TASK_FIELDS,
+	type CanvasRelationKind,
 	type EmptyColumnBehavior,
 	type GroupByField,
 	type ProjectViewSettings,
@@ -62,6 +64,8 @@ const CANVAS_DIRECTIONS: NonNullable<SavedView["canvasDirection"]>[] = [
 	"LR",
 	"TB",
 ];
+
+const CANVAS_RELATION_KIND_SET = new Set<string>(CANVAS_RELATION_KINDS);
 
 const CALENDAR_DATE_FIELDS: SavedView["calendarDateField"][] = [
 	"dueDate",
@@ -259,6 +263,9 @@ function parseViewValue(
 		calendarDateField: def.calendarDateField,
 		recurringPreview: def.recurringPreview,
 		canvasDirection: parseCanvasDirection(record.canvasDirection),
+		canvasHiddenRelationKinds: parseCanvasHiddenRelationKinds(
+			record.canvasHiddenRelationKinds,
+		),
 		timeline: parseTimeline(record.timeline),
 		calendar: parseCalendar(record.calendar),
 	};
@@ -333,6 +340,9 @@ function parseLegacyViewValue(
 			),
 			recurringPreview: asBoolean(record.recurringPreview, false),
 			canvasDirection: parseCanvasDirection(record.canvasDirection),
+			canvasHiddenRelationKinds: parseCanvasHiddenRelationKinds(
+				record.canvasHiddenRelationKinds,
+			),
 			timeline: parseTimeline(record.timeline),
 			calendar: parseCalendar(record.calendar),
 	};
@@ -350,6 +360,20 @@ function parseCanvasDirection(
 	return CANVAS_DIRECTIONS.includes(value as never)
 		? (value as SavedView["canvasDirection"])
 		: undefined;
+}
+
+/**
+ * Canvas relation kinds hidden from this view — a plain frontmatter key like
+ * `canvasDirection`, not part of the `query:` string. Unknown entries are
+ * dropped; an empty result becomes `undefined` (the "show all" default).
+ */
+function parseCanvasHiddenRelationKinds(
+	raw: unknown,
+): SavedView["canvasHiddenRelationKinds"] {
+	const kinds = asStringArray(raw).filter((k) =>
+		CANVAS_RELATION_KIND_SET.has(k),
+	) as CanvasRelationKind[];
+	return kinds.length > 0 ? kinds : undefined;
 }
 
 /**
@@ -457,6 +481,7 @@ export function serializeView(
 		description: view.description,
 		query: printQuery(viewDefinition(view), context) || undefined,
 		canvasDirection: view.canvasDirection,
+		canvasHiddenRelationKinds: view.canvasHiddenRelationKinds,
 		columns: {
 			collapsed: view.columns.collapsed,
 			hidden: view.columns.hidden,
@@ -561,6 +586,7 @@ export function serializeLegacyView(view: SavedView): Record<string, unknown> {
 				: view.calendarDateField,
 		recurringPreview: view.recurringPreview ? true : undefined,
 		canvasDirection: view.canvasDirection,
+		canvasHiddenRelationKinds: view.canvasHiddenRelationKinds,
 		timeline: view.timeline
 			? compact({
 					scale: view.timeline.scale,

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildCanvasGraph } from "../../src/core/canvas/graph";
+import {
+	buildCanvasGraph,
+	filterCanvasGraph,
+} from "../../src/core/canvas/graph";
 import { emptyRelations } from "../../src/core/types";
 import { task } from "./fixtures";
 
@@ -87,5 +90,45 @@ describe("buildCanvasGraph — related edges", () => {
 	it("drops a related link pointing outside the visible set", () => {
 		const a = t("A", { relations: { related: ["W/Tasks/GONE"] } });
 		expect(buildCanvasGraph([a]).relatedEdges).toEqual([]);
+	});
+});
+
+describe("filterCanvasGraph — relation-kind visibility", () => {
+	const build = () => {
+		const par = t("PAR");
+		const chi = t("CHI", {
+			parent: "W/Tasks/PAR",
+			relations: { blocks: ["W/Tasks/PAR"], related: ["W/Tasks/PAR"] },
+		});
+		return buildCanvasGraph([par, chi]);
+	};
+
+	it("returns the same object when nothing is hidden", () => {
+		const g = build();
+		expect(filterCanvasGraph(g, [])).toBe(g);
+	});
+
+	it("drops hidden dependency edges from layeringEdges (so ELK never sees them)", () => {
+		const g = filterCanvasGraph(build(), ["dependency"]);
+		expect(g.layeringEdges.map((e) => e.kind)).toEqual(["hierarchy"]);
+		expect(g.relatedEdges).toHaveLength(1);
+	});
+
+	it("drops hidden hierarchy edges from layeringEdges", () => {
+		const g = filterCanvasGraph(build(), ["hierarchy"]);
+		expect(g.layeringEdges.map((e) => e.kind)).toEqual(["dependency"]);
+	});
+
+	it("drops related edges only, leaving layering edges untouched", () => {
+		const g = filterCanvasGraph(build(), ["related"]);
+		expect(g.relatedEdges).toEqual([]);
+		expect(g.layeringEdges).toHaveLength(2);
+	});
+
+	it("can hide every kind at once", () => {
+		const g = filterCanvasGraph(build(), ["dependency", "hierarchy", "related"]);
+		expect(g.layeringEdges).toEqual([]);
+		expect(g.relatedEdges).toEqual([]);
+		expect(g.nodes).toHaveLength(2);
 	});
 });

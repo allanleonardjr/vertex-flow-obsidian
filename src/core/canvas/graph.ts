@@ -17,7 +17,13 @@
  */
 
 import { linksMatch } from "../links";
-import type { GroupByField, LinkTarget, Task, TaskGroup } from "../types";
+import type {
+	CanvasRelationKind,
+	GroupByField,
+	LinkTarget,
+	Task,
+	TaskGroup,
+} from "../types";
 
 /**
  * `groupBy` values that place each task in exactly one box. `label` can put a
@@ -158,4 +164,25 @@ export function buildCanvasGraph(tasks: Task[]): CanvasGraph {
 	}
 
 	return { nodes, layeringEdges, relatedEdges };
+}
+
+/**
+ * Drop the relation kinds the view has toggled off.
+ *
+ * A hidden `dependency`/`hierarchy` kind is removed from `layeringEdges` *before*
+ * they reach ELK, so it stops influencing the layered ranking — not merely
+ * hidden after layout. `related` is removed from `relatedEdges` only; it never
+ * fed the layout, so hiding it moves nothing.
+ */
+export function filterCanvasGraph(
+	graph: CanvasGraph,
+	hidden: readonly CanvasRelationKind[],
+): CanvasGraph {
+	if (hidden.length === 0) return graph;
+	const h = new Set(hidden);
+	return {
+		nodes: graph.nodes,
+		layeringEdges: graph.layeringEdges.filter((e) => !h.has(e.kind)),
+		relatedEdges: h.has("related") ? [] : graph.relatedEdges,
+	};
 }

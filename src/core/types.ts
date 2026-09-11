@@ -611,6 +611,19 @@ export type SortDirection = "asc" | "desc";
 export const SUBTASK_DISPLAYS = ["nested", "flat", "hidden"] as const;
 export type SubtaskDisplay = (typeof SUBTASK_DISPLAYS)[number];
 
+/**
+ * The three relationship kinds the Canvas view draws: `dependency`
+ * (`blocks`/`blockedBy`), `hierarchy` (`parent` → child), and `related`. There
+ * is deliberately no finer split of `related` — `TaskRelations.related` is one
+ * flat array with no sub-typing to filter on.
+ */
+export const CANVAS_RELATION_KINDS = [
+	"dependency",
+	"hierarchy",
+	"related",
+] as const;
+export type CanvasRelationKind = (typeof CANVAS_RELATION_KINDS)[number];
+
 /** Magic filter value resolving against the device's per-workspace "me" personId. */
 export const SELF = "self";
 
@@ -753,6 +766,13 @@ export interface SavedView {
 	 * with a `"LR"` default everywhere.
 	 */
 	canvasDirection?: "LR" | "TB";
+	/**
+	 * Canvas relation kinds hidden from this view — a *hidden* list, so absent or
+	 * empty means "show all three" (same convention as `hiddenFields`). Hiding
+	 * `dependency` or `hierarchy` also drops those edges from ELK's layered
+	 * ranking, not just the drawing; `related` never affects layout either way.
+	 */
+	canvasHiddenRelationKinds?: CanvasRelationKind[];
 	/**
 	 * Whether the Calendar and Timeline render this view's recurrences as
 	 * projected, not-yet-created future occurrences. Definitional — it changes

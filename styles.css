@@ -7739,8 +7739,8 @@ button.vf-history-expand {
 /* Edge palette — swap these three values to re-theme every connector; the
    component never names a colour. */
 .vf-canvas {
-  --vf-canvas-edge-dependency: var(--text-muted);
-  --vf-canvas-edge-hierarchy: var(--text-faint);
+  --vf-canvas-edge-dependency: var(--interactive-accent);
+  --vf-canvas-edge-hierarchy: var(--text-muted);
   --vf-canvas-edge-related: var(--text-faint);
 }
 
@@ -7833,6 +7833,12 @@ button.vf-history-expand {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+/* The toggle for this relation kind is off — the graph isn't drawing it. */
+.vf-canvas-legend-row.is-hidden {
+  opacity: 0.3;
+  text-decoration: line-through;
 }
 
 .vf-canvas-node {

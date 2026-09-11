@@ -7,13 +7,15 @@
 
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
-import type {
-	EmptyColumnBehavior,
-	GroupByField,
-	SavedView,
-	SortField,
-	SubtaskDisplay,
-	ViewType,
+import {
+	CANVAS_RELATION_KINDS,
+	type CanvasRelationKind,
+	type EmptyColumnBehavior,
+	type GroupByField,
+	type SavedView,
+	type SortField,
+	type SubtaskDisplay,
+	type ViewType,
 } from "../../core/types";
 import { layoutIcon } from "../../core/views";
 import { Icon } from "../components/Icon";
@@ -323,6 +325,86 @@ export function FieldsControl({
 					<p className="vf-fields-note">
 						Status, ID and title are always shown.
 					</p>
+				</Popover>
+			)}
+		</span>
+	);
+}
+
+const CANVAS_RELATION_LABELS: Record<CanvasRelationKind, string> = {
+	dependency: "Depends on",
+	hierarchy: "Sub-task of",
+	related: "Related",
+};
+
+/**
+ * Canvas-only: which relationship kinds the graph draws. A *hidden* list, like
+ * `hiddenFields` — empty means all three show. Hiding `dependency`/`hierarchy`
+ * also drops those edges from the layout ranking (handled in `CanvasView`).
+ */
+export function CanvasRelationsChip({
+	view,
+	onChange,
+}: {
+	view: SavedView;
+	onChange: (next: SavedView) => void;
+}) {
+	const [open, setOpen] = useState(false);
+	const hidden = view.canvasHiddenRelationKinds ?? [];
+
+	const toggle = (kind: CanvasRelationKind) => {
+		const next = hidden.includes(kind)
+			? hidden.filter((k) => k !== kind)
+			: [...hidden, kind];
+		onChange({
+			...view,
+			canvasHiddenRelationKinds: next.length > 0 ? next : undefined,
+		});
+	};
+
+	return (
+		<span className="vf-control-anchor">
+			<button
+				type="button"
+				className={`vf-bar-item${open ? " is-on" : ""}`}
+				onClick={(event) => {
+					event.stopPropagation();
+					setOpen((current) => !current);
+				}}
+			>
+				<span className="vf-bar-label">Relations</span>
+				<span className="vf-bar-value">
+					{hidden.length === 0
+						? "All"
+						: `${CANVAS_RELATION_KINDS.length - hidden.length} of ${CANVAS_RELATION_KINDS.length}`}
+				</span>
+				<span className="vf-bar-caret" aria-hidden>
+					⌄
+				</span>
+			</button>
+			{open && (
+				<Popover align="left" onClose={() => setOpen(false)}>
+					<div className="vf-field-list">
+						{CANVAS_RELATION_KINDS.map((kind) => {
+							const shown = !hidden.includes(kind);
+							const label = CANVAS_RELATION_LABELS[kind];
+							return (
+								<button
+									key={kind}
+									type="button"
+									className={`vf-field-row${shown ? " is-on" : ""}`}
+									aria-pressed={shown}
+									title={shown ? `Hide ${label}` : `Show ${label}`}
+									onClick={() => toggle(kind)}
+								>
+									<span className="vf-field-eye" aria-hidden>
+										{shown ? <Eye size={14} /> : <EyeOff size={14} />}
+									</span>
+									<span className="vf-field-label">{label}</span>
+								</button>
+							);
+						})}
+					</div>
 				</Popover>
 			)}
 		</span>

@@ -33,17 +33,27 @@ import ELK, { type ElkNode } from "elkjs/lib/elk.bundled.js";
 import {
 	buildCanvasGraph,
 	canvasGrouping,
+	filterCanvasGraph,
 	type CanvasGraph,
 	type LayeringEdgeKind,
 } from "../../core/canvas/graph";
+import {
+	DEFAULT_GROUP_PADDING,
+	elkPaddingOption,
+	flattenCanvasLayout,
+	type FlatCanvasLayout,
+	type PlacedBox,
+} from "../../core/canvas/layout";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { EvaluatedView } from "../../core/views";
 import { layoutIcon, renderedHiddenFields } from "../../core/views";
-import type {
-	SavedView,
-	Task,
-	TaskField,
-	WorkspaceSnapshot,
+import {
+	CANVAS_RELATION_KINDS,
+	type CanvasRelationKind,
+	type SavedView,
+	type Task,
+	type TaskField,
+	type WorkspaceSnapshot,
 } from "../../core/types";
 import { EmptyView } from "../components/EmptyView";
 import { StatusDot, TaxonomyChip } from "../components/TaskBits";
@@ -59,29 +69,18 @@ export interface CanvasViewProps {
 /** Fixed node box — ELK needs concrete dimensions; CSS truncates to fit. */
 const NODE_WIDTH = 220;
 const NODE_HEIGHT = 64;
-/** Extra top padding inside a group box, leaving room for its header. */
-const GROUP_PADDING = "[top=34.0,left=16.0,bottom=16.0,right=16.0]";
+/** `elk.padding` inside a group box, kept in sync with the render-side fit. */
+const GROUP_PADDING = elkPaddingOption(DEFAULT_GROUP_PADDING);
 
 const MIN_SCALE = 0.2;
 const MAX_SCALE = 2.5;
 
-interface PlacedBox {
-	x: number;
-	y: number;
-	width: number;
-	height: number;
-}
-
-interface FlatLayout {
-	/** Task nodes, absolute coords. */
-	nodes: Map<string, PlacedBox>;
-	/** Group compound boxes, absolute coords, keyed by `group:${key}`. */
-	groups: Map<string, PlacedBox>;
-	/** One entry per rendered edge segment. */
-	edges: { d: string; kind: LayeringEdgeKind }[];
-	width: number;
-	height: number;
-}
+/** Human labels for the relation-kind visibility toggle. */
+const RELATION_KIND_LABELS: Record<CanvasRelationKind, string> = {
+	dependency: "Depends on",
+	hierarchy: "Sub-task of",
+	related: "Related",
+};
 
 const elk = new ELK();
 
@@ -94,6 +93,15 @@ export function CanvasView({ view, evaluated, taxonomies }: CanvasViewProps) {
 	);
 
 	const shownFields = useMemo(() => renderedHiddenFields(view), [view]);
+
+	// Stable key for the hidden-relation set — the array identity churns.
+	const hiddenKinds = view.canvasHiddenRelationKinds ?? [];
+	const hiddenKindKey = [...hiddenKinds].sort().join(",");
+	const hiddenKindSet = useMemo(
+		() => new Set(hiddenKinds),
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[hiddenKindKey],
+	);
 
 	// Memoise on the *content* that feeds the graph — visible task paths, their
 	// parent, their three relation arrays, and the box each sits in — not on
@@ -113,15 +121,15 @@ export function CanvasView({ view, evaluated, taxonomies }: CanvasViewProps) {
 			.join(";");
 	}, [visibleTasks, visibleGroups]);
 
-	// eslint-disable-next-line react-hooks/exhaustive-deps
 	const graph: CanvasGraph = useMemo(
-		() => buildCanvasGraph(visibleTasks),
-		[signature],
+		() => filterCanvasGraph(buildCanvasGraph(visibleTasks), [...hiddenKindSet]),
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[signature, hiddenKindKey],
 	);
 
 	const direction = view.canvasDirection === "TB" ? "DOWN" : "RIGHT";
 
-	const [laidOut, setLaidOut] = useState<FlatLayout | null>(null);
+	const [laidOut, setLaidOut] = useState<FlatCanvasLayout | null>(null);
 	const [loading, setLoading] = useState(false);
 
 	useEffect(() => {
@@ -167,7 +175,12 @@ export function CanvasView({ view, evaluated, taxonomies }: CanvasViewProps) {
 			.layout(elkGraph)
 			.then((res) => {
 				if (cancelled) return;
-				setLaidOut(flattenLayout(res, kindById));
+				setLaidOut(
+					flattenCanvasLayout(res, kindById, {
+						nodeWidth: NODE_WIDTH,
+						nodeHeight: NODE_HEIGHT,
+					}),
+				);
 				setLoading(false);
 			})
 			.catch(() => {
@@ -389,7 +402,7 @@ export function CanvasView({ view, evaluated, taxonomies }: CanvasViewProps) {
 				</div>
 			)}
 
-			<CanvasLegend />
+			<CanvasLegend hidden={hiddenKindSet} />
 		</div>
 	);
 }
@@ -429,93 +442,33 @@ function CanvasNode({
 	);
 }
 
-function CanvasLegend() {
+function CanvasLegend({ hidden }: { hidden: Set<CanvasRelationKind> }) {
 	return (
 		<div className="vf-canvas-legend" aria-hidden>
-			<div className="vf-canvas-legend-row">
-				<svg width="26" height="10" viewBox="0 0 26 10">
-					<path className="vf-canvas-edge-dependency" d="M 1 5 L 19 5" />
-					<path className="vf-canvas-arrow-head" d="M 19 2 L 25 5 L 19 8 z" />
-				</svg>
-				<span>Depends on</span>
-			</div>
-			<div className="vf-canvas-legend-row">
-				<svg width="26" height="10" viewBox="0 0 26 10">
-					<path className="vf-canvas-edge-hierarchy" d="M 1 5 L 25 5" />
-				</svg>
-				<span>Sub-task of</span>
-			</div>
-			<div className="vf-canvas-legend-row">
-				<svg width="26" height="10" viewBox="0 0 26 10">
-					<path className="vf-canvas-edge-related" d="M 1 5 L 25 5" />
-				</svg>
-				<span>Related</span>
-			</div>
+			{CANVAS_RELATION_KINDS.map((kind) => (
+				<div
+					key={kind}
+					className={`vf-canvas-legend-row${hidden.has(kind) ? " is-hidden" : ""}`}
+				>
+					<svg width="26" height="10" viewBox="0 0 26 10">
+						<path
+							className={`vf-canvas-edge-${kind}`}
+							d={kind === "dependency" ? "M 1 5 L 19 5" : "M 1 5 L 25 5"}
+						/>
+						{kind === "dependency" && (
+							<path
+								className="vf-canvas-arrow-head"
+								d="M 19 2 L 25 5 L 19 8 z"
+							/>
+						)}
+					</svg>
+					<span>{RELATION_KIND_LABELS[kind]}</span>
+				</div>
+			))}
 		</div>
 	);
 }
 
 function clamp(n: number, lo: number, hi: number): number {
 	return Math.max(lo, Math.min(hi, n));
-}
-
-/**
- * Flatten ELK's nested result into absolute coordinates.
- *
- * With `hierarchyHandling: INCLUDE_CHILDREN` every node's `x`/`y` is relative to
- * its parent compound node, and an edge's section points are relative to
- * whichever container ELK routed the edge through — so we walk the tree once,
- * carrying each container's absolute origin, and add it into every coordinate.
- */
-function flattenLayout(
-	root: ElkNode,
-	kindById: Map<string, LayeringEdgeKind>,
-): FlatLayout {
-	const nodes = new Map<string, PlacedBox>();
-	const groups = new Map<string, PlacedBox>();
-	const edges: { d: string; kind: LayeringEdgeKind }[] = [];
-
-	const visit = (node: ElkNode, absX: number, absY: number) => {
-		for (const edge of node.edges ?? []) {
-			const kind = kindById.get(edge.id ?? "") ?? "dependency";
-			for (const section of edge.sections ?? []) {
-				const pts = [
-					section.startPoint,
-					...(section.bendPoints ?? []),
-					section.endPoint,
-				];
-				const d = pts
-					.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x + absX} ${p.y + absY}`)
-					.join(" ");
-				edges.push({ d, kind });
-			}
-		}
-
-		for (const child of node.children ?? []) {
-			const cx = absX + (child.x ?? 0);
-			const cy = absY + (child.y ?? 0);
-			const box: PlacedBox = {
-				x: cx,
-				y: cy,
-				width: child.width ?? NODE_WIDTH,
-				height: child.height ?? NODE_HEIGHT,
-			};
-			if (child.id.startsWith("group:")) {
-				groups.set(child.id, box);
-				visit(child, cx, cy);
-			} else {
-				nodes.set(child.id, box);
-			}
-		}
-	};
-
-	visit(root, 0, 0);
-
-	return {
-		nodes,
-		groups,
-		edges,
-		width: Math.max(root.width ?? 0, 1),
-		height: Math.max(root.height ?? 0, 1),
-	};
 }
