@@ -5,6 +5,9 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Added
+- Added search icon and name in the compact mode toggle.
+
 ### Fixed
 - **Cross-workspace "Export Tasks…" / "Export as Template…" from the sidebar
   now works on the first click.** Choosing either item on a non-active
