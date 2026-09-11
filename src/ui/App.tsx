@@ -228,7 +228,7 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
       ref={setContainer}
       tabIndex={-1}
     >
-      <PrefixEngine snapshot={snapshot} />
+      <PrefixEngine snapshot={snapshot} container={container} />
       <TabSwitcher snapshot={snapshot} />
       <WorkspaceSearch snapshot={snapshot} />
       <Sidebar
