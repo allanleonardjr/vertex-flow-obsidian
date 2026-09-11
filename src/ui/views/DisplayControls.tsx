@@ -62,6 +62,11 @@ export function LayoutToggle({
           <span className="vf-bar-icon" aria-hidden>
             <Icon id={layoutIcon(layout.value)} size={14} />
           </span>
+          {layout.value === "canvas" && view.viewType === "canvas" && (
+            <span className="vf-canvas-beta-badge" aria-hidden>
+              BETA
+            </span>
+          )}
         </button>
       ))}
     </div>

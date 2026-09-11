@@ -55,15 +55,30 @@ export interface PlacedBox {
 	height: number;
 }
 
+/** A rendered layering-edge segment, carrying its endpoints back for hover. */
+export interface FlatLayeringEdge {
+	d: string;
+	kind: LayeringEdgeKind;
+	source: string;
+	target: string;
+}
+
 export interface FlatCanvasLayout {
 	/** Task nodes, absolute coords, keyed by task path. */
 	nodes: Map<string, PlacedBox>;
 	/** Group boxes, absolute coords, keyed by `group:${key}` — tight-fit. */
 	groups: Map<string, PlacedBox>;
 	/** One SVG path per layering-edge segment. */
-	edges: { d: string; kind: LayeringEdgeKind }[];
+	edges: FlatLayeringEdge[];
 	width: number;
 	height: number;
+}
+
+/** What each ELK edge id maps back to — its kind and its original endpoints. */
+export interface EdgeMeta {
+	kind: LayeringEdgeKind;
+	source: string;
+	target: string;
 }
 
 export interface GroupPadding {
@@ -90,7 +105,7 @@ const GROUP_PREFIX = "group:";
 
 export function flattenCanvasLayout(
 	root: ElkLayoutNode,
-	kindById: Map<string, LayeringEdgeKind>,
+	edgeMeta: Map<string, EdgeMeta>,
 	opts: {
 		nodeWidth: number;
 		nodeHeight: number;
@@ -99,7 +114,7 @@ export function flattenCanvasLayout(
 ): FlatCanvasLayout {
 	const pad = opts.groupPadding ?? DEFAULT_GROUP_PADDING;
 	const nodes = new Map<string, PlacedBox>();
-	const edges: { d: string; kind: LayeringEdgeKind }[] = [];
+	const edges: FlatLayeringEdge[] = [];
 	/** Leaf boxes enclosed by each group id, for the tight-fit pass. */
 	const groupLeaves = new Map<string, PlacedBox[]>();
 
@@ -110,7 +125,7 @@ export function flattenCanvasLayout(
 		enclosing: string[],
 	) => {
 		for (const edge of node.edges ?? []) {
-			const kind = kindById.get(edge.id ?? "") ?? "dependency";
+			const meta = edgeMeta.get(edge.id ?? "");
 			for (const section of edge.sections ?? []) {
 				const pts = [
 					section.startPoint,
@@ -120,7 +135,12 @@ export function flattenCanvasLayout(
 				const d = pts
 					.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x + absX} ${p.y + absY}`)
 					.join(" ");
-				edges.push({ d, kind });
+				edges.push({
+					d,
+					kind: meta?.kind ?? "dependency",
+					source: meta?.source ?? "",
+					target: meta?.target ?? "",
+				});
 			}
 		}
 

@@ -22,6 +22,7 @@
  */
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -35,12 +36,12 @@ import {
   canvasGrouping,
   filterCanvasGraph,
   type CanvasGraph,
-  type LayeringEdgeKind,
 } from "../../core/canvas/graph";
 import {
   DEFAULT_GROUP_PADDING,
   elkPaddingOption,
   flattenCanvasLayout,
+  type EdgeMeta,
   type FlatCanvasLayout,
   type PlacedBox,
 } from "../../core/canvas/layout";
@@ -64,6 +65,7 @@ import {
   TaxonomyChip,
 } from "../components/TaskBits";
 import { displayTitle } from "../components/TaskTitle";
+import { useTabs } from "../tabs-context";
 
 export interface CanvasViewProps {
   snapshot: WorkspaceSnapshot;
@@ -177,11 +179,11 @@ export function CanvasView({
         }))
       : graph.nodes.map((n) => leaf(n.id));
 
-    // `edge-${i}` carries the kind back by index after layout.
-    const kindById = new Map<string, LayeringEdgeKind>();
+    // `edge-${i}` carries the kind + endpoints back by index after layout.
+    const edgeMeta = new Map<string, EdgeMeta>();
     const edges = graph.layeringEdges.map((e, i) => {
       const id = `edge-${i}`;
-      kindById.set(id, e.kind);
+      edgeMeta.set(id, { kind: e.kind, source: e.source, target: e.target });
       return { id, sources: [e.source], targets: [e.target] };
     });
 
@@ -203,7 +205,7 @@ export function CanvasView({
       .then((res) => {
         if (cancelled) return;
         setLaidOut(
-          flattenCanvasLayout(res, kindById, {
+          flattenCanvasLayout(res, edgeMeta, {
             nodeWidth: NODE_WIDTH,
             nodeHeight: NODE_HEIGHT,
           }),
@@ -222,6 +224,7 @@ export function CanvasView({
   }, [graph, grouped, visibleGroups, visibleTasks.length, direction]);
 
   // --- Pan / zoom — transient component state, never persisted. -------------
+  const canvasRef = useRef<HTMLDivElement>(null);
   const [transform, setTransform] = useState({ x: 24, y: 24, scale: 1 });
   const panState = useRef<{
     pointerId: number;
@@ -230,10 +233,27 @@ export function CanvasView({
     originX: number;
     originY: number;
   } | null>(null);
+  // Set once a background-started pan actually moves — consumed by the click
+  // that follows pointerup, so releasing a drag over a card doesn't also open
+  // it. Mirrors Board's own drag `consumeDragClick()` pattern.
+  const panMoved = useRef(false);
+  const suppressClick = useRef(false);
+  const PAN_CLICK_THRESHOLD = 4;
+
+  const consumePanClick = () => {
+    const suppressed = suppressClick.current;
+    suppressClick.current = false;
+    return suppressed;
+  };
 
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-    // Only the background pans — a press that lands on a node does nothing.
-    if ((e.target as HTMLElement).closest(".vf-canvas-node")) return;
+    // A press on a node or on the zoom widget does its own thing — neither
+    // pans the background.
+    const target = e.target as HTMLElement;
+    if (target.closest(".vf-canvas-node") || target.closest(".vf-canvas-zoom")) {
+      return;
+    }
+    panMoved.current = false;
     panState.current = {
       pointerId: e.pointerId,
       startX: e.clientX,
@@ -247,21 +267,66 @@ export function CanvasView({
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     const pan = panState.current;
     if (!pan || pan.pointerId !== e.pointerId) return;
+    const dx = e.clientX - pan.startX;
+    const dy = e.clientY - pan.startY;
+    if (!panMoved.current && Math.hypot(dx, dy) > PAN_CLICK_THRESHOLD) {
+      panMoved.current = true;
+    }
     setTransform((t) => ({
       ...t,
-      x: pan.originX + (e.clientX - pan.startX),
-      y: pan.originY + (e.clientY - pan.startY),
+      x: pan.originX + dx,
+      y: pan.originY + dy,
     }));
   };
 
   const endPan = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (panState.current?.pointerId === e.pointerId) {
+      // A pan that actually moved emits a trailing click on whatever's under
+      // the cursor at release — swallow it so panning over a card doesn't
+      // also open it (same ordering as the drag code's own suppress-flag).
+      if (panMoved.current) suppressClick.current = true;
       panState.current = null;
       if (e.currentTarget.hasPointerCapture(e.pointerId)) {
         e.currentTarget.releasePointerCapture(e.pointerId);
       }
     }
   };
+
+  const zoomBy = useCallback((factor: number) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    const cx = rect ? rect.width / 2 : 0;
+    const cy = rect ? rect.height / 2 : 0;
+    setTransform((t) => {
+      const next = clamp(t.scale * factor, MIN_SCALE, MAX_SCALE);
+      const ratio = next / t.scale;
+      // Keep the container's centre fixed, same math as the wheel handler.
+      return {
+        scale: next,
+        x: cx - (cx - t.x) * ratio,
+        y: cy - (cy - t.y) * ratio,
+      };
+    });
+  }, []);
+
+  const fitToView = useCallback(() => {
+    if (!laidOut) return;
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect || rect.width === 0 || rect.height === 0) return;
+    const margin = 48;
+    const next = clamp(
+      Math.min(
+        (rect.width - margin) / laidOut.width,
+        (rect.height - margin) / laidOut.height,
+      ),
+      MIN_SCALE,
+      MAX_SCALE,
+    );
+    setTransform({
+      scale: next,
+      x: (rect.width - laidOut.width * next) / 2,
+      y: (rect.height - laidOut.height * next) / 2,
+    });
+  }, [laidOut]);
 
   const onWheel = (e: ReactWheelEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -282,6 +347,34 @@ export function CanvasView({
       };
     });
   };
+
+  // --- Hover highlight — pure CSS-class state, no re-layout. -----------------
+  const [hoveredPath, setHoveredPath] = useState<string | null>(null);
+
+  // Every path directly connected to another, across all three relation kinds
+  // (both layering edges — dependency + hierarchy — and related). Built from
+  // `graph`, not `laidOut`, so it's unaffected by pan/zoom/hover and never
+  // touches the ELK effect's own dependency array.
+  const adjacency = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    const link = (a: string, b: string) => {
+      if (!map.has(a)) map.set(a, new Set());
+      if (!map.has(b)) map.set(b, new Set());
+      map.get(a)!.add(b);
+      map.get(b)!.add(a);
+    };
+    for (const e of graph.layeringEdges) link(e.source, e.target);
+    for (const e of graph.relatedEdges) link(e.a, e.b);
+    return map;
+  }, [graph]);
+
+  const connectedToHover = hoveredPath ? adjacency.get(hoveredPath) : undefined;
+  const isDimmed = (path: string) =>
+    hoveredPath != null &&
+    path !== hoveredPath &&
+    !connectedToHover?.has(path);
+  const isEdgeDimmed = (a: string, b: string) =>
+    hoveredPath != null && a !== hoveredPath && b !== hoveredPath;
 
   if (evaluated.total === 0 || visibleTasks.length === 0) {
     const filtered = evaluated.filteredOut > 0 || evaluated.total > 0;
@@ -310,16 +403,20 @@ export function CanvasView({
           const na = laidOut.nodes.get(a);
           const nb = laidOut.nodes.get(b);
           if (!na || !nb) return null;
-          return (
-            `M ${na.x + na.width / 2} ${na.y + na.height / 2} ` +
-            `L ${nb.x + nb.width / 2} ${nb.y + nb.height / 2}`
-          );
+          return {
+            a,
+            b,
+            d:
+              `M ${na.x + na.width / 2} ${na.y + na.height / 2} ` +
+              `L ${nb.x + nb.width / 2} ${nb.y + nb.height / 2}`,
+          };
         })
-        .filter((d): d is string => d !== null)
+        .filter((e): e is { a: string; b: string; d: string } => e !== null)
     : [];
 
   return (
     <div
+      ref={canvasRef}
       className="vf-canvas"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -399,7 +496,9 @@ export function CanvasView({
             {laidOut.edges.map((edge, i) => (
               <path
                 key={i}
-                className={`vf-canvas-edge-${edge.kind}`}
+                className={`vf-canvas-edge-${edge.kind}${
+                  isEdgeDimmed(edge.source, edge.target) ? " is-dimmed" : ""
+                }`}
                 d={edge.d}
                 markerEnd={
                   edge.kind === "dependency"
@@ -408,8 +507,14 @@ export function CanvasView({
                 }
               />
             ))}
-            {relatedPaths.map((d, i) => (
-              <path key={`rel-${i}`} className="vf-canvas-edge-related" d={d} />
+            {relatedPaths.map(({ a, b, d }, i) => (
+              <path
+                key={`rel-${i}`}
+                className={`vf-canvas-edge-related${
+                  isEdgeDimmed(a, b) ? " is-dimmed" : ""
+                }`}
+                d={d}
+              />
             ))}
           </svg>
 
@@ -425,11 +530,46 @@ export function CanvasView({
                 taxonomies={taxonomies}
                 hiddenFields={shownFields}
                 showProject={showProject}
+                dimmed={isDimmed(id)}
+                onHover={setHoveredPath}
+                consumePanClick={consumePanClick}
               />
             );
           })}
         </div>
       )}
+
+      <div className="vf-canvas-zoom">
+        <button
+          type="button"
+          className="vf-canvas-zoom-btn"
+          aria-label="Zoom out"
+          onClick={() => zoomBy(1 / 1.1)}
+        >
+          −
+        </button>
+        <span className="vf-canvas-zoom-pct">
+          {Math.round(transform.scale * 100)}%
+        </span>
+        <button
+          type="button"
+          className="vf-canvas-zoom-btn"
+          aria-label="Zoom in"
+          onClick={() => zoomBy(1.1)}
+        >
+          +
+        </button>
+        <button
+          type="button"
+          className="vf-canvas-zoom-btn vf-canvas-zoom-fit"
+          aria-label="Fit to view"
+          title="Fit to view"
+          disabled={!laidOut}
+          onClick={fitToView}
+        >
+          Fit
+        </button>
+      </div>
 
       <CanvasLegend hidden={hiddenKindSet} />
     </div>
@@ -453,6 +593,9 @@ function CanvasNode({
   taxonomies,
   hiddenFields,
   showProject,
+  dimmed,
+  onHover,
+  consumePanClick,
 }: {
   task: Task;
   pos: PlacedBox;
@@ -460,12 +603,24 @@ function CanvasNode({
   taxonomies: WorkspaceTaxonomies;
   hiddenFields: readonly TaskField[];
   showProject: boolean;
+  dimmed: boolean;
+  onHover: (path: string | null) => void;
+  /** True when the click that follows was really the end of a pan gesture. */
+  consumePanClick: () => boolean;
 }) {
   const off = (field: TaskField) => hiddenFields.includes(field);
+  // Same mechanism Board's own cards open a task with — no Canvas-only path.
+  const tabs = useTabs();
   return (
     <div
-      className="vf-canvas-node"
+      className={`vf-canvas-node${dimmed ? " is-dimmed" : ""}`}
       style={{ left: pos.x, top: pos.y, width: pos.width, height: pos.height }}
+      onPointerEnter={() => onHover(task.path)}
+      onPointerLeave={() => onHover(null)}
+      onClick={() => {
+        if (consumePanClick()) return;
+        tabs.openTask(task.path);
+      }}
     >
       <div className="vf-canvas-node-row">
         <StatusDot taxonomies={taxonomies} status={task.status} />
@@ -488,7 +643,10 @@ function CanvasNode({
       <div className="vf-canvas-node-row">
         {!off("dueDate") && <DueDate task={task} />}
         {!off("assignee") && (
-          <Assignee people={snapshot.workspace.people} assignee={task.assignee} />
+          <Assignee
+            people={snapshot.workspace.people}
+            assignee={task.assignee}
+          />
         )}
       </div>
       {showProject && !off("project") && (

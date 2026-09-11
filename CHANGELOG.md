@@ -32,8 +32,13 @@ This project uses [Semantic Versioning](https://semver.org/).
   Sort, Collapse-all and Upcoming are hidden for Canvas. Pan and wheel-zoom, a
   static legend keys the three line styles (dimmed when toggled off), and edge
   colours are three themeable CSS variables. Group boxes always tight-wrap their
-  own nodes regardless of `elkjs`'s reported compound size. Nothing is ever
-  written back.
+  own nodes regardless of `elkjs`'s reported compound size. A bottom-left
+  zoom widget adds −/+ buttons, a percentage readout, and a **Fit to view**
+  button; clicking a card opens its task (the same way Board's cards do); and
+  hovering a card dims every unconnected card and edge, across dependency,
+  hierarchy and related links alike. The "BETA" marker moved off the graph
+  surface into a small badge next to Canvas in the layout picker. Nothing is
+  ever written back.
 
 ## 1.0.19 — 2026-09-10
 

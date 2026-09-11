@@ -5056,7 +5056,7 @@ button.vf-add-relation.is-on {
 .vf-field-list {
   display: flex;
   flex-direction: column;
-  min-width: 220px;
+  min-width: 260px; /* was 220px - room for the longest hint alongisde the label */
 }
 
 /* One field per row: eye icon, name, and an optional hint pinned right. */
@@ -5103,6 +5103,10 @@ button.vf-field-row.is-on {
 
 .vf-field-hint {
   flex-shrink: 0;
+  max-width: 180px; /* was 120px - fits "Hidden when filtered to one" in full */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--vf-muted);
   font-size: var(--font-ui-smaller);
   opacity: 0.8;
@@ -7775,6 +7779,14 @@ button.vf-history-expand {
   stroke: none;
 }
 
+/* Hover highlight — a pure CSS-class toggle, no re-layout involved. An edge
+   that doesn't touch the hovered node fades; group boxes are untouched. */
+.vf-canvas-edge-dependency.is-dimmed,
+.vf-canvas-edge-hierarchy.is-dimmed,
+.vf-canvas-edge-related.is-dimmed {
+  opacity: 0.15;
+}
+
 .vf-canvas-note {
   position: absolute;
   top: 12px;
@@ -7811,6 +7823,64 @@ button.vf-history-expand {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+/* Mirrors the legend's bottom-right corner. Buttons stop propagation to the
+   canvas's own onPointerDown via the `.vf-canvas-zoom` guard there, so
+   clicking here never starts a background pan. */
+.vf-canvas-zoom {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-secondary);
+}
+
+button.vf-canvas-zoom-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  cursor: pointer;
+}
+
+button.vf-canvas-zoom-btn:hover {
+  background: var(--background-modifier-hover);
+}
+
+button.vf-canvas-zoom-btn:disabled {
+  color: var(--vf-muted);
+  cursor: default;
+  opacity: 0.5;
+}
+
+button.vf-canvas-zoom-btn:disabled:hover {
+  background: transparent;
+}
+
+.vf-canvas-zoom-pct {
+  min-width: 38px;
+  text-align: center;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  font-variant-numeric: tabular-nums;
+}
+
+button.vf-canvas-zoom-fit {
+  font-size: var(--font-ui-smaller);
 }
 
 .vf-canvas-legend {
@@ -7851,6 +7921,16 @@ button.vf-history-expand {
   border-radius: var(--vf-radius);
   background: var(--background-secondary);
   overflow: hidden;
+  cursor: pointer;
+}
+
+.vf-canvas-node:hover {
+  border-color: var(--interactive-accent);
+}
+
+/* Dims a node not connected to whichever card is currently hovered. */
+.vf-canvas-node.is-dimmed {
+  opacity: 0.35;
 }
 
 .vf-canvas-node-row {
@@ -7878,4 +7958,20 @@ button.vf-history-expand {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+}
+
+/* Sits inline next to the Canvas icon in the layout picker (LayoutToggle),
+   only while Canvas is the active view — never a floating overlay on the
+   graph itself, where dynamically-laid-out content could eventually cover it. */
+.vf-canvas-beta-badge {
+  margin-left: 4px;
+  padding: 1px 5px;
+  border: 1px solid var(--text-warning, orange);
+  border-radius: 8px;
+  color: var(--text-warning, orange);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1.4;
+  pointer-events: none;
 }

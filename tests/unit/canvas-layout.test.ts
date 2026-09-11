@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
 	DEFAULT_GROUP_PADDING as PAD,
 	flattenCanvasLayout,
+	type EdgeMeta,
 	type ElkLayoutNode,
 } from "../../src/core/canvas/layout";
-import type { LayeringEdgeKind } from "../../src/core/canvas/graph";
 
 const OPTS = { nodeWidth: 220, nodeHeight: 64 };
-const noKinds = new Map<string, LayeringEdgeKind>();
+const noEdges = new Map<string, EdgeMeta>();
 
 describe("flattenCanvasLayout — group box sizing", () => {
 	it("tight-fits a group box to its children, ignoring ELK's inflated size", () => {
@@ -32,7 +32,7 @@ describe("flattenCanvasLayout — group box sizing", () => {
 			],
 		};
 
-		const flat = flattenCanvasLayout(root, noKinds, OPTS);
+		const flat = flattenCanvasLayout(root, noEdges, OPTS);
 		const box = flat.groups.get("group:todo")!;
 
 		// Children flattened to absolute: A at (110, 90), B at (110, 330)-(330,394).
@@ -69,7 +69,7 @@ describe("flattenCanvasLayout — group box sizing", () => {
 			],
 		};
 
-		const flat = flattenCanvasLayout(root, noKinds, OPTS);
+		const flat = flattenCanvasLayout(root, noEdges, OPTS);
 		const a = flat.groups.get("group:a")!;
 		const b = flat.groups.get("group:b")!;
 
@@ -78,7 +78,9 @@ describe("flattenCanvasLayout — group box sizing", () => {
 	});
 
 	it("flattens edge coordinates by the container origin and tags the kind", () => {
-		const kinds = new Map<string, LayeringEdgeKind>([["e0", "hierarchy"]]);
+		const meta = new Map<string, EdgeMeta>([
+			["e0", { kind: "hierarchy", source: "W/Tasks/A", target: "W/Tasks/B" }],
+		]);
 		const root: ElkLayoutNode = {
 			id: "root",
 			children: [{ id: "W/Tasks/A", x: 0, y: 0, width: 220, height: 64 }],
@@ -90,7 +92,14 @@ describe("flattenCanvasLayout — group box sizing", () => {
 			],
 		};
 
-		const flat = flattenCanvasLayout(root, kinds, OPTS);
-		expect(flat.edges).toEqual([{ d: "M 5 5 L 15 25", kind: "hierarchy" }]);
+		const flat = flattenCanvasLayout(root, meta, OPTS);
+		expect(flat.edges).toEqual([
+			{
+				d: "M 5 5 L 15 25",
+				kind: "hierarchy",
+				source: "W/Tasks/A",
+				target: "W/Tasks/B",
+			},
+		]);
 	});
 });
