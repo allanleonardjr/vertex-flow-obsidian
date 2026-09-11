@@ -11,8 +11,12 @@
 import { PanelLeftOpen, PanelRightOpen } from "lucide-react";
 import { useCompactNav } from "./compact-nav-context";
 import { useTabs } from "./tabs-context";
+import { usePlugin } from "./context";
+import { Search } from "lucide-react";
 
 export function CompactModeToggle() {
+  const plugin = usePlugin();
+
   const { activeTab } = useTabs();
   const { navOpen, propertiesOpen, toggleNav, toggleProperties } =
     useCompactNav();
@@ -32,15 +36,25 @@ export function CompactModeToggle() {
         <PanelLeftOpen size={14} aria-hidden />
         <span>Navigation</span>
       </button>
+      <button
+        className="vf-sidebar-search"
+        title="Search workspace"
+        aria-label="Search workspace"
+        onClick={() => {
+          plugin.pendingWorkspaceSearch = true;
+          plugin.index.touch();
+        }}
+      >
+        <Search size={14} aria-hidden />
+        <span style={{ marginLeft: "4px" }}>Search…</span>
+      </button>
       <span className="vf-compact-toggle-gap" aria-hidden />
       {hasProperties && (
         <button
           type="button"
           className={`vf-compact-toggle-btn${propertiesOpen ? " is-active" : ""}`}
           aria-expanded={propertiesOpen}
-          aria-label={
-            propertiesOpen ? "Close properties" : "Open properties"
-          }
+          aria-label={propertiesOpen ? "Close properties" : "Open properties"}
           onClick={toggleProperties}
         >
           <PanelRightOpen size={14} aria-hidden />
@@ -50,3 +64,4 @@ export function CompactModeToggle() {
     </div>
   );
 }
+
