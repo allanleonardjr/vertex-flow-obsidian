@@ -56,7 +56,13 @@ import {
   type WorkspaceSnapshot,
 } from "../../core/types";
 import { EmptyView } from "../components/EmptyView";
-import { StatusDot, TaxonomyChip } from "../components/TaskBits";
+import {
+  Assignee,
+  DueDate,
+  ProjectChip,
+  StatusDot,
+  TaxonomyChip,
+} from "../components/TaskBits";
 import { displayTitle } from "../components/TaskTitle";
 
 export interface CanvasViewProps {
@@ -66,9 +72,14 @@ export interface CanvasViewProps {
   taxonomies: WorkspaceTaxonomies;
 }
 
-/** Fixed node box — ELK needs concrete dimensions; CSS truncates to fit. */
-const NODE_WIDTH = 220;
-const NODE_HEIGHT = 64;
+/**
+ * Fixed card box — also the leaf-node size fed to `elkjs`. Sized for the
+ * fullest card: a two-badge top row, a due-date + assignee row, an optional
+ * project chip, and a 2-line title, within 8px vertical padding and 4px gaps,
+ * with headroom for the "comfortable" UI text scale.
+ */
+const NODE_WIDTH = 240;
+const NODE_HEIGHT = 136;
 /** `elk.padding` inside a group box, kept in sync with the render-side fit. */
 const GROUP_PADDING = elkPaddingOption(DEFAULT_GROUP_PADDING);
 
@@ -84,7 +95,15 @@ const RELATION_KIND_LABELS: Record<CanvasRelationKind, string> = {
 
 const elk = new ELK();
 
-export function CanvasView({ view, evaluated, taxonomies }: CanvasViewProps) {
+export function CanvasView({
+  snapshot,
+  view,
+  evaluated,
+  taxonomies,
+}: CanvasViewProps) {
+  // Grouping by project already puts each card inside its project's box, so a
+  // per-card project chip there would just be noise.
+  const showProject = view.groupBy !== "project";
   // Reuse the Board's own group set — non-hidden, non-empty — for the boxes,
   // and the matching visible-task set. Flat when grouped by `label`/`none`.
   const {
@@ -402,8 +421,10 @@ export function CanvasView({ view, evaluated, taxonomies }: CanvasViewProps) {
                 key={id}
                 task={task}
                 pos={pos}
+                snapshot={snapshot}
                 taxonomies={taxonomies}
                 hiddenFields={shownFields}
+                showProject={showProject}
               />
             );
           })}
@@ -415,16 +436,30 @@ export function CanvasView({ view, evaluated, taxonomies }: CanvasViewProps) {
   );
 }
 
+/**
+ * A Canvas card. Deliberately compact: Status, ID, Type, Priority, Due date,
+ * Assignee, and — outside project-grouped mode — Project. That is the whole
+ * list on purpose.
+ *
+ * `labels`, `estimate`, `startDate`, `progress` and `relations` are NOT
+ * rendered here and should stay that way: a graph node reads only while it
+ * carries a handful of fields, and the edges already carry the relations. This
+ * is curated scope, not an unfinished list — don't "complete" it.
+ */
 function CanvasNode({
   task,
   pos,
+  snapshot,
   taxonomies,
   hiddenFields,
+  showProject,
 }: {
   task: Task;
   pos: PlacedBox;
+  snapshot: WorkspaceSnapshot;
   taxonomies: WorkspaceTaxonomies;
   hiddenFields: readonly TaskField[];
+  showProject: boolean;
 }) {
   const off = (field: TaskField) => hiddenFields.includes(field);
   return (
@@ -432,9 +467,16 @@ function CanvasNode({
       className="vf-canvas-node"
       style={{ left: pos.x, top: pos.y, width: pos.width, height: pos.height }}
     >
-      <div className="vf-canvas-node-top">
+      <div className="vf-canvas-node-row">
         <StatusDot taxonomies={taxonomies} status={task.status} />
         <span className="vf-id">{task.id}</span>
+        {!off("type") && (
+          <TaxonomyChip
+            taxonomies={taxonomies}
+            kind="taskType"
+            id={task.taskType}
+          />
+        )}
         {!off("priority") && (
           <TaxonomyChip
             taxonomies={taxonomies}
@@ -443,6 +485,15 @@ function CanvasNode({
           />
         )}
       </div>
+      <div className="vf-canvas-node-row">
+        {!off("dueDate") && <DueDate task={task} />}
+        {!off("assignee") && (
+          <Assignee people={snapshot.workspace.people} assignee={task.assignee} />
+        )}
+      </div>
+      {showProject && !off("project") && (
+        <ProjectChip task={task} projects={snapshot.projects} />
+      )}
       <div className="vf-canvas-node-title" title={displayTitle(task)}>
         {displayTitle(task)}
       </div>

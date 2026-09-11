@@ -7853,10 +7853,21 @@ button.vf-history-expand {
   overflow: hidden;
 }
 
-.vf-canvas-node-top {
+.vf-canvas-node-row {
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
+}
+
+/* No due date / assignee on this task — drop the row so its gap doesn't
+   eat into the title's two lines. */
+.vf-canvas-node-row:empty {
+  display: none;
+}
+
+.vf-canvas-node .vf-chip-project {
+  max-width: 100%;
 }
 
 .vf-canvas-node-title {

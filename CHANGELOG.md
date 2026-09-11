@@ -22,8 +22,10 @@ This project uses [Semantic Versioning](https://semver.org/).
   out, exactly as on the Board; Label and no grouping render flat. `blocks` /
   `blockedBy` dependencies draw as solid arrows and `parent` → child hierarchy
   as thin arrowless connectors — both feed the layered ranking and may cross
-  boxes; `related` links draw dashed between nodes. The **Fields** control hides
-  node badges and the new **Relations** control toggles each line style off —
+  boxes; `related` links draw dashed between nodes. Cards show status, ID, type,
+  priority, due date, assignee and (outside project grouping) project; the
+  **Fields** control hides any of those badges and the new **Relations** control
+  toggles each line style off —
   hiding a dependency or hierarchy edge also removes it from the layout ranking;
   Sort, Collapse-all and Upcoming are hidden for Canvas. Pan and wheel-zoom, a
   static legend keys the three line styles (dimmed when toggled off), and edge
