@@ -7952,6 +7952,16 @@ button.vf-canvas-zoom-fit {
   font-size: var(--font-ui-smaller);
 }
 
+/* A zero-size anchor at the click point that selected the edge — the
+   `Popover` inside positions itself just below it via its own `top: calc(100%
+   + 5px)`. Lives outside `.vf-canvas-surface`, in screen space, so it doesn't
+   pan/scale with the graph. */
+.vf-canvas-edge-popup {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
 .vf-canvas-legend {
   position: absolute;
   right: 12px;

@@ -290,7 +290,8 @@ export function CanvasView({
       target.closest(".vf-canvas-node") ||
       target.closest(".vf-canvas-zoom") ||
       target.closest(".vf-canvas-draw-mode") ||
-      target.closest(".vf-canvas-edge-hit")
+      target.closest(".vf-canvas-edge-hit") ||
+      target.closest(".vf-canvas-edge-popup")
     ) {
       return;
     }
@@ -467,9 +468,29 @@ export function CanvasView({
     | { kind: "dependency" | "hierarchy"; source: string; target: string }
     | { kind: "related"; a: string; b: string };
   const [selectedEdge, setSelectedEdge] = useState<EdgeRef | null>(null);
+  // Where the click that selected the edge landed, in `.vf-canvas`-relative
+  // coordinates — screen space, not surface space, so the popup doesn't scale
+  // with zoom. Drives the Part F Delete/Reverse popup positioning.
+  const [edgePopupPos, setEdgePopupPos] = useState<{ x: number; y: number } | null>(
+    null,
+  );
 
   const plugin = usePlugin();
   const nodeById = new Map(graph.nodes.map((n) => [n.id, n.task]));
+
+  const clearEdgeSelection = () => {
+    setSelectedEdge(null);
+    setEdgePopupPos(null);
+  };
+
+  const selectEdge = (edge: EdgeRef, e: { clientX: number; clientY: number }) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    setSelectedEdge(edge);
+    setEdgePopupPos({
+      x: rect ? e.clientX - rect.left : e.clientX,
+      y: rect ? e.clientY - rect.top : e.clientY,
+    });
+  };
 
   // A plain function, not a `setState` updater — `setState(fn)` updaters run
   // twice under StrictMode, and these have side effects (file writes), so the
@@ -477,7 +498,7 @@ export function CanvasView({
   const deleteSelectedEdge = () => {
     const edge = selectedEdge;
     if (!edge) return;
-    setSelectedEdge(null);
+    clearEdgeSelection();
     if (edge.kind === "related") {
       const a = nodeById.get(edge.a);
       const b = nodeById.get(edge.b);
@@ -493,6 +514,71 @@ export function CanvasView({
     }
   };
 
+  /**
+   * Flip a selected edge's direction. `related` has no direction — the popup
+   * doesn't even offer this for it, but guard here too rather than trust the
+   * caller. Uses the exact same `Mutations`/cycle-check/overwrite-confirm
+   * machinery Phase 7 already built — no new write capability.
+   */
+  const reverseSelectedEdge = () => {
+    const edge = selectedEdge;
+    if (!edge || edge.kind === "related") return;
+    clearEdgeSelection();
+
+    if (edge.kind === "dependency") {
+      const blocker = nodeById.get(edge.source);
+      const blocked = nodeById.get(edge.target);
+      if (!blocker || !blocked) return;
+
+      // Check the cycle as it would be *after* the old edge is gone — the
+      // existing edge itself would otherwise always look like "the target
+      // already blocks the source" and refuse every reversal.
+      const strip = (t: Task): Task => ({
+        ...t,
+        relations: {
+          ...t.relations,
+          blocks: t.relations.blocks.filter((l) => !linksMatch(l, blocked.path)),
+          blockedBy: t.relations.blockedBy.filter((l) => !linksMatch(l, blocker.path)),
+        },
+      });
+      const withoutOldEdge = snapshot.tasks.map((t) =>
+        t.path === blocker.path || t.path === blocked.path ? strip(t) : t,
+      );
+      if (wouldCreateDependencyCycle(withoutOldEdge, blocked.path, blocker.path)) {
+        new Notice(
+          `Can't reverse — "${blocked.id}" and "${blocker.id}" would block each other in a cycle.`,
+        );
+        return;
+      }
+      void (async () => {
+        await plugin.mutations.removeDependency(blocker, blocked);
+        await plugin.mutations.addDependency(blocked, blocker);
+      })();
+      return;
+    }
+
+    // hierarchy: oldChild becomes oldParent's parent.
+    const oldParent = nodeById.get(edge.source);
+    const oldChild = nodeById.get(edge.target);
+    if (!oldParent || !oldChild) return;
+
+    // Same silent-overwrite risk Phase 7 flags for creating a hierarchy edge:
+    // oldParent is the one becoming a child here, so it's oldParent's *own*
+    // existing parent (unrelated to this edge) that would be replaced.
+    if (oldParent.parent && !linksMatch(oldParent.parent, oldChild.path)) {
+      setPendingReparent({
+        child: oldParent,
+        newParent: oldChild,
+        clearFirst: oldChild,
+      });
+      return;
+    }
+    void (async () => {
+      await plugin.mutations.setParent(oldChild, null);
+      await plugin.mutations.setParent(oldParent, oldChild.path);
+    })();
+  };
+
   useEffect(() => {
     if (!selectedEdge) return;
     const onKey = (e: KeyboardEvent) => {
@@ -505,6 +591,8 @@ export function CanvasView({
       if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault();
         deleteSelectedEdge();
+      } else if (e.key === "Escape") {
+        clearEdgeSelection();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -531,6 +619,9 @@ export function CanvasView({
   const [pendingReparent, setPendingReparent] = useState<{
     child: Task;
     newParent: Task;
+    /** Set only for a hierarchy reversal: sever this task's old parent link
+     *  first, before `child`'s new one is written. */
+    clearFirst?: Task;
   } | null>(null);
 
   const toSurfacePoint = useCallback(
@@ -707,7 +798,7 @@ export function CanvasView({
       onPointerUp={endPan}
       onPointerCancel={endPan}
       onWheel={onWheel}
-      onClick={() => setSelectedEdge(null)}
+      onClick={() => clearEdgeSelection()}
     >
       {view.groupBy === "label" && (
         <div className="vf-canvas-note">
@@ -827,11 +918,10 @@ export function CanvasView({
                     d={edge.d}
                     onClick={(ev) => {
                       ev.stopPropagation();
-                      setSelectedEdge({
-                        kind: edge.kind,
-                        source: edge.source,
-                        target: edge.target,
-                      });
+                      selectEdge(
+                        { kind: edge.kind, source: edge.source, target: edge.target },
+                        ev,
+                      );
                     }}
                   />
                 </g>
@@ -855,7 +945,7 @@ export function CanvasView({
                     d={d}
                     onClick={(ev) => {
                       ev.stopPropagation();
-                      setSelectedEdge({ kind: "related", a, b });
+                      selectEdge({ kind: "related", a, b }, ev);
                     }}
                   />
                 </g>
@@ -999,6 +1089,30 @@ export function CanvasView({
 
       <CanvasLegend hidden={hiddenKindSet} />
 
+      {selectedEdge && edgePopupPos && (
+        <div
+          className="vf-canvas-edge-popup"
+          style={{ left: edgePopupPos.x, top: edgePopupPos.y }}
+        >
+          <Popover align="left" onClose={clearEdgeSelection}>
+            <div className="vf-field-list">
+              <button type="button" className="vf-field-row" onClick={deleteSelectedEdge}>
+                <span className="vf-field-label">Delete</span>
+              </button>
+              {selectedEdge.kind !== "related" && (
+                <button
+                  type="button"
+                  className="vf-field-row"
+                  onClick={reverseSelectedEdge}
+                >
+                  <span className="vf-field-label">Reverse</span>
+                </button>
+              )}
+            </div>
+          </Popover>
+        </div>
+      )}
+
       {pendingReparent &&
         (() => {
           const oldParent = pendingReparent.child.parent
@@ -1016,9 +1130,12 @@ export function CanvasView({
               destructive={false}
               onCancel={() => setPendingReparent(null)}
               onConfirm={() => {
-                const { child, newParent } = pendingReparent;
+                const { child, newParent, clearFirst } = pendingReparent;
                 setPendingReparent(null);
-                void plugin.mutations.setParent(child, newParent.path);
+                void (async () => {
+                  if (clearFirst) await plugin.mutations.setParent(clearFirst, null);
+                  await plugin.mutations.setParent(child, newParent.path);
+                })();
               }}
             />
           );

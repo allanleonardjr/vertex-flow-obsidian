@@ -41,7 +41,7 @@ This project uses [Semantic Versioning](https://semver.org/).
 - **Canvas can now draw and delete relations, not just display them.** A small
   handle appears on a card on hover — drag it to another card to create the
   relation kind currently selected by the top-left **Connect** control, off by
-  default (nothing draws until you pick Blocks / Sub-task of / Related; the
+  default (nothing draws until you pick Blocks / Parent of / Related; the
   handle itself doesn't render while it's off). The drop target is
   highlighted, and turns red when completing it would be refused. Self-loops
   and already-existing links are silently no-ops; a dependency or hierarchy
@@ -77,6 +77,18 @@ This project uses [Semantic Versioning](https://semver.org/).
   any edge highlights it in `--color-orange` instead of
   `--interactive-accent`, which is Depends-on's own base colour — a selected
   Parent-of or Related edge no longer briefly looks like a dependency.
+- **Edge popup: Delete or Reverse.** Selecting a Canvas edge now also opens a
+  small popup near the click with **Delete** and, for Blocks/Parent-of edges,
+  **Reverse** — a second, discoverable way to act alongside the existing
+  click-then-Backspace path, which still works unchanged. Reversing a Blocks
+  edge re-checks for cycles in the new direction (it can't recreate the one
+  it just broke, but a different one could exist through other edges) and
+  refuses the same way creating one does; reversing a Parent-of edge goes
+  through the same "move under a different parent?" confirmation as creating
+  one, if the task about to become a child already has a parent of its own.
+  Related has no direction, so it gets Delete only. Both actions call the
+  same `Mutations` methods the drag-to-connect/Backspace paths already use —
+  no new mutation capability.
 
 ## 1.0.19 — 2026-09-10
 
