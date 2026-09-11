@@ -8019,7 +8019,6 @@ button.vf-canvas-zoom-fit {
    drop-target state. */
 .vf-canvas-node.is-hover-connected {
   border-color: var(--color-yellow);
-  /* box-shadow: 0 0 0 1px var(--color-yellow); */
 }
 
 /* A connect-drag is hovering this card as the drop target. */
