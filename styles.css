@@ -7850,6 +7850,10 @@ button.vf-history-expand {
   border: 1px solid var(--vf-border);
   border-radius: var(--vf-radius);
   background: var(--background-secondary-alt, var(--background-secondary));
+  transition:
+    transform 300ms ease,
+    width 300ms ease,
+    height 300ms ease;
 }
 
 .vf-canvas-group-header {
@@ -8001,6 +8005,10 @@ button.vf-canvas-zoom-fit {
   background: var(--background-secondary);
   overflow: hidden;
   cursor: pointer;
+  transition:
+    transform 300ms ease,
+    width 300ms ease,
+    height 300ms ease;
 }
 
 .vf-canvas-node:hover {

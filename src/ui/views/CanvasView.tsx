@@ -1455,7 +1455,12 @@ function CanvasNode({
         .filter(Boolean)
         .join(" ")}
       data-task-path={task.path}
-      style={{ left: pos.x, top: pos.y, width: pos.width, height: pos.height }}
+      // style={{ left: pos.x, top: pos.y, width: pos.width, height: pos.height }}
+      style={{
+        transform: `translate(${pos.x}px, ${pos.y}px)`,
+        width: pos.width,
+        height: pos.height,
+      }}
       onPointerEnter={() => onHover(task.path)}
       onPointerLeave={() => onHover(null)}
       onClick={(e) => {
