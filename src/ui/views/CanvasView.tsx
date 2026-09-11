@@ -1111,6 +1111,12 @@ export function CanvasView({
                 hiddenFields={shownFields}
                 showProject={showProject}
                 dimmed={isDimmed(id)}
+                highlighted={
+                  !connectDrag &&
+                  hoveredPath != null &&
+                  id !== hoveredPath &&
+                  connectedToHover?.has(id) === true
+                }
                 onHover={setHoveredPath}
                 consumePanClick={consumePanClick}
                 connectTarget={connectTarget}
@@ -1290,6 +1296,7 @@ function CanvasNode({
   hiddenFields,
   showProject,
   dimmed,
+  highlighted,
   onHover,
   consumePanClick,
   connectTarget,
@@ -1305,6 +1312,7 @@ function CanvasNode({
   hiddenFields: readonly TaskField[];
   showProject: boolean;
   dimmed: boolean;
+  highlighted: boolean;
   onHover: (path: string | null) => void;
   /** True when the click that follows was really the end of a pan/connect gesture. */
   consumePanClick: () => boolean;
@@ -1324,6 +1332,7 @@ function CanvasNode({
       className={[
         "vf-canvas-node",
         dimmed && "is-dimmed",
+        highlighted && "is-hover-connected",
         connectTarget === "valid" && "is-connect-target",
         connectTarget === "invalid" && "is-connect-invalid",
       ]

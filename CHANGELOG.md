@@ -68,6 +68,20 @@ This project uses [Semantic Versioning](https://semver.org/).
   are drawn. Left-to-right / top-to-bottom maps to the internal ELK `RIGHT` /
   `DOWN` axis (the labels never surface). With no visible hierarchy edge, tree
   silently falls back to flow and a subtle hint explains why.
+- **Canvas hover highlight.** Hovering a card now gives every card it's
+  directly connected to (via Blocks, Parent-of or Related, regardless of
+  which kinds are currently toggled off) a visible border, on top of the
+  existing dimming of everything unconnected — so at a glance it's clear
+  *which* of the still-bright cards a hover is actually calling out.
+  Suppressed during a connect-drag, same as the dimming it complements.
+- **`relations:` query clause.** The Canvas **Relations** control's hidden-kind
+  state now round-trips through the text query bar too, the same way
+  **Arrange** already does via `canvas-layout:`/`canvas-direction:`. Typing
+  `relations:blocks,parent` hides dependency and hierarchy edges; aliases
+  (`dependency`, `subtask`, `related`, …) resolve to the same canonical
+  kinds. The clause is Canvas-only and only appears when something's
+  actually hidden — switching to another layout or clearing the toggle drops
+  it from the printed query rather than leaving a no-op clause behind.
 
 ### Fixed
 - **Clicking a Canvas edge now actually selects it.** The background-pan

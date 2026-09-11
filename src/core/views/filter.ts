@@ -11,9 +11,11 @@ import { linksMatch } from "../links";
 import { isOpen } from "../taxonomy";
 import { DEFAULT_DEFINITION } from "./defaults";
 import {
+	CANVAS_RELATION_KINDS,
 	NONE,
 	SELF,
 	TASK_FIELDS,
+	type CanvasRelationKind,
 	type LinkTarget,
 	type SavedView,
 	type Task,
@@ -211,6 +213,13 @@ export function canonicalizeHiddenFields(
 	return TASK_FIELDS.filter((field) => set.has(field));
 }
 
+export function canonicalizeHiddenRelationKinds(
+	kinds: readonly CanvasRelationKind[] | undefined,
+): CanvasRelationKind[] {
+	const set = new Set(kinds ?? []);
+	return CANVAS_RELATION_KINDS.filter((kind) => set.has(kind));
+}
+
 /**
  * The hidden-field set a view's rows and cards should actually render with —
  * the user's own choices plus anything the view's filters make redundant.
@@ -247,6 +256,7 @@ export function viewDefinition(view: SavedView): ViewDefinition {
 		calendarDateField: view.calendarDateField,
 		canvasArrangement: view.canvasArrangement,
 		canvasDirection: view.canvasDirection,
+		canvasHiddenRelationKinds: view.canvasHiddenRelationKinds,
 		recurringPreview: view.recurringPreview,
 	};
 }
@@ -271,6 +281,12 @@ export function canonicalizeDefinition(
 			definition.canvasArrangement ?? DEFAULT_DEFINITION.canvasArrangement,
 		canvasDirection:
 			definition.canvasDirection ?? DEFAULT_DEFINITION.canvasDirection,
+		// A *hidden* list, like `hiddenFields` — absent or empty means "show all
+		// three", so canonicalizing to `[]` when unset introduces no second
+		// meaning for "unset" between the Phase 3 toolbar and the query language.
+		canvasHiddenRelationKinds: canonicalizeHiddenRelationKinds(
+			definition.canvasHiddenRelationKinds,
+		),
 		recurringPreview: definition.recurringPreview,
 	};
 }

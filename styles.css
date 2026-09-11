@@ -8012,6 +8012,16 @@ button.vf-canvas-zoom-fit {
   opacity: 0.35;
 }
 
+/* A neighbor of the currently-hovered node — stays full-opacity and gets
+   a border so the "this is what's connected" story is unmistakable
+   against the dimmed nodes around it. One notch quieter than
+   is-connect-target's ring, since this is informational, not an active
+   drop-target state. */
+.vf-canvas-node.is-hover-connected {
+  border-color: var(--color-yellow);
+  /* box-shadow: 0 0 0 1px var(--color-yellow); */
+}
+
 /* A connect-drag is hovering this card as the drop target. */
 .vf-canvas-node.is-connect-target {
   border-color: var(--interactive-accent);

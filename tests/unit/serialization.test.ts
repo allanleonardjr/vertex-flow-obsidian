@@ -1266,6 +1266,44 @@ describe("parseView (per-file)", () => {
 		expect(frontmatter.query).toContain("canvas-direction:down");
 	});
 
+	it("round-trips canvasHiddenRelationKinds through the relations: query clause", () => {
+		const { value } = parseView(
+			{
+				id: "v",
+				name: "V",
+				query: "layout:canvas sort:rank relations:blocks,parent",
+			},
+			{ path: "W/Views/v" },
+		);
+		expect(value.canvasHiddenRelationKinds).toEqual(["dependency", "hierarchy"]);
+
+		// The per-file serializer drops the frontmatter key entirely — the query
+		// string is the single source now, same as canvasArrangement/canvasDirection.
+		const frontmatter = serializeView(value);
+		expect(frontmatter).not.toHaveProperty("canvasHiddenRelationKinds");
+		expect(frontmatter.query).toContain("relations:blocks,parent");
+		expect(parseView(frontmatter, { path: "W/Views/v" }).value).toEqual(value);
+	});
+
+	it("lets a legacy frontmatter canvasHiddenRelationKinds still win over the query", () => {
+		const { value } = parseView(
+			{
+				id: "v",
+				name: "V",
+				viewType: "canvas",
+				canvasHiddenRelationKinds: ["dependency"],
+				query: "layout:canvas",
+			},
+			{ path: "W/Views/v" },
+		);
+		// The legacy key outranks the query default, so pre-query files migrate
+		// in place; re-serializing moves it into the query string.
+		expect(value.canvasHiddenRelationKinds).toEqual(["dependency"]);
+		const frontmatter = serializeView(value);
+		expect(frontmatter).not.toHaveProperty("canvasHiddenRelationKinds");
+		expect(frontmatter.query).toContain("relations:blocks");
+	});
+
 	it("detectViewIdCollisions flags every file in a colliding pair", () => {
 		const a = parseView({ id: "dup" }, { path: "W/Views/a" }).value;
 		const b = parseView({ id: "dup" }, { path: "W/Views/b" }).value;

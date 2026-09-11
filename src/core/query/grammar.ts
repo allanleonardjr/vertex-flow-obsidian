@@ -11,6 +11,7 @@
 import type {
 	CanvasArrangement,
 	CanvasDirection,
+	CanvasRelationKind,
 	EmptyColumnBehavior,
 	GroupByField,
 	SortField,
@@ -152,6 +153,13 @@ export const CANVAS_LAYOUT_VALUES: Record<CanvasArrangement, EnumValueSpec> = {
 export const CANVAS_DIRECTION_VALUES: Record<CanvasDirection, EnumValueSpec> = {
 	right: { token: "right", aliases: ["lr", "left-to-right", "lefttoright"] },
 	down: { token: "down", aliases: ["tb", "top-to-bottom", "toptobottom"] },
+};
+
+/** Canvas-only: which relation kinds are hidden (`relations:` clause). */
+export const RELATION_KIND_VALUES: Record<CanvasRelationKind, EnumValueSpec> = {
+	dependency: { token: "blocks", aliases: ["dependency", "depends", "blocked"] },
+	hierarchy: { token: "parent", aliases: ["hierarchy", "subtask", "child"] },
+	related: { token: "related", aliases: ["rel"] },
 };
 
 export const EMPTY_VALUES: Record<EmptyColumnBehavior, EnumValueSpec> = {
@@ -303,6 +311,10 @@ export const CANVAS_DIRECTION_BY_TOKEN = indexBy(
 	Object.entries(CANVAS_DIRECTION_VALUES) as [CanvasDirection, EnumValueSpec][],
 ) as Map<string, CanvasDirection>;
 
+export const RELATION_KIND_BY_TOKEN = indexBy(
+	Object.entries(RELATION_KIND_VALUES) as [CanvasRelationKind, EnumValueSpec][],
+) as Map<string, CanvasRelationKind>;
+
 export const EMPTY_BY_TOKEN = indexBy(
 	Object.entries(EMPTY_VALUES) as [EmptyColumnBehavior, EnumValueSpec][],
 ) as Map<string, EmptyColumnBehavior>;
@@ -331,6 +343,7 @@ export const LAYOUT_ONLY_CLAUSES: ReadonlySet<string> = new Set([
 	"empty",
 	"canvas-layout",
 	"canvas-direction",
+	"relations",
 ]);
 
 /** Every field token the parser recognises — the pool for "did you mean…". */
@@ -345,6 +358,7 @@ export const ALL_FIELD_TOKENS: readonly string[] = [
 	"subtasks",
 	"canvas-layout",
 	"canvas-direction",
+	"relations",
 	"is",
 	"show",
 	"include",

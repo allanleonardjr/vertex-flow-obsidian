@@ -33,6 +33,7 @@ import {
 	FLAG_TOKENS,
 	GROUP_VALUES,
 	LAYOUT_VALUES,
+	RELATION_KIND_VALUES,
 	SORT_VALUES,
 	SUBTASK_VALUES,
 	TEXT_FIELD,
@@ -284,6 +285,11 @@ export function printQuery(
 		canvasDirection !== DEFAULT_DEFINITION.canvasDirection
 	) {
 		parts.push(`canvas-direction:${CANVAS_DIRECTION_VALUES[canvasDirection].token}`);
+	}
+	const canvasHiddenRelationKinds = canonical.canvasHiddenRelationKinds ?? [];
+	if (canonical.viewType === "canvas" && canvasHiddenRelationKinds.length > 0) {
+		const tokens = canvasHiddenRelationKinds.map((kind) => RELATION_KIND_VALUES[kind].token);
+		parts.push(`relations:${tokens.join(",")}`);
 	}
 	if (canonical.emptyColumnBehavior !== DEFAULT_DEFINITION.emptyColumnBehavior) {
 		parts.push(`empty:${EMPTY_VALUES[canonical.emptyColumnBehavior].token}`);

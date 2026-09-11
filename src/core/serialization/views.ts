@@ -278,9 +278,12 @@ function parseViewValue(
 		// (LR/TB) still wins when present so pre-query files migrate in place.
 		canvasDirection:
 			parseCanvasDirection(record.canvasDirection) ?? def.canvasDirection,
-		canvasHiddenRelationKinds: parseCanvasHiddenRelationKinds(
-			record.canvasHiddenRelationKinds,
-		),
+		// Same precedent: the query string (`relations:`) now owns this too, but
+		// a plain `canvasHiddenRelationKinds` frontmatter key from before this
+		// phase still wins when present, so pre-query files migrate in place.
+		canvasHiddenRelationKinds:
+			parseCanvasHiddenRelationKinds(record.canvasHiddenRelationKinds) ??
+			def.canvasHiddenRelationKinds,
 		timeline: parseTimeline(record.timeline),
 		calendar: parseCalendar(record.calendar),
 	};
@@ -378,9 +381,10 @@ function parseCanvasDirection(
 }
 
 /**
- * Canvas relation kinds hidden from this view — a plain frontmatter key like
- * `canvasDirection`, not part of the `query:` string. Unknown entries are
- * dropped; an empty result becomes `undefined` (the "show all" default).
+ * Legacy plain frontmatter reader for canvas relation kinds hidden from this
+ * view — from before the `relations:` query clause existed. Unknown entries
+ * are dropped; an empty result becomes `undefined` (the "show all" default),
+ * same shape as `parseCanvasDirection`.
  */
 function parseCanvasHiddenRelationKinds(
 	raw: unknown,
@@ -495,11 +499,12 @@ export function serializeView(
 		icon: view.icon,
 		description: view.description,
 		query: printQuery(viewDefinition(view), context) || undefined,
-		// `canvasDirection` now rides in the `query:` string (as
-		// `canvas-direction:`) — never written as a separate frontmatter key
-		// any more. The legacy `LR`/`TB` key is still *read* (see
-		// `parseCanvasDirection`), purely so old view notes migrate in place.
-		canvasHiddenRelationKinds: view.canvasHiddenRelationKinds,
+		// `canvasDirection` and `canvasHiddenRelationKinds` now ride in the
+		// `query:` string (as `canvas-direction:`/`relations:`) — neither is
+		// written as a separate frontmatter key any more. Their legacy plain
+		// keys are still *read* (see `parseCanvasDirection`/
+		// `parseCanvasHiddenRelationKinds`), purely so old view notes migrate
+		// in place.
 		columns: {
 			collapsed: view.columns.collapsed,
 			hidden: view.columns.hidden,

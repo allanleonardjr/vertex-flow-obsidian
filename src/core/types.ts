@@ -826,6 +826,7 @@ export type ViewDefinition = Pick<
 	| "calendarDateField"
 	| "canvasArrangement"
 	| "canvasDirection"
+	| "canvasHiddenRelationKinds"
 	| "recurringPreview"
 >;
 

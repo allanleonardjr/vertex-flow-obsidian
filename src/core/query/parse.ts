@@ -14,6 +14,7 @@
 import type {
 	CanvasArrangement,
 	CanvasDirection,
+	CanvasRelationKind,
 	EmptyColumnBehavior,
 	GroupByField,
 	SortField,
@@ -42,6 +43,7 @@ import {
 	LAYOUT_ONLY_CLAUSES,
 	LEGACY_TOP_LEVEL_VALUES,
 	NOT_EXPRESSIBLE,
+	RELATION_KIND_BY_TOKEN,
 	SORT_BY_TOKEN,
 	SUBTASK_BY_TOKEN,
 } from "./grammar";
@@ -102,6 +104,9 @@ export function parseQuery(
 	let canvasArrangement: CanvasArrangement =
 		DEFAULT_DEFINITION.canvasArrangement;
 	let canvasDirection: CanvasDirection = DEFAULT_DEFINITION.canvasDirection;
+	const canvasHiddenRelationKinds: CanvasRelationKind[] = [
+		...DEFAULT_DEFINITION.canvasHiddenRelationKinds,
+	];
 	let recurringPreview = DEFAULT_DEFINITION.recurringPreview;
 
 	const seen = new Set<string>();
@@ -304,6 +309,26 @@ export function parseQuery(
 			continue;
 		}
 
+		/* -- canvas relation visibility -- */
+
+		if (field === "relations") {
+			if (token.values.length === 0) {
+				fail("empty-value", `"relations" needs a value`, token.span);
+				continue;
+			}
+			noteDuplicate("relations", token.span);
+			for (const value of token.values) {
+				const raw = value.text.trim().toLowerCase();
+				const match = RELATION_KIND_BY_TOKEN.get(raw);
+				if (!match) {
+					fail("unknown-value", `"${raw}" isn't a relation kind`, value.span);
+				} else if (!canvasHiddenRelationKinds.includes(match)) {
+					canvasHiddenRelationKinds.push(match);
+				}
+			}
+			continue;
+		}
+
 		/* -- filters -- */
 
 		const filterKey = FILTER_FIELD_BY_TOKEN.get(field);
@@ -355,6 +380,7 @@ export function parseQuery(
 		calendarDateField,
 		canvasArrangement,
 		canvasDirection,
+		canvasHiddenRelationKinds,
 		recurringPreview,
 	});
 

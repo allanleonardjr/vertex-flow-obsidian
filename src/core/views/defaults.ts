@@ -10,7 +10,7 @@
  * than something baked in.
  */
 
-import { NONE, type CanvasArrangement, type CanvasDirection, type SavedView, type ViewDefinition, type ViewType } from "../types";
+import { NONE, type CanvasArrangement, type CanvasDirection, type CanvasRelationKind, type SavedView, type ViewDefinition, type ViewType } from "../types";
 
 /** The default curated icon for a view of each layout. */
 export function layoutIcon(viewType: ViewType): string {
@@ -33,6 +33,7 @@ export const DEFAULT_SORT_DIRECTION = "asc" as const;
 export const DEFAULT_DEFINITION: ViewDefinition & {
 	canvasArrangement: CanvasArrangement;
 	canvasDirection: CanvasDirection;
+	canvasHiddenRelationKinds: CanvasRelationKind[];
 } = {
 	filters: {},
 	viewType: "list",
@@ -45,6 +46,7 @@ export const DEFAULT_DEFINITION: ViewDefinition & {
 	calendarDateField: "dueDate",
 	canvasArrangement: "flow",
 	canvasDirection: "right",
+	canvasHiddenRelationKinds: [],
 	recurringPreview: false,
 };
 
