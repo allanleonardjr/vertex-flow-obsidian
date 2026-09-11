@@ -17,6 +17,8 @@ This project uses [Semantic Versioning](https://semver.org/).
   once per open pane instead of only in the focused one. Each pane's
   `PrefixEngine` binds a `window` capture listener; it now ignores keydown
   events that didn't originate inside its own pane container.
+- When editing a comment, the [Cancle] and [Save] buttons weren't vertically aligned.
+- Inconsitent padding for meta information on Person Detail View.
 
 ## 1.0.18 — 2026-09-10
 
