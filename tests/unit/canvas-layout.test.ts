@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	DEFAULT_GROUP_PADDING as PAD,
+	createLayoutGuard,
 	flattenCanvasLayout,
 	type EdgeMeta,
 	type ElkLayoutNode,
@@ -174,5 +175,31 @@ describe("flattenCanvasLayout — group box sizing", () => {
 
 		const flat = flattenCanvasLayout(root, meta, OPTS);
 		expect(flat.edges[0].d).toBe("M 2 3 L 9 8");
+	});
+});
+
+describe("createLayoutGuard — out-of-order ELK resolutions", () => {
+	it("commits only the most recent begin()", () => {
+		const guard = createLayoutGuard();
+		const first = guard.begin();
+		const second = guard.begin();
+		const third = guard.begin();
+		// A slow response for `first` lands after a fast one for `third` — it
+		// must be dropped, never overwrite the freshest layout.
+		expect(guard.isCurrent(first)).toBe(false);
+		expect(guard.isCurrent(second)).toBe(false);
+		expect(guard.isCurrent(third)).toBe(true);
+	});
+
+	it("ids are strictly increasing", () => {
+		const guard = createLayoutGuard();
+		const ids = Array.from({ length: 50 }, () => guard.begin());
+		for (let i = 1; i < ids.length; i += 1) {
+			expect(ids[i]).toBe(ids[i - 1] + 1);
+		}
+	});
+
+	it("a fresh guard has nothing current", () => {
+		expect(createLayoutGuard().isCurrent(1)).toBe(false);
 	});
 });

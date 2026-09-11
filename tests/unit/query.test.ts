@@ -88,6 +88,10 @@ describe("round-trip (Invariant A)", () => {
 		["stale person", withFilters({ assignee: ["ghost"] })],
 		["board layout", def({ viewType: "board" })],
 		["calendar layout", def({ viewType: "calendar" })],
+		["canvas layout", def({ viewType: "canvas" })],
+		["canvas flow down", def({ viewType: "canvas", canvasArrangement: "flow", canvasDirection: "down" })],
+		["canvas tree right", def({ viewType: "canvas", canvasArrangement: "tree", canvasDirection: "right" })],
+		["canvas tree down", def({ viewType: "canvas", canvasArrangement: "tree", canvasDirection: "down" })],
 		["calendar by start date", def({ viewType: "calendar", calendarDateField: "startDate" })],
 		["grouping", def({ groupBy: "priority" })],
 		["sorting", def({ sortBy: "dueDate" })],
@@ -144,6 +148,13 @@ describe("round-trip (Invariant A)", () => {
 		}
 		for (const viewType of ["list", "board", "timeline", "calendar"] as const) {
 			expectRoundTrip(def({ viewType }));
+		}
+		for (const arrangement of ["flow", "tree"] as const) {
+			for (const direction of ["right", "down"] as const) {
+				expectRoundTrip(
+					def({ viewType: "canvas", canvasArrangement: arrangement, canvasDirection: direction }),
+				);
+			}
 		}
 		for (const calendarDateField of ["dueDate", "startDate"] as const) {
 			expectRoundTrip(def({ viewType: "calendar", calendarDateField }));
@@ -262,7 +273,8 @@ describe("canonicalisation", () => {
 
 	it("viewDefinition drops identity and column state", () => {
 		expect(Object.keys(viewDefinition(defaultViews()[0])).sort()).toEqual([
-			"calendarDateField", "emptyColumnBehavior", "filters", "groupBy",
+			"calendarDateField", "canvasArrangement", "canvasDirection",
+			"emptyColumnBehavior", "filters", "groupBy",
 			"hiddenFields", "recurringPreview", "sortBy", "sortDirection",
 			"subtaskDisplay", "viewType",
 		]);
@@ -281,6 +293,68 @@ describe("canonicalisation", () => {
 				);
 			}
 		}
+	});
+});
+
+/* -------------------------------------------------- canvas clauses -- */
+
+describe("canvas arrangement clauses", () => {
+	it("accepts the current tokens and their legacy/alias spellings", () => {
+		const parse = (q: string) => parseQuery(q, ctx).definition;
+		expect(parse("canvas-layout:flow")).toMatchObject({ canvasArrangement: "flow" });
+		expect(parse("canvas-layout:layered")).toMatchObject({ canvasArrangement: "flow" });
+		expect(parse("canvas-layout:dependency")).toMatchObject({ canvasArrangement: "flow" });
+		expect(parse("canvas-layout:tree")).toMatchObject({ canvasArrangement: "tree" });
+		expect(parse("canvas-layout:hierarchy")).toMatchObject({ canvasArrangement: "tree" });
+		expect(parse("canvas-layout:hierarchical")).toMatchObject({ canvasArrangement: "tree" });
+		expect(parse("canvas-direction:right")).toMatchObject({ canvasDirection: "right" });
+		expect(parse("canvas-direction:lr")).toMatchObject({ canvasDirection: "right" });
+		expect(parse("canvas-direction:left-to-right")).toMatchObject({ canvasDirection: "right" });
+		expect(parse("canvas-direction:down")).toMatchObject({ canvasDirection: "down" });
+		expect(parse("canvas-direction:tb")).toMatchObject({ canvasDirection: "down" });
+		expect(parse("canvas-direction:top-to-bottom")).toMatchObject({ canvasDirection: "down" });
+	});
+
+	it("rejects an unknown arrangement/direction", () => {
+		const badLayout = parseQuery("canvas-layout:spiral", ctx);
+		expect(badLayout.ok).toBe(false);
+		const badDirection = parseQuery("canvas-direction:diagonal", ctx);
+		expect(badDirection.ok).toBe(false);
+	});
+
+	it("prints the clauses after sort: in canonical order", () => {
+		const src = printQuery(
+			def({
+				viewType: "canvas",
+				groupBy: "status",
+				sortBy: "rank",
+				canvasArrangement: "tree",
+				canvasDirection: "down",
+			}),
+			ctx,
+		);
+		const at = (needle: string) => src.indexOf(needle);
+		expect(at("layout:canvas")).toBeGreaterThanOrEqual(0);
+		expect(at("sort:rank")).toBeGreaterThan(at("group:status"));
+		expect(at("canvas-layout:tree")).toBeGreaterThan(at("sort:rank"));
+		expect(at("canvas-direction:down")).toBeGreaterThan(at("canvas-layout:tree"));
+		expect(src).toBe("layout:canvas group:status sort:rank canvas-layout:tree canvas-direction:down");
+	});
+
+	it("omits canvas clauses unless the layout is canvas", () => {
+		expect(printQuery(def({ viewType: "list", canvasArrangement: "tree" }), ctx)).not.toContain("canvas-");
+		expect(printQuery(def({ viewType: "list", canvasDirection: "down" }), ctx)).not.toContain("canvas-");
+		// Defaults on a canvas view omit the clauses too.
+		expect(printQuery(def({ viewType: "canvas" }), ctx)).not.toContain("canvas-");
+	});
+
+	it("canonicalises omitted canvas fields to their defaults", () => {
+		expect(
+			canonicalizeDefinition(def({ viewType: "canvas" })).canvasArrangement,
+		).toBe("flow");
+		expect(
+			canonicalizeDefinition(def({ viewType: "canvas" })).canvasDirection,
+		).toBe("right");
 	});
 });
 

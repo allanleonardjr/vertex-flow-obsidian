@@ -8,9 +8,15 @@
  *     Board renders as columns, so "No Project"/"No Status", hidden-group
  *     filtering and per-group colour all come for free). `label` and `none`
  *     render flat;
- *   - layered edges — `blocks`/`blockedBy` dependencies (solid, arrowed) and
- *     `parent` → child hierarchy (thin, arrowless) both feed ELK's ranking and
- *     may cross group boxes;
+ *   - two arrangements, chosen per view (`view.canvasArrangement`), each in
+ *     either direction (`view.canvasDirection`, left-to-right or top-to-bottom):
+ *       `flow` — every layering edge (`blocks`/`blockedBy` solid + arrowed,
+ *       `parent` → child thin + arrowless) feeds ELK's ranking and may cross
+ *       group boxes;
+ *       `tree` — only `parent` → child edges feed ELK (an `mrtree` pass);
+ *       `blocks`/`blockedBy` edges are drawn between final node centres after
+ *       layout, overlay-style, like `related` (which is always an overlay).
+ *       With no visible hierarchy edge the pass silently falls back to `flow`;
  *   - `related` links — dashed, arrowless, drawn straight between final node
  *     centres, never fed into the layout.
  *
@@ -40,12 +46,17 @@ import { Notice } from "obsidian";
 import ELK, { type ElkNode } from "elkjs/lib/elk.bundled.js";
 import {
   buildCanvasGraph,
+  canvasEdgePlan,
   canvasGrouping,
+  canvasLayoutSignature,
+  canvasTopologyKey,
   filterCanvasGraph,
+  getCanvasElkOptions,
   type CanvasGraph,
 } from "../../core/canvas/graph";
 import {
   DEFAULT_GROUP_PADDING,
+  createLayoutGuard,
   elkPaddingOption,
   flattenCanvasLayout,
   type EdgeMeta,
@@ -62,6 +73,8 @@ import type { EvaluatedView } from "../../core/views";
 import { layoutIcon, renderedHiddenFields } from "../../core/views";
 import {
   CANVAS_RELATION_KINDS,
+  type CanvasArrangement,
+  type CanvasDirection,
   type CanvasRelationKind,
   type SavedView,
   type Task,
@@ -165,36 +178,59 @@ export function CanvasView({
   // Memoise on the *content* that feeds the graph — visible task paths, their
   // parent, their three relation arrays, and the box each sits in — not on
   // `evaluated` identity, which changes reference on unrelated re-renders.
-  const signature = useMemo(() => {
-    const boxOf = new Map<string, string>();
-    for (const g of visibleGroups) {
-      for (const t of g.tasks) boxOf.set(t.path, g.key);
-    }
-    return visibleTasks
-      .map(
-        (t) =>
-          `${t.path}@${boxOf.get(t.path) ?? ""}|${t.parent ?? ""}|` +
-          `${t.relations.blocks.join(",")}|${t.relations.blockedBy.join(",")}|` +
-          `${t.relations.related.join(",")}`,
-      )
-      .join(";");
-  }, [visibleTasks, visibleGroups]);
+  // Both this and `graph` therefore survive a title/status edit untouched.
+  const topologyKey = useMemo(
+    () => canvasTopologyKey(visibleTasks, visibleGroups),
+    [visibleTasks, visibleGroups],
+  );
 
   const graph: CanvasGraph = useMemo(
     () => filterCanvasGraph(buildCanvasGraph(visibleTasks), [...hiddenKindSet]),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [signature, hiddenKindKey],
+    [topologyKey, hiddenKindKey],
   );
 
-  const direction = view.canvasDirection === "TB" ? "DOWN" : "RIGHT";
+  const arrangement: CanvasArrangement = view.canvasArrangement ?? "flow";
+  const direction: CanvasDirection = view.canvasDirection ?? "right";
+
+  // The full layout signature — the topology above plus the view's canvas
+  // arrangement and direction. Toggling either in the toolbar flips it and
+  // requests a fresh ELK pass; a card edit repaints in place and moves nothing.
+  const layoutKey = useMemo(
+    () =>
+      canvasLayoutSignature(visibleTasks, visibleGroups, {
+        grouped,
+        arrangement,
+        direction,
+      }),
+    [visibleTasks, visibleGroups, grouped, arrangement, direction],
+  );
+
+  // Tree arrangement ranks parent→child edges only, so those are the layout
+  // input and `blocks`/`blockedBy` edges become post-layout overlays. With no
+  // visible hierarchy edge there's nothing to rank — fall back to the flow
+  // pass (without touching the saved setting) and say so.
+  const plan = useMemo(
+    () => canvasEdgePlan(graph, arrangement),
+    [graph, arrangement],
+  );
+  const effectiveArrangement: CanvasArrangement =
+    arrangement === "tree" && plan.layoutEdges.length === 0
+      ? "flow"
+      : arrangement;
+  const treeHasHierarchy = plan.layoutEdges.length > 0;
 
   const [laidOut, setLaidOut] = useState<FlatCanvasLayout | null>(null);
   const [loading, setLoading] = useState(false);
+  const layoutGuard = useRef(createLayoutGuard()).current;
 
   useEffect(() => {
     if (visibleTasks.length === 0) return;
     let cancelled = false;
+    const requestId = layoutGuard.begin();
     setLoading(true);
+
+    const elkOptions = getCanvasElkOptions(effectiveArrangement, direction);
 
     const leaf = (id: string) => ({
       id,
@@ -205,8 +241,7 @@ export function CanvasView({
       ? visibleGroups.map((g) => ({
           id: `group:${g.key}`,
           layoutOptions: {
-            "elk.algorithm": "layered",
-            "elk.direction": direction,
+            ...elkOptions,
             "elk.padding": GROUP_PADDING,
             ...ELK_SPACING,
           },
@@ -214,9 +249,11 @@ export function CanvasView({
         }))
       : graph.nodes.map((n) => leaf(n.id));
 
-    // `edge-${i}` carries the kind + endpoints back by index after layout.
+    // `edge-${i}` carries the kind + endpoints back by index after layout. In
+    // tree mode this is just the parent→child edges (`plan.layoutEdges`);
+    // dependencies are drawn as overlays post-layout instead.
     const edgeMeta = new Map<string, EdgeMeta>();
-    const edges = graph.layeringEdges.map((e, i) => {
+    const edges = plan.layoutEdges.map((e, i) => {
       const id = `edge-${i}`;
       edgeMeta.set(id, { kind: e.kind, source: e.source, target: e.target });
       return { id, sources: [e.source], targets: [e.target] };
@@ -225,8 +262,7 @@ export function CanvasView({
     const elkGraph: ElkNode = {
       id: "root",
       layoutOptions: {
-        "elk.algorithm": "layered",
-        "elk.direction": direction,
+        ...elkOptions,
         "elk.hierarchyHandling": "INCLUDE_CHILDREN",
         ...ELK_SPACING,
       },
@@ -234,10 +270,14 @@ export function CanvasView({
       edges,
     };
 
+    // ELK resolves asynchronously and out of order; a slow pass for an older
+    // signature must never overwrite a fast pass for the newest one. The guard
+    // is monotonically increasing, so only the latest `begin()` may commit —
+    // the `cancelled` flag covers trouble after unmount.
     elk
       .layout(elkGraph)
       .then((res) => {
-        if (cancelled) return;
+        if (cancelled || !layoutGuard.isCurrent(requestId)) return;
         setLaidOut(
           flattenCanvasLayout(res, edgeMeta, {
             nodeWidth: NODE_WIDTH,
@@ -247,7 +287,7 @@ export function CanvasView({
         setLoading(false);
       })
       .catch(() => {
-        if (cancelled) return;
+        if (cancelled || !layoutGuard.isCurrent(requestId)) return;
         setLaidOut(null);
         setLoading(false);
       });
@@ -255,7 +295,16 @@ export function CanvasView({
     return () => {
       cancelled = true;
     };
-  }, [graph, grouped, visibleGroups, visibleTasks.length, direction]);
+  }, [
+    layoutKey,
+    graph,
+    plan,
+    effectiveArrangement,
+    direction,
+    grouped,
+    visibleTasks.length,
+    layoutGuard,
+  ]);
 
   // --- Pan / zoom — transient component state, never persisted. -------------
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -471,19 +520,32 @@ export function CanvasView({
   // Where the click that selected the edge landed, in `.vf-canvas`-relative
   // coordinates — screen space, not surface space, so the popup doesn't scale
   // with zoom. Drives the Part F Delete/Reverse popup positioning.
-  const [edgePopupPos, setEdgePopupPos] = useState<{ x: number; y: number } | null>(
-    null,
-  );
+  const [edgePopupPos, setEdgePopupPos] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
 
   const plugin = usePlugin();
-  const nodeById = new Map(graph.nodes.map((n) => [n.id, n.task]));
+
+  // Live task lookup for render + mutation handlers, built from the workspace
+  // snapshot — NOT from `graph.nodes`, whose `CanvasNode.task` instances are
+  // frozen at layout time. Cards must repaint, and delete/reverse/connect must
+  // read, the freshest task; otherwise a just-edited title or status stays
+  // stale until the next layout pass happens to run.
+  const taskById = useMemo(
+    () => new Map(snapshot.tasks.map((t) => [t.path, t])),
+    [snapshot.tasks],
+  );
 
   const clearEdgeSelection = () => {
     setSelectedEdge(null);
     setEdgePopupPos(null);
   };
 
-  const selectEdge = (edge: EdgeRef, e: { clientX: number; clientY: number }) => {
+  const selectEdge = (
+    edge: EdgeRef,
+    e: { clientX: number; clientY: number },
+  ) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     setSelectedEdge(edge);
     setEdgePopupPos({
@@ -500,16 +562,17 @@ export function CanvasView({
     if (!edge) return;
     clearEdgeSelection();
     if (edge.kind === "related") {
-      const a = nodeById.get(edge.a);
-      const b = nodeById.get(edge.b);
+      const a = taskById.get(edge.a);
+      const b = taskById.get(edge.b);
       if (a && b) void plugin.mutations.removeRelated(a, b);
     } else if (edge.kind === "dependency") {
-      const blocker = nodeById.get(edge.source);
-      const blocked = nodeById.get(edge.target);
-      if (blocker && blocked) void plugin.mutations.removeDependency(blocker, blocked);
+      const blocker = taskById.get(edge.source);
+      const blocked = taskById.get(edge.target);
+      if (blocker && blocked)
+        void plugin.mutations.removeDependency(blocker, blocked);
     } else {
       // hierarchy: source = parent, target = child (see drag direction below).
-      const child = nodeById.get(edge.target);
+      const child = taskById.get(edge.target);
       if (child) void plugin.mutations.setParent(child, null);
     }
   };
@@ -526,8 +589,8 @@ export function CanvasView({
     clearEdgeSelection();
 
     if (edge.kind === "dependency") {
-      const blocker = nodeById.get(edge.source);
-      const blocked = nodeById.get(edge.target);
+      const blocker = taskById.get(edge.source);
+      const blocked = taskById.get(edge.target);
       if (!blocker || !blocked) return;
 
       // Check the cycle as it would be *after* the old edge is gone — the
@@ -537,14 +600,20 @@ export function CanvasView({
         ...t,
         relations: {
           ...t.relations,
-          blocks: t.relations.blocks.filter((l) => !linksMatch(l, blocked.path)),
-          blockedBy: t.relations.blockedBy.filter((l) => !linksMatch(l, blocker.path)),
+          blocks: t.relations.blocks.filter(
+            (l) => !linksMatch(l, blocked.path),
+          ),
+          blockedBy: t.relations.blockedBy.filter(
+            (l) => !linksMatch(l, blocker.path),
+          ),
         },
       });
       const withoutOldEdge = snapshot.tasks.map((t) =>
         t.path === blocker.path || t.path === blocked.path ? strip(t) : t,
       );
-      if (wouldCreateDependencyCycle(withoutOldEdge, blocked.path, blocker.path)) {
+      if (
+        wouldCreateDependencyCycle(withoutOldEdge, blocked.path, blocker.path)
+      ) {
         new Notice(
           `Can't reverse — "${blocked.id}" and "${blocker.id}" would block each other in a cycle.`,
         );
@@ -558,8 +627,8 @@ export function CanvasView({
     }
 
     // hierarchy: oldChild becomes oldParent's parent.
-    const oldParent = nodeById.get(edge.source);
-    const oldChild = nodeById.get(edge.target);
+    const oldParent = taskById.get(edge.source);
+    const oldChild = taskById.get(edge.target);
     if (!oldParent || !oldChild) return;
 
     // Same silent-overwrite risk Phase 7 flags for creating a hierarchy edge:
@@ -693,8 +762,8 @@ export function CanvasView({
 
   const completeConnect = async (source: string, target: string) => {
     if (drawKind === "off") return; // shouldn't be reachable — see startConnect
-    const sourceTask = nodeById.get(source);
-    const targetTask = nodeById.get(target);
+    const sourceTask = taskById.get(source);
+    const targetTask = taskById.get(target);
     if (!sourceTask || !targetTask) return;
 
     if (drawKind === "dependency") {
@@ -789,6 +858,29 @@ export function CanvasView({
         .filter((e): e is { a: string; b: string; d: string } => e !== null)
     : [];
 
+  // Tree-mode `blocks`/`blockedBy` edges — excluded from ELK's ranking, drawn
+  // straight between final node centres after layout with the same styling and
+  // arrowhead as an in-flow dependency edge. Selectable and deletable exactly
+  // like one.
+  const overlayDependencyPaths = laidOut
+    ? plan.overlayDependencyEdges
+        .map(({ source, target }) => {
+          const na = laidOut.nodes.get(source);
+          const nb = laidOut.nodes.get(target);
+          if (!na || !nb) return null;
+          return {
+            source,
+            target,
+            d:
+              `M ${na.x + na.width / 2} ${na.y + na.height / 2} ` +
+              `L ${nb.x + nb.width / 2} ${nb.y + nb.height / 2}`,
+          };
+        })
+        .filter(
+          (e): e is { source: string; target: string; d: string } => e !== null,
+        )
+    : [];
+
   return (
     <div
       ref={canvasRef}
@@ -804,6 +896,13 @@ export function CanvasView({
         <div className="vf-canvas-note">
           Label grouping isn't shown as boxes here — a task can carry several
           labels at once.
+        </div>
+      )}
+
+      {view.canvasArrangement === "tree" && !treeHasHierarchy && (
+        <div className="vf-canvas-note">
+          Hierarchy layout uses parent–child relationships. No visible hierarchy
+          relationships were found.
         </div>
       )}
 
@@ -855,7 +954,7 @@ export function CanvasView({
           >
             <defs>
               <marker
-                id="vf-canvas-arrow"
+                id="vf-canvas-dependency-marker"
                 viewBox="0 0 10 10"
                 refX="9"
                 refY="5"
@@ -864,28 +963,25 @@ export function CanvasView({
                 orient="auto-start-reverse"
               >
                 <path
-                  className="vf-canvas-arrow-head"
+                  className="vf-canvas-dependency-marker"
                   d="M 0 0 L 10 5 L 0 10 z"
                 />
               </marker>
-              {/* Hierarchy edges carry no arrowhead by design, which left no
-                  visual way to tell which end is the parent — a small square
-                  at the source (parent) end, subtler than the dependency
-                  arrowhead so it doesn't compete for attention. */}
+              {/* Parent-of: the same arrowhead shape as Blocks, in the
+                  hierarchy colour, at the child (target) end — pointing into
+                  the child, matching the way Blocks arrows into its target. */}
               <marker
                 id="vf-canvas-parent-marker"
-                viewBox="0 0 8 8"
-                refX="4"
-                refY="4"
-                markerWidth="5"
-                markerHeight="5"
+                viewBox="0 0 10 10"
+                refX="9"
+                refY="5"
+                markerWidth="7"
+                markerHeight="7"
+                orient="auto"
               >
-                <rect
+                <path
                   className="vf-canvas-parent-marker"
-                  x="1"
-                  y="1"
-                  width="6"
-                  height="6"
+                  d="M 0 0 L 10 5 L 0 10 z"
                 />
               </marker>
             </defs>
@@ -904,13 +1000,10 @@ export function CanvasView({
                     d={edge.d}
                     markerEnd={
                       edge.kind === "dependency"
-                        ? "url(#vf-canvas-arrow)"
-                        : undefined
-                    }
-                    markerStart={
-                      edge.kind === "hierarchy"
-                        ? "url(#vf-canvas-parent-marker)"
-                        : undefined
+                        ? "url(#vf-canvas-dependency-marker)"
+                        : edge.kind === "hierarchy"
+                          ? "url(#vf-canvas-parent-marker)"
+                          : undefined
                     }
                   />
                   <path
@@ -919,7 +1012,11 @@ export function CanvasView({
                     onClick={(ev) => {
                       ev.stopPropagation();
                       selectEdge(
-                        { kind: edge.kind, source: edge.source, target: edge.target },
+                        {
+                          kind: edge.kind,
+                          source: edge.source,
+                          target: edge.target,
+                        },
                         ev,
                       );
                     }}
@@ -951,6 +1048,31 @@ export function CanvasView({
                 </g>
               );
             })}
+            {overlayDependencyPaths.map(({ source, target, d }, i) => {
+              const selected =
+                selectedEdge?.kind === "dependency" &&
+                selectedEdge.source === source &&
+                selectedEdge.target === target;
+              return (
+                <g key={`dep-${i}`}>
+                  <path
+                    className={`vf-canvas-edge-dependency${
+                      isEdgeDimmed(source, target) ? " is-dimmed" : ""
+                    }${selected ? " is-selected" : ""}`}
+                    d={d}
+                    markerEnd="url(#vf-canvas-dependency-marker)"
+                  />
+                  <path
+                    className="vf-canvas-edge-hit"
+                    d={d}
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      selectEdge({ kind: "dependency", source, target }, ev);
+                    }}
+                  />
+                </g>
+              );
+            })}
             {connectDrag &&
               (() => {
                 const src = laidOut.nodes.get(connectDrag.source);
@@ -970,7 +1092,7 @@ export function CanvasView({
           </svg>
 
           {[...laidOut.nodes].map(([id, pos]) => {
-            const task = nodeById.get(id);
+            const task = taskById.get(id);
             if (!task) return null;
             const connectTarget: "valid" | "invalid" | null =
               connectDrag?.targetPath === id
@@ -1096,7 +1218,11 @@ export function CanvasView({
         >
           <Popover align="left" onClose={clearEdgeSelection}>
             <div className="vf-field-list">
-              <button type="button" className="vf-field-row" onClick={deleteSelectedEdge}>
+              <button
+                type="button"
+                className="vf-field-row"
+                onClick={deleteSelectedEdge}
+              >
                 <span className="vf-field-label">Delete</span>
               </button>
               {selectedEdge.kind !== "related" && (
@@ -1133,7 +1259,8 @@ export function CanvasView({
                 const { child, newParent, clearFirst } = pendingReparent;
                 setPendingReparent(null);
                 void (async () => {
-                  if (clearFirst) await plugin.mutations.setParent(clearFirst, null);
+                  if (clearFirst)
+                    await plugin.mutations.setParent(clearFirst, null);
                   await plugin.mutations.setParent(child, newParent.path);
                 })();
               }}
@@ -1279,7 +1406,15 @@ function CanvasLegend({ hidden }: { hidden: Set<CanvasRelationKind> }) {
             />
             {kind === "dependency" && (
               <path
-                className="vf-canvas-arrow-head"
+                className="vf-canvas-dependency-marker"
+                d="M 19 2 L 25 5 L 19 8 z"
+              />
+            )}
+            {/* Parent-of: the same arrowhead at the child (right) end,
+                pointing into it — a mirror of the Blocks one. */}
+            {kind === "hierarchy" && (
+              <path
+                className="vf-canvas-parent-marker"
                 d="M 19 2 L 25 5 L 19 8 z"
               />
             )}

@@ -60,10 +60,21 @@ const VIEW_TYPES: ViewType[] = [
 	"canvas",
 ];
 
-const CANVAS_DIRECTIONS: NonNullable<SavedView["canvasDirection"]>[] = [
-	"LR",
-	"TB",
-];
+/**
+ * Canvas (DAG) layout direction, normalised onto `"right"`/`"down"`. The keys
+ * include the legacy frontmatter spellings `"LR"` (left-to-right) and `"TB"`
+ * (top-to-bottom) that predate the query string, so pre-arrangement view notes
+ * migrate in place.
+ */
+const CANVAS_DIRECTION_NORMALIZATION: Record<
+	string,
+	NonNullable<SavedView["canvasDirection"]>
+> = {
+	right: "right",
+	LR: "right",
+	down: "down",
+	TB: "down",
+};
 
 const CANVAS_RELATION_KIND_SET = new Set<string>(CANVAS_RELATION_KINDS);
 
@@ -262,7 +273,11 @@ function parseViewValue(
 		subtaskDisplay: def.subtaskDisplay,
 		calendarDateField: def.calendarDateField,
 		recurringPreview: def.recurringPreview,
-		canvasDirection: parseCanvasDirection(record.canvasDirection),
+		canvasArrangement: def.canvasArrangement,
+		// The query string owns `canvasDirection`; the legacy frontmatter key
+		// (LR/TB) still wins when present so pre-query files migrate in place.
+		canvasDirection:
+			parseCanvasDirection(record.canvasDirection) ?? def.canvasDirection,
 		canvasHiddenRelationKinds: parseCanvasHiddenRelationKinds(
 			record.canvasHiddenRelationKinds,
 		),
@@ -349,17 +364,17 @@ function parseLegacyViewValue(
 }
 
 /**
- * Canvas (DAG) layout direction — a plain identity/chrome key on the view note,
- * not part of the `query:` string. Absent or unrecognised parses to `undefined`
- * (readers apply the `"LR"` default); it never fails validation.
+ * Canvas (DAG) layout direction — normalised from the legacy frontmatter
+ * spellings `"LR"`/`"TB"` and the current `"right"`/`"down"` into the latter.
+ * Absent or unrecognised parses to `undefined` (readers apply the `"right"`
+ * default); it never fails validation.
  */
 function parseCanvasDirection(
 	raw: unknown,
 ): SavedView["canvasDirection"] {
 	const value = asString(raw);
-	return CANVAS_DIRECTIONS.includes(value as never)
-		? (value as SavedView["canvasDirection"])
-		: undefined;
+	if (!value) return undefined;
+	return CANVAS_DIRECTION_NORMALIZATION[value];
 }
 
 /**
@@ -480,7 +495,10 @@ export function serializeView(
 		icon: view.icon,
 		description: view.description,
 		query: printQuery(viewDefinition(view), context) || undefined,
-		canvasDirection: view.canvasDirection,
+		// `canvasDirection` now rides in the `query:` string (as
+		// `canvas-direction:`) — never written as a separate frontmatter key
+		// any more. The legacy `LR`/`TB` key is still *read* (see
+		// `parseCanvasDirection`), purely so old view notes migrate in place.
 		canvasHiddenRelationKinds: view.canvasHiddenRelationKinds,
 		columns: {
 			collapsed: view.columns.collapsed,

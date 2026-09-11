@@ -32,6 +32,7 @@ import { NamedIconDialog } from "../modals/NamedIconDialog";
 import { ExportDialog } from "../modals/ExportDialog";
 import { useSelection } from "../selection";
 import {
+  CanvasArrangeChip,
   CanvasRelationsChip,
   EmptyColumnsChip,
   FieldsControl,
@@ -281,6 +282,8 @@ export function ViewControls({
             <>
               <span className="vf-bar-divider" />
               <CanvasRelationsChip view={view} onChange={editView} />
+              <span className="vf-bar-divider" />
+              <CanvasArrangeChip view={view} onChange={editView} />
             </>
           )}
           <span className="vf-bar-divider" />

@@ -10,7 +10,7 @@
  * than something baked in.
  */
 
-import { NONE, type SavedView, type ViewDefinition, type ViewType } from "../types";
+import { NONE, type CanvasArrangement, type CanvasDirection, type SavedView, type ViewDefinition, type ViewType } from "../types";
 
 /** The default curated icon for a view of each layout. */
 export function layoutIcon(viewType: ViewType): string {
@@ -30,7 +30,10 @@ export const DEFAULT_SORT_DIRECTION = "asc" as const;
  * that omits `group:` means "no grouping", and both sides must agree on what
  * that is or the round-trip breaks.
  */
-export const DEFAULT_DEFINITION: ViewDefinition = {
+export const DEFAULT_DEFINITION: ViewDefinition & {
+	canvasArrangement: CanvasArrangement;
+	canvasDirection: CanvasDirection;
+} = {
 	filters: {},
 	viewType: "list",
 	groupBy: "none",
@@ -40,6 +43,8 @@ export const DEFAULT_DEFINITION: ViewDefinition = {
 	hiddenFields: [],
 	subtaskDisplay: "flat",
 	calendarDateField: "dueDate",
+	canvasArrangement: "flow",
+	canvasDirection: "right",
 	recurringPreview: false,
 };
 

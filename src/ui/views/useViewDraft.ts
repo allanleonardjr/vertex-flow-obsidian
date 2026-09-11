@@ -43,8 +43,9 @@ function definitionOf(view: SavedView) {
 		def: canonicalizeDefinition(viewDefinition(view)),
 		// Canvas-only settings live outside the `query:` string (like the
 		// per-session chrome keys) but are still definitional — editing one from
-		// the toolbar must mark the view unsaved.
-		canvasDirection: view.canvasDirection ?? null,
+		// the toolbar must mark the view unsaved. (`canvasArrangement` and
+		// `canvasDirection` round-trip through the query, so `viewDefinition`
+		// above already carries them.)
 		canvasHiddenRelationKinds: [
 			...(view.canvasHiddenRelationKinds ?? []),
 		].sort(),

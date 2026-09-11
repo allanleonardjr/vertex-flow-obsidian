@@ -237,3 +237,28 @@ export function flattenCanvasLayout(
 
 	return { nodes, groups, edges, width: Math.max(width, 1), height: Math.max(height, 1) };
 }
+
+/**
+ * Monotonically-increasing request ids for async layout passes.
+ *
+ * ELK resolves out of order; if a slow response for an older signature lands
+ * after a fast one for the newest signature, it must be dropped rather than
+ * overwrite the canvas. The component calls `begin()` at the top of each pass
+ * and checks `isCurrent(id)` before committing the result, so only the most
+ * recent pass can ever win.
+ */
+export function createLayoutGuard(): {
+	begin(): number;
+	isCurrent(id: number): boolean;
+} {
+	let current = 0;
+	return {
+		begin() {
+			current += 1;
+			return current;
+		},
+		isCurrent(id) {
+			return id === current;
+		},
+	};
+}

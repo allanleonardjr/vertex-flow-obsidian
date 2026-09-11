@@ -56,6 +56,18 @@ This project uses [Semantic Versioning](https://semver.org/).
   fails; cycle detection (`wouldCreateDependencyCycle`/
   `wouldCreateHierarchyCycle`) is checked against the whole workspace, not
   just what Canvas currently has filtered into view.
+- **Canvas arrange modes: flow/tree, left-to-right/top-to-bottom.** The
+  **Arrange** chip sits in the view bar between **Relations** and **+ Filter**
+  whenever Canvas is the active layout. It offers four options — Dependency
+  flow (left to right), Dependency flow (top to bottom), Hierarchy (left to
+  right) and Hierarchy (top to bottom) — exposed as `canvas-layout:` and
+  `canvas-direction:` clauses in the text query. **Flow** ranks all dependency
+  and parent→child edges together through ELK's `layered` algorithm; **tree**
+  ranks only parent→child edges via `mrtree` and draws dependency edges as
+  overlays between final node centres after layout, the same way related links
+  are drawn. Left-to-right / top-to-bottom maps to the internal ELK `RIGHT` /
+  `DOWN` axis (the labels never surface). With no visible hierarchy edge, tree
+  silently falls back to flow and a subtle hint explains why.
 
 ### Fixed
 - **Clicking a Canvas edge now actually selects it.** The background-pan
@@ -97,6 +109,15 @@ This project uses [Semantic Versioning](https://semver.org/).
   it and only showed through a hover-dimmed card. Each edge is now translated
   by its `container`'s absolute origin instead, so Blocks and Parent-of lines
   connect exactly from card edge to card edge.
+- **Canvas showed stale task data.** Cards rendered — and delete/reverse/
+  connect read — task objects frozen inside the graph at layout time, so a
+  title or status edit stayed stale until the next full ELK pass happened to
+  run. The graph now reads the live workspace snapshot for both rendering and
+  mutation handlers, and the layout effect only re-runs when the placement
+  topology or canvas arrangement/direction actually changes — editing a title
+  repaints the card in place without requesting a re-layout. (A slow stale
+  ELK resolution can no longer overwrite a fresher pass either — only the most
+  recent layout request may commit.)
 
 ## 1.0.19 — 2026-09-10
 

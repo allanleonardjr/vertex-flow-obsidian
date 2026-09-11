@@ -7773,13 +7773,13 @@ button.vf-history-expand {
   stroke-dasharray: 4 3;
 }
 
-/* The one arrowhead — always matches the dependency stroke. */
-.vf-canvas-arrow-head {
+/* The dependency arrowhead — matches its own line colour. */
+.vf-canvas-dependency-marker {
   fill: var(--vf-canvas-edge-dependency);
   stroke: none;
 }
 
-/* The parent-end square on a hierarchy edge — matches its own line colour. */
+/* The parent-end marker on a hierarchy edge — matches its own line colour. */
 .vf-canvas-parent-marker {
   fill: var(--vf-canvas-edge-hierarchy);
   stroke: none;

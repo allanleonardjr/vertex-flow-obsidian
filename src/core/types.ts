@@ -576,6 +576,9 @@ export interface WorkspaceConfig {
  */
 export type ViewType = "list" | "board" | "timeline" | "calendar" | "canvas";
 
+export type CanvasArrangement = "flow" | "tree";
+export type CanvasDirection = "right" | "down";
+
 export type GroupByField =
 	| "none"
 	| "status"
@@ -760,12 +763,18 @@ export interface SavedView {
 	 */
 	calendarDateField: "dueDate" | "startDate";
 	/**
-	 * Canvas (DAG) layout direction: `"LR"` left-to-right (default) or `"TB"`
-	 * top-to-bottom. Not exposed in any UI in Phase 1 — the field exists only so
-	 * the Phase 2 toolbar can land without another view-note migration. Read it
-	 * with a `"LR"` default everywhere.
+	 * Canvas arrangement algorithm: `"flow"` (dependency-first layered layout,
+	 * the default) or `"tree"` (hierarchy-first mrtree layout where dependency
+	 * edges are rendered as post-layout overlays).
 	 */
-	canvasDirection?: "LR" | "TB";
+	canvasArrangement?: CanvasArrangement;
+	/**
+	 * Canvas layout direction: `"right"` left-to-right (default) or `"down"`
+	 * top-to-bottom. Stored in the query string for canvas views; legacy
+	 * frontmatter values `"LR"` and `"TB"` are normalized to `"right"` and
+	 * `"down"` during parsing.
+	 */
+	canvasDirection?: CanvasDirection;
 	/**
 	 * Canvas relation kinds hidden from this view — a *hidden* list, so absent or
 	 * empty means "show all three" (same convention as `hiddenFields`). Hiding
@@ -815,6 +824,8 @@ export type ViewDefinition = Pick<
 	| "hiddenFields"
 	| "subtaskDisplay"
 	| "calendarDateField"
+	| "canvasArrangement"
+	| "canvasDirection"
 	| "recurringPreview"
 >;
 

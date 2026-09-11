@@ -12,6 +12,8 @@
  */
 
 import type {
+	CanvasArrangement,
+	CanvasDirection,
 	EmptyColumnBehavior,
 	GroupByField,
 	SortField,
@@ -26,6 +28,8 @@ import { DEFAULT_DEFINITION } from "../views/defaults";
 import type { QueryContext } from "./context";
 import {
 	ALL_FIELD_TOKENS,
+	CANVAS_DIRECTION_BY_TOKEN,
+	CANVAS_LAYOUT_BY_TOKEN,
 	DATE_FIELD_BY_TOKEN,
 	EMPTY_BY_TOKEN,
 	FIELD_BY_TOKEN,
@@ -95,6 +99,9 @@ export function parseQuery(
 	const hiddenFields: TaskField[] = [...DEFAULT_DEFINITION.hiddenFields];
 	let subtaskDisplay: SubtaskDisplay = DEFAULT_DEFINITION.subtaskDisplay;
 	let calendarDateField = DEFAULT_DEFINITION.calendarDateField;
+	let canvasArrangement: CanvasArrangement =
+		DEFAULT_DEFINITION.canvasArrangement;
+	let canvasDirection: CanvasDirection = DEFAULT_DEFINITION.canvasDirection;
 	let recurringPreview = DEFAULT_DEFINITION.recurringPreview;
 
 	const seen = new Set<string>();
@@ -204,7 +211,9 @@ export function parseQuery(
 			field === "layout" ||
 			field === "empty" ||
 			field === "date" ||
-			field === "subtasks"
+			field === "subtasks" ||
+			field === "canvas-layout" ||
+			field === "canvas-direction"
 		) {
 			const value = soleValue(token);
 			if (!value) continue;
@@ -234,6 +243,24 @@ export function parseQuery(
 				const match = LAYOUT_BY_TOKEN.get(raw);
 				if (!match) fail("unknown-value", `"${raw}" isn't a layout`, value.span);
 				else viewType = match;
+			} else if (field === "canvas-layout") {
+				const match = CANVAS_LAYOUT_BY_TOKEN.get(raw);
+				if (!match) {
+					fail(
+						"unknown-value",
+						`"${raw}" isn't a canvas arrangement`,
+						value.span,
+					);
+				} else canvasArrangement = match;
+			} else if (field === "canvas-direction") {
+				const match = CANVAS_DIRECTION_BY_TOKEN.get(raw);
+				if (!match) {
+					fail(
+						"unknown-value",
+						`"${raw}" isn't a canvas direction`,
+						value.span,
+					);
+				} else canvasDirection = match;
 			} else if (field === "date") {
 				const match = DATE_FIELD_BY_TOKEN.get(raw);
 				if (!match) {
@@ -326,6 +353,8 @@ export function parseQuery(
 		hiddenFields,
 		subtaskDisplay,
 		calendarDateField,
+		canvasArrangement,
+		canvasDirection,
 		recurringPreview,
 	});
 

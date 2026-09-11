@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
 	buildCanvasGraph,
+	canvasEdgePlan,
+	canvasLayoutSignature,
+	canvasTopologyKey,
 	filterCanvasGraph,
+	getCanvasElkOptions,
 } from "../../src/core/canvas/graph";
 import { emptyRelations } from "../../src/core/types";
 import { task } from "./fixtures";
@@ -130,5 +134,122 @@ describe("filterCanvasGraph — relation-kind visibility", () => {
 		expect(g.layeringEdges).toEqual([]);
 		expect(g.relatedEdges).toEqual([]);
 		expect(g.nodes).toHaveLength(2);
+	});
+});
+
+describe("getCanvasElkOptions", () => {
+	it("maps flow → layered and tree → mrtree", () => {
+		expect(getCanvasElkOptions("flow", "right")).toMatchObject({
+			"elk.algorithm": "layered",
+			"elk.direction": "RIGHT",
+		});
+		expect(getCanvasElkOptions("tree", "down")).toMatchObject({
+			"elk.algorithm": "mrtree",
+			"elk.direction": "DOWN",
+		});
+	});
+
+	it("never emits the ELK identifiers themselves as the direction option", () => {
+		expect(getCanvasElkOptions("tree", "right")).toEqual({
+			"elk.algorithm": "mrtree",
+			"elk.direction": "RIGHT",
+		});
+	});
+});
+
+describe("canvasEdgePlan", () => {
+	const build = () => {
+		const par = t("PAR");
+		const chi = t("CHI", {
+			parent: "W/Tasks/PAR",
+			relations: { blocks: ["W/Tasks/PAR"], related: ["W/Tasks/PAR"] },
+		});
+		return buildCanvasGraph([par, chi]);
+	};
+
+	it("flow feeds every layering edge to ELK and overlays nothing", () => {
+		const plan = canvasEdgePlan(build(), "flow");
+		expect(plan.layoutEdges).toHaveLength(2);
+		expect(plan.overlayDependencyEdges).toEqual([]);
+	});
+
+	it("tree feeds only hierarchy edges to ELK", () => {
+		const plan = canvasEdgePlan(build(), "tree");
+		expect(plan.layoutEdges.map((e) => e.kind)).toEqual(["hierarchy"]);
+	});
+
+	it("tree overlays dependency edges for post-layout rendering", () => {
+		const plan = canvasEdgePlan(build(), "tree");
+		expect(plan.overlayDependencyEdges).toEqual([
+			{ source: "W/Tasks/CHI", target: "W/Tasks/PAR", kind: "dependency" },
+		]);
+	});
+
+	it("reports an empty layout edge set for a tree with no hierarchy — the fallback signal", () => {
+		const a = t("A", { relations: { blocks: ["W/Tasks/B"] } });
+		const b = t("B");
+		const plan = canvasEdgePlan(buildCanvasGraph([a, b]), "tree");
+		expect(plan.layoutEdges).toEqual([]);
+		expect(plan.overlayDependencyEdges).toHaveLength(1);
+	});
+
+	it("respects hidden kinds: hiding hierarchy in tree mode leaves nothing to rank", () => {
+		const par = t("PAR");
+		const chi = t("CHI", {
+			parent: "W/Tasks/PAR",
+			relations: { blocks: ["W/Tasks/PAR"] },
+		});
+		const filtered = filterCanvasGraph(buildCanvasGraph([par, chi]), ["hierarchy"]);
+		expect(canvasEdgePlan(filtered, "tree").layoutEdges).toEqual([]);
+	});
+});
+
+describe("canvasTopologyKey / canvasLayoutSignature", () => {
+	const par = t("PAR", { relations: { blocks: ["W/Tasks/A"] } });
+	const chi = t("CHI", { parent: "W/Tasks/PAR" });
+	const a = t("A");
+
+	it("is stable across a title-only edit (cards repaint in place)", () => {
+		const before = canvasTopologyKey([par, chi, a], []);
+		const retitled = a;
+		retitled.title = "Renamed just now";
+		expect(canvasTopologyKey([par, chi, retitled], [])).toBe(before);
+	});
+
+	it("flips when a task is re-parented", () => {
+		const before = canvasTopologyKey([par, chi, a], []);
+		const reparented = t("CHI", { parent: "W/Tasks/A" });
+		expect(canvasTopologyKey([par, reparented, a], [])).not.toBe(before);
+	});
+
+	it("flips when a relation changes", () => {
+		const before = canvasTopologyKey([par, chi, a], []);
+		const edited = t("A", { relations: { blocks: ["W/Tasks/PAR"] } });
+		expect(canvasTopologyKey([par, chi, edited], [])).not.toBe(before);
+	});
+
+	it("tracks which box each task sits in", () => {
+		const boxes = [{ key: "todo", tasks: [par, a] }];
+		const flat = canvasTopologyKey([par, a], []);
+		const grouped = canvasTopologyKey([par, a], boxes);
+		expect(grouped).not.toBe(flat);
+	});
+
+	it("layout signature flips with arrangement and direction, not titles", () => {
+		const opts = {
+			grouped: false,
+			arrangement: "flow" as const,
+			direction: "right" as const,
+		};
+		const retitled = { ...a, title: "Other title" };
+		expect(
+			canvasLayoutSignature([par, chi, retitled], [], opts),
+		).toBe(canvasLayoutSignature([par, chi, a], [], opts));
+		expect(
+			canvasLayoutSignature([par, chi, a], [], { ...opts, arrangement: "tree" }),
+		).not.toBe(canvasLayoutSignature([par, chi, a], [], opts));
+		expect(
+			canvasLayoutSignature([par, chi, a], [], { ...opts, direction: "down" }),
+		).not.toBe(canvasLayoutSignature([par, chi, a], [], opts));
 	});
 });

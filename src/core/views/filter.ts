@@ -9,6 +9,7 @@
 
 import { linksMatch } from "../links";
 import { isOpen } from "../taxonomy";
+import { DEFAULT_DEFINITION } from "./defaults";
 import {
 	NONE,
 	SELF,
@@ -244,6 +245,8 @@ export function viewDefinition(view: SavedView): ViewDefinition {
 		hiddenFields: view.hiddenFields,
 		subtaskDisplay: view.subtaskDisplay,
 		calendarDateField: view.calendarDateField,
+		canvasArrangement: view.canvasArrangement,
+		canvasDirection: view.canvasDirection,
 		recurringPreview: view.recurringPreview,
 	};
 }
@@ -261,6 +264,13 @@ export function canonicalizeDefinition(
 		hiddenFields: canonicalizeHiddenFields(definition.hiddenFields),
 		subtaskDisplay: definition.subtaskDisplay,
 		calendarDateField: definition.calendarDateField,
+		// Canvas arrangement/direction resolve to their defaults when absent —
+		// a pre-arrangement view note carries neither, and canonical canonicity
+		// (the round-trip invariant) needs those as explicit values.
+		canvasArrangement:
+			definition.canvasArrangement ?? DEFAULT_DEFINITION.canvasArrangement,
+		canvasDirection:
+			definition.canvasDirection ?? DEFAULT_DEFINITION.canvasDirection,
 		recurringPreview: definition.recurringPreview,
 	};
 }

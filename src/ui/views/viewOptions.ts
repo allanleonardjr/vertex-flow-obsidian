@@ -12,6 +12,8 @@ import {
   NONE,
   SELF,
   TASK_FIELDS,
+  type CanvasArrangement,
+  type CanvasDirection,
   type EmptyColumnBehavior,
   type GroupByField,
   type SortField,
@@ -64,6 +66,49 @@ export const EMPTY_COLUMN_OPTIONS: {
   { value: "auto-collapse", label: "Collapse" },
   { value: "auto-hide", label: "Hide" },
 ];
+
+/**
+ * Canvas-only: the combined arrangement × direction choices, in the order the
+ * Arrange popover lists them. The `label` is the full option row ("Dependency
+ * flow (left to right)"); `summary` is the compact bar face ("Flow Right").
+ * The ELK algorithm and axis literals are internal and never surface here.
+ */
+export const CANVAS_ARRANGE_OPTIONS: {
+  value: { arrangement: CanvasArrangement; direction: CanvasDirection };
+  label: string;
+  summary: string;
+}[] = [
+  {
+    value: { arrangement: "flow", direction: "right" },
+    label: "Dependency flow (left to right)",
+    summary: "Flow Right",
+  },
+  {
+    value: { arrangement: "flow", direction: "down" },
+    label: "Dependency flow (top to bottom)",
+    summary: "Flow Down",
+  },
+  {
+    value: { arrangement: "tree", direction: "right" },
+    label: "Hierarchy (left to right)",
+    summary: "Tree Right",
+  },
+  {
+    value: { arrangement: "tree", direction: "down" },
+    label: "Hierarchy (top to bottom)",
+    summary: "Tree Down",
+  },
+];
+
+/** The compact bar-face summary for a view's current arrangement. */
+export const canvasArrangeSummary = (
+  arrangement: CanvasArrangement,
+  direction: CanvasDirection,
+): string =>
+  CANVAS_ARRANGE_OPTIONS.find(
+    (o) =>
+      o.value.arrangement === arrangement && o.value.direction === direction,
+  )?.summary ?? "Arrange";
 
 /**
  * The task fields a view can hide, in `TASK_FIELDS` (canonical) order.

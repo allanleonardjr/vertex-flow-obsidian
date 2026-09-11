@@ -9,6 +9,8 @@ import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import {
   CANVAS_RELATION_KINDS,
+  type CanvasArrangement,
+  type CanvasDirection,
   type CanvasRelationKind,
   type EmptyColumnBehavior,
   type GroupByField,
@@ -22,11 +24,13 @@ import { Icon } from "../components/Icon";
 import { Popover } from "../components/Popover";
 import { RELATION_KIND_LABELS } from "./CanvasView";
 import {
+  CANVAS_ARRANGE_OPTIONS,
   EMPTY_COLUMN_OPTIONS,
   FIELD_OPTIONS,
   GROUP_OPTIONS,
   SORT_OPTIONS,
   SUBTASK_OPTIONS,
+  canvasArrangeSummary,
   optionLabel,
   type TaskField,
 } from "./viewOptions";
@@ -419,6 +423,74 @@ export function CanvasRelationsChip({
                     {shown ? <Eye size={14} /> : <EyeOff size={14} />}
                   </span>
                   <span className="vf-field-label">{label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </Popover>
+      )}
+    </span>
+  );
+}
+
+/**
+ * Canvas-only: how the graph is arranged — two layouts (dependency *flow* vs
+ * parent–child *tree*) × two directions (left-to-right / top-to-bottom). One
+ * control, four options, exactly like `Rel`-ations above it; the text query
+ * spells it `canvas-layout:` / `canvas-direction:`.
+ */
+export function CanvasArrangeChip({
+  view,
+  onChange,
+}: {
+  view: SavedView;
+  onChange: (next: SavedView) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const arrangement: CanvasArrangement = view.canvasArrangement ?? "flow";
+  const direction: CanvasDirection = view.canvasDirection ?? "right";
+
+  return (
+    <span className="vf-control-anchor">
+      <button
+        type="button"
+        className={`vf-bar-item${open ? " is-on" : ""}`}
+        onClick={(event) => {
+          event.stopPropagation();
+          setOpen((current) => !current);
+        }}
+      >
+        <span className="vf-bar-label">Arrange</span>
+        <span className="vf-bar-value">
+          {canvasArrangeSummary(arrangement, direction)}
+        </span>
+        <span className="vf-bar-caret" aria-hidden>
+          ⌄
+        </span>
+      </button>
+      {open && (
+        <Popover align="left" onClose={() => setOpen(false)}>
+          <div className="vf-field-list">
+            {CANVAS_ARRANGE_OPTIONS.map((option) => {
+              const active =
+                option.value.arrangement === arrangement &&
+                option.value.direction === direction;
+              return (
+                <button
+                  key={`${option.value.arrangement}-${option.value.direction}`}
+                  type="button"
+                  className={`vf-field-row${active ? " is-on" : ""}`}
+                  aria-pressed={active}
+                  onClick={() => {
+                    onChange({
+                      ...view,
+                      canvasArrangement: option.value.arrangement,
+                      canvasDirection: option.value.direction,
+                    });
+                    setOpen(false);
+                  }}
+                >
+                  <span className="vf-field-label">{option.label}</span>
                 </button>
               );
             })}
