@@ -7744,7 +7744,7 @@ button.vf-history-expand {
    component never names a colour. */
 .vf-canvas {
   --vf-canvas-edge-dependency: var(--interactive-accent);
-  --vf-canvas-edge-hierarchy: var(--text-muted);
+  --vf-canvas-edge-hierarchy: var(--color-blue);
   --vf-canvas-edge-related: var(--text-faint);
 }
 
@@ -7779,6 +7779,12 @@ button.vf-history-expand {
   stroke: none;
 }
 
+/* The parent-end square on a hierarchy edge — matches its own line colour. */
+.vf-canvas-parent-marker {
+  fill: var(--vf-canvas-edge-hierarchy);
+  stroke: none;
+}
+
 /* Hover highlight — a pure CSS-class toggle, no re-layout involved. An edge
    that doesn't touch the hovered node fades; group boxes are untouched. */
 .vf-canvas-edge-dependency.is-dimmed,
@@ -7787,11 +7793,14 @@ button.vf-history-expand {
   opacity: 0.15;
 }
 
-/* Clicked — a visible, distinct state from unselected (thicker + accent). */
+/* Clicked — a visibly distinct, transient "selected" state, not
+   `--interactive-accent` (that's dependency's own base colour, and a
+   selected hierarchy/related edge turning that colour would read as "this
+   means blocks", exactly the ambiguity this feature avoids elsewhere). */
 .vf-canvas-edge-dependency.is-selected,
 .vf-canvas-edge-hierarchy.is-selected,
 .vf-canvas-edge-related.is-selected {
-  stroke: var(--interactive-accent);
+  stroke: var(--color-orange);
   stroke-width: 2.5px;
 }
 

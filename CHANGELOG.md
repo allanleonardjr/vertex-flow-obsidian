@@ -64,6 +64,19 @@ This project uses [Semantic Versioning](https://semver.org/).
   reachable. Also: hovering a card no longer dims other cards/edges while a
   connect-drag is in progress — the two highlight states were fighting for the
   same nodes.
+- **Cramped/collapsed edges inside a small Canvas group.** A group's own
+  internal `elkjs` layout pass wasn't inheriting the root's node/layer
+  spacing, so relations inside a small group (e.g. `group:status` with just a
+  couple of tasks) rendered as tight, near-illegible stubs instead of clean
+  lines. Every group now sets the same spacing options the root does.
+- **Canvas relation clarity.** Hierarchy (`Parent of`, renamed from
+  `Sub-task of` — the label now matches the drag direction) lines get their
+  own colour (`--color-blue`) instead of sharing a near-identical grey with
+  Related, and now show a small square at the parent end so the direction
+  reads without following the arrow-vs-no-arrow convention alone. Selecting
+  any edge highlights it in `--color-orange` instead of
+  `--interactive-accent`, which is Depends-on's own base colour — a selected
+  Parent-of or Related edge no longer briefly looks like a dependency.
 
 ## 1.0.19 — 2026-09-10
 

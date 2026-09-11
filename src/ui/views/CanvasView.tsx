@@ -99,14 +99,33 @@ const NODE_WIDTH = 240;
 const NODE_HEIGHT = 136;
 /** `elk.padding` inside a group box, kept in sync with the render-side fit. */
 const GROUP_PADDING = elkPaddingOption(DEFAULT_GROUP_PADDING);
+/**
+ * Node/layer spacing shared by the root layout pass and every group's own
+ * internal one. ELK doesn't inherit a compound node's own `layoutOptions`
+ * into its children's nested layered pass — a group node that only sets
+ * `elk.algorithm`/`elk.direction`/`elk.padding` runs its internal layout at
+ * ELK's (much tighter) library defaults, which is what was collapsing edges
+ * between two close-together nodes inside a small group into near-degenerate
+ * stubs. Root and every group must set the same values explicitly.
+ */
+const ELK_SPACING: Record<string, string> = {
+  "elk.spacing.nodeNode": "36",
+  "elk.layered.spacing.nodeNodeBetweenLayers": "64",
+};
 
 const MIN_SCALE = 0.2;
 const MAX_SCALE = 2.5;
 
-/** Human labels for the relation-kind visibility toggle. */
-const RELATION_KIND_LABELS: Record<CanvasRelationKind, string> = {
+/**
+ * Human labels — shared by the legend, the relation-visibility toggle, and
+ * the drawing-mode selector, so all three always agree. "Parent of", not
+ * "Sub-task of": a hierarchy edge is dragged from the parent (matching the
+ * rendered line's source→target convention), and "Sub-task of" read as if
+ * you'd drag from the child.
+ */
+export const RELATION_KIND_LABELS: Record<CanvasRelationKind, string> = {
   dependency: "Blocks",
-  hierarchy: "Sub-task of",
+  hierarchy: "Parent of",
   related: "Related",
 };
 
@@ -189,6 +208,7 @@ export function CanvasView({
             "elk.algorithm": "layered",
             "elk.direction": direction,
             "elk.padding": GROUP_PADDING,
+            ...ELK_SPACING,
           },
           children: g.tasks.map((t) => leaf(t.path)),
         }))
@@ -208,8 +228,7 @@ export function CanvasView({
         "elk.algorithm": "layered",
         "elk.direction": direction,
         "elk.hierarchyHandling": "INCLUDE_CHILDREN",
-        "elk.spacing.nodeNode": "36",
-        "elk.layered.spacing.nodeNodeBetweenLayers": "64",
+        ...ELK_SPACING,
       },
       children,
       edges,
@@ -758,6 +777,26 @@ export function CanvasView({
                   d="M 0 0 L 10 5 L 0 10 z"
                 />
               </marker>
+              {/* Hierarchy edges carry no arrowhead by design, which left no
+                  visual way to tell which end is the parent — a small square
+                  at the source (parent) end, subtler than the dependency
+                  arrowhead so it doesn't compete for attention. */}
+              <marker
+                id="vf-canvas-parent-marker"
+                viewBox="0 0 8 8"
+                refX="4"
+                refY="4"
+                markerWidth="5"
+                markerHeight="5"
+              >
+                <rect
+                  className="vf-canvas-parent-marker"
+                  x="1"
+                  y="1"
+                  width="6"
+                  height="6"
+                />
+              </marker>
             </defs>
             {laidOut.edges.map((edge, i) => {
               const selected =
@@ -775,6 +814,11 @@ export function CanvasView({
                     markerEnd={
                       edge.kind === "dependency"
                         ? "url(#vf-canvas-arrow)"
+                        : undefined
+                    }
+                    markerStart={
+                      edge.kind === "hierarchy"
+                        ? "url(#vf-canvas-parent-marker)"
                         : undefined
                     }
                   />

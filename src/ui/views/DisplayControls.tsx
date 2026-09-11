@@ -20,6 +20,7 @@ import {
 import { layoutIcon } from "../../core/views";
 import { Icon } from "../components/Icon";
 import { Popover } from "../components/Popover";
+import { RELATION_KIND_LABELS } from "./CanvasView";
 import {
   EMPTY_COLUMN_OPTIONS,
   FIELD_OPTIONS,
@@ -354,12 +355,6 @@ export function FieldsControl({
   );
 }
 
-const CANVAS_RELATION_LABELS: Record<CanvasRelationKind, string> = {
-  dependency: "Blocks",
-  hierarchy: "Sub-task of",
-  related: "Related",
-};
-
 /**
  * Canvas-only: which relationship kinds the graph draws. A *hidden* list, like
  * `hiddenFields` — empty means all three show. Hiding `dependency`/`hierarchy`
@@ -410,7 +405,7 @@ export function CanvasRelationsChip({
           <div className="vf-field-list">
             {CANVAS_RELATION_KINDS.map((kind) => {
               const shown = !hidden.includes(kind);
-              const label = CANVAS_RELATION_LABELS[kind];
+              const label = RELATION_KIND_LABELS[kind];
               return (
                 <button
                   key={kind}
