@@ -242,7 +242,13 @@ export function FieldsControl({
 }) {
   const [open, setOpen] = useState(false);
   const hidden = view.hiddenFields;
-  const visibleCount = FIELD_OPTIONS.length - hidden.length;
+  // Canvas curates its field set (Phase 4) — it never even offers the other
+  // five as toggleable, so the popover, the count, and the bulk actions below
+  // all have to work off this filtered set, not the global FIELD_OPTIONS.
+  const options = FIELD_OPTIONS.filter(
+    (o) => !o.unsupportedFor?.includes(view.viewType),
+  );
+  const visibleCount = options.filter((o) => !hidden.includes(o.value)).length;
 
   const toggle = (field: TaskField) =>
     onChange({
@@ -264,9 +270,9 @@ export function FieldsControl({
       >
         <span className="vf-bar-label">Fields</span>
         <span className="vf-bar-value">
-          {hidden.length === 0
+          {visibleCount === options.length
             ? "All"
-            : `${visibleCount} of ${FIELD_OPTIONS.length}`}
+            : `${visibleCount} of ${options.length}`}
         </span>
         <span className="vf-bar-caret" aria-hidden>
           ⌄
@@ -275,7 +281,7 @@ export function FieldsControl({
       {open && (
         <Popover align="left" onClose={() => setOpen(false)}>
           <div className="vf-field-list">
-            {FIELD_OPTIONS.map((option) => {
+            {options.map((option) => {
               const shown = !hidden.includes(option.value);
               return (
                 <button
@@ -312,11 +318,21 @@ export function FieldsControl({
             <button
               type="button"
               className="vf-field-bulk"
-              disabled={hidden.length === FIELD_OPTIONS.length}
+              disabled={visibleCount === 0}
               onClick={() =>
                 onChange({
                   ...view,
-                  hiddenFields: FIELD_OPTIONS.map((o) => o.value),
+                  // hiddenFields is shared across every layout a view can take
+                  // (Board's Labels stay hidden even after switching to
+                  // Canvas), so "Hide all" here must only add the fields this
+                  // view's popover actually offered — never the ones Canvas
+                  // never showed as toggleable in the first place.
+                  hiddenFields: [
+                    ...hidden.filter(
+                      (f) => !options.some((o) => o.value === f),
+                    ),
+                    ...options.map((o) => o.value),
+                  ],
                 })
               }
             >

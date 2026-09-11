@@ -24,7 +24,9 @@ This project uses [Semantic Versioning](https://semver.org/).
   as thin arrowless connectors — both feed the layered ranking and may cross
   boxes; `related` links draw dashed between nodes. Cards show status, ID, type,
   priority, due date, assignee and (outside project grouping) project; the
-  **Fields** control hides any of those badges and the new **Relations** control
+  **Fields** popover narrows itself to just those five on Canvas — Labels,
+  Estimate, Start date, Progress and Relations aren't offered there since
+  toggling them would do nothing — and the new **Relations** control
   toggles each line style off —
   hiding a dependency or hierarchy edge also removes it from the layout ranking;
   Sort, Collapse-all and Upcoming are hidden for Canvas. Pan and wheel-zoom, a

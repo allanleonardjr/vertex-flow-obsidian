@@ -18,6 +18,7 @@ import {
 	type SubtaskDisplay,
 	type TaskField,
 	type ViewFilters,
+	type ViewType,
 	type WorkspaceSnapshot,
 } from "../../core/types";
 
@@ -74,22 +75,35 @@ export const EMPTY_COLUMN_OPTIONS: {
  * which exists to keep `hide:` output stable.
  *
  * `hint` explains a field whose behaviour isn't obvious from its name.
+ * `unsupportedFor` scopes an entry out of a view type's Fields popover — its
+ * toggle would otherwise do nothing there. Only Canvas (Phase 4) currently
+ * curates its field set this way; every other layout still offers all ten.
  */
 export const FIELD_OPTIONS: {
 	value: TaskField;
 	label: string;
 	hint?: string;
+	unsupportedFor?: ViewType[];
 }[] = [
-	{ value: "type", label: "Type", hint: "Board & List" },
-	{ value: "project", label: "Project", hint: "Hidden when filtered to one" },
+	{ value: "type", label: "Type", hint: "Board, List & Canvas" },
+	{
+		value: "project",
+		label: "Project",
+		hint: "Hidden when filtered to one, or when grouped by project",
+	},
 	{ value: "priority", label: "Priority" },
 	{ value: "assignee", label: "Assignee" },
-	{ value: "labels", label: "Labels" },
-	{ value: "estimate", label: "Estimate" },
-	{ value: "startDate", label: "Start date" },
+	{ value: "labels", label: "Labels", unsupportedFor: ["canvas"] },
+	{ value: "estimate", label: "Estimate", unsupportedFor: ["canvas"] },
+	{ value: "startDate", label: "Start date", unsupportedFor: ["canvas"] },
 	{ value: "dueDate", label: "Due date" },
-	{ value: "progress", label: "Progress", hint: "Sub-task rollup" },
-	{ value: "relations", label: "Relations" },
+	{
+		value: "progress",
+		label: "Progress",
+		hint: "Sub-task rollup",
+		unsupportedFor: ["canvas"],
+	},
+	{ value: "relations", label: "Relations", unsupportedFor: ["canvas"] },
 ];
 
 export const optionLabel = <T extends string>(
