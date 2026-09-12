@@ -5,25 +5,28 @@
  */
 
 export interface HelpTopic {
-	id: string;
-	title: string;
-	icon?: string;
-	content?: string;
-	children?: HelpTopic[];
+  id: string;
+  title: string;
+  icon?: string;
+  content?: string;
+  children?: HelpTopic[];
 }
 
 export { HELP_TOPICS } from "./help-generated";
 
 /** Depth-first lookup by id, anywhere in the tree. */
-export function findHelpTopic(topics: HelpTopic[], id: string): HelpTopic | null {
-	for (const topic of topics) {
-		if (topic.id === id) return topic;
-		if (topic.children) {
-			const found = findHelpTopic(topic.children, id);
-			if (found) return found;
-		}
-	}
-	return null;
+export function findHelpTopic(
+  topics: HelpTopic[],
+  id: string,
+): HelpTopic | null {
+  for (const topic of topics) {
+    if (topic.id === id) return topic;
+    if (topic.children) {
+      const found = findHelpTopic(topic.children, id);
+      if (found) return found;
+    }
+  }
+  return null;
 }
 
 /**
@@ -39,13 +42,13 @@ export function findHelpTopic(topics: HelpTopic[], id: string): HelpTopic | null
  * whitespace, is stripped by the caller before it reaches here.
  */
 export function slugifyHeading(text: string): string {
-	return text
-		.normalize("NFKD")
-		.replace(/[\u0300-\u036f]/g, "")
-		.replace(/[^a-zA-Z0-9]+/g, "-")
-		.replace(/-+/g, "-")
-		.replace(/^-+|-+$/g, "")
-		.toLowerCase();
+  return text
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase();
 }
 
 /**
@@ -55,12 +58,12 @@ export function slugifyHeading(text: string): string {
  * silently landing nowhere at render time.
  */
 export function findHeadingSlugs(markdown: string): string[] {
-	const slugs: string[] = [];
-	for (const line of markdown.split(/\r?\n/)) {
-		const match = /^#{1,6}\s+(.+?)\s*#*\s*$/.exec(line.trim());
-		if (match) slugs.push(slugifyHeading(match[1]));
-	}
-	return slugs;
+  const slugs: string[] = [];
+  for (const line of markdown.split(/\r?\n/)) {
+    const match = /^#{1,6}\s+(.+?)\s*#*\s*$/.exec(line.trim());
+    if (match) slugs.push(slugifyHeading(match[1]));
+  }
+  return slugs;
 }
 
 /**
@@ -76,10 +79,12 @@ export const HELP_LINK_PREFIX = "help://";
  * Turn a rendered help cross-link href back into a deep-link target.
  * Returns null for anything that isn't a `help://` link.
  */
-export function parseHelpLink(href: string): { topicId: string; anchor?: string } | null {
-	if (!href.startsWith(HELP_LINK_PREFIX)) return null;
-	const rest = href.slice(HELP_LINK_PREFIX.length);
-	const [topicId, anchor] = rest.split("#", 2);
-	if (!topicId) return null;
-	return { topicId, anchor };
+export function parseHelpLink(
+  href: string,
+): { topicId: string; anchor?: string } | null {
+  if (!href.startsWith(HELP_LINK_PREFIX)) return null;
+  const rest = href.slice(HELP_LINK_PREFIX.length);
+  const [topicId, anchor] = rest.split("#", 2);
+  if (!topicId) return null;
+  return { topicId, anchor };
 }
