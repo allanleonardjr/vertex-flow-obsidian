@@ -141,6 +141,20 @@ This project uses [Semantic Versioning](https://semver.org/).
   "waiting".
 
 ### Fixed
+- **Grouped Canvas no longer stacks cards on top of each other.** Grid-packing
+  appended each group's isolated cards *after* the ELK pass, anchored to the
+  group's connected-block box — a fully-isolated group had nothing to anchor
+  to (ELK had just left an empty 0×0 compound), and a partially-isolated
+  group's appended grid stretched its box into whichever sibling ELK had
+  placed below it, so cards overlapped across groups whenever **Group by**
+  was on. Each group's isolated grid is now sized *inside* ELK as a
+  placeholder leaf before layout runs: ELK reserves the exact space, sizes the
+  compound around it, and pushes sibling group boxes clear, then the reserved
+  rect is swapped for the real grid-packed cards after layout. Grouped and
+  flat layout share one reserve-then-fill path; the flat root keeps its
+  "grid below/right of the block" placement, and regression tests exercise
+  the real ELK pipeline for both the fully-isolated and partially-isolated
+  cases.
 - **Clicking a Canvas edge now actually selects it.** The background-pan
   handler was capturing the pointer before the edge's own click handler got a
   chance to fire, so selecting an edge (and then deleting it) was never

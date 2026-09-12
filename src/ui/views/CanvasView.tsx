@@ -62,15 +62,17 @@ import {
   DEFAULT_GROUP_PADDING,
   ISOLATED_GRID_GAP,
   canvasEdgeLinePath,
-  collectElkOrigins,
   createLayoutGuard,
   elkPaddingOption,
   flattenCanvasLayout,
   mergeIsolatedIntoLayout,
   packCanvasGrid,
+  planIsolatedGrid,
+  resolveIsolatedGrids,
   type EdgeMeta,
   type FlatCanvasLayout,
   type IsolatedGridBox,
+  type IsolatedGridPlan,
   type PlacedBox,
 } from "../../core/canvas/layout";
 import {
@@ -384,21 +386,77 @@ export function CanvasView({
         : [["root", partitionByConnectivity(graph.nodes, plan.layoutEdges)]],
     );
 
-    // ELK only ever sees each scope's `connected` members — `isolated` ones
-    // are never handed to it at all, grid-packed separately once layout
-    // resolves (below).
-    const children: ElkNode[] = grouped
-      ? visibleGroups.map((g) => ({
-          id: `group:${g.key}`,
-          layoutOptions: {
-            ...elkOptions,
-            "elk.padding": GROUP_PADDING,
-            ...ELK_SPACING,
-          },
-          children: (partitions.get(`group:${g.key}`)?.connected ?? []).map(
-            (n) => leaf(n.task),
+    // Reserve each group's isolated grid *inside* ELK via a placeholder leaf
+    // in the compound: ELK sizes the box around it and, critically, spaces
+    // sibling groups clear of it. Without that reservation a grid appended
+    // after layout anchored to the connected-block bbox (or, for a group with
+    // no connected members at all, an empty 0×0 compound) and landed on top
+    // of whichever sibling group ELK had placed just past it — the
+    // grouped-layout regression. Columns come from the rendered viewport
+    // width, keeping grid density consistent with the flat root's.
+    const gridPlans = new Map<string, IsolatedGridPlan>();
+    if (grouped) {
+      for (const g of visibleGroups) {
+        const scopeId = `group:${g.key}`;
+        const isolated = partitions.get(scopeId)?.isolated ?? [];
+        if (isolated.length === 0) continue;
+        const sizeById = new Map(isolated.map((n) => [n.id, leaf(n.task)]));
+        const columns = Math.max(
+          1,
+          Math.min(
+            isolated.length,
+            Math.floor(
+              ((canvasRef.current?.getBoundingClientRect().width ||
+                NODE_WIDTH) +
+                ISOLATED_GRID_GAP) /
+                (NODE_WIDTH + ISOLATED_GRID_GAP),
+            ),
           ),
-        }))
+        );
+        gridPlans.set(
+          scopeId,
+          planIsolatedGrid(
+            scopeId,
+            isolated,
+            sizeById,
+            NODE_WIDTH,
+            ISOLATED_GRID_GAP,
+            columns,
+          ),
+        );
+      }
+    }
+
+    // ELK only ever sees each scope's `connected` members (plus, when a group
+    // has any, its isolated grid's placeholder leaf) — the `isolated` cards
+    // themselves are grid-packed separately once layout resolves (below).
+    const children: ElkNode[] = grouped
+      ? visibleGroups.map((g) => {
+          const scopeId = `group:${g.key}`;
+          const plan = gridPlans.get(scopeId);
+          return {
+            id: scopeId,
+            layoutOptions: {
+              ...elkOptions,
+              "elk.padding": GROUP_PADDING,
+              ...ELK_SPACING,
+            },
+            children: [
+              ...(partitions.get(scopeId)?.connected ?? []).map((n) =>
+                leaf(n.task),
+              ),
+              ...(plan
+                ? [
+                    {
+                      id: plan.placeholderId,
+                      width: plan.placeholder.width,
+                      height: plan.placeholder.height,
+                    },
+                  ]
+                : []),
+            ],
+          };
+        })
       : partitions.get("root")!.connected.map((n) => leaf(n.task));
 
     // `edge-${i}` carries the kind + endpoints back by index after layout. In
@@ -434,24 +492,24 @@ export function CanvasView({
           nodeWidth: NODE_WIDTH,
           nodeHeight: NODE_HEIGHT,
         });
-        const elkOrigins = collectElkOrigins(res);
 
-        // Grid-pack each scope's isolated set. Columns come from the
-        // available width at this point, never a hardcoded count: a group's
-        // own resolved connected-block width (so its grid lines up with its
-        // own column), or — since the root has no "own column" to match —
-        // the canvas container's actual rendered viewport width.
-        const isolatedBoxes = new Map<string, IsolatedGridBox[]>();
-        for (const [scopeId, { isolated }] of partitions) {
-          if (isolated.length === 0) continue;
-          const availableWidth =
-            scopeId === "root"
-              ? canvasRef.current?.getBoundingClientRect().width || NODE_WIDTH
-              : base.groups.get(scopeId)?.width || NODE_WIDTH;
+        if (grouped) {
+          // The placeholder leaves already reserved each grid's space inside
+          // ELK (and spaced sibling groups clear of it) — just swap the
+          // rects in.
+          setLaidOut(resolveIsolatedGrids(base, [...gridPlans.values()]));
+        } else {
+          // Flat root: append the isolated grid below (direction "right") or
+          // beside (direction "down") the connected block — the design's own
+          // placement, and safe since the root has no sibling to collide
+          // with. Columns come from the rendered viewport width.
+          const isolated = partitions.get("root")!.isolated;
           const columns = Math.max(
             1,
             Math.floor(
-              (availableWidth + ISOLATED_GRID_GAP) /
+              ((canvasRef.current?.getBoundingClientRect().width ||
+                NODE_WIDTH) +
+                ISOLATED_GRID_GAP) /
                 (NODE_WIDTH + ISOLATED_GRID_GAP),
             ),
           );
@@ -470,18 +528,18 @@ export function CanvasView({
             ISOLATED_GRID_GAP,
             columns,
           );
-          isolatedBoxes.set(
-            scopeId,
-            positions.map((p) => {
-              const size = sizeById.get(p.id)!;
-              return { ...size, x: p.x, y: p.y };
-            }),
+          const boxes: IsolatedGridBox[] = positions.map((p) => {
+            const size = sizeById.get(p.id)!;
+            return { ...size, x: p.x, y: p.y };
+          });
+          setLaidOut(
+            mergeIsolatedIntoLayout(
+              base,
+              new Map([["root", boxes]]),
+              direction,
+            ),
           );
         }
-
-        setLaidOut(
-          mergeIsolatedIntoLayout(base, isolatedBoxes, elkOrigins, direction),
-        );
         setLoading(false);
       })
       .catch(() => {

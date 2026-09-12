@@ -122,13 +122,17 @@ export function elkPaddingOption(pad: GroupPadding = DEFAULT_GROUP_PADDING): str
 const GROUP_PREFIX = "group:";
 
 /**
+ * Prefix for the placeholder leaf a scope's isolated grid reserves in ELK
+ * (`planIsolatedGrid`). Chosen to collide with neither a real task path nor
+ * `GROUP_PREFIX` — see `planIsolatedGrid`'s own note.
+ */
+const GRID_PLACEHOLDER_PREFIX = "__vf-grid:";
+
+/**
  * Every ELK node's absolute origin (top-left), keyed by id — `"root"` itself
- * is `(0, 0)`. Exported standalone (not just as `flattenCanvasLayout`'s
- * internal bookkeeping) because it's the only place a *zero-leaf* compound's
- * position survives: `flattenCanvasLayout`'s own tight-fit pass skips a
- * group with no leaves entirely (nothing to fit around), so a fully-isolated
- * group's box — sized purely from its grid-packed contents, never from ELK —
- * still needs *somewhere* to anchor to, and this is where that comes from.
+ * is `(0, 0)`. `flattenCanvasLayout` uses this to translate each edge's
+ * section points from its *container*'s space into absolute coordinates; kept
+ * exported so tests can assert compound origin math directly.
  */
 export function collectElkOrigins(root: ElkLayoutNode): Map<string, ElkPoint> {
 	const origins = new Map<string, ElkPoint>([["root", { x: 0, y: 0 }]]);
@@ -286,95 +290,162 @@ export interface IsolatedGridBox extends PlacedBox {
 export const ISOLATED_GRID_GAP = 24;
 
 /**
- * Fold grid-packed isolated nodes (`partitionByConnectivity` +
- * `packCanvasGrid`) into an already-ELK-flattened layout, one scope at a
- * time — `"root"` for the flat/ungrouped case's own isolated set, or a
- * group's ELK id for that group's own.
+ * A scope's isolated grid, planned up front as one reserve-then-fill unit:
+ * the rect to reserve inside ELK (via a placeholder leaf only ELK sees, with
+ * a size ELK absolutely trusts), plus the real member boxes positioned within
+ * that rect in scope-local `(0, 0)` coords. During layout ELK treats the
+ * placeholder as an ordinary leaf — sizing its compound around it and,
+ * critically, spacing *sibling* compounds clear of it — then
+ * `resolveIsolatedGrids` swaps the placeholder's resolved rect for the real
+ * grid boxes.
+ */
+export interface IsolatedGridPlan {
+	/** The scope's ELK id: `"root"` or `group:<key>`. */
+	scopeId: string;
+	/** Leaf id sent into ELK to reserve the grid's space. */
+	placeholderId: string;
+	/** The reserved rect; `x`/`y` are ignored (local to the scope). */
+	placeholder: PlacedBox;
+	/** Real member boxes, positioned within the placeholder rect. */
+	boxes: IsolatedGridBox[];
+}
+
+/**
+ * Plan one scope's isolated grid (see `IsolatedGridPlan`). `sizeById` must
+ * hold an entry for every member and its heights are the row stride — the
+ * caller already applies whatever floor it needs (e.g. the node height
+ * budget), so rows always clear the tallest card. Consumes `isolated` in
+ * order (already the view's sort); `packCanvasGrid` deliberately re-sorts
+ * nothing.
+ */
+export function planIsolatedGrid(
+	scopeId: string,
+	isolated: readonly CanvasNode[],
+	sizeById: ReadonlyMap<string, { width: number; height: number }>,
+	cellWidth: number,
+	gap: number,
+	columns: number,
+): IsolatedGridPlan {
+	const cellHeight = Math.max(
+		0,
+		...isolated.map((n) => sizeById.get(n.id)?.height ?? 0),
+	);
+	const positions = packCanvasGrid(
+		isolated,
+		cellWidth,
+		cellHeight,
+		gap,
+		Math.max(1, columns),
+	);
+	const boxes: IsolatedGridBox[] = [];
+	let gridWidth = 0;
+	let gridHeight = 0;
+	for (const p of positions) {
+		const size = sizeById.get(p.id);
+		const width = size?.width ?? cellWidth;
+		const height = size?.height ?? cellHeight;
+		boxes.push({ id: p.id, x: p.x, y: p.y, width, height });
+		gridWidth = Math.max(gridWidth, p.x + width);
+		gridHeight = Math.max(gridHeight, p.y + height);
+	}
+	return {
+		scopeId,
+		// Deliberately nothing like a real task path, and not starting with
+		// the `group:` prefix either — `flattenCanvasLayout` treats an id that
+		// starts with `group:` as a compound to recurse into rather than a
+		// leaf to place, which would drop the reservation entirely.
+		placeholderId: `${GRID_PLACEHOLDER_PREFIX}${scopeId}`,
+		placeholder: {
+			x: 0,
+			y: 0,
+			width: Math.max(gridWidth, 1),
+			height: Math.max(gridHeight, 1),
+		},
+		boxes,
+	};
+}
+
+/**
+ * Swap each plan's reserved placeholder leaf for its real grid boxes. During
+ * `flattenCanvasLayout` the placeholder was a plain leaf inside its compound,
+ * so it already helped tight-fit the group box AND ELK already spaced sibling
+ * groups clear of it — resolution just positions the grid onto the
+ * placeholder's resolved absolute rect and drops the placeholder. `boxes` are
+ * in scope-local coords and their bbox equals the reserved rect, so overall
+ * `width`/`height` barely move and each group box still encloses its grid.
+ */
+export function resolveIsolatedGrids(
+	base: FlatCanvasLayout,
+	plans: readonly IsolatedGridPlan[],
+): FlatCanvasLayout {
+	if (plans.length === 0) return base;
+
+	const nodes = new Map(base.nodes);
+	let width = base.width;
+	let height = base.height;
+
+	for (const plan of plans) {
+		const rect = nodes.get(plan.placeholderId);
+		if (!rect) continue;
+		nodes.delete(plan.placeholderId);
+		for (const b of plan.boxes) {
+			const box: PlacedBox = {
+				x: rect.x + b.x,
+				y: rect.y + b.y,
+				width: b.width,
+				height: b.height,
+			};
+			nodes.set(b.id, box);
+			width = Math.max(width, box.x + box.width);
+			height = Math.max(height, box.y + box.height);
+		}
+	}
+
+	return {
+		nodes,
+		groups: base.groups,
+		edges: base.edges,
+		width: Math.max(width, 1),
+		height: Math.max(height, 1),
+	};
+}
+
+/**
+ * Fold the flat/ungrouped case's grid-packed isolated nodes (`"root"` scope
+ * only) into an already-ELK-flattened layout.
  *
- * Each scope's isolated boxes (still positioned relative to `packCanvasGrid`'s
- * local `(0, 0)`) are appended right after that scope's own connected-block
- * bounding box: below it when `direction` is `"right"` (the primary flow axis
- * is horizontal, so stacking vertically doesn't fight it), to its right when
- * `"down"` (mirrored reasoning). A scope with no connected leaves at all —
- * the fully-edgeless degenerate case, at either granularity — has a
- * zero-sized connected block, so the offset math places the grid right at
- * the scope's own origin with no special-casing: `(0, 0)` for the root, or
- * (since a *group* with zero leaves is entirely absent from
- * `flattenCanvasLayout`'s own `groups` map — nothing to tight-fit around)
- * wherever ELK still placed that now-empty compound, from `elkOrigins`
- * (`collectElkOrigins`, run on the same raw ELK result).
+ * Grouped scopes never come through here — those reserve their grid space
+ * *inside* ELK via `planIsolatedGrid`'s placeholder, because a grid appended
+ * after layout anchors to the connected-block bbox and overlaps whichever
+ * sibling group ELK had placed just outside it (commit 5e076fa's
+ * grouped-layout regression). The root has no sibling to collide with, so it
+ * keeps this direct append, which also preserves the design's "below the
+ * block when `direction` is `"right"`, beside it when `"down"`".
  *
- * Also extends each touched group's tight-fit box, and the overall
- * `width`/`height`, to include the newly-appended content — a group whose
- * members are entirely isolated would otherwise keep whatever box (or lack
- * of one) the ELK-only pass gave it, and `fitToView`/the SVG viewBox would
- * crop the isolated grid at the root level the same way.
+ * `boxes` (relative to `packCanvasGrid`'s local `(0, 0)`) are appended right
+ * after the root's connected-block bbox, or at `(0, 0)` — the root's own
+ * origin — when nothing is connected at all, and the overall `width`/`height`
+ * extend to include them so `fitToView`/the SVG viewBox never crop the grid.
  */
 export function mergeIsolatedIntoLayout(
 	base: FlatCanvasLayout,
 	isolated: ReadonlyMap<string, readonly IsolatedGridBox[]>,
-	elkOrigins: ReadonlyMap<string, ElkPoint>,
 	direction: CanvasDirection,
-	groupPadding: GroupPadding = DEFAULT_GROUP_PADDING,
 ): FlatCanvasLayout {
 	if (isolated.size === 0) return base;
 
 	const nodes = new Map(base.nodes);
-	const groups = new Map(base.groups);
 	let width = base.width;
 	let height = base.height;
 
 	for (const [scopeId, boxes] of isolated) {
-		if (boxes.length === 0) continue;
-		const isRoot = scopeId === "root";
-		const connectedBox = isRoot ? undefined : base.groups.get(scopeId);
-
-		let blockX = 0;
-		let blockY = 0;
-		let blockWidth = 0;
-		let blockHeight = 0;
-		// The raw (unpadded) bbox to tight-fit this group around, seeded with
-		// its existing connected leaves — recovered by reversing the padding
-		// the earlier tight-fit pass already applied, so re-padding below
-		// doesn't double up. Absent for the root (which isn't padded) and for
-		// a group with no connected leaves (nothing to recover).
-		let minX = Infinity;
-		let minY = Infinity;
-		let maxX = -Infinity;
-		let maxY = -Infinity;
-
-		if (isRoot) {
-			// Nothing connected at the root case's degenerate extreme (the
-			// fully-edgeless workspace) — `(0, 0)`, the root's own origin,
-			// exactly the "no special case needed" the offset math relies on.
-			if (base.nodes.size > 0) {
-				blockWidth = base.width;
-				blockHeight = base.height;
-			}
-		} else if (connectedBox) {
-			// The isolated grid is offset relative to the *raw* (unpadded)
-			// leaves bbox — recovered by reversing the padding the earlier
-			// tight-fit pass applied — not the padded outer box. Anchoring to
-			// the padded edge instead would double-count that padding once
-			// the union below gets re-padded to produce the final box.
-			minX = connectedBox.x + groupPadding.left;
-			minY = connectedBox.y + groupPadding.top;
-			maxX = connectedBox.x + connectedBox.width - groupPadding.right;
-			maxY = connectedBox.y + connectedBox.height - groupPadding.bottom;
-			blockX = minX;
-			blockY = minY;
-			blockWidth = maxX - minX;
-			blockHeight = maxY - minY;
-		} else {
-			const origin = elkOrigins.get(scopeId) ?? { x: 0, y: 0 };
-			blockX = origin.x + groupPadding.left;
-			blockY = origin.y + groupPadding.top;
-		}
-
-		const hasBlock = blockWidth > 0 || blockHeight > 0;
+		if (boxes.length === 0 || scopeId !== "root") continue;
+		const hasBlock = base.nodes.size > 0;
+		const blockWidth = hasBlock ? base.width : 0;
+		const blockHeight = hasBlock ? base.height : 0;
 		const gap = hasBlock ? ISOLATED_GRID_GAP : 0;
-		const offsetX = direction === "down" ? blockX + blockWidth + gap : blockX;
-		const offsetY = direction === "right" ? blockY + blockHeight + gap : blockY;
+		const offsetX = direction === "down" ? blockWidth + gap : 0;
+		const offsetY = direction === "right" ? blockHeight + gap : 0;
 
 		for (const b of boxes) {
 			const box: PlacedBox = {
@@ -384,30 +455,14 @@ export function mergeIsolatedIntoLayout(
 				height: b.height,
 			};
 			nodes.set(b.id, box);
-			minX = Math.min(minX, box.x);
-			minY = Math.min(minY, box.y);
-			maxX = Math.max(maxX, box.x + box.width);
-			maxY = Math.max(maxY, box.y + box.height);
 			width = Math.max(width, box.x + box.width);
 			height = Math.max(height, box.y + box.height);
-		}
-
-		if (!isRoot) {
-			const groupBox: PlacedBox = {
-				x: minX - groupPadding.left,
-				y: minY - groupPadding.top,
-				width: maxX - minX + groupPadding.left + groupPadding.right,
-				height: maxY - minY + groupPadding.top + groupPadding.bottom,
-			};
-			groups.set(scopeId, groupBox);
-			width = Math.max(width, groupBox.x + groupBox.width);
-			height = Math.max(height, groupBox.y + groupBox.height);
 		}
 	}
 
 	return {
 		nodes,
-		groups,
+		groups: base.groups,
 		edges: base.edges,
 		width: Math.max(width, 1),
 		height: Math.max(height, 1),

@@ -10,9 +10,12 @@ import {
 	flattenCanvasLayout,
 	mergeIsolatedIntoLayout,
 	packCanvasGrid,
+	planIsolatedGrid,
+	resolveIsolatedGrids,
 	type EdgeMeta,
 	type ElkLayoutNode,
 	type IsolatedGridBox,
+	type PlacedBox,
 } from "../../src/core/canvas/layout";
 import { task } from "./fixtures";
 
@@ -262,7 +265,7 @@ describe("mergeIsolatedIntoLayout", () => {
 			new Map(),
 			OPTS,
 		);
-		const merged = mergeIsolatedIntoLayout(base, new Map(), new Map(), "right");
+		const merged = mergeIsolatedIntoLayout(base, new Map(), "right");
 		expect(merged).toBe(base);
 	});
 
@@ -275,7 +278,7 @@ describe("mergeIsolatedIntoLayout", () => {
 		const isolated = new Map([
 			["root", [gridBox("B", 0, 0), gridBox("C", 230, 0)]],
 		]);
-		const merged = mergeIsolatedIntoLayout(base, isolated, collectElkOrigins(root), "right");
+		const merged = mergeIsolatedIntoLayout(base, isolated, "right");
 
 		expect(merged.nodes.get("A")).toEqual(base.nodes.get("A"));
 		expect(merged.nodes.get("B")).toEqual({ x: 0, y: 64 + ISOLATED_GRID_GAP, width: 220, height: 64 });
@@ -290,7 +293,7 @@ describe("mergeIsolatedIntoLayout", () => {
 		};
 		const base = flattenCanvasLayout(root, new Map(), OPTS);
 		const isolated = new Map([["root", [gridBox("B", 0, 0)]]]);
-		const merged = mergeIsolatedIntoLayout(base, isolated, collectElkOrigins(root), "down");
+		const merged = mergeIsolatedIntoLayout(base, isolated, "down");
 
 		expect(merged.nodes.get("B")).toEqual({
 			x: 220 + ISOLATED_GRID_GAP,
@@ -304,62 +307,9 @@ describe("mergeIsolatedIntoLayout", () => {
 		const root: ElkLayoutNode = { id: "root", children: [] };
 		const base = flattenCanvasLayout(root, new Map(), OPTS);
 		const isolated = new Map([["root", [gridBox("A", 0, 0), gridBox("B", 230, 0)]]]);
-		const merged = mergeIsolatedIntoLayout(base, isolated, collectElkOrigins(root), "right");
+		const merged = mergeIsolatedIntoLayout(base, isolated, "right");
 		expect(merged.nodes.get("A")).toEqual({ x: 0, y: 0, width: 220, height: 64 });
 		expect(merged.nodes.get("B")).toEqual({ x: 230, y: 0, width: 220, height: 64 });
-	});
-
-	it("extends a partially-isolated group's box to tight-fit around its isolated grid too", () => {
-		const root: ElkLayoutNode = {
-			id: "root",
-			children: [
-				{
-					id: "group:todo",
-					x: 0,
-					y: 0,
-					children: [{ id: "A", x: 0, y: 0, width: 220, height: 64 }],
-				},
-			],
-		};
-		const base = flattenCanvasLayout(root, new Map(), OPTS);
-		const before = base.groups.get("group:todo")!;
-
-		const isolated = new Map([["group:todo", [gridBox("B", 0, 0)]]]);
-		const merged = mergeIsolatedIntoLayout(base, isolated, collectElkOrigins(root), "right");
-		const after = merged.groups.get("group:todo")!;
-
-		// Same left/top edge (the isolated grid appends below, not left of).
-		expect(after.x).toBe(before.x);
-		expect(after.y).toBe(before.y);
-		// Taller, to actually enclose the appended card.
-		expect(after.height).toBeGreaterThan(before.height);
-		expect(merged.nodes.get("B")!.y).toBeGreaterThanOrEqual(
-			before.y + before.height,
-		);
-	});
-
-	it("sizes a fully-isolated group from its grid alone, anchored to wherever ELK placed the empty compound", () => {
-		const root: ElkLayoutNode = {
-			id: "root",
-			children: [{ id: "group:done", x: 400, y: 20, children: [] }],
-		};
-		const base = flattenCanvasLayout(root, new Map(), OPTS);
-		// Nothing to tight-fit — the group never appears in `base.groups` at all.
-		expect(base.groups.has("group:done")).toBe(false);
-
-		const isolated = new Map([
-			["group:done", [gridBox("X", 0, 0), gridBox("Y", 230, 0)]],
-		]);
-		const merged = mergeIsolatedIntoLayout(base, isolated, collectElkOrigins(root), "right");
-		const box = merged.groups.get("group:done")!;
-
-		// Anchored right back to where ELK placed the empty compound (padding
-		// applied going in, then reversed coming back out of the tight-fit).
-		expect(box.x).toBe(400);
-		expect(box.y).toBe(20);
-		expect(box.width).toBeGreaterThanOrEqual(230 + 220);
-		expect(merged.nodes.get("X")).toBeDefined();
-		expect(merged.nodes.get("Y")).toBeDefined();
 	});
 
 	it("extends the overall width/height so fitToView/the viewBox never crop the isolated grid", () => {
@@ -371,7 +321,7 @@ describe("mergeIsolatedIntoLayout", () => {
 		const isolated = new Map([
 			["root", [gridBox("B", 0, 0), gridBox("C", 0, 500)]],
 		]);
-		const merged = mergeIsolatedIntoLayout(base, isolated, collectElkOrigins(root), "right");
+		const merged = mergeIsolatedIntoLayout(base, isolated, "right");
 		expect(merged.height).toBeGreaterThanOrEqual(500 + 64);
 		expect(merged.width).toBeGreaterThanOrEqual(base.width);
 	});
