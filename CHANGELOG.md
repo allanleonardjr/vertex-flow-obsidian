@@ -5,6 +5,26 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Fixed
+
+- Canvas: the "replace existing parent" confirmation no longer silently
+  fails to respond to clicks. It was rendered as a portal to the document
+  body, which lost hit-testing to the canvas underneath it — almost
+  certainly a stacking-context interaction with Canvas's pervasive use of
+  CSS `transform` for panning, zooming, and node positioning. Replaced
+  with an in-canvas, bottom-anchored dialog matching the existing
+  tap-to-connect popup's pattern, which doesn't have this problem.
+- Canvas: hovering a node before starting a connection showed the wrong
+  color (pink, the "this will become a target" preview) even though the
+  very first interaction always creates a source, never a target. Hovering
+  with nothing armed now previews as the source color (purple); the
+  target preview only appears once a source is already armed via
+  tap-to-connect.
+- Canvas: drag-to-connect now shows the same purple source / pink target
+  colors as tap-to-connect for the equivalent roles, instead of the
+  drag's own source going unstyled and its target using a separate static
+  ring.
+
 ## 1.0.21 — 2026-09-11
 - **Canvas layout (`v` `d`) — a relationship graph.** Any Saved View
   can now render as a Canvas: the view's filtered tasks are laid out by `elkjs`

@@ -8129,6 +8129,7 @@ button.vf-canvas-zoom-fit {
 .vf-canvas-node.is-hover-target {
   border-width: 4px;
   border-color: var(--color-pink);
+  animation: vf-tap-target-pulse 0.9s ease-in-out infinite;
 }
 
 /* The drag-to-connect handle: invisible until the card is hovered, sitting in

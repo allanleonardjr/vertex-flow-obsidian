@@ -218,9 +218,9 @@ function estimateTitleLines(
  * per layout pass.
  */
 function resolveTitleMetrics(): { font: string; lineHeightPx: number } {
-	const probe = createSpan();
-	probe.className = "vf-canvas-metrics-probe vf-canvas-node-title";
-	document.body.appendChild(probe);
+  const probe = createSpan();
+  probe.className = "vf-canvas-metrics-probe vf-canvas-node-title";
+  document.body.appendChild(probe);
   const style = getComputedStyle(probe);
   const font = style.font;
   const lineHeightPx =
@@ -235,10 +235,10 @@ function resolveTitleMetrics(): { font: string; lineHeightPx: number } {
  * re-guessed (it's shifted across earlier Canvas phases already).
  */
 function resolveTitleMaxWidth(): number {
-	const probe = createDiv();
-	probe.className = "vf-canvas-metrics-probe vf-canvas-node";
-	probe.style.width = `${NODE_WIDTH}px`;
-	document.body.appendChild(probe);
+  const probe = createDiv();
+  probe.className = "vf-canvas-metrics-probe vf-canvas-node";
+  probe.style.width = `${NODE_WIDTH}px`;
+  document.body.appendChild(probe);
   const style = getComputedStyle(probe);
   const horizontalPadding =
     (parseFloat(style.paddingLeft) || 0) +
@@ -1291,18 +1291,15 @@ export function CanvasView({
           labels at once.
         </div>
       )}
-
       {view.canvasArrangement === "tree" && !treeHasHierarchy && (
         <div className="vf-canvas-note">
           Hierarchy layout uses parent–child relationships. No visible hierarchy
           relationships were found.
         </div>
       )}
-
       {loading && !laidOut && (
         <div className="vf-canvas-loading">Laying out graph…</div>
       )}
-
       {laidOut && (
         <div
           className="vf-canvas-surface"
@@ -1500,15 +1497,26 @@ export function CanvasView({
                 : tapConnect?.target === id
                   ? "target"
                   : null;
-            // Static pink preview of the *target* colour on whatever's being
-            // hovered while connect mode is on — "this card will take part in
-            // the connection." The pulse (the official target's animation)
-            // only appears once it's actually set as a target, not while it's
-            // merely being hovered. No role of its own yet, so a card that's
-            // already a source/target keeps its own colour.
+            // Nothing armed yet — hovering previews what your *first*
+            // interaction creates, which is always a source (both drag and
+            // tap-connect's own first step do this; target only ever exists
+            // as a second, later role, never the first). Purple, matching
+            // is-tap-source, not the pink target preview below.
+            const hoverSourcePreview =
+              drawKind !== "off" &&
+              !connectDrag &&
+              tapConnect === null &&
+              hoveredPath === id;
+            // A tap-connect source is already armed — hovering a *different*
+            // node now previews it becoming the target if tapped next. Static
+            // pink, not the pulsing animation reserved for an actually-set
+            // target (tapRole === "target").
             const hoverTargetPreview =
               drawKind !== "off" &&
               !connectDrag &&
+              tapConnect?.source != null &&
+              tapConnect.target == null &&
+              tapConnect.source !== id &&
               tapRole === null &&
               hoveredPath === id;
             return (
@@ -1539,13 +1547,13 @@ export function CanvasView({
                 connecting={drawKind !== "off"}
                 onNodeTap={onNodeTap}
                 tapRole={tapRole}
+                hoverSourcePreview={hoverSourcePreview}
                 hoverTargetPreview={hoverTargetPreview}
               />
             );
           })}
         </div>
       )}
-
       <div className="vf-canvas-draw-mode">
         <span className="vf-control-anchor">
           <button
@@ -1589,7 +1597,6 @@ export function CanvasView({
           )}
         </span>
       </div>
-
       <div className="vf-canvas-zoom">
         <button
           type="button"
@@ -1631,9 +1638,7 @@ export function CanvasView({
           Fit
         </button>
       </div>
-
       <CanvasLegend hidden={hiddenKindSet} />
-
       {tapConnect?.target &&
         drawKind !== "off" &&
         (() => {
@@ -1688,7 +1693,6 @@ export function CanvasView({
             </div>
           );
         })()}
-
       {selectedEdge && edgePopupPos && (
         <div
           className="vf-canvas-edge-popup"
@@ -1716,35 +1720,51 @@ export function CanvasView({
           </Popover>
         </div>
       )}
-
       {pendingReparent &&
         (() => {
-          const oldParent = pendingReparent.child.parent
-            ? snapshot.tasks.find((t) =>
-                linksMatch(t.path, pendingReparent.child.parent),
-              )
+          const { child, newParent, clearFirst } = pendingReparent;
+          const oldParent = child.parent
+            ? snapshot.tasks.find((t) => linksMatch(t.path, child.parent))
             : null;
           return (
-            <ConfirmDeleteDialog
-              title={`Move "${displayTitle(pendingReparent.child)}" from under "${
-                oldParent ? oldParent.id : "its current parent"
-              }" to under "${pendingReparent.newParent.id}"?`}
-              body="This replaces its existing parent — a task can't have two."
-              confirmLabel="Move"
-              destructive={false}
-              onCancel={() => setPendingReparent(null)}
-              onConfirm={() => {
-                const { child, newParent, clearFirst } = pendingReparent;
-                setPendingReparent(null);
-                void (async () => {
-                  if (clearFirst)
-                    await plugin.mutations.setParent(clearFirst, null);
-                  await plugin.mutations.setParent(child, newParent.path);
-                })();
-              }}
-            />
+            // Bottom-anchored, in-canvas — the same proven pattern as the
+            // tap-connect popup below, deliberately NOT a `createPortal`. The
+            // portaled ConfirmDeleteDialog lost every click to `.vf-canvas`
+            // underneath it here (confirmed via elementFromPoint) despite a
+            // z-index that should have won — almost certainly a stacking-context
+            // interaction with Canvas's pervasive use of `transform` for pan/zoom
+            // and node positioning. Staying in-canvas sidesteps that question
+            // entirely rather than needing to resolve it. Reuses
+            // .vf-canvas-tap-connect's classes as-is — same position, same blue
+            // confirm / plain cancel shape, no new CSS needed.
+            <div className="vf-canvas-tap-connect">
+              <span className="vf-canvas-tap-connect-label">
+                Move "{displayTitle(child)}" from under "
+                {oldParent ? oldParent.id : "its current parent"}" to under "
+                {newParent.id}"?
+              </span>
+              <div className="vf-canvas-tap-connect-actions">
+                <button type="button" onClick={() => setPendingReparent(null)}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="mod-cta"
+                  onClick={() => {
+                    setPendingReparent(null);
+                    void (async () => {
+                      if (clearFirst)
+                        await plugin.mutations.setParent(clearFirst, null);
+                      await plugin.mutations.setParent(child, newParent.path);
+                    })();
+                  }}
+                >
+                  Move
+                </button>
+              </div>
+            </div>
           );
-        })()}
+        })()}{" "}
     </div>
   );
 }
@@ -1779,6 +1799,7 @@ function CanvasNode({
   connecting,
   onNodeTap,
   tapRole,
+  hoverSourcePreview,
   hoverTargetPreview,
 }: {
   task: Task;
@@ -1807,8 +1828,13 @@ function CanvasNode({
   onNodeTap: (path: string) => void;
   /** This node's role in the current tap-to-connect pair, if any. */
   tapRole: "source" | "target" | null;
-  /** True while connect mode is on and this node is hovered with no role yet —
-   *  shows a static preview of the target colour before it's actually set. */
+  /** True while connect mode is on, nothing is armed yet (no tap-connect
+   *  source), and this node is the one currently hovered — a preview of what
+   *  your first interaction with it would create (always a source). */
+  hoverSourcePreview: boolean;
+  /** True while a tap-connect source is already armed and this *different*
+   *  node is the one currently hovered — a static preview of it becoming the
+   *  target if tapped next. */
   hoverTargetPreview: boolean;
 }) {
   const off = (field: TaskField) => hiddenFields.includes(field);
@@ -1825,6 +1851,7 @@ function CanvasNode({
         connectTarget === "invalid" && "is-connect-invalid",
         tapRole === "source" && "is-tap-source",
         tapRole === "target" && "is-tap-target",
+        hoverSourcePreview && "is-hover-source",
         hoverTargetPreview && "is-hover-target",
       ]
         .filter(Boolean)
