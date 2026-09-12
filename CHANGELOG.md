@@ -5,6 +5,8 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.22 — 2026-09-12
+
 ### Fixed
 
 - Workspace search (Alt/Option+K): task results are now matched on the
@@ -42,6 +44,8 @@ This project uses [Semantic Versioning](https://semver.org/).
   value, the same pattern the filter tag list already used for itself.
 
 ## 1.0.21 — 2026-09-11
+
+### Added
 - **Canvas layout (`v` `d`) — a relationship graph.** Any Saved View
   can now render as a Canvas: the view's filtered tasks are laid out by `elkjs`
   as nodes. Set **Group by** to Status, Priority, Type, Assignee or Project and
