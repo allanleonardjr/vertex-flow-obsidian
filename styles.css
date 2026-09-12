@@ -4830,6 +4830,10 @@ button.vf-query-fix {
   color: var(--text-normal);
 }
 
+.vf-wsearch-row-title .vf-id {
+  margin-right: 6px;
+}
+
 .vf-wsearch-row-snippet {
   overflow: hidden;
   white-space: nowrap;

@@ -7,6 +7,11 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Workspace search (Alt/Option+K): task results are now matched on the
+  task's formatted ID (e.g. "PRD-0104") as well as title and description,
+  and the ID is shown as a muted chip before the title in the results
+  list — previously a query like "PRD-0104" or "PRD" wouldn't surface the
+  task at all.
 - Canvas: the "replace existing parent" confirmation no longer silently
   fails to respond to clicks. It was rendered as a portal to the document
   body, which lost hit-testing to the canvas underneath it — almost
