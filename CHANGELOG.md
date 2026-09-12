@@ -236,6 +236,12 @@ This project uses [Semantic Versioning](https://semver.org/).
   (`titleMeasureCanvas`, and the span/div used to resolve title font metrics
   and max width) now use Obsidian's `createEl`/`createSpan`/`createDiv`
   helpers instead of `document.createElement`, per `obsidianmd/prefer-create-el`.
+- **`pnpm test` failed on a fresh checkout.** `src/core/help.ts` re-exports
+  `HELP_TOPICS` from the gitignored, build-generated `help-generated.ts`,
+  which nothing produced before `vitest` ran — `test` had no dependency on
+  `build:help`. Added a `pretest` script (and `pretest:watch` for
+  `test:watch`) that regenerates it first.
+
 
 ## 1.0.20 — 2026-09-10
 
