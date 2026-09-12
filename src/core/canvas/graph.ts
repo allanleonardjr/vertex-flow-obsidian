@@ -242,6 +242,40 @@ export function canvasEdgePlan(
 }
 
 /**
+ * Split a node set into what ELK's ranking actually reaches (`connected`) and
+ * what it doesn't (`isolated`) — judged against `layoutEdges` specifically
+ * (the arrangement-aware set `canvasEdgePlan` already computed), never
+ * `graph.layeringEdges` directly. That distinction matters twice over:
+ *   - a `related`-only task is isolated regardless of arrangement — `related`
+ *     never feeds ELK's ranking in either `flow` or `tree`, so it's exactly
+ *     as unranked as a task with no edges at all;
+ *   - a `blocks`-only task is connected in `flow` but isolated in `tree`,
+ *     since `tree` only ranks hierarchy edges (`canvasEdgePlan` already
+ *     encodes that split — this function just has to respect it).
+ *
+ * One function, reused at every granularity (once for the flat/root case,
+ * once per group when grouped) — a scope with zero connected members simply
+ * comes back with everything in `isolated`, no special-casing needed for the
+ * fully-edgeless case.
+ */
+export function partitionByConnectivity(
+	nodes: readonly CanvasNode[],
+	layoutEdges: readonly LayeringEdge[],
+): { connected: CanvasNode[]; isolated: CanvasNode[] } {
+	const connectedPaths = new Set<string>();
+	for (const e of layoutEdges) {
+		connectedPaths.add(e.source);
+		connectedPaths.add(e.target);
+	}
+	const connected: CanvasNode[] = [];
+	const isolated: CanvasNode[] = [];
+	for (const n of nodes) {
+		(connectedPaths.has(n.id) ? connected : isolated).push(n);
+	}
+	return { connected, isolated };
+}
+
+/**
  * A stable topology string over the visible tasks and the boxes each sits in.
  *
  * This is the whole *placement-relevant* content of a task: identity, parent,

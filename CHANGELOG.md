@@ -82,6 +82,47 @@ This project uses [Semantic Versioning](https://semver.org/).
   kinds. The clause is Canvas-only and only appears when something's
   actually hidden — switching to another layout or clearing the toggle drops
   it from the printed query rather than leaving a no-op clause behind.
+- **Canvas tap-to-connect.** With a draw kind active (Blocks / Parent of /
+  Related), tapping a card arms it as the source of a new connection instead
+  of opening the task — a pulsing border marks the armed card, and hovering a
+  card while a draw kind is on shows the same pulse as a hint that a tap will
+  arm it (dim-on-hover is suppressed while a draw kind is selected, since the
+  two states would fight). Tapping a second card completes the connection,
+  with a screen-anchored confirm bar at the bottom showing the pending pair
+  and offering **Cancel** / **Connect**; it refuses an invalid link (self,
+  cycle) with the same message drag-to-connect uses. Re-tapping the armed
+  card or pressing Escape cancels, tapping a third card re-targets in place,
+  and switching the draw kind clears any in-progress gesture. This
+  complements the drag handle rather than replacing it — touch users get a
+  reliable path where a continuous drag from a tiny corner handle is
+  impractical.
+- **Canvas two-finger pinch zoom (touch).** Two fingers on the canvas
+  background pinch-zoom, anchored on the moving midpoint between them (the
+  same clamping and keep-under-point anchoring as wheel-zoom), and the canvas
+  reverts to a normal single-finger pan when one finger lifts — with no jump,
+  since the pan resumes from the remaining finger's live position. A third
+  finger is ignored. A pinch that starts on a card or control keeps that
+  element's own behaviour instead.
+- **Canvas grid-packs isolated cards beside the connected block.** A canvas
+  where only *some* visible tasks are connected previously lined every
+  unconnected card into one long default strip alongside the connected block
+  — a single dependency pair anywhere made the fully-edgeless shortcut
+  inapplicable, so mixed workspaces got the worst of both. Cards are now
+  partitioned per scope (the flat root, and each group box independently)
+  against the exact edge set the current arrangement ranks: only connected
+  cards go to the ELK layout engine, while isolated ones are packed into a
+  compact left-to-right, top-to-bottom grid instead — in the view's existing
+  sort order, never re-sorted. "Isolated" is judged the same way ELK's
+  ranking sees it, so a task linked only via `related` (which never feeds the
+  ranking in either flow or tree) and a `blocks`-only task while in tree mode
+  both grid-pack. The grid appends below the connected block for
+  left-to-right arrangements and to its right for top-to-bottom ones; a fully
+  edgeless scope simply has a zero-sized block, so it's the same logic with
+  no separate path. Group boxes tight-fit to include their isolated grid too,
+  and `fitToView` / the SVG viewBox account for the grid's extra extent.
+  Column count comes from the available width — the canvas's own panes at the
+  root, each group's own connected-block width inside it — never a hardcoded
+  number.
 
 ### Fixed
 - **Clicking a Canvas edge now actually selects it.** The background-pan

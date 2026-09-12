@@ -6,6 +6,7 @@ import {
 	canvasTopologyKey,
 	filterCanvasGraph,
 	getCanvasElkOptions,
+	partitionByConnectivity,
 } from "../../src/core/canvas/graph";
 import { emptyRelations } from "../../src/core/types";
 import { task } from "./fixtures";
@@ -201,6 +202,80 @@ describe("canvasEdgePlan", () => {
 		});
 		const filtered = filterCanvasGraph(buildCanvasGraph([par, chi]), ["hierarchy"]);
 		expect(canvasEdgePlan(filtered, "tree").layoutEdges).toEqual([]);
+	});
+});
+
+describe("partitionByConnectivity", () => {
+	it("puts everything in isolated when layoutEdges is empty", () => {
+		const a = t("A");
+		const b = t("B");
+		const graph = buildCanvasGraph([a, b]);
+		const { connected, isolated } = partitionByConnectivity(graph.nodes, []);
+		expect(connected).toEqual([]);
+		expect(isolated.map((n) => n.id)).toEqual(["W/Tasks/A", "W/Tasks/B"]);
+	});
+
+	it("keeps a task connected only via layoutEdges — a related-only task is isolated regardless of arrangement", () => {
+		const a = t("A", { relations: { related: ["W/Tasks/B"] } });
+		const b = t("B", { relations: { related: ["W/Tasks/A"] } });
+		const graph = buildCanvasGraph([a, b]);
+
+		// `related` never reaches `layoutEdges` in either arrangement — this
+		// checks the partition directly against an empty layoutEdges set,
+		// exactly what a related-only pair produces from `canvasEdgePlan` in
+		// both flow and tree.
+		expect(canvasEdgePlan(graph, "flow").layoutEdges).toEqual([]);
+		expect(canvasEdgePlan(graph, "tree").layoutEdges).toEqual([]);
+		const { connected, isolated } = partitionByConnectivity(graph.nodes, []);
+		expect(connected).toEqual([]);
+		expect(isolated).toHaveLength(2);
+	});
+
+	it("a blocks-only task is connected in flow but isolated in tree", () => {
+		const a = t("A", { relations: { blocks: ["W/Tasks/B"] } });
+		const b = t("B");
+		const graph = buildCanvasGraph([a, b]);
+
+		const flowPlan = canvasEdgePlan(graph, "flow");
+		const flowPartition = partitionByConnectivity(graph.nodes, flowPlan.layoutEdges);
+		expect(flowPartition.connected.map((n) => n.id).sort()).toEqual([
+			"W/Tasks/A",
+			"W/Tasks/B",
+		]);
+		expect(flowPartition.isolated).toEqual([]);
+
+		const treePlan = canvasEdgePlan(graph, "tree");
+		const treePartition = partitionByConnectivity(graph.nodes, treePlan.layoutEdges);
+		expect(treePartition.connected).toEqual([]);
+		expect(treePartition.isolated.map((n) => n.id).sort()).toEqual([
+			"W/Tasks/A",
+			"W/Tasks/B",
+		]);
+	});
+
+	it("a hierarchy edge keeps both endpoints connected in tree", () => {
+		const par = t("PAR");
+		const chi = t("CHI", { parent: "W/Tasks/PAR" });
+		const other = t("OTHER");
+		const graph = buildCanvasGraph([par, chi, other]);
+		const plan = canvasEdgePlan(graph, "tree");
+		const { connected, isolated } = partitionByConnectivity(graph.nodes, plan.layoutEdges);
+		expect(connected.map((n) => n.id).sort()).toEqual([
+			"W/Tasks/CHI",
+			"W/Tasks/PAR",
+		]);
+		expect(isolated.map((n) => n.id)).toEqual(["W/Tasks/OTHER"]);
+	});
+
+	it("preserves the input node order in both output arrays", () => {
+		const a = t("A", { relations: { blocks: ["W/Tasks/C"] } });
+		const b = t("B");
+		const c = t("C");
+		const graph = buildCanvasGraph([a, b, c]);
+		const plan = canvasEdgePlan(graph, "flow");
+		const { connected, isolated } = partitionByConnectivity(graph.nodes, plan.layoutEdges);
+		expect(connected.map((n) => n.id)).toEqual(["W/Tasks/A", "W/Tasks/C"]);
+		expect(isolated.map((n) => n.id)).toEqual(["W/Tasks/B"]);
 	});
 });
 

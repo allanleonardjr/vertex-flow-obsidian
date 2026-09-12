@@ -54,16 +54,23 @@ import {
   canvasTopologyKey,
   filterCanvasGraph,
   getCanvasElkOptions,
+  partitionByConnectivity,
   type CanvasGraph,
+  type CanvasNode as CanvasGraphNode,
 } from "../../core/canvas/graph";
 import {
   DEFAULT_GROUP_PADDING,
+  ISOLATED_GRID_GAP,
   canvasEdgeLinePath,
+  collectElkOrigins,
   createLayoutGuard,
   elkPaddingOption,
   flattenCanvasLayout,
+  mergeIsolatedIntoLayout,
+  packCanvasGrid,
   type EdgeMeta,
   type FlatCanvasLayout,
+  type IsolatedGridBox,
   type PlacedBox,
 } from "../../core/canvas/layout";
 import {
@@ -356,6 +363,30 @@ export function CanvasView({
         height: NODE_HEIGHT + extraLines * titleMetrics.lineHeightPx,
       };
     };
+
+    // Partition each scope's own node set against the *same* global
+    // `plan.layoutEdges` — a task's connectivity is global (an edge to a task
+    // in a different group still counts as connected), only which node set
+    // gets tested changes per scope. Keyed by the scope's own ELK id so the
+    // grid-pack pass below can look each one back up after layout resolves.
+    const partitions = new Map<
+      string,
+      { connected: CanvasGraphNode[]; isolated: CanvasGraphNode[] }
+    >(
+      grouped
+        ? visibleGroups.map((g) => [
+            `group:${g.key}`,
+            partitionByConnectivity(
+              g.tasks.map((t) => ({ id: t.path, task: t })),
+              plan.layoutEdges,
+            ),
+          ])
+        : [["root", partitionByConnectivity(graph.nodes, plan.layoutEdges)]],
+    );
+
+    // ELK only ever sees each scope's `connected` members — `isolated` ones
+    // are never handed to it at all, grid-packed separately once layout
+    // resolves (below).
     const children: ElkNode[] = grouped
       ? visibleGroups.map((g) => ({
           id: `group:${g.key}`,
@@ -364,9 +395,11 @@ export function CanvasView({
             "elk.padding": GROUP_PADDING,
             ...ELK_SPACING,
           },
-          children: g.tasks.map((t) => leaf(t)),
+          children: (partitions.get(`group:${g.key}`)?.connected ?? []).map(
+            (n) => leaf(n.task),
+          ),
         }))
-      : graph.nodes.map((n) => leaf(n.task));
+      : partitions.get("root")!.connected.map((n) => leaf(n.task));
 
     // `edge-${i}` carries the kind + endpoints back by index after layout. In
     // tree mode this is just the parent→child edges (`plan.layoutEdges`);
@@ -397,11 +430,57 @@ export function CanvasView({
       .layout(elkGraph)
       .then((res) => {
         if (cancelled || !layoutGuard.isCurrent(requestId)) return;
+        const base = flattenCanvasLayout(res, edgeMeta, {
+          nodeWidth: NODE_WIDTH,
+          nodeHeight: NODE_HEIGHT,
+        });
+        const elkOrigins = collectElkOrigins(res);
+
+        // Grid-pack each scope's isolated set. Columns come from the
+        // available width at this point, never a hardcoded count: a group's
+        // own resolved connected-block width (so its grid lines up with its
+        // own column), or — since the root has no "own column" to match —
+        // the canvas container's actual rendered viewport width.
+        const isolatedBoxes = new Map<string, IsolatedGridBox[]>();
+        for (const [scopeId, { isolated }] of partitions) {
+          if (isolated.length === 0) continue;
+          const availableWidth =
+            scopeId === "root"
+              ? canvasRef.current?.getBoundingClientRect().width || NODE_WIDTH
+              : base.groups.get(scopeId)?.width || NODE_WIDTH;
+          const columns = Math.max(
+            1,
+            Math.floor(
+              (availableWidth + ISOLATED_GRID_GAP) /
+                (NODE_WIDTH + ISOLATED_GRID_GAP),
+            ),
+          );
+          const sizeById = new Map(isolated.map((n) => [n.id, leaf(n.task)]));
+          // Rows must clear the tallest card in this scope's grid, or two
+          // consecutive rows of variable-height (Phase 11 title-wrapped)
+          // cards could overlap.
+          const cellHeight = Math.max(
+            NODE_HEIGHT,
+            ...[...sizeById.values()].map((s) => s.height),
+          );
+          const positions = packCanvasGrid(
+            isolated,
+            NODE_WIDTH,
+            cellHeight,
+            ISOLATED_GRID_GAP,
+            columns,
+          );
+          isolatedBoxes.set(
+            scopeId,
+            positions.map((p) => {
+              const size = sizeById.get(p.id)!;
+              return { ...size, x: p.x, y: p.y };
+            }),
+          );
+        }
+
         setLaidOut(
-          flattenCanvasLayout(res, edgeMeta, {
-            nodeWidth: NODE_WIDTH,
-            nodeHeight: NODE_HEIGHT,
-          }),
+          mergeIsolatedIntoLayout(base, isolatedBoxes, elkOrigins, direction),
         );
         setLoading(false);
       })
@@ -448,21 +527,52 @@ export function CanvasView({
     return suppressed;
   };
 
+  // Up to two simultaneous background pointers, tracked by id, alongside the
+  // single-pointer `panState` above — a third finger is simply ignored (no
+  // rotation, no three-finger gestures). `pinchState` is non-null exactly
+  // while both are down.
+  const pointers = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const pinchState = useRef<{
+    initialDistance: number;
+    initialScale: number;
+  } | null>(null);
+
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     // A press on a node, the zoom widget, the draw-mode control, or an edge's
     // click target does its own thing — none of these pan the background.
     // (An edge's hit-path in particular must not be captured here first, or
     // its own onClick — which selects it — never gets a chance to fire.)
+    // This also means a two-finger gesture that happens to start on a node's
+    // own drag handle never reaches pinch tracking below — the handle's own
+    // `startConnect` owns that pointer instead.
     const target = e.target as HTMLElement;
     if (
       target.closest(".vf-canvas-node") ||
       target.closest(".vf-canvas-zoom") ||
       target.closest(".vf-canvas-draw-mode") ||
       target.closest(".vf-canvas-edge-hit") ||
-      target.closest(".vf-canvas-edge-popup")
+      target.closest(".vf-canvas-edge-popup") ||
+      target.closest(".vf-canvas-tap-connect")
     ) {
       return;
     }
+    if (pointers.current.size >= 2) return;
+
+    e.currentTarget.setPointerCapture(e.pointerId);
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (pointers.current.size === 2) {
+      // A second finger just landed — switch from single-pointer pan to
+      // pinch for as long as both stay down.
+      panState.current = null;
+      const [p1, p2] = [...pointers.current.values()];
+      pinchState.current = {
+        initialDistance: Math.hypot(p2.x - p1.x, p2.y - p1.y),
+        initialScale: transform.scale,
+      };
+      return;
+    }
+
     panMoved.current = false;
     panState.current = {
       pointerId: e.pointerId,
@@ -471,10 +581,42 @@ export function CanvasView({
       originX: transform.x,
       originY: transform.y,
     };
-    e.currentTarget.setPointerCapture(e.pointerId);
   };
 
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (pointers.current.has(e.pointerId)) {
+      pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
+
+    if (pinchState.current && pointers.current.size === 2) {
+      const [p1, p2] = [...pointers.current.values()];
+      const { initialDistance, initialScale } = pinchState.current;
+      if (initialDistance === 0) return;
+      const distance = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+      const rect = canvasRef.current?.getBoundingClientRect();
+      const midX = (p1.x + p2.x) / 2 - (rect?.left ?? 0);
+      const midY = (p1.y + p2.y) / 2 - (rect?.top ?? 0);
+      const nextScale = clamp(
+        initialScale * (distance / initialDistance),
+        MIN_SCALE,
+        MAX_SCALE,
+      );
+      // Same anchoring principle as wheel-zoom (keep the point under the
+      // anchor fixed while scale changes), generalized to a moving midpoint:
+      // recomputed fresh from the two *current* pointer positions every move,
+      // against the live (not initial) transform, so panning the fingers
+      // together while pinching never drifts or jumps.
+      setTransform((t) => {
+        const ratio = nextScale / t.scale;
+        return {
+          scale: nextScale,
+          x: midX - (midX - t.x) * ratio,
+          y: midY - (midY - t.y) * ratio,
+        };
+      });
+      return;
+    }
+
     const pan = panState.current;
     if (!pan || pan.pointerId !== e.pointerId) return;
     const dx = e.clientX - pan.startX;
@@ -490,14 +632,40 @@ export function CanvasView({
   };
 
   const endPan = (e: ReactPointerEvent<HTMLDivElement>) => {
+    // Only a pointer we're actually tracking can end the pinch — an
+    // untracked third finger lifting (ignored on the way down) must not be
+    // mistaken for one of the two pinching fingers releasing.
+    const wasTracked = pointers.current.has(e.pointerId);
+    const wasPinching =
+      wasTracked && pinchState.current != null && pointers.current.size === 2;
+    if (wasTracked) pointers.current.delete(e.pointerId);
+
     if (panState.current?.pointerId === e.pointerId) {
       // A pan that actually moved emits a trailing click on whatever's under
       // the cursor at release — swallow it so panning over a card doesn't
       // also open it (same ordering as the drag code's own suppress-flag).
       if (panMoved.current) suppressClick.current = true;
       panState.current = null;
-      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-        e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+
+    if (wasPinching) {
+      pinchState.current = null;
+      // One finger remains — drop back to single-pointer pan from wherever
+      // it currently is, so there's no jump.
+      const remaining = [...pointers.current][0];
+      if (remaining) {
+        const [remainingId, remainingPos] = remaining;
+        panMoved.current = false;
+        panState.current = {
+          pointerId: remainingId,
+          startX: remainingPos.x,
+          startY: remainingPos.y,
+          originX: transform.x,
+          originY: transform.y,
+        };
       }
     }
   };
@@ -613,11 +781,13 @@ export function CanvasView({
   // hover-dimming keeps applying on top of the drag, dimming exactly the
   // candidate drop targets the drag is asking you to evaluate.
   const isDimmed = (path: string) =>
+    drawKind === "off" &&
     !connectDrag &&
     hoveredPath != null &&
     path !== hoveredPath &&
     !connectedToHover?.has(path);
   const isEdgeDimmed = (a: string, b: string) =>
+    drawKind === "off" &&
     !connectDrag &&
     hoveredPath != null &&
     a !== hoveredPath &&
@@ -804,6 +974,18 @@ export function CanvasView({
   }
   const [connectDrag, setConnectDrag] = useState<ConnectDrag | null>(null);
 
+  // --- Tap-to-connect. --------------------------------------------------------
+  // An alternate way to complete the same connection the drag handle draws —
+  // for touch, where a continuous drag from a small corner handle isn't
+  // always practical. Only participates in node taps while `drawKind !==
+  // "off"`; the two input methods coexist rather than one replacing the
+  // other (dragging from the handle is untouched).
+  interface TapConnect {
+    source: string;
+    target: string | null; // null while only the source is armed
+  }
+  const [tapConnect, setTapConnect] = useState<TapConnect | null>(null);
+
   const [pendingReparent, setPendingReparent] = useState<{
     child: Task;
     newParent: Task;
@@ -841,6 +1023,32 @@ export function CanvasView({
     },
     [drawKind, snapshot.tasks],
   );
+
+  /**
+   * Tapping a node while `drawKind !== "off"`. Nine rules, each with a
+   * specific reason — see Phase 12's spec for the reasoning behind each one;
+   * this is just the encoding:
+   *   1. no `tapConnect` → arm the tapped node as `source`.
+   *   2. `target` still null, tap `source` again → cancel.
+   *   3. `target` still null, tap a different node → set `target`.
+   *   4. `target` set, tap `source` again → cancel entirely.
+   *   5. `target` set, tap the current `target` again → no-op.
+   *   6. `target` set, tap any other node → re-target in place.
+   * Tapping empty canvas (rule 7), Escape (8), and a `drawKind` change (9)
+   * are handled where those inputs already live, not here.
+   */
+  const onNodeTap = (path: string) => {
+    setTapConnect((tc) => {
+      if (!tc) return { source: path, target: null };
+      if (tc.target === null) {
+        if (path === tc.source) return null;
+        return { source: tc.source, target: path };
+      }
+      if (path === tc.source) return null;
+      if (path === tc.target) return tc;
+      return { source: tc.source, target: path };
+    });
+  };
 
   const startConnect = (
     source: string,
@@ -939,6 +1147,24 @@ export function CanvasView({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [connectDrag]);
+
+  useEffect(() => {
+    if (!tapConnect) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setTapConnect(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [tapConnect]);
+
+  // Switching the draw kind (including back to "off") invalidates whatever
+  // connect gesture was in progress under the old kind — same rule for both
+  // input methods.
+  useEffect(() => {
+    setConnectDrag(null);
+    setTapConnect(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drawKind]);
 
   if (evaluated.total === 0 || visibleTasks.length === 0) {
     const filtered = evaluated.filteredOut > 0 || evaluated.total > 0;
@@ -1217,6 +1443,17 @@ export function CanvasView({
                   ? "invalid"
                   : "valid"
                 : null;
+            const tapRole: "source" | "target" | null =
+              tapConnect?.source === id
+                ? "source"
+                : tapConnect?.target === id
+                  ? "target"
+                  : null;
+            const hoverArmed =
+              drawKind !== "off" &&
+              !connectDrag &&
+              !tapConnect &&
+              hoveredPath === id;
             return (
               <CanvasNode
                 key={id}
@@ -1240,6 +1477,10 @@ export function CanvasView({
                 onHandleDown={startConnect}
                 onHandleMove={moveConnect}
                 onHandleUp={endConnect}
+                connecting={drawKind !== "off"}
+                onNodeTap={onNodeTap}
+                tapRole={tapRole}
+                hoverArmed={hoverArmed}
               />
             );
           })}
@@ -1334,6 +1575,61 @@ export function CanvasView({
 
       <CanvasLegend hidden={hiddenKindSet} />
 
+      {tapConnect?.target &&
+        drawKind !== "off" &&
+        (() => {
+          // Captured as plain `string`s so the click handler below closes
+          // over a stable, definitely-non-null pair rather than re-reading
+          // `tapConnect.target` (typed `string | null`) inside a nested
+          // closure, where TS can't carry this block's narrowing.
+          const sourcePath = tapConnect.source;
+          const targetPath = tapConnect.target;
+          const sourceTask = taskById.get(sourcePath);
+          const targetTask = taskById.get(targetPath);
+          if (!sourceTask || !targetTask) return null;
+          const invalid = connectGuard(sourcePath, targetPath);
+          const invalidMessage =
+            invalid === "cycle"
+              ? drawKind === "hierarchy"
+                ? `Can't move — "${sourceTask.id}" is a descendant of "${targetTask.id}".`
+                : `Can't link — "${sourceTask.id}" and "${targetTask.id}" would block each other in a cycle.`
+              : invalid === "self"
+                ? "A task can't connect to itself."
+                : null;
+          return (
+            // Screen-anchored (fixed to the viewport, not a node's canvas
+            // coordinates) — deliberately, per rule 7: panning to find a
+            // third node must never carry this off-screen along with it.
+            <div className="vf-canvas-tap-connect">
+              <span className="vf-canvas-tap-connect-label">
+                {RELATION_KIND_LABELS[drawKind]}: {sourceTask.id} →{" "}
+                {targetTask.id}
+              </span>
+              {invalidMessage && (
+                <span className="vf-canvas-tap-connect-error">
+                  {invalidMessage}
+                </span>
+              )}
+              <div className="vf-canvas-tap-connect-actions">
+                <button type="button" onClick={() => setTapConnect(null)}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="mod-cta"
+                  disabled={invalid != null}
+                  onClick={() => {
+                    setTapConnect(null);
+                    void completeConnect(sourcePath, targetPath);
+                  }}
+                >
+                  Connect
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+
       {selectedEdge && edgePopupPos && (
         <div
           className="vf-canvas-edge-popup"
@@ -1420,6 +1716,10 @@ function CanvasNode({
   onHandleDown,
   onHandleMove,
   onHandleUp,
+  connecting,
+  onNodeTap,
+  tapRole,
+  hoverArmed,
 }: {
   task: Task;
   pos: PlacedBox;
@@ -1439,6 +1739,13 @@ function CanvasNode({
   onHandleDown: (source: string, e: ReactPointerEvent<HTMLDivElement>) => void;
   onHandleMove: (e: ReactPointerEvent<HTMLDivElement>) => void;
   onHandleUp: (e: ReactPointerEvent<HTMLDivElement>) => void;
+  /** True whenever `drawKind !== "off"` — tapping the card body participates
+   *  in tap-to-connect instead of opening the task while this is set. */
+  connecting: boolean;
+  onNodeTap: (path: string) => void;
+  /** This node's role in the current tap-to-connect pair, if any. */
+  tapRole: "source" | "target" | null;
+  hoverArmed: boolean;
 }) {
   const off = (field: TaskField) => hiddenFields.includes(field);
   // Same mechanism Board's own cards open a task with — no Canvas-only path.
@@ -1451,6 +1758,9 @@ function CanvasNode({
         highlighted && "is-hover-connected",
         connectTarget === "valid" && "is-connect-target",
         connectTarget === "invalid" && "is-connect-invalid",
+        tapRole === "source" && "is-tap-source",
+        tapRole === "target" && "is-tap-target",
+        hoverArmed && "is-tap-source",
       ]
         .filter(Boolean)
         .join(" ")}
@@ -1466,7 +1776,11 @@ function CanvasNode({
       onClick={(e) => {
         e.stopPropagation();
         if (consumePanClick()) return;
-        tabs.openTask(task.path);
+        if (connecting) {
+          onNodeTap(task.path);
+        } else {
+          tabs.openTask(task.path);
+        }
       }}
     >
       {/* Drag from here to draw a new relation — the click-to-open target is

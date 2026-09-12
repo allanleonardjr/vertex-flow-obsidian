@@ -7994,6 +7994,46 @@ button.vf-canvas-zoom-fit {
   text-decoration: line-through;
 }
 
+/* Tap-to-connect's confirm bar — bottom-center, screen-anchored like the
+   zoom cluster and legend either side of it (outside `.vf-canvas-surface`,
+   so it never pans/scales with the graph). Fixed to the viewport rather than
+   either node's canvas position is deliberate: panning to find a second or
+   third node must never carry this off-screen, since there's no other way
+   to reach Cancel. Guarded out of the background-pan `onPointerDown` the
+   same way the zoom cluster is. */
+.vf-canvas-tap-connect {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-secondary);
+}
+
+.vf-canvas-tap-connect-label {
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  white-space: nowrap;
+}
+
+.vf-canvas-tap-connect-error {
+  color: var(--text-error, #e03131);
+  font-size: var(--font-ui-smaller);
+  white-space: nowrap;
+}
+
+.vf-canvas-tap-connect-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+}
+
 .vf-canvas-node {
   position: absolute;
   display: flex;
@@ -8040,6 +8080,29 @@ button.vf-canvas-zoom-fit {
   border-color: var(--text-error, #e03131);
   box-shadow: 0 0 0 2px var(--text-error, #e03131);
   cursor: not-allowed;
+}
+
+/* Tap-to-connect's armed/pending state — a pulsing border, not a static
+   selection, so "waiting for the next tap" reads as active rather than a
+   fixed choice. Deliberately not yellow (that's `is-hover-connected`'s own,
+   unrelated meaning elsewhere on this same card) and deliberately two
+   different colours *and* two different speeds from each other, so which
+   role is which is never ambiguous once both are showing at once. */
+@keyframes vf-tap-source-pulse {
+  0%, 100% { border-color: var(--color-purple); }
+  50% { border-color: var(--vf-border); }
+}
+@keyframes vf-tap-target-pulse {
+  0%, 100% { border-color: var(--color-pink); }
+  50% { border-color: var(--vf-border); }
+}
+
+.vf-canvas-node.is-tap-source {
+  animation: vf-tap-source-pulse 1.6s ease-in-out infinite;
+}
+
+.vf-canvas-node.is-tap-target {
+  animation: vf-tap-target-pulse 0.9s ease-in-out infinite;
 }
 
 /* The drag-to-connect handle: invisible until the card is hovered, sitting in

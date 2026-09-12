@@ -28,7 +28,8 @@
  * only sizes are recomputed.
  */
 
-import type { LayeringEdgeKind } from "./graph";
+import type { CanvasDirection } from "../types";
+import type { CanvasNode, LayeringEdgeKind } from "./graph";
 
 export interface ElkPoint {
 	x: number;
@@ -120,6 +121,27 @@ export function elkPaddingOption(pad: GroupPadding = DEFAULT_GROUP_PADDING): str
 
 const GROUP_PREFIX = "group:";
 
+/**
+ * Every ELK node's absolute origin (top-left), keyed by id — `"root"` itself
+ * is `(0, 0)`. Exported standalone (not just as `flattenCanvasLayout`'s
+ * internal bookkeeping) because it's the only place a *zero-leaf* compound's
+ * position survives: `flattenCanvasLayout`'s own tight-fit pass skips a
+ * group with no leaves entirely (nothing to fit around), so a fully-isolated
+ * group's box — sized purely from its grid-packed contents, never from ELK —
+ * still needs *somewhere* to anchor to, and this is where that comes from.
+ */
+export function collectElkOrigins(root: ElkLayoutNode): Map<string, ElkPoint> {
+	const origins = new Map<string, ElkPoint>([["root", { x: 0, y: 0 }]]);
+	const visit = (node: ElkLayoutNode, x: number, y: number) => {
+		origins.set(node.id, { x, y });
+		for (const child of node.children ?? []) {
+			visit(child, x + (child.x ?? 0), y + (child.y ?? 0));
+		}
+	};
+	visit(root, 0, 0);
+	return origins;
+}
+
 export function flattenCanvasLayout(
 	root: ElkLayoutNode,
 	edgeMeta: Map<string, EdgeMeta>,
@@ -139,19 +161,7 @@ export function flattenCanvasLayout(
 	 * sections whose `container` isn't the root into absolute coordinates.
 	 * Root itself is `(0, 0)`.
 	 */
-	const origins = new Map<string, ElkPoint>([["root", { x: 0, y: 0 }]]);
-
-	// First pass: record every node's absolute origin. Edges must not be
-	// flattened until all of them are known — ELK hoists within-compound edges
-	// onto `root.edges` with *group-relative* sections, and the group they
-	// reference may not have been visited yet if we interleaved the two.
-	const collectOrigins = (node: ElkLayoutNode, x: number, y: number) => {
-		origins.set(node.id, { x, y });
-		for (const child of node.children ?? []) {
-			collectOrigins(child, x + (child.x ?? 0), y + (child.y ?? 0));
-		}
-	};
-	collectOrigins(root, 0, 0);
+	const origins = collectElkOrigins(root);
 
 	const visit = (
 		node: ElkLayoutNode,
@@ -236,6 +246,172 @@ export function flattenCanvasLayout(
 	}
 
 	return { nodes, groups, edges, width: Math.max(width, 1), height: Math.max(height, 1) };
+}
+
+/* ------------------------------------------------------- isolated grid --- */
+
+export interface GridPosition {
+	id: string;
+	x: number;
+	y: number;
+}
+
+/**
+ * Plain left-to-right, top-to-bottom packing for a node set with nothing for
+ * ELK to rank. Consumes `nodes` in the order given — that order already
+ * reflects the view's own sort (rank by default via `evaluated.tasks`), so
+ * this deliberately does no sorting of its own; reordering here would
+ * silently override whatever sort the person actually chose.
+ */
+export function packCanvasGrid(
+	nodes: readonly CanvasNode[],
+	cellWidth: number,
+	cellHeight: number,
+	gap: number,
+	columns: number,
+): GridPosition[] {
+	return nodes.map((n, i) => ({
+		id: n.id,
+		x: (i % columns) * (cellWidth + gap),
+		y: Math.floor(i / columns) * (cellHeight + gap),
+	}));
+}
+
+/** A grid-packed isolated node, already sized (unlike bare `GridPosition`). */
+export interface IsolatedGridBox extends PlacedBox {
+	id: string;
+}
+
+/** Gap between a scope's ELK-connected block and its appended isolated grid. */
+export const ISOLATED_GRID_GAP = 24;
+
+/**
+ * Fold grid-packed isolated nodes (`partitionByConnectivity` +
+ * `packCanvasGrid`) into an already-ELK-flattened layout, one scope at a
+ * time — `"root"` for the flat/ungrouped case's own isolated set, or a
+ * group's ELK id for that group's own.
+ *
+ * Each scope's isolated boxes (still positioned relative to `packCanvasGrid`'s
+ * local `(0, 0)`) are appended right after that scope's own connected-block
+ * bounding box: below it when `direction` is `"right"` (the primary flow axis
+ * is horizontal, so stacking vertically doesn't fight it), to its right when
+ * `"down"` (mirrored reasoning). A scope with no connected leaves at all —
+ * the fully-edgeless degenerate case, at either granularity — has a
+ * zero-sized connected block, so the offset math places the grid right at
+ * the scope's own origin with no special-casing: `(0, 0)` for the root, or
+ * (since a *group* with zero leaves is entirely absent from
+ * `flattenCanvasLayout`'s own `groups` map — nothing to tight-fit around)
+ * wherever ELK still placed that now-empty compound, from `elkOrigins`
+ * (`collectElkOrigins`, run on the same raw ELK result).
+ *
+ * Also extends each touched group's tight-fit box, and the overall
+ * `width`/`height`, to include the newly-appended content — a group whose
+ * members are entirely isolated would otherwise keep whatever box (or lack
+ * of one) the ELK-only pass gave it, and `fitToView`/the SVG viewBox would
+ * crop the isolated grid at the root level the same way.
+ */
+export function mergeIsolatedIntoLayout(
+	base: FlatCanvasLayout,
+	isolated: ReadonlyMap<string, readonly IsolatedGridBox[]>,
+	elkOrigins: ReadonlyMap<string, ElkPoint>,
+	direction: CanvasDirection,
+	groupPadding: GroupPadding = DEFAULT_GROUP_PADDING,
+): FlatCanvasLayout {
+	if (isolated.size === 0) return base;
+
+	const nodes = new Map(base.nodes);
+	const groups = new Map(base.groups);
+	let width = base.width;
+	let height = base.height;
+
+	for (const [scopeId, boxes] of isolated) {
+		if (boxes.length === 0) continue;
+		const isRoot = scopeId === "root";
+		const connectedBox = isRoot ? undefined : base.groups.get(scopeId);
+
+		let blockX = 0;
+		let blockY = 0;
+		let blockWidth = 0;
+		let blockHeight = 0;
+		// The raw (unpadded) bbox to tight-fit this group around, seeded with
+		// its existing connected leaves — recovered by reversing the padding
+		// the earlier tight-fit pass already applied, so re-padding below
+		// doesn't double up. Absent for the root (which isn't padded) and for
+		// a group with no connected leaves (nothing to recover).
+		let minX = Infinity;
+		let minY = Infinity;
+		let maxX = -Infinity;
+		let maxY = -Infinity;
+
+		if (isRoot) {
+			// Nothing connected at the root case's degenerate extreme (the
+			// fully-edgeless workspace) — `(0, 0)`, the root's own origin,
+			// exactly the "no special case needed" the offset math relies on.
+			if (base.nodes.size > 0) {
+				blockWidth = base.width;
+				blockHeight = base.height;
+			}
+		} else if (connectedBox) {
+			// The isolated grid is offset relative to the *raw* (unpadded)
+			// leaves bbox — recovered by reversing the padding the earlier
+			// tight-fit pass applied — not the padded outer box. Anchoring to
+			// the padded edge instead would double-count that padding once
+			// the union below gets re-padded to produce the final box.
+			minX = connectedBox.x + groupPadding.left;
+			minY = connectedBox.y + groupPadding.top;
+			maxX = connectedBox.x + connectedBox.width - groupPadding.right;
+			maxY = connectedBox.y + connectedBox.height - groupPadding.bottom;
+			blockX = minX;
+			blockY = minY;
+			blockWidth = maxX - minX;
+			blockHeight = maxY - minY;
+		} else {
+			const origin = elkOrigins.get(scopeId) ?? { x: 0, y: 0 };
+			blockX = origin.x + groupPadding.left;
+			blockY = origin.y + groupPadding.top;
+		}
+
+		const hasBlock = blockWidth > 0 || blockHeight > 0;
+		const gap = hasBlock ? ISOLATED_GRID_GAP : 0;
+		const offsetX = direction === "down" ? blockX + blockWidth + gap : blockX;
+		const offsetY = direction === "right" ? blockY + blockHeight + gap : blockY;
+
+		for (const b of boxes) {
+			const box: PlacedBox = {
+				x: offsetX + b.x,
+				y: offsetY + b.y,
+				width: b.width,
+				height: b.height,
+			};
+			nodes.set(b.id, box);
+			minX = Math.min(minX, box.x);
+			minY = Math.min(minY, box.y);
+			maxX = Math.max(maxX, box.x + box.width);
+			maxY = Math.max(maxY, box.y + box.height);
+			width = Math.max(width, box.x + box.width);
+			height = Math.max(height, box.y + box.height);
+		}
+
+		if (!isRoot) {
+			const groupBox: PlacedBox = {
+				x: minX - groupPadding.left,
+				y: minY - groupPadding.top,
+				width: maxX - minX + groupPadding.left + groupPadding.right,
+				height: maxY - minY + groupPadding.top + groupPadding.bottom,
+			};
+			groups.set(scopeId, groupBox);
+			width = Math.max(width, groupBox.x + groupBox.width);
+			height = Math.max(height, groupBox.y + groupBox.height);
+		}
+	}
+
+	return {
+		nodes,
+		groups,
+		edges: base.edges,
+		width: Math.max(width, 1),
+		height: Math.max(height, 1),
+	};
 }
 
 /**
