@@ -184,7 +184,7 @@ function estimateTitleLines(
   maxWidthPx: number,
   font: string,
 ): number {
-  titleMeasureCanvas ??= document.createElement("canvas");
+  titleMeasureCanvas ??= createEl("canvas");
   const ctx = titleMeasureCanvas.getContext("2d");
   if (!ctx) return 1;
   ctx.font = font;
@@ -218,7 +218,7 @@ function estimateTitleLines(
  * per layout pass.
  */
 function resolveTitleMetrics(): { font: string; lineHeightPx: number } {
-	const probe = document.createElement("span");
+	const probe = createSpan();
 	probe.className = "vf-canvas-metrics-probe vf-canvas-node-title";
 	document.body.appendChild(probe);
   const style = getComputedStyle(probe);
@@ -235,7 +235,7 @@ function resolveTitleMetrics(): { font: string; lineHeightPx: number } {
  * re-guessed (it's shifted across earlier Canvas phases already).
  */
 function resolveTitleMaxWidth(): number {
-	const probe = document.createElement("div");
+	const probe = createDiv();
 	probe.className = "vf-canvas-metrics-probe vf-canvas-node";
 	probe.style.width = `${NODE_WIDTH}px`;
 	document.body.appendChild(probe);

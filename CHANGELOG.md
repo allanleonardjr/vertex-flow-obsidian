@@ -236,6 +236,15 @@ This project uses [Semantic Versioning](https://semver.org/).
   `unsupportedFor` into the render path itself, and `Type` now carries
   `unsupportedFor: ["timeline", "calendar"]`, so the popover and the render
   can no longer drift apart for any field.
+- **Obsidian code checker warnings.** `HELP_TOPICS` typed as `any` in
+  environments without the gitignored, build-generated `help-generated.ts` on
+  disk, cascading `no-unsafe-*` warnings into every call site that touches it
+  (`InlineHelpIcon`, `HelpView`, `ShortcutsHelpDialog`); a checked-in
+  `help-generated.d.ts` ambient declaration now gives `HELP_TOPICS` a real
+  type regardless. `CanvasView`'s three off-screen measurement probes
+  (`titleMeasureCanvas`, and the span/div used to resolve title font metrics
+  and max width) now use Obsidian's `createEl`/`createSpan`/`createDiv`
+  helpers instead of `document.createElement`, per `obsidianmd/prefer-create-el`.
 
 ## 1.0.19 — 2026-09-10
 

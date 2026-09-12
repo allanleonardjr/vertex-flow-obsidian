@@ -16,7 +16,7 @@ export { HELP_TOPICS } from "./help-generated";
 
 /** Depth-first lookup by id, anywhere in the tree. */
 export function findHelpTopic(
-  topics: HelpTopic[],
+  topics: readonly HelpTopic[],
   id: string,
 ): HelpTopic | null {
   for (const topic of topics) {
