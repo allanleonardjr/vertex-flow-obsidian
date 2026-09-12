@@ -29,6 +29,11 @@ This project uses [Semantic Versioning](https://semver.org/).
   colors as tap-to-connect for the equivalent roles, instead of the
   drag's own source going unstyled and its target using a separate static
   ring.
+- Filter bar: the Labels filter dropdown no longer grows unbounded when a
+  workspace has many labels. The chip list now caps its own height and
+  scrolls internally instead of pushing the popover past the viewport,
+  which previously hijacked the mouse wheel and scrolled the whole task
+  list instead of the dropdown.
 
 ## 1.0.21 — 2026-09-11
 - **Canvas layout (`v` `d`) — a relationship graph.** Any Saved View

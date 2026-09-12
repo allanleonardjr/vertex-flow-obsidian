@@ -5053,6 +5053,9 @@ button.vf-add-relation.is-on {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+  max-height: min(320px, 50vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 /* ---- Fields checklist (view bar → "Fields") ---- */
