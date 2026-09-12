@@ -26,6 +26,7 @@ If that destination is already open, Vertex Flow switches to its existing tab ra
 | `g` `p` | Projects |
 | `g` `l` | Labels |
 | `g` `m` | People |
+| `g` `w` | Workspaces |
 | `g` `r` | Recurring |
 | `g` `e` | Activity History |
 | `g` `t` | Trash |

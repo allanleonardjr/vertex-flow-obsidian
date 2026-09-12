@@ -22,6 +22,7 @@ import { PersonDetailView } from "./PersonDetailView";
 import { TemplateGallery } from "./TemplateGallery";
 import { SelectionProvider, useSelection } from "./selection";
 import { ProjectsBrowseView } from "./browse/ProjectsBrowseView";
+import { WorkspacesBrowseView } from "./browse/WorkspacesBrowseView";
 import { ViewsBrowseView } from "./browse/ViewsBrowseView";
 import { LabelsBrowseView } from "./browse/LabelsBrowseView";
 import { PeopleBrowseView } from "./browse/PeopleBrowseView";
@@ -272,6 +273,8 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
           <LabelsBrowseView snapshot={snapshot} containerRef={container} />
         ) : activeTab.kind === "people" ? (
           <PeopleBrowseView snapshot={snapshot} containerRef={container} />
+        ) : activeTab.kind === "workspaces" ? (
+          <WorkspacesBrowseView containerRef={container} />
         ) : activeTab.kind === "person" ? (
           <PersonDetailView
             personId={activeTab.personId}

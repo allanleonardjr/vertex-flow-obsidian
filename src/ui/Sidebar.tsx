@@ -362,8 +362,9 @@ function Section({
   action?: ReactNode;
   /**
    * Where the title + count click leads, for sections that have a hub screen
-   * (Views/Dashboards/Projects). Absent — Labels, Workspaces — the title falls
-   * back to toggling collapse, same as the chevron.
+   * (Views/Dashboards/Projects/Labels/People/Workspaces). Absent for
+   * sections with no hub screen, the title falls back to toggling collapse,
+   * same as the chevron.
    */
   onOpenHub?: () => void;
   children: ReactNode;
@@ -609,6 +610,7 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
       id="workspaces"
       title="Workspaces"
       count={workspaces.length}
+      onOpenHub={() => tabs.openScreen("workspaces")}
       action={
         <AddButton
           title="New workspace"

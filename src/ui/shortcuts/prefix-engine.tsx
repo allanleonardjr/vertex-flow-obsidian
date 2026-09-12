@@ -106,6 +106,9 @@ export function PrefixEngine({
 					case "m":
 						void tabs.openScreen("people");
 						return true;
+					case "w":
+						void tabs.openScreen("workspaces");
+						return true;
 					case "t":
 						void tabs.openScreen("trash");
 						return true;

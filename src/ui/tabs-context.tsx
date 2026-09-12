@@ -38,6 +38,7 @@ import {
 /** The non-task screens, each a single reusable tab (never duplicated). */
 export type BrowseKind =
     | "projects"
+    | "workspaces"
     | "settings"
     | "help"
     | "new-workspace"
@@ -182,6 +183,7 @@ export function tabAccentRoot(
 			return activeRoot;
 		case "help":
 		case "new-workspace":
+		case "workspaces":
 			return null;
 	}
 }

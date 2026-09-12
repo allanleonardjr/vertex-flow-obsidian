@@ -5,6 +5,25 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Added
+
+- **Workspaces hub (`g w`) — every workspace in the vault on one screen.**
+  A new hub, reachable from the sidebar's Workspaces section title and the
+  `g w` chord, lists every live workspace as a two-line card — icon, name,
+  ID prefix, task/project counts, and the workspace's folder path — instead
+  of only the active one. The card for the current workspace carries an
+  ACTIVE chip and picks up the same accent styling as its sidebar row;
+  clicking a card switches to that workspace and opens its All Tasks view.
+  Each card's menu mirrors the sidebar's workspace menu (Edit, Settings,
+  Export Tasks…, Export as Template…, Move to Trash), and a cross-workspace
+  Export… click now survives the workspace switch that opens the dialog.
+- **Per-workspace accent colour in the hub's hero charts.** The two fixed
+  charts above the list (tasks and projects per workspace) colour each bar
+  with the workspace's canonical accent — the same deterministic,
+  root-hash-derived colour used for the sidebar dots and tab accents — so
+  the bars spread across the palette instead of clustering on the first
+  white/gray shades, and each workspace reads the same colour everywhere.
+
 ### Fixed
 
 - **Workspace template export/import rejected dashboards using an `updatedAt`
