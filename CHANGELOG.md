@@ -5,6 +5,13 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Fixed
+- **`pnpm test` failed on a fresh checkout.** `src/core/help.ts` re-exports
+  `HELP_TOPICS` from the gitignored, build-generated `help-generated.ts`,
+  which nothing produced before `vitest` ran — `test` had no dependency on
+  `build:help`. Added a `pretest` script (and `pretest:watch` for
+  `test:watch`) that regenerates it first.
+
 ## 1.0.21 — 2026-09-11
 - **Canvas layout (`v` `d`) — a relationship graph.** Any Saved View
   can now render as a Canvas: the view's filtered tasks are laid out by `elkjs`
