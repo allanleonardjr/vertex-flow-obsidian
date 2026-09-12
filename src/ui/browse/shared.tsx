@@ -160,6 +160,7 @@ export function BrowseEmpty({
 export function BrowseCard({
   onClick,
   trailing,
+  className,
   children,
 }: {
   /**
@@ -169,10 +170,23 @@ export function BrowseCard({
    */
   onClick?: () => void;
   trailing?: ReactNode;
+  /**
+   * Extra classes appended to the wrapper — e.g. the Workspaces hub's
+   * `is-current` marker, which recolors a card the way the sidebar recolors
+   * its current workspace row.
+   */
+  className?: string;
   children: ReactNode;
 }) {
+  const cls = [
+    "vf-browse-card",
+    !onClick && "vf-browse-card-static",
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ");
   return (
-    <div className={`vf-browse-card${onClick ? "" : " vf-browse-card-static"}`}>
+    <div className={cls}>
       {onClick ? (
         <button className="vf-browse-card-body" onClick={onClick}>
           {children}

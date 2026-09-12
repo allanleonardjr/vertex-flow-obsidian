@@ -32,9 +32,9 @@ import {
 import { COLOR_PALETTE } from "../../color";
 import {
 	STATUS_CATEGORIES,
-	type DashboardGroupingField,
+	DASHBOARD_GROUPING_FIELDS,
+	DASHBOARD_TEMPORAL_FIELDS,
 	type DashboardMetric,
-	type DashboardTemporalField,
 	type DashboardTimeBucket,
 	type GroupByField,
 	type LabelValue,
@@ -520,19 +520,6 @@ function parseViews(raw: unknown): ParsedView[] {
 /* ---------------------------------------------------------- dashboards ---- */
 
 const CHART_TYPES = ["bar", "pie", "line", "timeline", "kpi"] as const;
-const GROUPING_FIELDS: readonly DashboardGroupingField[] = [
-	"status",
-	"priority",
-	"taskType",
-	"label",
-	"assignee",
-	"project",
-];
-const TEMPORAL_FIELDS: readonly DashboardTemporalField[] = [
-	"dueDate",
-	"startDate",
-	"createdAt",
-];
 const TIME_BUCKETS: readonly DashboardTimeBucket[] = ["day", "week", "month"];
 const METRICS: readonly DashboardMetric[] = ["count", "estimateSum", "estimateAvg"];
 
@@ -547,17 +534,27 @@ function parseWidget(raw: unknown, where: string): ParsedWidget {
 	if (!chartType) fail(`${where} is missing "type"`);
 	const title = requireString(data, "title");
 
-	const groupBy = enumOr(data.groupBy, GROUPING_FIELDS, "groupBy", line);
+	const groupBy = enumOr(
+		data.groupBy,
+		DASHBOARD_GROUPING_FIELDS,
+		"groupBy",
+		line,
+	);
 	const widget: ParsedWidget = { chartType, title, line };
 
 	if (chartType === "bar" || chartType === "pie") {
 		if (!groupBy) fail(`${where} ("${title}") — a ${chartType} chart needs "groupBy"`);
 		widget.groupBy = groupBy;
 	} else if (chartType === "line" || chartType === "timeline") {
-		const xField = enumOr(data.xField, TEMPORAL_FIELDS, "xField", line);
+		const xField = enumOr(
+			data.xField,
+			DASHBOARD_TEMPORAL_FIELDS,
+			"xField",
+			line,
+		);
 		if (!xField) {
 			fail(
-				`${where} ("${title}") — a ${chartType} chart needs "xField" (one of ${TEMPORAL_FIELDS.join(", ")})`,
+				`${where} ("${title}") — a ${chartType} chart needs "xField" (one of ${DASHBOARD_TEMPORAL_FIELDS.join(", ")})`,
 			);
 		}
 		widget.xField = xField;
@@ -577,7 +574,12 @@ function parseWidget(raw: unknown, where: string): ParsedWidget {
 				fail(`${where} ("${title}") — "scope" must be {field: ..., value: ...}`);
 			}
 			const scopeData = scope as Record<string, unknown>;
-			const field = enumOr(scopeData.field, GROUPING_FIELDS, "scope.field", line);
+			const field = enumOr(
+					scopeData.field,
+					DASHBOARD_GROUPING_FIELDS,
+					"scope.field",
+					line,
+				);
 			if (!field) fail(`${where} ("${title}") — "scope" needs a "field"`);
 			widget.scope = { field, value: String(scopeData.value ?? "").trim() };
 			if (!widget.scope.value) {
@@ -743,6 +745,7 @@ const TASK_FIELDS = new Set([
 	"due",
 	"created",
 	"updated",
+	"completed",
 	"archived",
 	"repeat",
 	"blocks",
@@ -1108,6 +1111,9 @@ function applyFields(
 				break;
 			case "updated":
 				node.updated = parseDateToken(value, line);
+				break;
+			case "completed":
+				task.completed = parseDateToken(value, line);
 				break;
 			case "archived":
 				node.archived = readArchived(value, line);

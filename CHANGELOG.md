@@ -5,6 +5,44 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.23 — 2026-09-12
+
+### Added
+
+- **Workspaces hub (`g w`) — every workspace in the vault on one screen.**
+  A new hub, reachable from the sidebar's Workspaces section title and the
+  `g w` chord, lists every live workspace as a two-line card — icon, name,
+  ID prefix, task/project counts, and the workspace's folder path — instead
+  of only the active one. The card for the current workspace carries an
+  ACTIVE chip and picks up the same accent styling as its sidebar row;
+  clicking a card switches to that workspace and opens its All Tasks view.
+  Each card's menu mirrors the sidebar's workspace menu (Edit, Settings,
+  Export Tasks…, Export as Template…, Move to Trash), and a cross-workspace
+  Export… click now survives the workspace switch that opens the dialog.
+- **Per-workspace accent colour in the hub's hero charts.** The two fixed
+  charts above the list (tasks and projects per workspace) colour each bar
+  with the workspace's canonical accent — the same deterministic,
+  root-hash-derived colour used for the sidebar dots and tab accents — so
+  the bars spread across the palette instead of clustering on the first
+  white/gray shades, and each workspace reads the same colour everywhere.
+
+### Fixed
+
+- **Workspace template export/import rejected dashboards using an `updatedAt`
+  or `completedAt` chart xField.** The `Export as Template…` snapshot's
+  markdown was validated against a stale, hand-copied list of temporal fields
+  (`dueDate`, `startDate`, `createdAt` only) in the template parser, so any
+  live Line/Timeline widget plotted on Updated or Completed would export fine
+  but re-import would skip the template. The parser now shares
+  `DASHBOARD_TEMPORAL_FIELDS` with the rest of the app, so the two validators
+  can't drift apart again.
+- **`completedAt` was dropped when a workspace was exported as a template.**
+  Task field lines carried `created` / `updated` but never the completion
+  stamp added in 1.0.20, so a Completed-axis chart re-imported with no data.
+  A task that carries a `completedAt` now rides a `completed:` token on its
+  field line (same "At"-dropping spelling as `created` / `updated`) and is
+  re-stamped on import.
+
 ## 1.0.22 — 2026-09-12
 
 ### Fixed

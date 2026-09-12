@@ -3504,6 +3504,57 @@ button.vf-browse-card-body {
   box-shadow: none;
 }
 
+/* The current *workspace* reads the same in the hub as it does in the sidebar
+   (.vf-nav-row.is-current): accent text, no persistent fill. Mirrors that rule
+   — same colour and weight — but scoped to the card's title and icon; the
+   meta line below stays muted like every other card. */
+.vf-browse-card.is-current .vf-browse-title,
+.vf-browse-card.is-current .vf-browse-card-icon {
+  color: var(--text-accent);
+  font-weight: 500;
+}
+
+/* Workspace cards are two-line rows (title/meta on the first line, the
+   workspace's folder path below), so they grow past the standard 34px browse
+   row instead of clipping the extra line. */
+.vf-browse-card.is-workspace {
+  height: auto;
+  min-height: var(--vf-row-height);
+}
+
+.vf-workspace-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+}
+
+.vf-workspace-card-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+/* "Active" marker on the Workspaces hub card for the current workspace*/
+.vf-workspace-card .vf-active-badge {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 0 6px;
+  color: var(--text-accent);
+  border-radius: 999px;
+  border: 1px solid var(--text-accent);
+  background: color-mix(in srgb, var(--text-accent) 10%, transparent);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
 /* Keyboard focus (j/k/arrow nav, see `useBrowseKeyboardNav`) — the same ring
    as `.vf-row.is-focused` / `.vf-card.is-focused` in the task views. */
 button.vf-browse-card-body:focus-visible {
