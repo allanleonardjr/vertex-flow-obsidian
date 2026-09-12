@@ -301,6 +301,7 @@ function taskSection(
 		if (task.dueDate) segments.push(`due: ${task.dueDate}`);
 		if (task.createdAt) segments.push(`created: ${task.createdAt}`);
 		if (task.updatedAt) segments.push(`updated: ${task.updatedAt}`);
+		if (task.completedAt) segments.push(`completed: ${task.completedAt}`);
 		if (task.archived) segments.push("archived: true");
 
 		if (task.parent && included.has(task.parent))

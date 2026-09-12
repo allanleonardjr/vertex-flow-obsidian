@@ -5,6 +5,23 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Fixed
+
+- **Workspace template export/import rejected dashboards using an `updatedAt`
+  or `completedAt` chart xField.** The `Export as Template…` snapshot's
+  markdown was validated against a stale, hand-copied list of temporal fields
+  (`dueDate`, `startDate`, `createdAt` only) in the template parser, so any
+  live Line/Timeline widget plotted on Updated or Completed would export fine
+  but re-import would skip the template. The parser now shares
+  `DASHBOARD_TEMPORAL_FIELDS` with the rest of the app, so the two validators
+  can't drift apart again.
+- **`completedAt` was dropped when a workspace was exported as a template.**
+  Task field lines carried `created` / `updated` but never the completion
+  stamp added in 1.0.20, so a Completed-axis chart re-imported with no data.
+  A task that carries a `completedAt` now rides a `completed:` token on its
+  field line (same "At"-dropping spelling as `created` / `updated`) and is
+  re-stamped on import.
+
 ## 1.0.22 — 2026-09-12
 
 ### Fixed
