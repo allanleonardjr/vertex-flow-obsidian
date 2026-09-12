@@ -95,8 +95,10 @@ export function ViewControls({
   const headerRef = useRef<HTMLElement | null>(null);
   const queryOpen = plugin.settings.queryBarOpen;
 
-  // `pending`/`editing` are shared by the Row 1 "+ Filter" trigger and the
-  // Row 2 chip list — see `FilterControls`.
+  // `openId` is shared by every popover on the bar — the Row 1 "+ Filter"
+  // trigger, the other Row 1 display controls, and the Row 2 filter tag
+  // list — so opening any one of them closes whichever other was open. See
+  // `FilterControls`.
   const filterClause = useFilterClauseState();
   // The filters row is mounted only when it has something to show: a clause
   // with a value, a query-only clause, or a just-added clause awaiting one.
@@ -236,9 +238,19 @@ export function ViewControls({
           {view.viewType !== "timeline" && view.viewType !== "calendar" && (
             <>
               <span className="vf-bar-divider" />
-              <GroupChip view={view} onChange={editView} />
+              <GroupChip
+                view={view}
+                onChange={editView}
+                openId={filterClause.openId}
+                onOpenChange={filterClause.setOpenId}
+              />
               {view.groupBy !== "none" && view.viewType === "board" && (
-                <EmptyColumnsChip view={view} onChange={editView} />
+                <EmptyColumnsChip
+                  view={view}
+                  onChange={editView}
+                  openId={filterClause.openId}
+                  onOpenChange={filterClause.setOpenId}
+                />
               )}
               {/* List and Board share one collapsed-column set, so the bulk
 							    toggle has to be reachable from both — otherwise a board
@@ -262,28 +274,58 @@ export function ViewControls({
             view.viewType !== "canvas" && (
               <>
                 <span className="vf-bar-divider" />
-                <SortChip view={view} onChange={editView} />
+                <SortChip
+                  view={view}
+                  onChange={editView}
+                  openId={filterClause.openId}
+                  onOpenChange={filterClause.setOpenId}
+                />
               </>
             )}
           <span className="vf-bar-divider" />
-          <SubtasksChip view={view} onChange={editView} />
+          <SubtasksChip
+            view={view}
+            onChange={editView}
+            openId={filterClause.openId}
+            onOpenChange={filterClause.setOpenId}
+          />
           {/* Recurrence ghosts are a Calendar/Timeline date-projection feature —
 			    a relationship graph has no timeline to project onto. */}
           {view.viewType !== "canvas" && (
             <>
               <span className="vf-bar-divider" />
-              <RecurringPreviewChip view={view} onChange={editView} />
+              <RecurringPreviewChip
+                view={view}
+                onChange={editView}
+                openId={filterClause.openId}
+                onOpenChange={filterClause.setOpenId}
+              />
             </>
           )}
           <span className="vf-bar-divider" />
-          <FieldsControl view={view} onChange={editView} />
+          <FieldsControl
+            view={view}
+            onChange={editView}
+            openId={filterClause.openId}
+            onOpenChange={filterClause.setOpenId}
+          />
           {/* Canvas-only: which relationship kinds the graph draws. */}
           {view.viewType === "canvas" && (
             <>
               <span className="vf-bar-divider" />
-              <CanvasRelationsChip view={view} onChange={editView} />
+              <CanvasRelationsChip
+                view={view}
+                onChange={editView}
+                openId={filterClause.openId}
+                onOpenChange={filterClause.setOpenId}
+              />
               <span className="vf-bar-divider" />
-              <CanvasArrangeChip view={view} onChange={editView} />
+              <CanvasArrangeChip
+                view={view}
+                onChange={editView}
+                openId={filterClause.openId}
+                onOpenChange={filterClause.setOpenId}
+              />
             </>
           )}
           <span className="vf-bar-divider" />

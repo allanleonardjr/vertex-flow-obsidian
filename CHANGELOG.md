@@ -5,7 +5,47 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.22 — 2026-09-12
+
+### Fixed
+
+- Workspace search (Alt/Option+K): task results are now matched on the
+  task's formatted ID (e.g. "PRD-0104") as well as title and description,
+  and the ID is shown as a muted chip before the title in the results
+  list — previously a query like "PRD-0104" or "PRD" wouldn't surface the
+  task at all.
+- Canvas: the "replace existing parent" confirmation no longer silently
+  fails to respond to clicks. It was rendered as a portal to the document
+  body, which lost hit-testing to the canvas underneath it — almost
+  certainly a stacking-context interaction with Canvas's pervasive use of
+  CSS `transform` for panning, zooming, and node positioning. Replaced
+  with an in-canvas, bottom-anchored dialog matching the existing
+  tap-to-connect popup's pattern, which doesn't have this problem.
+- Canvas: hovering a node before starting a connection showed the wrong
+  color (pink, the "this will become a target" preview) even though the
+  very first interaction always creates a source, never a target. Hovering
+  with nothing armed now previews as the source color (purple); the
+  target preview only appears once a source is already armed via
+  tap-to-connect.
+- Canvas: drag-to-connect now shows the same purple source / pink target
+  colors as tap-to-connect for the equivalent roles, instead of the
+  drag's own source going unstyled and its target using a separate static
+  ring.
+- Filter bar: the Labels filter dropdown no longer grows unbounded when a
+  workspace has many labels. The chip list now caps its own height and
+  scrolls internally instead of pushing the popover past the viewport,
+  which previously hijacked the mouse wheel and scrolled the whole task
+  list instead of the dropdown.
+- View bar: opening one control's popover (Group, Sort, Sub-tasks,
+  Upcoming, Empty cols, Fields, Relations, Arrange, + Filter, or a filter
+  tag's editor) now closes any other popover already open on the bar,
+  instead of letting them all stack on top of each other. Each control
+  used to own its own independent open/closed state; they now share one
+  value, the same pattern the filter tag list already used for itself.
+
 ## 1.0.21 — 2026-09-11
+
+### Added
 - **Canvas layout (`v` `d`) — a relationship graph.** Any Saved View
   can now render as a Canvas: the view's filtered tasks are laid out by `elkjs`
   as nodes. Set **Group by** to Status, Priority, Type, Assignee or Project and

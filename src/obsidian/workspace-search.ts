@@ -26,6 +26,8 @@ export interface SearchResultItem {
 	id: string;
 	title: string;
 	titleMatches: SearchMatches | null;
+	/** Task's formatted ID (e.g. "PRD-0104"), task kind only. */
+	taskId?: string;
 	snippet?: string;
 	snippetMatches?: SearchMatches | null;
 	/** Curated icon id, when the kind carries one. */
@@ -49,6 +51,8 @@ interface Candidate {
 	snippetSource: string;
 	/** Extra text matched but never displayed (person aliases). */
 	extraMatchText?: string;
+	/** Task's formatted ID — matched and displayed, task kind only. */
+	taskId?: string;
 	icon?: string;
 	color?: string;
 	personName?: string;
@@ -67,6 +71,7 @@ function buildCandidates(
 			id: task.path,
 			title: task.title,
 			snippetSource: index.taskDescription(task.path),
+			taskId: task.id,
 			icon: task.taskType ?? undefined,
 		});
 	}
@@ -143,6 +148,7 @@ export function searchWorkspace(
 
 	for (const candidate of buildCandidates(snapshot, index)) {
 		const titleResult = match(candidate.title);
+		const taskIdResult = candidate.taskId ? match(candidate.taskId) : null;
 		const snippetResult = candidate.snippetSource
 			? match(candidate.snippetSource)
 			: null;
@@ -151,8 +157,10 @@ export function searchWorkspace(
 			: null;
 
 		// Prefer a title hit: show the description as a plain (unhighlighted)
-		// snippet. Otherwise fall back to a description hit (highlighted), then
-		// to an alias hit (title shown plain, nothing highlighted).
+		// snippet. Otherwise a task-ID hit (e.g. "PRD-0104" or a "PRD" prefix,
+		// shown plain — highlighting a short ID chip isn't worth the complexity).
+		// Otherwise fall back to a description hit (highlighted), then to an
+		// alias hit (title shown plain, nothing highlighted).
 		let score: number;
 		let titleMatches: SearchMatches | null = null;
 		let snippetMatches: SearchMatches | null = null;
@@ -160,6 +168,8 @@ export function searchWorkspace(
 		if (titleResult) {
 			score = titleResult.score;
 			titleMatches = titleResult.matches;
+		} else if (taskIdResult) {
+			score = taskIdResult.score;
 		} else if (snippetResult) {
 			score = snippetResult.score;
 			snippetMatches = snippetResult.matches;
@@ -174,6 +184,7 @@ export function searchWorkspace(
 			id: candidate.id,
 			title: candidate.title,
 			titleMatches,
+			taskId: candidate.taskId,
 			snippet: candidate.snippetSource || undefined,
 			snippetMatches,
 			icon: candidate.icon,
