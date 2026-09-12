@@ -123,6 +123,22 @@ This project uses [Semantic Versioning](https://semver.org/).
   Column count comes from the available width — the canvas's own panes at the
   root, each group's own connected-block width inside it — never a hardcoded
   number.
+- **Canvas connect: one visual language for both input methods.** Drawing a
+  relation and tapping one out now read identically, because they *are* the
+  same states: whatever the connection's source is, it pulses purple, and
+  whatever a valid target is, it pulses pink — whether it was picked by the
+  drag handle or by tap. The drag handle previously gave its source no visual
+  treatment at all and marked a valid drop target with a separate static blue
+  ring; both now reuse tap-to-connect's own purple/pink pulses (slightly
+  thicker, at 4px, so the state reads at a glance). A card hovered while a
+  connect mode is on gets a *static* pink preview of the target state — the
+  target colour, but no animation — until it's actually set as a target, at
+  which point the pulse starts; a card that already holds a role keeps its own
+  colour. The explore-mode hover highlight (`is-hover-connected` yellow) is
+  suppressed while a connect mode is selected, since it fought with the
+  connect states for the same border; and an invalid drop keeps the one
+  deliberately static, red, non-pulsing state so an error never reads as
+  "waiting".
 
 ### Fixed
 - **Clicking a Canvas edge now actually selects it.** The background-pan

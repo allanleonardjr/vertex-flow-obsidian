@@ -1443,16 +1443,23 @@ export function CanvasView({
                   ? "invalid"
                   : "valid"
                 : null;
+            const isDragSource = connectDrag?.source === id;
             const tapRole: "source" | "target" | null =
               tapConnect?.source === id
                 ? "source"
                 : tapConnect?.target === id
                   ? "target"
                   : null;
-            const hoverArmed =
+            // Static pink preview of the *target* colour on whatever's being
+            // hovered while connect mode is on — "this card will take part in
+            // the connection." The pulse (the official target's animation)
+            // only appears once it's actually set as a target, not while it's
+            // merely being hovered. No role of its own yet, so a card that's
+            // already a source/target keeps its own colour.
+            const hoverTargetPreview =
               drawKind !== "off" &&
               !connectDrag &&
-              !tapConnect &&
+              tapRole === null &&
               hoveredPath === id;
             return (
               <CanvasNode
@@ -1465,6 +1472,7 @@ export function CanvasView({
                 showProject={showProject}
                 dimmed={isDimmed(id)}
                 highlighted={
+                  drawKind === "off" &&
                   !connectDrag &&
                   hoveredPath != null &&
                   id !== hoveredPath &&
@@ -1473,6 +1481,7 @@ export function CanvasView({
                 onHover={setHoveredPath}
                 consumePanClick={consumePanClick}
                 connectTarget={connectTarget}
+                dragSource={isDragSource}
                 showHandle={drawKind !== "off"}
                 onHandleDown={startConnect}
                 onHandleMove={moveConnect}
@@ -1480,7 +1489,7 @@ export function CanvasView({
                 connecting={drawKind !== "off"}
                 onNodeTap={onNodeTap}
                 tapRole={tapRole}
-                hoverArmed={hoverArmed}
+                hoverTargetPreview={hoverTargetPreview}
               />
             );
           })}
@@ -1712,6 +1721,7 @@ function CanvasNode({
   onHover,
   consumePanClick,
   connectTarget,
+  dragSource,
   showHandle,
   onHandleDown,
   onHandleMove,
@@ -1719,7 +1729,7 @@ function CanvasNode({
   connecting,
   onNodeTap,
   tapRole,
-  hoverArmed,
+  hoverTargetPreview,
 }: {
   task: Task;
   pos: PlacedBox;
@@ -1734,6 +1744,8 @@ function CanvasNode({
   consumePanClick: () => boolean;
   /** Set while a connect-drag is hovering this node as a potential drop target. */
   connectTarget: "valid" | "invalid" | null;
+  /** True while a connect-drag is pulling a relation out of this node. */
+  dragSource: boolean;
   /** False while the draw mode is "off" — the handle isn't just inert, it isn't rendered. */
   showHandle: boolean;
   onHandleDown: (source: string, e: ReactPointerEvent<HTMLDivElement>) => void;
@@ -1745,7 +1757,9 @@ function CanvasNode({
   onNodeTap: (path: string) => void;
   /** This node's role in the current tap-to-connect pair, if any. */
   tapRole: "source" | "target" | null;
-  hoverArmed: boolean;
+  /** True while connect mode is on and this node is hovered with no role yet —
+   *  shows a static preview of the target colour before it's actually set. */
+  hoverTargetPreview: boolean;
 }) {
   const off = (field: TaskField) => hiddenFields.includes(field);
   // Same mechanism Board's own cards open a task with — no Canvas-only path.
@@ -1756,11 +1770,12 @@ function CanvasNode({
         "vf-canvas-node",
         dimmed && "is-dimmed",
         highlighted && "is-hover-connected",
-        connectTarget === "valid" && "is-connect-target",
+        dragSource && "is-tap-source",
+        connectTarget === "valid" && "is-tap-target",
         connectTarget === "invalid" && "is-connect-invalid",
         tapRole === "source" && "is-tap-source",
         tapRole === "target" && "is-tap-target",
-        hoverArmed && "is-tap-source",
+        hoverTargetPreview && "is-hover-target",
       ]
         .filter(Boolean)
         .join(" ")}
