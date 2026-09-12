@@ -7740,6 +7740,13 @@ button.vf-history-expand {
   pointer-events: none;
 }
 
+.vf-canvas-metrics-probe {
+  position: fixed;
+  visibility: hidden;
+  left: -9999px;
+  top: -9999px;
+}
+
 /* Edge palette — swap these three values to re-theme every connector; the
    component never names a colour. */
 .vf-canvas {

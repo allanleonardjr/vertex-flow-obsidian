@@ -218,13 +218,9 @@ function estimateTitleLines(
  * per layout pass.
  */
 function resolveTitleMetrics(): { font: string; lineHeightPx: number } {
-  const probe = document.createElement("span");
-  probe.className = "vf-canvas-node-title";
-  probe.style.position = "fixed";
-  probe.style.visibility = "hidden";
-  probe.style.left = "-9999px";
-  probe.style.top = "-9999px";
-  document.body.appendChild(probe);
+	const probe = document.createElement("span");
+	probe.className = "vf-canvas-metrics-probe vf-canvas-node-title";
+	document.body.appendChild(probe);
   const style = getComputedStyle(probe);
   const font = style.font;
   const lineHeightPx =
@@ -239,14 +235,10 @@ function resolveTitleMetrics(): { font: string; lineHeightPx: number } {
  * re-guessed (it's shifted across earlier Canvas phases already).
  */
 function resolveTitleMaxWidth(): number {
-  const probe = document.createElement("div");
-  probe.className = "vf-canvas-node";
-  probe.style.position = "fixed";
-  probe.style.visibility = "hidden";
-  probe.style.left = "-9999px";
-  probe.style.top = "-9999px";
-  probe.style.width = `${NODE_WIDTH}px`;
-  document.body.appendChild(probe);
+	const probe = document.createElement("div");
+	probe.className = "vf-canvas-metrics-probe vf-canvas-node";
+	probe.style.width = `${NODE_WIDTH}px`;
+	document.body.appendChild(probe);
   const style = getComputedStyle(probe);
   const horizontalPadding =
     (parseFloat(style.paddingLeft) || 0) +
