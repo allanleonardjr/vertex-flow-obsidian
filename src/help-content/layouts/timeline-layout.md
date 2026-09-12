@@ -1,6 +1,6 @@
 ---
 title: Timeline layout
-order: 35
+order: 30
 ---
 
 The Timeline (Gantt) layout draws each task as a horizontal bar spanning from

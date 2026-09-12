@@ -13,11 +13,7 @@ import { createPortal } from "react-dom";
 import { Trash2 } from "lucide-react";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { EvaluatedView, NestedRow } from "../../core/views";
-import {
-  layoutIcon,
-  renderedHiddenFields,
-  toggleColumnCollapsed,
-} from "../../core/views";
+import { layoutIcon, toggleColumnCollapsed } from "../../core/views";
 import { planDeletion, scopeOf, type DeletionPlan } from "../../core/hierarchy";
 import type {
   SavedView,
@@ -40,6 +36,7 @@ import { useSelection, useScrollFocusIntoView } from "../selection";
 import { openOrSelect } from "./BoardView";
 import { useTaskDropHandler } from "./useDropHandler";
 import { PREVIEW_OFFSET_PX, useTaskDrag, type DragState } from "./useTaskDrag";
+import { layoutHiddenFields } from "./viewOptions";
 
 /** A rendered group plus its nested forest — built by `TaskViewport`. */
 export interface NestedListGroup {
@@ -86,7 +83,7 @@ export function ListView({
   onClearFilters,
 }: ListViewProps) {
   // Fields the view saved as hidden, plus any the filters make redundant.
-  const shownFields = useMemo(() => renderedHiddenFields(view), [view]);
+  const shownFields = useMemo(() => layoutHiddenFields(view), [view]);
 
   const selection = useSelection();
   const resolveDragBatch = useCallback(

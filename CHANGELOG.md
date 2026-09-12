@@ -5,6 +5,238 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.21 — 2026-09-11
+- **Canvas layout (`v` `d`) — a relationship graph.** Any Saved View
+  can now render as a Canvas: the view's filtered tasks are laid out by `elkjs`
+  as nodes. Set **Group by** to Status, Priority, Type, Assignee or Project and
+  each group (including its "None") becomes a labelled box — hidden groups drop
+  out, exactly as on the Board; Label and no grouping render flat. `blocks` /
+  `blockedBy` dependencies draw as solid arrows and `parent` → child hierarchy
+  as thin arrowless connectors — both feed the layered ranking and may cross
+  boxes; `related` links draw dashed between nodes. Cards show status, ID, type,
+  priority, due date, assignee and (outside project grouping) project; the
+  **Fields** popover narrows itself to just those five on Canvas — Labels,
+  Estimate, Start date, Progress and Relations aren't offered there since
+  toggling them would do nothing — and the new **Relations** control
+  toggles each line style off —
+  hiding a dependency or hierarchy edge also removes it from the layout ranking;
+  Sort, Collapse-all and Upcoming are hidden for Canvas. Pan and wheel-zoom, a
+  static legend keys the three line styles (dimmed when toggled off), and edge
+  colours are three themeable CSS variables. Group boxes always tight-wrap their
+  own nodes regardless of `elkjs`'s reported compound size. A bottom-left
+  zoom widget adds −/+ buttons, a percentage readout, and a **Fit to view**
+  button; clicking a card opens its task (the same way Board's cards do); and
+  hovering a card dims every unconnected card and edge, across dependency,
+  hierarchy and related links alike. The "BETA" marker moved off the graph
+  surface into a small badge next to Canvas in the layout picker.
+- **Canvas can now draw and delete relations, not just display them.** A small
+  handle appears on a card on hover — drag it to another card to create the
+  relation kind currently selected by the top-left **Connect** control, off by
+  default (nothing draws until you pick Blocks / Parent of / Related; the
+  handle itself doesn't render while it's off). The drop target is
+  highlighted, and turns red when completing it would be refused. Self-loops
+  and already-existing links are silently no-ops; a dependency or hierarchy
+  cycle is refused outright with a clear message before anything is written;
+  giving a task that already has a different parent a new one asks for
+  confirmation first. Click an edge to select it (a visible highlight), then
+  Delete/Backspace to remove it — no confirmation, the same as re-drawing it
+  would undo the removal. A new zoom slider joins the −/+ buttons, anchored to
+  the viewport centre. New
+  `Mutations.addDependency`/`removeDependency`/`addRelated`/`removeRelated`
+  write both sides of a link at once and revert the first write if the second
+  fails; cycle detection (`wouldCreateDependencyCycle`/
+  `wouldCreateHierarchyCycle`) is checked against the whole workspace, not
+  just what Canvas currently has filtered into view.
+- **Canvas arrange modes: flow/tree, left-to-right/top-to-bottom.** The
+  **Arrange** chip sits in the view bar between **Relations** and **+ Filter**
+  whenever Canvas is the active layout. It offers four options — Dependency
+  flow (left to right), Dependency flow (top to bottom), Hierarchy (left to
+  right) and Hierarchy (top to bottom) — exposed as `canvas-layout:` and
+  `canvas-direction:` clauses in the text query. **Flow** ranks all dependency
+  and parent→child edges together through ELK's `layered` algorithm; **tree**
+  ranks only parent→child edges via `mrtree` and draws dependency edges as
+  overlays between final node centres after layout, the same way related links
+  are drawn. Left-to-right / top-to-bottom maps to the internal ELK `RIGHT` /
+  `DOWN` axis (the labels never surface). With no visible hierarchy edge, tree
+  silently falls back to flow and a subtle hint explains why.
+- **Canvas hover highlight.** Hovering a card now gives every card it's
+  directly connected to (via Blocks, Parent-of or Related, regardless of
+  which kinds are currently toggled off) a visible border, on top of the
+  existing dimming of everything unconnected — so at a glance it's clear
+  *which* of the still-bright cards a hover is actually calling out.
+  Suppressed during a connect-drag, same as the dimming it complements.
+- **`relations:` query clause.** The Canvas **Relations** control's hidden-kind
+  state now round-trips through the text query bar too, the same way
+  **Arrange** already does via `canvas-layout:`/`canvas-direction:`. Typing
+  `relations:blocks,parent` hides dependency and hierarchy edges; aliases
+  (`dependency`, `subtask`, `related`, …) resolve to the same canonical
+  kinds. The clause is Canvas-only and only appears when something's
+  actually hidden — switching to another layout or clearing the toggle drops
+  it from the printed query rather than leaving a no-op clause behind.
+- **Canvas tap-to-connect.** With a draw kind active (Blocks / Parent of /
+  Related), tapping a card arms it as the source of a new connection instead
+  of opening the task — a pulsing border marks the armed card, and hovering a
+  card while a draw kind is on shows the same pulse as a hint that a tap will
+  arm it (dim-on-hover is suppressed while a draw kind is selected, since the
+  two states would fight). Tapping a second card completes the connection,
+  with a screen-anchored confirm bar at the bottom showing the pending pair
+  and offering **Cancel** / **Connect**; it refuses an invalid link (self,
+  cycle) with the same message drag-to-connect uses. Re-tapping the armed
+  card or pressing Escape cancels, tapping a third card re-targets in place,
+  and switching the draw kind clears any in-progress gesture. This
+  complements the drag handle rather than replacing it — touch users get a
+  reliable path where a continuous drag from a tiny corner handle is
+  impractical.
+- **Canvas two-finger pinch zoom (touch).** Two fingers on the canvas
+  background pinch-zoom, anchored on the moving midpoint between them (the
+  same clamping and keep-under-point anchoring as wheel-zoom), and the canvas
+  reverts to a normal single-finger pan when one finger lifts — with no jump,
+  since the pan resumes from the remaining finger's live position. A third
+  finger is ignored. A pinch that starts on a card or control keeps that
+  element's own behaviour instead.
+- **Canvas grid-packs isolated cards beside the connected block.** A canvas
+  where only *some* visible tasks are connected previously lined every
+  unconnected card into one long default strip alongside the connected block
+  — a single dependency pair anywhere made the fully-edgeless shortcut
+  inapplicable, so mixed workspaces got the worst of both. Cards are now
+  partitioned per scope (the flat root, and each group box independently)
+  against the exact edge set the current arrangement ranks: only connected
+  cards go to the ELK layout engine, while isolated ones are packed into a
+  compact left-to-right, top-to-bottom grid instead — in the view's existing
+  sort order, never re-sorted. "Isolated" is judged the same way ELK's
+  ranking sees it, so a task linked only via `related` (which never feeds the
+  ranking in either flow or tree) and a `blocks`-only task while in tree mode
+  both grid-pack. The grid appends below the connected block for
+  left-to-right arrangements and to its right for top-to-bottom ones; a fully
+  edgeless scope simply has a zero-sized block, so it's the same logic with
+  no separate path. Group boxes tight-fit to include their isolated grid too,
+  and `fitToView` / the SVG viewBox account for the grid's extra extent.
+  Column count comes from the available width — the canvas's own panes at the
+  root, each group's own connected-block width inside it — never a hardcoded
+  number.
+- **Canvas connect: one visual language for both input methods.** Drawing a
+  relation and tapping one out now read identically, because they *are* the
+  same states: whatever the connection's source is, it pulses purple, and
+  whatever a valid target is, it pulses pink — whether it was picked by the
+  drag handle or by tap. The drag handle previously gave its source no visual
+  treatment at all and marked a valid drop target with a separate static blue
+  ring; both now reuse tap-to-connect's own purple/pink pulses (slightly
+  thicker, at 4px, so the state reads at a glance). A card hovered while a
+  connect mode is on gets a *static* pink preview of the target state — the
+  target colour, but no animation — until it's actually set as a target, at
+  which point the pulse starts; a card that already holds a role keeps its own
+  colour. The explore-mode hover highlight (`is-hover-connected` yellow) is
+  suppressed while a connect mode is selected, since it fought with the
+  connect states for the same border; and an invalid drop keeps the one
+  deliberately static, red, non-pulsing state so an error never reads as
+  "waiting".
+- **Canvas covered in the bundled Help pane.** A new **Canvas layout** topic in
+  the Help pane's Layouts section walks the whole feature end to end — the
+  Arrange chip (dependency flow vs. hierarchy, left-to-right / top-to-bottom,
+  and the silent flow fallback), grouped boxes, the three edge styles and the
+  Relations toggle, pan/zoom, creating relations by drag *and* by tap, editing
+  relations (Delete / Reverse), grid-packing of isolated cards, and how
+  arrangement/direction/relations settings travel with a Saved View. The
+  layout topics also now list in the same order the layout picker does — List,
+  Board, Timeline, Calendar, Canvas.
+
+### Fixed
+- **Grouped Canvas no longer stacks cards on top of each other.** Grid-packing
+  appended each group's isolated cards *after* the ELK pass, anchored to the
+  group's connected-block box — a fully-isolated group had nothing to anchor
+  to (ELK had just left an empty 0×0 compound), and a partially-isolated
+  group's appended grid stretched its box into whichever sibling ELK had
+  placed below it, so cards overlapped across groups whenever **Group by**
+  was on. Each group's isolated grid is now sized *inside* ELK as a
+  placeholder leaf before layout runs: ELK reserves the exact space, sizes the
+  compound around it, and pushes sibling group boxes clear, then the reserved
+  rect is swapped for the real grid-packed cards after layout. Grouped and
+  flat layout share one reserve-then-fill path; the flat root keeps its
+  "grid below/right of the block" placement, and regression tests exercise
+  the real ELK pipeline for both the fully-isolated and partially-isolated
+  cases.
+- **Clicking a Canvas edge now actually selects it.** The background-pan
+  handler was capturing the pointer before the edge's own click handler got a
+  chance to fire, so selecting an edge (and then deleting it) was never
+  reachable. Also: hovering a card no longer dims other cards/edges while a
+  connect-drag is in progress — the two highlight states were fighting for the
+  same nodes.
+- **Cramped/collapsed edges inside a small Canvas group.** A group's own
+  internal `elkjs` layout pass wasn't inheriting the root's node/layer
+  spacing, so relations inside a small group (e.g. `group:status` with just a
+  couple of tasks) rendered as tight, near-illegible stubs instead of clean
+  lines. Every group now sets the same spacing options the root does.
+- **Canvas relation clarity.** Hierarchy (`Parent of`, renamed from
+  `Sub-task of` — the label now matches the drag direction) lines get their
+  own colour (`--color-blue`) instead of sharing a near-identical grey with
+  Related, and now show a small square at the parent end so the direction
+  reads without following the arrow-vs-no-arrow convention alone. Selecting
+  any edge highlights it in `--color-orange` instead of
+  `--interactive-accent`, which is Depends-on's own base colour — a selected
+  Parent-of or Related edge no longer briefly looks like a dependency.
+- **Edge popup: Delete or Reverse.** Selecting a Canvas edge now also opens a
+  small popup near the click with **Delete** and, for Blocks/Parent-of edges,
+  **Reverse** — a second, discoverable way to act alongside the existing
+  click-then-Backspace path, which still works unchanged. Reversing a Blocks
+  edge re-checks for cycles in the new direction (it can't recreate the one
+  it just broke, but a different one could exist through other edges) and
+  refuses the same way creating one does; reversing a Parent-of edge goes
+  through the same "move under a different parent?" confirmation as creating
+  one, if the task about to become a child already has a parent of its own.
+  Related has no direction, so it gets Delete only. Both actions call the
+  same `Mutations` methods the drag-to-connect/Backspace paths already use —
+  no new mutation capability.
+- **Canvas edges inside a group started behind the cards.** `elkjs` reports
+  the sections of an edge whose endpoints are both inside the same compound
+  box as *relative to that box*, while hoisting the edge onto the root's edge
+  list — flattening it against the root origin drew the line a bit over a
+  third of the node height up inside the source card, so it was hidden behind
+  it and only showed through a hover-dimmed card. Each edge is now translated
+  by its `container`'s absolute origin instead, so Blocks and Parent-of lines
+  connect exactly from card edge to card edge.
+- **Canvas showed stale task data.** Cards rendered — and delete/reverse/
+  connect read — task objects frozen inside the graph at layout time, so a
+  title or status edit stayed stale until the next full ELK pass happened to
+  run. The graph now reads the live workspace snapshot for both rendering and
+  mutation handlers, and the layout effect only re-runs when the placement
+  topology or canvas arrangement/direction actually changes — editing a title
+  repaints the card in place without requesting a re-layout. (A slow stale
+  ELK resolution can no longer overwrite a fresher pass either — only the most
+  recent layout request may commit.)
+- **Overlay dependency edges in tree mode ran through the target card.** The
+  straight `blocks`/`blockedBy` lines (and their arrowheads) were drawn
+  centre-to-centre, ending at the target node's centre and vanishing behind
+  the card. They're now snapped with `core/canvas/layout`'s
+  `canvasEdgeLinePath` helper — which intersects the centre-to-centre ray
+  with each card's boundary for both endpoints and pulls the target end back
+  ~7px so the arrowhead stays fully outside the card. Related edges are
+  unchanged (still centre-to-centre, dashed, arrowless).
+- **Canvas cards clipped titles past 2 lines.** A card's fixed height meant a
+  longer title just got cut short by `-webkit-line-clamp: 2`, with no signal
+  a title was hiding text beyond the native `title=` tooltip. Cards now grow
+  past the base height for titles that wrap to more than 2 lines (measured
+  per layout pass against the real rendered font and line-height, capped at 6
+  lines, beyond which the old clamp-and-tooltip behavior still applies) — and
+  the top row's ID and Type chip, which could previously overflow the card
+  and get cut mid-character, now truncate in place with an ellipsis instead.
+- **`Type` field rendered on Timeline/Calendar despite being scoped out.**
+  `unsupportedFor` on `FIELD_OPTIONS` only ever hid a field from the Fields
+  popover, not from what actually rendered — so `Type` (documented as
+  Board/List/Canvas-only) still showed in Timeline's row-label column and
+  Calendar's Unscheduled tray regardless. A new `layoutHiddenFields()` folds
+  `unsupportedFor` into the render path itself, and `Type` now carries
+  `unsupportedFor: ["timeline", "calendar"]`, so the popover and the render
+  can no longer drift apart for any field.
+- **Obsidian code checker warnings.** `HELP_TOPICS` typed as `any` in
+  environments without the gitignored, build-generated `help-generated.ts` on
+  disk, cascading `no-unsafe-*` warnings into every call site that touches it
+  (`InlineHelpIcon`, `HelpView`, `ShortcutsHelpDialog`); a checked-in
+  `help-generated.d.ts` ambient declaration now gives `HELP_TOPICS` a real
+  type regardless. `CanvasView`'s three off-screen measurement probes
+  (`titleMeasureCanvas`, and the span/div used to resolve title font metrics
+  and max width) now use Obsidian's `createEl`/`createSpan`/`createDiv`
+  helpers instead of `document.createElement`, per `obsidianmd/prefer-create-el`.
+
 ## 1.0.20 — 2026-09-10
 
 ### Added

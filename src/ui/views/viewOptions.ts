@@ -9,116 +9,191 @@ import { basename } from "../../core/links";
 import { listValues } from "../../core/taxonomy";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import {
-	NONE,
-	SELF,
-	TASK_FIELDS,
-	type EmptyColumnBehavior,
-	type GroupByField,
-	type SortField,
-	type SubtaskDisplay,
-	type TaskField,
-	type ViewFilters,
-	type WorkspaceSnapshot,
+  NONE,
+  SELF,
+  TASK_FIELDS,
+  type CanvasArrangement,
+  type CanvasDirection,
+  type EmptyColumnBehavior,
+  type GroupByField,
+  type SavedView,
+  type SortField,
+  type SubtaskDisplay,
+  type TaskField,
+  type ViewFilters,
+  type ViewType,
+  type WorkspaceSnapshot,
 } from "../../core/types";
+import { renderedHiddenFields } from "../../core/views";
 
 /** Re-exported so bar components import field metadata from one place. */
 export { TASK_FIELDS };
 export type { TaskField };
 
 export const GROUP_OPTIONS: { value: GroupByField; label: string }[] = [
-	{ value: "none", label: "No grouping" },
-	{ value: "status", label: "Status" },
-	{ value: "priority", label: "Priority" },
-	{ value: "taskType", label: "Type" },
-	{ value: "assignee", label: "Assignee" },
-	{ value: "label", label: "Label" },
-	{ value: "project", label: "Project" },
+  { value: "none", label: "No grouping" },
+  { value: "status", label: "Status" },
+  { value: "priority", label: "Priority" },
+  { value: "taskType", label: "Type" },
+  { value: "assignee", label: "Assignee" },
+  { value: "label", label: "Label" },
+  { value: "project", label: "Project" },
 ];
 
 export const SORT_OPTIONS: { value: SortField; label: string }[] = [
-	{ value: "rank", label: "Manual" },
-	{ value: "priority", label: "Priority" },
-	{ value: "status", label: "Status" },
-	{ value: "title", label: "Title" },
-	{ value: "dueDate", label: "Due date" },
-	{ value: "startDate", label: "Start date" },
-	{ value: "estimate", label: "Estimate" },
-	{ value: "createdAt", label: "Created" },
-	{ value: "updatedAt", label: "Updated" },
+  { value: "rank", label: "Manual" },
+  { value: "priority", label: "Priority" },
+  { value: "status", label: "Status" },
+  { value: "title", label: "Title" },
+  { value: "dueDate", label: "Due date" },
+  { value: "startDate", label: "Start date" },
+  { value: "estimate", label: "Estimate" },
+  { value: "createdAt", label: "Created" },
+  { value: "updatedAt", label: "Updated" },
 ];
 
 /** How the view treats sub-tasks. `nested` only reshapes the List view. */
 export const SUBTASK_OPTIONS: { value: SubtaskDisplay; label: string }[] = [
-	{ value: "nested", label: "Nested" },
-	{ value: "flat", label: "Flat" },
-	{ value: "hidden", label: "Hidden" },
+  { value: "nested", label: "Nested" },
+  { value: "flat", label: "Flat" },
+  { value: "hidden", label: "Hidden" },
 ];
 
 /** Board-only: what happens to a column with no cards. */
 export const EMPTY_COLUMN_OPTIONS: {
-	value: EmptyColumnBehavior;
-	label: string;
+  value: EmptyColumnBehavior;
+  label: string;
 }[] = [
-	{ value: "show-normal", label: "Show" },
-	{ value: "auto-collapse", label: "Collapse" },
-	{ value: "auto-hide", label: "Hide" },
+  { value: "show-normal", label: "Show" },
+  { value: "auto-collapse", label: "Collapse" },
+  { value: "auto-hide", label: "Hide" },
 ];
 
 /**
- * The task fields a view can hide, in `TASK_FIELDS` (canonical) order.
- * `type` renders on Board cards and List rows; Table/Calendar/Timeline
- * ignore it, but the toggle is always offered.
+ * Canvas-only: the combined arrangement × direction choices, in the order the
+ * Arrange popover lists them. The `label` is the full option row ("Dependency
+ * flow (left to right)"); `summary` is the compact bar face ("Flow Right").
+ * The ELK algorithm and axis literals are internal and never surface here.
  */
+export const CANVAS_ARRANGE_OPTIONS: {
+  value: { arrangement: CanvasArrangement; direction: CanvasDirection };
+  label: string;
+  summary: string;
+}[] = [
+  {
+    value: { arrangement: "flow", direction: "right" },
+    label: "Dependency flow (left to right)",
+    summary: "Flow Right",
+  },
+  {
+    value: { arrangement: "flow", direction: "down" },
+    label: "Dependency flow (top to bottom)",
+    summary: "Flow Down",
+  },
+  {
+    value: { arrangement: "tree", direction: "right" },
+    label: "Hierarchy (left to right)",
+    summary: "Tree Right",
+  },
+  {
+    value: { arrangement: "tree", direction: "down" },
+    label: "Hierarchy (top to bottom)",
+    summary: "Tree Down",
+  },
+];
+
+/** The compact bar-face summary for a view's current arrangement. */
+export const canvasArrangeSummary = (
+  arrangement: CanvasArrangement,
+  direction: CanvasDirection,
+): string =>
+  CANVAS_ARRANGE_OPTIONS.find(
+    (o) =>
+      o.value.arrangement === arrangement && o.value.direction === direction,
+  )?.summary ?? "Arrange";
+
 /**
  * The field checklist, in the order it reads best — not `TASK_FIELDS` order,
  * which exists to keep `hide:` output stable.
  *
  * `hint` explains a field whose behaviour isn't obvious from its name.
+ * `unsupportedFor` scopes an entry out of a view type's Fields popover *and*
+ * out of what actually renders there — `layoutHiddenFields` below folds it
+ * into `renderedHiddenFields`, so an entry here is a real exclusion, not a
+ * hidden-but-still-rendered toggle. Canvas (Phase 4) curates five fields down
+ * to its compact card; `type` is curated to Board/List/Canvas only, since a
+ * type badge doesn't fit a date-oriented layout (Timeline/Calendar).
  */
 export const FIELD_OPTIONS: {
-	value: TaskField;
-	label: string;
-	hint?: string;
+  value: TaskField;
+  label: string;
+  hint?: string;
+  unsupportedFor?: ViewType[];
 }[] = [
-	{ value: "type", label: "Type", hint: "Board & List" },
-	{ value: "project", label: "Project", hint: "Hidden when filtered to one" },
-	{ value: "priority", label: "Priority" },
-	{ value: "assignee", label: "Assignee" },
-	{ value: "labels", label: "Labels" },
-	{ value: "estimate", label: "Estimate" },
-	{ value: "startDate", label: "Start date" },
-	{ value: "dueDate", label: "Due date" },
-	{ value: "progress", label: "Progress", hint: "Sub-task rollup" },
-	{ value: "relations", label: "Relations" },
+  { value: "type", label: "Type", unsupportedFor: ["timeline", "calendar"] },
+  {
+    value: "project",
+    label: "Project",
+    hint: "Hidden when filtered to one",
+  },
+  { value: "priority", label: "Priority" },
+  { value: "assignee", label: "Assignee" },
+  { value: "labels", label: "Labels", unsupportedFor: ["canvas"] },
+  { value: "estimate", label: "Estimate", unsupportedFor: ["canvas"] },
+  { value: "startDate", label: "Start date", unsupportedFor: ["canvas"] },
+  { value: "dueDate", label: "Due date" },
+  {
+    value: "progress",
+    label: "Progress",
+    hint: "Sub-task rollup",
+    unsupportedFor: ["canvas"],
+  },
+  { value: "relations", label: "Relations", unsupportedFor: ["canvas"] },
 ];
 
+/**
+ * The hidden-field set a view's rows/cards should actually render with —
+ * `renderedHiddenFields()` plus whatever `FIELD_OPTIONS` marks
+ * `unsupportedFor` this view's layout. This is what keeps the Fields popover
+ * and the real render in agreement: an entry excluded from the popover is
+ * guaranteed to also be excluded here, for every layout, not just Canvas.
+ */
+export function layoutHiddenFields(
+  view: Pick<SavedView, "filters" | "hiddenFields" | "viewType">,
+): TaskField[] {
+  const unsupported = FIELD_OPTIONS.filter((o) =>
+    o.unsupportedFor?.includes(view.viewType),
+  ).map((o) => o.value);
+  return [...new Set([...renderedHiddenFields(view), ...unsupported])];
+}
+
 export const optionLabel = <T extends string>(
-	options: { value: T; label: string }[],
-	value: T,
+  options: { value: T; label: string }[],
+  value: T,
 ): string => options.find((o) => o.value === value)?.label ?? value;
 
 /** The `ViewFilters` keys the bar can add and edit as chip clauses. */
 export type FilterKey =
-	| "status"
-	| "priority"
-	| "taskType"
-	| "labels"
-	| "assignee"
-	| "mentions"
-	| "project"
-	| "archived"
-	| "text";
+  | "status"
+  | "priority"
+  | "taskType"
+  | "labels"
+  | "assignee"
+  | "mentions"
+  | "project"
+  | "archived"
+  | "text";
 
 export const FILTER_FIELDS: { key: FilterKey; label: string }[] = [
-	{ key: "status", label: "Status" },
-	{ key: "priority", label: "Priority" },
-	{ key: "taskType", label: "Type" },
-	{ key: "labels", label: "Label" },
-	{ key: "assignee", label: "Assignee" },
-	{ key: "mentions", label: "Mentions" },
-	{ key: "project", label: "Project" },
-	{ key: "archived", label: "Archived" },
-	{ key: "text", label: "Title" },
+  { key: "status", label: "Status" },
+  { key: "priority", label: "Priority" },
+  { key: "taskType", label: "Type" },
+  { key: "labels", label: "Label" },
+  { key: "assignee", label: "Assignee" },
+  { key: "mentions", label: "Mentions" },
+  { key: "project", label: "Project" },
+  { key: "archived", label: "Archived" },
+  { key: "text", label: "Title" },
 ];
 
 /**
@@ -129,107 +204,108 @@ export const FILTER_FIELDS: { key: FilterKey; label: string }[] = [
  */
 export type ReadonlyFilterKey = "parent";
 
-export const READONLY_FILTER_FIELDS: { key: ReadonlyFilterKey; label: string }[] = [
-	{ key: "parent", label: "Parent" },
-];
+export const READONLY_FILTER_FIELDS: {
+  key: ReadonlyFilterKey;
+  label: string;
+}[] = [{ key: "parent", label: "Parent" }];
 
 export const filterFieldLabel = (key: FilterKey | ReadonlyFilterKey): string =>
-	FILTER_FIELDS.find((f) => f.key === key)?.label ??
-	READONLY_FILTER_FIELDS.find((f) => f.key === key)?.label ??
-	key;
+  FILTER_FIELDS.find((f) => f.key === key)?.label ??
+  READONLY_FILTER_FIELDS.find((f) => f.key === key)?.label ??
+  key;
 
 export interface Choice {
-	value: string;
-	label: string;
-	color?: string | null;
+  value: string;
+  label: string;
+  color?: string | null;
 }
 
 /** The selectable values for a chip-style (non-text) filter clause. */
 export function filterChoices(
-	key: Exclude<FilterKey, "text" | "archived">,
-	snapshot: WorkspaceSnapshot,
-	taxonomies: WorkspaceTaxonomies,
+  key: Exclude<FilterKey, "text" | "archived">,
+  snapshot: WorkspaceSnapshot,
+  taxonomies: WorkspaceTaxonomies,
 ): Choice[] {
-	const people: Choice[] = snapshot.workspace.people.map((person) => ({
-		value: person.id,
-		label: person.name,
-	}));
-	const taxo = (kind: "status" | "priority" | "taskType" | "label"): Choice[] =>
-		listValues(taxonomies[kind]).map((v) => ({
-			value: v.id,
-			label: v.name,
-			color: v.color,
-		}));
+  const people: Choice[] = snapshot.workspace.people.map((person) => ({
+    value: person.id,
+    label: person.name,
+  }));
+  const taxo = (kind: "status" | "priority" | "taskType" | "label"): Choice[] =>
+    listValues(taxonomies[kind]).map((v) => ({
+      value: v.id,
+      label: v.name,
+      color: v.color,
+    }));
 
-	switch (key) {
-		case "status":
-			return taxo("status");
-		case "priority":
-			return [...taxo("priority"), { value: NONE, label: "No priority" }];
-		case "taskType":
-			return [...taxo("taskType"), { value: NONE, label: "No type" }];
-		case "labels":
-			return [...taxo("label"), { value: NONE, label: "No labels" }];
-		case "assignee":
-			return [
-				{ value: SELF, label: "Me" },
-				...people,
-				{ value: NONE, label: "Unassigned" },
-			];
-		case "mentions":
-			return [{ value: SELF, label: "Me" }, ...people];
-		case "project":
-			return [
-				...snapshot.projects.map((p) => ({ value: p.path, label: p.title })),
-				{ value: NONE, label: "No project" },
-			];
-	}
+  switch (key) {
+    case "status":
+      return taxo("status");
+    case "priority":
+      return [...taxo("priority"), { value: NONE, label: "No priority" }];
+    case "taskType":
+      return [...taxo("taskType"), { value: NONE, label: "No type" }];
+    case "labels":
+      return [...taxo("label"), { value: NONE, label: "No labels" }];
+    case "assignee":
+      return [
+        { value: SELF, label: "Me" },
+        ...people,
+        { value: NONE, label: "Unassigned" },
+      ];
+    case "mentions":
+      return [{ value: SELF, label: "Me" }, ...people];
+    case "project":
+      return [
+        ...snapshot.projects.map((p) => ({ value: p.path, label: p.title })),
+        { value: NONE, label: "No project" },
+      ];
+  }
 }
 
 /** A short human summary of a clause's current value, for the pill face. */
 export function summarizeClause(
-	key: FilterKey | ReadonlyFilterKey,
-	filters: ViewFilters,
-	snapshot: WorkspaceSnapshot,
-	taxonomies: WorkspaceTaxonomies,
+  key: FilterKey | ReadonlyFilterKey,
+  filters: ViewFilters,
+  snapshot: WorkspaceSnapshot,
+  taxonomies: WorkspaceTaxonomies,
 ): string {
-	if (key === "text") return filters.text?.trim() || "…";
-	if (key === "archived") {
-		return filters.archived === "only"
-			? "Only"
-			: filters.archived === "included"
-				? "Included"
-				: "Hidden";
-	}
-	const values = filters[key] ?? [];
-	if (values.length === 0) return "any";
-	const name =
-		key === "parent"
-			? (v: string) =>
-					snapshot.tasks.find((t) => t.path === v)?.id ?? basename(v)
-			: (v: string) => {
-					const choices = filterChoices(key, snapshot, taxonomies);
-					return choices.find((c) => c.value === v)?.label ?? v;
-				};
-	if (values.length <= 2) return values.map(name).join(", ");
-	return `${name(values[0])} +${values.length - 1}`;
+  if (key === "text") return filters.text?.trim() || "…";
+  if (key === "archived") {
+    return filters.archived === "only"
+      ? "Only"
+      : filters.archived === "included"
+        ? "Included"
+        : "Hidden";
+  }
+  const values = filters[key] ?? [];
+  if (values.length === 0) return "any";
+  const name =
+    key === "parent"
+      ? (v: string) =>
+          snapshot.tasks.find((t) => t.path === v)?.id ?? basename(v)
+      : (v: string) => {
+          const choices = filterChoices(key, snapshot, taxonomies);
+          return choices.find((c) => c.value === v)?.label ?? v;
+        };
+  if (values.length <= 2) return values.map(name).join(", ");
+  return `${name(values[0])} +${values.length - 1}`;
 }
 
 /** Clause keys currently carrying a value. */
 export function activeFilterKeys(filters: ViewFilters): FilterKey[] {
-	return FILTER_FIELDS.map((f) => f.key).filter((key) => {
-		if (key === "text") return Boolean(filters.text?.trim());
-		// String-valued, not an array — `"only".length` is truthy by accident.
-		if (key === "archived") return filters.archived != null;
-		return (filters[key]?.length ?? 0) > 0;
-	});
+  return FILTER_FIELDS.map((f) => f.key).filter((key) => {
+    if (key === "text") return Boolean(filters.text?.trim());
+    // String-valued, not an array — `"only".length` is truthy by accident.
+    if (key === "archived") return filters.archived != null;
+    return (filters[key]?.length ?? 0) > 0;
+  });
 }
 
 /** Read-only clause keys currently carrying a value. */
 export function activeReadonlyFilterKeys(
-	filters: ViewFilters,
+  filters: ViewFilters,
 ): ReadonlyFilterKey[] {
-	return READONLY_FILTER_FIELDS.map((f) => f.key).filter(
-		(key) => (filters[key]?.length ?? 0) > 0,
-	);
+  return READONLY_FILTER_FIELDS.map((f) => f.key).filter(
+    (key) => (filters[key]?.length ?? 0) > 0,
+  );
 }

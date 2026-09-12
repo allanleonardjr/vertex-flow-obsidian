@@ -54,6 +54,7 @@ Press `v`, then a layout key, to change how the current view is displayed.
 | `v` `b` | Board layout |
 | `v` `t` | Timeline layout |
 | `v` `c` | Calendar layout |
+| `v` `d` | Canvas layout (dependency DAG) |
 
 ## Focused task
 

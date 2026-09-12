@@ -570,10 +570,14 @@ export interface WorkspaceConfig {
 // ---------------------------------------------------------------------------
 
 /**
- * List and Board are v1; Timeline (Gantt) and Calendar follow. The graph
- * view is still phased in later.
+ * List and Board are v1; Timeline (Gantt) and Calendar follow. `canvas` is the
+ * read-only dependency-graph (DAG) layout — Phase 1 renders it, later phases
+ * make it interactive.
  */
-export type ViewType = "list" | "board" | "timeline" | "calendar";
+export type ViewType = "list" | "board" | "timeline" | "calendar" | "canvas";
+
+export type CanvasArrangement = "flow" | "tree";
+export type CanvasDirection = "right" | "down";
 
 export type GroupByField =
 	| "none"
@@ -609,6 +613,19 @@ export type SortDirection = "asc" | "desc";
  */
 export const SUBTASK_DISPLAYS = ["nested", "flat", "hidden"] as const;
 export type SubtaskDisplay = (typeof SUBTASK_DISPLAYS)[number];
+
+/**
+ * The three relationship kinds the Canvas view draws: `dependency`
+ * (`blocks`/`blockedBy`), `hierarchy` (`parent` → child), and `related`. There
+ * is deliberately no finer split of `related` — `TaskRelations.related` is one
+ * flat array with no sub-typing to filter on.
+ */
+export const CANVAS_RELATION_KINDS = [
+	"dependency",
+	"hierarchy",
+	"related",
+] as const;
+export type CanvasRelationKind = (typeof CANVAS_RELATION_KINDS)[number];
 
 /** Magic filter value resolving against the device's per-workspace "me" personId. */
 export const SELF = "self";
@@ -746,6 +763,26 @@ export interface SavedView {
 	 */
 	calendarDateField: "dueDate" | "startDate";
 	/**
+	 * Canvas arrangement algorithm: `"flow"` (dependency-first layered layout,
+	 * the default) or `"tree"` (hierarchy-first mrtree layout where dependency
+	 * edges are rendered as post-layout overlays).
+	 */
+	canvasArrangement?: CanvasArrangement;
+	/**
+	 * Canvas layout direction: `"right"` left-to-right (default) or `"down"`
+	 * top-to-bottom. Stored in the query string for canvas views; legacy
+	 * frontmatter values `"LR"` and `"TB"` are normalized to `"right"` and
+	 * `"down"` during parsing.
+	 */
+	canvasDirection?: CanvasDirection;
+	/**
+	 * Canvas relation kinds hidden from this view — a *hidden* list, so absent or
+	 * empty means "show all three" (same convention as `hiddenFields`). Hiding
+	 * `dependency` or `hierarchy` also drops those edges from ELK's layered
+	 * ranking, not just the drawing; `related` never affects layout either way.
+	 */
+	canvasHiddenRelationKinds?: CanvasRelationKind[];
+	/**
 	 * Whether the Calendar and Timeline render this view's recurrences as
 	 * projected, not-yet-created future occurrences. Definitional — it changes
 	 * what the view shows — so it rides in `ViewDefinition` and the draft/Save
@@ -787,6 +824,9 @@ export type ViewDefinition = Pick<
 	| "hiddenFields"
 	| "subtaskDisplay"
 	| "calendarDateField"
+	| "canvasArrangement"
+	| "canvasDirection"
+	| "canvasHiddenRelationKinds"
 	| "recurringPreview"
 >;
 

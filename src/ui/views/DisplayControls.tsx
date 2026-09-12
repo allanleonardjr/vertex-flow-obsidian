@@ -7,130 +7,143 @@
 
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
-import type {
-	EmptyColumnBehavior,
-	GroupByField,
-	SavedView,
-	SortField,
-	SubtaskDisplay,
-	ViewType,
+import {
+  CANVAS_RELATION_KINDS,
+  type CanvasArrangement,
+  type CanvasDirection,
+  type CanvasRelationKind,
+  type EmptyColumnBehavior,
+  type GroupByField,
+  type SavedView,
+  type SortField,
+  type SubtaskDisplay,
+  type ViewType,
 } from "../../core/types";
 import { layoutIcon } from "../../core/views";
 import { Icon } from "../components/Icon";
 import { Popover } from "../components/Popover";
+import { RELATION_KIND_LABELS } from "./CanvasView";
 import {
-	EMPTY_COLUMN_OPTIONS,
-	FIELD_OPTIONS,
-	GROUP_OPTIONS,
-	SORT_OPTIONS,
-	SUBTASK_OPTIONS,
-	optionLabel,
-	type TaskField,
+  CANVAS_ARRANGE_OPTIONS,
+  EMPTY_COLUMN_OPTIONS,
+  FIELD_OPTIONS,
+  GROUP_OPTIONS,
+  SORT_OPTIONS,
+  SUBTASK_OPTIONS,
+  canvasArrangeSummary,
+  optionLabel,
+  type TaskField,
 } from "./viewOptions";
 
 export function LayoutToggle({
-	view,
-	onChange,
+  view,
+  onChange,
 }: {
-	view: SavedView;
-	onChange: (next: SavedView) => void;
+  view: SavedView;
+  onChange: (next: SavedView) => void;
 }) {
-	const layouts: { value: ViewType; label: string }[] = [
-		{ value: "list", label: "List" },
-		{ value: "board", label: "Board" },
-		{ value: "timeline", label: "Timeline" },
-		{ value: "calendar", label: "Calendar" },
-	];
-	return (
-		<div className="vf-layout-toggle" role="group" aria-label="Layout">
-			{layouts.map((layout) => (
-				<button
-					key={layout.value}
-					type="button"
-					className={`vf-layout-opt${view.viewType === layout.value ? " is-on" : ""}`}
-					aria-pressed={view.viewType === layout.value}
-					aria-label={layout.label}
-					title={layout.label}
-					onClick={() =>
-						view.viewType !== layout.value &&
-						onChange({ ...view, viewType: layout.value })
-					}
-				>
-					<span className="vf-bar-icon" aria-hidden>
-						<Icon id={layoutIcon(layout.value)} size={14} />
-					</span>
-				</button>
-			))}
-		</div>
-	);
+  const layouts: { value: ViewType; label: string }[] = [
+    { value: "list", label: "List" },
+    { value: "board", label: "Board" },
+    { value: "timeline", label: "Timeline" },
+    { value: "calendar", label: "Calendar" },
+    { value: "canvas", label: "Canvas" },
+  ];
+  return (
+    <div className="vf-layout-toggle" role="group" aria-label="Layout">
+      {layouts.map((layout) => (
+        <button
+          key={layout.value}
+          type="button"
+          className={`vf-layout-opt${view.viewType === layout.value ? " is-on" : ""}`}
+          aria-pressed={view.viewType === layout.value}
+          aria-label={layout.label}
+          title={layout.label}
+          onClick={() =>
+            view.viewType !== layout.value &&
+            onChange({ ...view, viewType: layout.value })
+          }
+        >
+          <span className="vf-bar-icon" aria-hidden>
+            <Icon id={layoutIcon(layout.value)} size={14} />
+          </span>
+          {layout.value === "canvas" && view.viewType === "canvas" && (
+            <span className="vf-canvas-beta-badge" aria-hidden>
+              BETA
+            </span>
+          )}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 function BarSelect<T extends string>({
-	label,
-	value,
-	options,
-	onSelect,
+  label,
+  value,
+  options,
+  onSelect,
 }: {
-	label: string;
-	value: T;
-	options: { value: T; label: string }[];
-	onSelect: (value: T) => void;
+  label: string;
+  value: T;
+  options: { value: T; label: string }[];
+  onSelect: (value: T) => void;
 }) {
-	const [open, setOpen] = useState(false);
-	return (
-		<span className="vf-control-anchor">
-			<button
-				type="button"
-				className={`vf-bar-item${open ? " is-on" : ""}`}
-				onClick={(event) => {
-					event.stopPropagation();
-					setOpen((current) => !current);
-				}}
-			>
-				<span className="vf-bar-label">{label}</span>
-				<span className="vf-bar-value">{optionLabel(options, value)}</span>
-				<span className="vf-bar-caret" aria-hidden>
-					⌄
-				</span>
-			</button>
-			{open && (
-				<Popover align="left" onClose={() => setOpen(false)}>
-					<div className="vf-option-list">
-						{options.map((option) => (
-							<button
-								key={option.value}
-								type="button"
-								className={`vf-menu-item${option.value === value ? " is-active" : ""}`}
-								onClick={() => {
-									onSelect(option.value);
-									setOpen(false);
-								}}
-							>
-								{option.label}
-							</button>
-						))}
-					</div>
-				</Popover>
-			)}
-		</span>
-	);
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="vf-control-anchor">
+      <button
+        type="button"
+        className={`vf-bar-item${open ? " is-on" : ""}`}
+        onClick={(event) => {
+          event.stopPropagation();
+          setOpen((current) => !current);
+        }}
+      >
+        <span className="vf-bar-label">{label}</span>
+        <span className="vf-bar-value">{optionLabel(options, value)}</span>
+        <span className="vf-bar-caret" aria-hidden>
+          ⌄
+        </span>
+      </button>
+      {open && (
+        <Popover align="left" onClose={() => setOpen(false)}>
+          <div className="vf-option-list">
+            {options.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={`vf-menu-item${option.value === value ? " is-active" : ""}`}
+                onClick={() => {
+                  onSelect(option.value);
+                  setOpen(false);
+                }}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </Popover>
+      )}
+    </span>
+  );
 }
 
 export function GroupChip({
-	view,
-	onChange,
+  view,
+  onChange,
 }: {
-	view: SavedView;
-	onChange: (next: SavedView) => void;
+  view: SavedView;
+  onChange: (next: SavedView) => void;
 }) {
-	return (
-		<BarSelect
-			label="Group"
-			value={view.groupBy}
-			options={GROUP_OPTIONS}
-			onSelect={(groupBy: GroupByField) => onChange({ ...view, groupBy })}
-		/>
-	);
+  return (
+    <BarSelect
+      label="Group"
+      value={view.groupBy}
+      options={GROUP_OPTIONS}
+      onSelect={(groupBy: GroupByField) => onChange({ ...view, groupBy })}
+    />
+  );
 }
 
 /**
@@ -143,29 +156,29 @@ export function GroupChip({
  * flipping the view back to List restores the tree (same as `hiddenFields`).
  */
 export function SubtasksChip({
-	view,
-	onChange,
+  view,
+  onChange,
 }: {
-	view: SavedView;
-	onChange: (next: SavedView) => void;
+  view: SavedView;
+  onChange: (next: SavedView) => void;
 }) {
-	const isList = view.viewType === "list";
-	const options = isList
-		? SUBTASK_OPTIONS
-		: SUBTASK_OPTIONS.filter((option) => option.value !== "nested");
-	const value: SubtaskDisplay =
-		!isList && view.subtaskDisplay === "nested" ? "flat" : view.subtaskDisplay;
+  const isList = view.viewType === "list";
+  const options = isList
+    ? SUBTASK_OPTIONS
+    : SUBTASK_OPTIONS.filter((option) => option.value !== "nested");
+  const value: SubtaskDisplay =
+    !isList && view.subtaskDisplay === "nested" ? "flat" : view.subtaskDisplay;
 
-	return (
-		<BarSelect
-			label="Sub-tasks"
-			value={value}
-			options={options}
-			onSelect={(subtaskDisplay: SubtaskDisplay) =>
-				onChange({ ...view, subtaskDisplay })
-			}
-		/>
-	);
+  return (
+    <BarSelect
+      label="Sub-tasks"
+      value={value}
+      options={options}
+      onSelect={(subtaskDisplay: SubtaskDisplay) =>
+        onChange({ ...view, subtaskDisplay })
+      }
+    />
+  );
 }
 
 /**
@@ -174,25 +187,25 @@ export function SubtasksChip({
  * view — and off by default on every view.
  */
 export function RecurringPreviewChip({
-	view,
-	onChange,
+  view,
+  onChange,
 }: {
-	view: SavedView;
-	onChange: (next: SavedView) => void;
+  view: SavedView;
+  onChange: (next: SavedView) => void;
 }) {
-	return (
-		<BarSelect
-			label="Upcoming"
-			value={view.recurringPreview ? "on" : "off"}
-			options={[
-				{ value: "off", label: "Hide recurring" },
-				{ value: "on", label: "Show recurring" },
-			]}
-			onSelect={(next: "on" | "off") =>
-				onChange({ ...view, recurringPreview: next === "on" })
-			}
-		/>
-	);
+  return (
+    <BarSelect
+      label="Upcoming"
+      value={view.recurringPreview ? "on" : "off"}
+      options={[
+        { value: "off", label: "Hide recurring" },
+        { value: "on", label: "Show recurring" },
+      ]}
+      onSelect={(next: "on" | "off") =>
+        onChange({ ...view, recurringPreview: next === "on" })
+      }
+    />
+  );
 }
 
 /**
@@ -201,22 +214,22 @@ export function RecurringPreviewChip({
  * other display controls.
  */
 export function EmptyColumnsChip({
-	view,
-	onChange,
+  view,
+  onChange,
 }: {
-	view: SavedView;
-	onChange: (next: SavedView) => void;
+  view: SavedView;
+  onChange: (next: SavedView) => void;
 }) {
-	return (
-		<BarSelect
-			label="Empty cols"
-			value={view.emptyColumnBehavior}
-			options={EMPTY_COLUMN_OPTIONS}
-			onSelect={(emptyColumnBehavior: EmptyColumnBehavior) =>
-				onChange({ ...view, emptyColumnBehavior })
-			}
-		/>
-	);
+  return (
+    <BarSelect
+      label="Empty cols"
+      value={view.emptyColumnBehavior}
+      options={EMPTY_COLUMN_OPTIONS}
+      onSelect={(emptyColumnBehavior: EmptyColumnBehavior) =>
+        onChange({ ...view, emptyColumnBehavior })
+      }
+    />
+  );
 }
 
 /**
@@ -231,132 +244,292 @@ export function EmptyColumnsChip({
  * eye/eye-off icon that carries the state without relying on colour alone.
  */
 export function FieldsControl({
-	view,
-	onChange,
+  view,
+  onChange,
 }: {
-	view: SavedView;
-	onChange: (next: SavedView) => void;
+  view: SavedView;
+  onChange: (next: SavedView) => void;
 }) {
-	const [open, setOpen] = useState(false);
-	const hidden = view.hiddenFields;
-	const visibleCount = FIELD_OPTIONS.length - hidden.length;
+  const [open, setOpen] = useState(false);
+  const hidden = view.hiddenFields;
+  // Canvas curates its field set (Phase 4) — it never even offers the other
+  // five as toggleable, so the popover, the count, and the bulk actions below
+  // all have to work off this filtered set, not the global FIELD_OPTIONS.
+  const options = FIELD_OPTIONS.filter(
+    (o) => !o.unsupportedFor?.includes(view.viewType),
+  );
+  const visibleCount = options.filter((o) => !hidden.includes(o.value)).length;
 
-	const toggle = (field: TaskField) =>
-		onChange({
-			...view,
-			hiddenFields: hidden.includes(field)
-				? hidden.filter((f) => f !== field)
-				: [...hidden, field],
-		});
+  const toggle = (field: TaskField) =>
+    onChange({
+      ...view,
+      hiddenFields: hidden.includes(field)
+        ? hidden.filter((f) => f !== field)
+        : [...hidden, field],
+    });
 
-	return (
-		<span className="vf-control-anchor">
-			<button
-				type="button"
-				className={`vf-bar-item${open ? " is-on" : ""}`}
-				onClick={(event) => {
-					event.stopPropagation();
-					setOpen((current) => !current);
-				}}
-			>
-				<span className="vf-bar-label">Fields</span>
-				<span className="vf-bar-value">
-					{hidden.length === 0
-						? "All"
-						: `${visibleCount} of ${FIELD_OPTIONS.length}`}
-				</span>
-				<span className="vf-bar-caret" aria-hidden>
-					⌄
-				</span>
-			</button>
-			{open && (
-				<Popover align="left" onClose={() => setOpen(false)}>
-					<div className="vf-field-list">
-						{FIELD_OPTIONS.map((option) => {
-							const shown = !hidden.includes(option.value);
-							return (
-								<button
-									key={option.value}
-									type="button"
-									className={`vf-field-row${shown ? " is-on" : ""}`}
-									aria-pressed={shown}
-									title={shown ? `Hide ${option.label}` : `Show ${option.label}`}
-									onClick={() => toggle(option.value)}
-								>
-									<span className="vf-field-eye" aria-hidden>
-										{shown ? <Eye size={14} /> : <EyeOff size={14} />}
-									</span>
-									<span className="vf-field-label">{option.label}</span>
-									{option.hint && (
-										<span className="vf-field-hint">{option.hint}</span>
-									)}
-								</button>
-							);
-						})}
-					</div>
+  return (
+    <span className="vf-control-anchor">
+      <button
+        type="button"
+        className={`vf-bar-item${open ? " is-on" : ""}`}
+        onClick={(event) => {
+          event.stopPropagation();
+          setOpen((current) => !current);
+        }}
+      >
+        <span className="vf-bar-label">Fields</span>
+        <span className="vf-bar-value">
+          {visibleCount === options.length
+            ? "All"
+            : `${visibleCount} of ${options.length}`}
+        </span>
+        <span className="vf-bar-caret" aria-hidden>
+          ⌄
+        </span>
+      </button>
+      {open && (
+        <Popover align="left" onClose={() => setOpen(false)}>
+          <div className="vf-field-list">
+            {options.map((option) => {
+              const shown = !hidden.includes(option.value);
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={`vf-field-row${shown ? " is-on" : ""}`}
+                  aria-pressed={shown}
+                  title={
+                    shown ? `Hide ${option.label}` : `Show ${option.label}`
+                  }
+                  onClick={() => toggle(option.value)}
+                >
+                  <span className="vf-field-eye" aria-hidden>
+                    {shown ? <Eye size={14} /> : <EyeOff size={14} />}
+                  </span>
+                  <span className="vf-field-label">{option.label}</span>
+                  {option.hint && (
+                    <span className="vf-field-hint">{option.hint}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
 
-					<div className="vf-field-list-footer">
-						<button
-							type="button"
-							className="vf-field-bulk"
-							disabled={hidden.length === 0}
-							onClick={() => onChange({ ...view, hiddenFields: [] })}
-						>
-							Show all
-						</button>
-						<button
-							type="button"
-							className="vf-field-bulk"
-							disabled={hidden.length === FIELD_OPTIONS.length}
-							onClick={() =>
-								onChange({
-									...view,
-									hiddenFields: FIELD_OPTIONS.map((o) => o.value),
-								})
-							}
-						>
-							Hide all
-						</button>
-					</div>
+          <div className="vf-field-list-footer">
+            <button
+              type="button"
+              className="vf-field-bulk"
+              disabled={hidden.length === 0}
+              onClick={() => onChange({ ...view, hiddenFields: [] })}
+            >
+              Show all
+            </button>
+            <button
+              type="button"
+              className="vf-field-bulk"
+              disabled={visibleCount === 0}
+              onClick={() =>
+                onChange({
+                  ...view,
+                  // hiddenFields is shared across every layout a view can take
+                  // (Board's Labels stay hidden even after switching to
+                  // Canvas), so "Hide all" here must only add the fields this
+                  // view's popover actually offered — never the ones Canvas
+                  // never showed as toggleable in the first place.
+                  hiddenFields: [
+                    ...hidden.filter(
+                      (f) => !options.some((o) => o.value === f),
+                    ),
+                    ...options.map((o) => o.value),
+                  ],
+                })
+              }
+            >
+              Hide all
+            </button>
+          </div>
 
-					<p className="vf-fields-note">
-						Status, ID and title are always shown.
-					</p>
-				</Popover>
-			)}
-		</span>
-	);
+          <p className="vf-fields-note">
+            Status, ID and title are always shown.
+          </p>
+        </Popover>
+      )}
+    </span>
+  );
+}
+
+/**
+ * Canvas-only: which relationship kinds the graph draws. A *hidden* list, like
+ * `hiddenFields` — empty means all three show. Hiding `dependency`/`hierarchy`
+ * also drops those edges from the layout ranking (handled in `CanvasView`).
+ */
+export function CanvasRelationsChip({
+  view,
+  onChange,
+}: {
+  view: SavedView;
+  onChange: (next: SavedView) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const hidden = view.canvasHiddenRelationKinds ?? [];
+
+  const toggle = (kind: CanvasRelationKind) => {
+    const next = hidden.includes(kind)
+      ? hidden.filter((k) => k !== kind)
+      : [...hidden, kind];
+    onChange({
+      ...view,
+      canvasHiddenRelationKinds: next.length > 0 ? next : undefined,
+    });
+  };
+
+  return (
+    <span className="vf-control-anchor">
+      <button
+        type="button"
+        className={`vf-bar-item${open ? " is-on" : ""}`}
+        onClick={(event) => {
+          event.stopPropagation();
+          setOpen((current) => !current);
+        }}
+      >
+        <span className="vf-bar-label">Relations</span>
+        <span className="vf-bar-value">
+          {hidden.length === 0
+            ? "All"
+            : `${CANVAS_RELATION_KINDS.length - hidden.length} of ${CANVAS_RELATION_KINDS.length}`}
+        </span>
+        <span className="vf-bar-caret" aria-hidden>
+          ⌄
+        </span>
+      </button>
+      {open && (
+        <Popover align="left" onClose={() => setOpen(false)}>
+          <div className="vf-field-list">
+            {CANVAS_RELATION_KINDS.map((kind) => {
+              const shown = !hidden.includes(kind);
+              const label = RELATION_KIND_LABELS[kind];
+              return (
+                <button
+                  key={kind}
+                  type="button"
+                  className={`vf-field-row${shown ? " is-on" : ""}`}
+                  aria-pressed={shown}
+                  title={shown ? `Hide ${label}` : `Show ${label}`}
+                  onClick={() => toggle(kind)}
+                >
+                  <span className="vf-field-eye" aria-hidden>
+                    {shown ? <Eye size={14} /> : <EyeOff size={14} />}
+                  </span>
+                  <span className="vf-field-label">{label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </Popover>
+      )}
+    </span>
+  );
+}
+
+/**
+ * Canvas-only: how the graph is arranged — two layouts (dependency *flow* vs
+ * parent–child *tree*) × two directions (left-to-right / top-to-bottom). One
+ * control, four options, exactly like `Rel`-ations above it; the text query
+ * spells it `canvas-layout:` / `canvas-direction:`.
+ */
+export function CanvasArrangeChip({
+  view,
+  onChange,
+}: {
+  view: SavedView;
+  onChange: (next: SavedView) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const arrangement: CanvasArrangement = view.canvasArrangement ?? "flow";
+  const direction: CanvasDirection = view.canvasDirection ?? "right";
+
+  return (
+    <span className="vf-control-anchor">
+      <button
+        type="button"
+        className={`vf-bar-item${open ? " is-on" : ""}`}
+        onClick={(event) => {
+          event.stopPropagation();
+          setOpen((current) => !current);
+        }}
+      >
+        <span className="vf-bar-label">Arrange</span>
+        <span className="vf-bar-value">
+          {canvasArrangeSummary(arrangement, direction)}
+        </span>
+        <span className="vf-bar-caret" aria-hidden>
+          ⌄
+        </span>
+      </button>
+      {open && (
+        <Popover align="left" onClose={() => setOpen(false)}>
+          <div className="vf-field-list">
+            {CANVAS_ARRANGE_OPTIONS.map((option) => {
+              const active =
+                option.value.arrangement === arrangement &&
+                option.value.direction === direction;
+              return (
+                <button
+                  key={`${option.value.arrangement}-${option.value.direction}`}
+                  type="button"
+                  className={`vf-field-row${active ? " is-on" : ""}`}
+                  aria-pressed={active}
+                  onClick={() => {
+                    onChange({
+                      ...view,
+                      canvasArrangement: option.value.arrangement,
+                      canvasDirection: option.value.direction,
+                    });
+                    setOpen(false);
+                  }}
+                >
+                  <span className="vf-field-label">{option.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </Popover>
+      )}
+    </span>
+  );
 }
 
 export function SortChip({
-	view,
-	onChange,
+  view,
+  onChange,
 }: {
-	view: SavedView;
-	onChange: (next: SavedView) => void;
+  view: SavedView;
+  onChange: (next: SavedView) => void;
 }) {
-	const flip = () =>
-		onChange({
-			...view,
-			sortDirection: view.sortDirection === "asc" ? "desc" : "asc",
-		});
-	return (
-		<span className="vf-bar-group">
-			<BarSelect
-				label="Sort"
-				value={view.sortBy}
-				options={SORT_OPTIONS}
-				onSelect={(sortBy: SortField) => onChange({ ...view, sortBy })}
-			/>
-			<button
-				type="button"
-				className="vf-bar-item vf-bar-dir"
-				title={view.sortDirection === "asc" ? "Ascending" : "Descending"}
-				aria-label={`Sort direction: ${view.sortDirection === "asc" ? "ascending" : "descending"}`}
-				onClick={flip}
-			>
-				{view.sortDirection === "asc" ? "↑" : "↓"}
-			</button>
-		</span>
-	);
+  const flip = () =>
+    onChange({
+      ...view,
+      sortDirection: view.sortDirection === "asc" ? "desc" : "asc",
+    });
+  return (
+    <span className="vf-bar-group">
+      <BarSelect
+        label="Sort"
+        value={view.sortBy}
+        options={SORT_OPTIONS}
+        onSelect={(sortBy: SortField) => onChange({ ...view, sortBy })}
+      />
+      <button
+        type="button"
+        className="vf-bar-item vf-bar-dir"
+        title={view.sortDirection === "asc" ? "Ascending" : "Descending"}
+        aria-label={`Sort direction: ${view.sortDirection === "asc" ? "ascending" : "descending"}`}
+        onClick={flip}
+      >
+        {view.sortDirection === "asc" ? "↑" : "↓"}
+      </button>
+    </span>
+  );
 }
