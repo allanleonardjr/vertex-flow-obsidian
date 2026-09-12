@@ -139,6 +139,15 @@ This project uses [Semantic Versioning](https://semver.org/).
   connect states for the same border; and an invalid drop keeps the one
   deliberately static, red, non-pulsing state so an error never reads as
   "waiting".
+- **Canvas covered in the bundled Help pane.** A new **Canvas layout** topic in
+  the Help pane's Layouts section walks the whole feature end to end — the
+  Arrange chip (dependency flow vs. hierarchy, left-to-right / top-to-bottom,
+  and the silent flow fallback), grouped boxes, the three edge styles and the
+  Relations toggle, pan/zoom, creating relations by drag *and* by tap, editing
+  relations (Delete / Reverse), grid-packing of isolated cards, and how
+  arrangement/direction/relations settings travel with a Saved View. The
+  layout topics also now list in the same order the layout picker does — List,
+  Board, Timeline, Calendar, Canvas.
 
 ### Fixed
 - **Grouped Canvas no longer stacks cards on top of each other.** Grid-packing
