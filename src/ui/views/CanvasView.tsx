@@ -274,7 +274,7 @@ export function CanvasView({
   const hiddenKindKey = [...hiddenKinds].sort().join(",");
   const hiddenKindSet = useMemo(
     () => new Set(hiddenKinds),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- depends on hiddenKinds which change when canvas settings update
     [hiddenKindKey],
   );
 
@@ -289,7 +289,7 @@ export function CanvasView({
 
   const graph: CanvasGraph = useMemo(
     () => filterCanvasGraph(buildCanvasGraph(visibleTasks), [...hiddenKindSet]),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- depends on topologyKey which derives from visibleTasks/visibleGroups
     [topologyKey, hiddenKindKey],
   );
 
@@ -1213,7 +1213,7 @@ export function CanvasView({
   useEffect(() => {
     setConnectDrag(null);
     setTapConnect(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- depends on drawKind which toggles draw mode
   }, [drawKind]);
 
   if (evaluated.total === 0 || visibleTasks.length === 0) {

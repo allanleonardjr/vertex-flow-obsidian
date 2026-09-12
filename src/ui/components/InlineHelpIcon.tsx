@@ -27,7 +27,7 @@ export function InlineHelpIcon({
 	size?: number;
 }) {
 	const { openHelp } = useTabs();
-	const spec: HelpLinkTarget = HELP_TOPIC[target];
+	const spec = HELP_TOPIC[target] as HelpLinkTarget;
 	const topic = findHelpTopic(HELP_TOPICS, spec.topicId);
 	const title = topic ? topic.title : spec.topicId;
 
