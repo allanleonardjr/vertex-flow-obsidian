@@ -5,6 +5,8 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.23 — 2026-09-12
+
 ### Added
 
 - **Workspaces hub (`g w`) — every workspace in the vault on one screen.**
