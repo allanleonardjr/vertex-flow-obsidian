@@ -10,13 +10,14 @@
  * than something baked in.
  */
 
-import { NONE, type SavedView, type ViewDefinition, type ViewType } from "../types";
+import { NONE, type CanvasArrangement, type CanvasDirection, type CanvasRelationKind, type SavedView, type ViewDefinition, type ViewType } from "../types";
 
 /** The default curated icon for a view of each layout. */
 export function layoutIcon(viewType: ViewType): string {
 	if (viewType === "board") return "columns-3";
 	if (viewType === "timeline") return "chart-gantt";
 	if (viewType === "calendar") return "calendar";
+	if (viewType === "canvas") return "workflow";
 	return "list";
 }
 
@@ -29,7 +30,11 @@ export const DEFAULT_SORT_DIRECTION = "asc" as const;
  * that omits `group:` means "no grouping", and both sides must agree on what
  * that is or the round-trip breaks.
  */
-export const DEFAULT_DEFINITION: ViewDefinition = {
+export const DEFAULT_DEFINITION: ViewDefinition & {
+	canvasArrangement: CanvasArrangement;
+	canvasDirection: CanvasDirection;
+	canvasHiddenRelationKinds: CanvasRelationKind[];
+} = {
 	filters: {},
 	viewType: "list",
 	groupBy: "none",
@@ -39,6 +44,9 @@ export const DEFAULT_DEFINITION: ViewDefinition = {
 	hiddenFields: [],
 	subtaskDisplay: "flat",
 	calendarDateField: "dueDate",
+	canvasArrangement: "flow",
+	canvasDirection: "right",
+	canvasHiddenRelationKinds: [],
 	recurringPreview: false,
 };
 

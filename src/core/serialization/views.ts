@@ -24,8 +24,10 @@ import {
 	type QueryContext,
 } from "../query";
 import {
+	CANVAS_RELATION_KINDS,
 	SUBTASK_DISPLAYS,
 	TASK_FIELDS,
+	type CanvasRelationKind,
 	type EmptyColumnBehavior,
 	type GroupByField,
 	type ProjectViewSettings,
@@ -50,7 +52,31 @@ import {
 	type ParseResult,
 } from "./coerce";
 
-const VIEW_TYPES: ViewType[] = ["list", "board", "timeline", "calendar"];
+const VIEW_TYPES: ViewType[] = [
+	"list",
+	"board",
+	"timeline",
+	"calendar",
+	"canvas",
+];
+
+/**
+ * Canvas (DAG) layout direction, normalised onto `"right"`/`"down"`. The keys
+ * include the legacy frontmatter spellings `"LR"` (left-to-right) and `"TB"`
+ * (top-to-bottom) that predate the query string, so pre-arrangement view notes
+ * migrate in place.
+ */
+const CANVAS_DIRECTION_NORMALIZATION: Record<
+	string,
+	NonNullable<SavedView["canvasDirection"]>
+> = {
+	right: "right",
+	LR: "right",
+	down: "down",
+	TB: "down",
+};
+
+const CANVAS_RELATION_KIND_SET = new Set<string>(CANVAS_RELATION_KINDS);
 
 const CALENDAR_DATE_FIELDS: SavedView["calendarDateField"][] = [
 	"dueDate",
@@ -247,6 +273,17 @@ function parseViewValue(
 		subtaskDisplay: def.subtaskDisplay,
 		calendarDateField: def.calendarDateField,
 		recurringPreview: def.recurringPreview,
+		canvasArrangement: def.canvasArrangement,
+		// The query string owns `canvasDirection`; the legacy frontmatter key
+		// (LR/TB) still wins when present so pre-query files migrate in place.
+		canvasDirection:
+			parseCanvasDirection(record.canvasDirection) ?? def.canvasDirection,
+		// Same precedent: the query string (`relations:`) now owns this too, but
+		// a plain `canvasHiddenRelationKinds` frontmatter key from before this
+		// phase still wins when present, so pre-query files migrate in place.
+		canvasHiddenRelationKinds:
+			parseCanvasHiddenRelationKinds(record.canvasHiddenRelationKinds) ??
+			def.canvasHiddenRelationKinds,
 		timeline: parseTimeline(record.timeline),
 		calendar: parseCalendar(record.calendar),
 	};
@@ -320,9 +357,42 @@ function parseLegacyViewValue(
 				"calendarDateField",
 			),
 			recurringPreview: asBoolean(record.recurringPreview, false),
+			canvasDirection: parseCanvasDirection(record.canvasDirection),
+			canvasHiddenRelationKinds: parseCanvasHiddenRelationKinds(
+				record.canvasHiddenRelationKinds,
+			),
 			timeline: parseTimeline(record.timeline),
 			calendar: parseCalendar(record.calendar),
 	};
+}
+
+/**
+ * Canvas (DAG) layout direction — normalised from the legacy frontmatter
+ * spellings `"LR"`/`"TB"` and the current `"right"`/`"down"` into the latter.
+ * Absent or unrecognised parses to `undefined` (readers apply the `"right"`
+ * default); it never fails validation.
+ */
+function parseCanvasDirection(
+	raw: unknown,
+): SavedView["canvasDirection"] {
+	const value = asString(raw);
+	if (!value) return undefined;
+	return CANVAS_DIRECTION_NORMALIZATION[value];
+}
+
+/**
+ * Legacy plain frontmatter reader for canvas relation kinds hidden from this
+ * view — from before the `relations:` query clause existed. Unknown entries
+ * are dropped; an empty result becomes `undefined` (the "show all" default),
+ * same shape as `parseCanvasDirection`.
+ */
+function parseCanvasHiddenRelationKinds(
+	raw: unknown,
+): SavedView["canvasHiddenRelationKinds"] {
+	const kinds = asStringArray(raw).filter((k) =>
+		CANVAS_RELATION_KIND_SET.has(k),
+	) as CanvasRelationKind[];
+	return kinds.length > 0 ? kinds : undefined;
 }
 
 /**
@@ -429,6 +499,12 @@ export function serializeView(
 		icon: view.icon,
 		description: view.description,
 		query: printQuery(viewDefinition(view), context) || undefined,
+		// `canvasDirection` and `canvasHiddenRelationKinds` now ride in the
+		// `query:` string (as `canvas-direction:`/`relations:`) — neither is
+		// written as a separate frontmatter key any more. Their legacy plain
+		// keys are still *read* (see `parseCanvasDirection`/
+		// `parseCanvasHiddenRelationKinds`), purely so old view notes migrate
+		// in place.
 		columns: {
 			collapsed: view.columns.collapsed,
 			hidden: view.columns.hidden,
@@ -532,6 +608,8 @@ export function serializeLegacyView(view: SavedView): Record<string, unknown> {
 				? undefined
 				: view.calendarDateField,
 		recurringPreview: view.recurringPreview ? true : undefined,
+		canvasDirection: view.canvasDirection,
+		canvasHiddenRelationKinds: view.canvasHiddenRelationKinds,
 		timeline: view.timeline
 			? compact({
 					scale: view.timeline.scale,

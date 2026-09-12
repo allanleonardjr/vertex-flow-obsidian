@@ -5056,7 +5056,7 @@ button.vf-add-relation.is-on {
 .vf-field-list {
   display: flex;
   flex-direction: column;
-  min-width: 220px;
+  min-width: 260px; /* was 220px - room for the longest hint alongisde the label */
 }
 
 /* One field per row: eye icon, name, and an optional hint pinned right. */
@@ -5103,6 +5103,10 @@ button.vf-field-row.is-on {
 
 .vf-field-hint {
   flex-shrink: 0;
+  max-width: 180px; /* was 120px - fits "Hidden when filtered to one" in full */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--vf-muted);
   font-size: var(--font-ui-smaller);
   opacity: 0.8;
@@ -7690,4 +7694,543 @@ button.vf-history-expand {
   font-size: var(--font-ui-smaller);
   font-weight: 600;
   vertical-align: middle;
+}
+
+/* ---------------------------------------------------------------------------
+ * Canvas view — read-only relationship graph (projects, dependencies,
+ * hierarchy, related links).
+ * ------------------------------------------------------------------------- */
+.vf-canvas {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  background: var(--background-primary);
+  touch-action: none;
+  cursor: grab;
+}
+
+.vf-canvas:active {
+  cursor: grabbing;
+}
+
+.vf-canvas-loading {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 4px 10px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.vf-canvas-surface {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+}
+
+.vf-canvas-edges {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.vf-canvas-metrics-probe {
+  position: fixed;
+  visibility: hidden;
+  left: -9999px;
+  top: -9999px;
+}
+
+/* Edge palette — swap these three values to re-theme every connector; the
+   component never names a colour. */
+.vf-canvas {
+  --vf-canvas-edge-dependency: var(--interactive-accent);
+  --vf-canvas-edge-hierarchy: var(--color-blue);
+  --vf-canvas-edge-related: var(--text-faint);
+}
+
+.vf-canvas-edge-dependency,
+.vf-canvas-edge-hierarchy,
+.vf-canvas-edge-related {
+  fill: none;
+}
+
+/* blocks/blockedBy: solid, arrowed. */
+.vf-canvas-edge-dependency {
+  stroke: var(--vf-canvas-edge-dependency);
+  stroke-width: 1.5px;
+}
+
+/* parent → child: thin, arrowless, recedes behind dependency edges. */
+.vf-canvas-edge-hierarchy {
+  stroke: var(--vf-canvas-edge-hierarchy);
+  stroke-width: 1px;
+}
+
+/* related: undirected, dashed, drawn straight between node centres. */
+.vf-canvas-edge-related {
+  stroke: var(--vf-canvas-edge-related);
+  stroke-width: 1px;
+  stroke-dasharray: 4 3;
+}
+
+/* The dependency arrowhead — matches its own line colour. */
+.vf-canvas-dependency-marker {
+  fill: var(--vf-canvas-edge-dependency);
+  stroke: none;
+}
+
+/* The parent-end marker on a hierarchy edge — matches its own line colour. */
+.vf-canvas-parent-marker {
+  fill: var(--vf-canvas-edge-hierarchy);
+  stroke: none;
+}
+
+/* Hover highlight — a pure CSS-class toggle, no re-layout involved. An edge
+   that doesn't touch the hovered node fades; group boxes are untouched. */
+.vf-canvas-edge-dependency.is-dimmed,
+.vf-canvas-edge-hierarchy.is-dimmed,
+.vf-canvas-edge-related.is-dimmed {
+  opacity: 0.15;
+}
+
+/* Clicked — a visibly distinct, transient "selected" state, not
+   `--interactive-accent` (that's dependency's own base colour, and a
+   selected hierarchy/related edge turning that colour would read as "this
+   means blocks", exactly the ambiguity this feature avoids elsewhere). */
+.vf-canvas-edge-dependency.is-selected,
+.vf-canvas-edge-hierarchy.is-selected,
+.vf-canvas-edge-related.is-selected {
+  stroke: var(--color-orange);
+  stroke-width: 2.5px;
+}
+
+/* A wide, invisible click target laid over every edge's thin visible stroke —
+   `pointer-events: stroke` hit-tests along the path even though it's
+   transparent, without widening what's actually drawn. */
+.vf-canvas-edge-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 12px;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+/* The live line while dragging from a node's handle — dashed so it never
+   reads as an already-created edge. Red when the current drop target would
+   be refused (self-loop or a cycle). */
+.vf-canvas-connect-preview {
+  fill: none;
+  stroke: var(--interactive-accent);
+  stroke-width: 1.5px;
+  stroke-dasharray: 5 4;
+  pointer-events: none;
+}
+
+.vf-canvas-connect-preview.is-invalid {
+  stroke: var(--text-error, #e03131);
+}
+
+.vf-canvas-note {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  max-width: 80%;
+  padding: 4px 12px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.vf-canvas-group {
+  position: absolute;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-secondary-alt, var(--background-secondary));
+  transition:
+    transform 300ms ease,
+    width 300ms ease,
+    height 300ms ease;
+}
+
+.vf-canvas-group-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
+}
+
+.vf-canvas-group-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Top-left — the Beta badge's old spot, now free. Which relation kind a
+   completed drag-to-connect creates ("off" by default); ephemeral UI state,
+   not a SavedView field. A single `vf-bar-item` + `Popover`, the same shape
+   as `GroupChip`/`FieldsControl` elsewhere in the view toolbar — its `is-on`
+   state (whenever a real kind, not "off", is active) reuses that shared
+   accent-color treatment rather than a bespoke indicator. Guarded out of the
+   background-pan onPointerDown the same way the zoom cluster is. */
+.vf-canvas-draw-mode {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 2px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-secondary);
+}
+
+/* Mirrors the legend's bottom-right corner. Buttons stop propagation to the
+   canvas's own onPointerDown via the `.vf-canvas-zoom` guard there, so
+   clicking here never starts a background pan. */
+.vf-canvas-zoom {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-secondary);
+}
+
+button.vf-canvas-zoom-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  cursor: pointer;
+}
+
+button.vf-canvas-zoom-btn:hover {
+  background: var(--background-modifier-hover);
+}
+
+button.vf-canvas-zoom-btn:disabled {
+  color: var(--vf-muted);
+  cursor: default;
+  opacity: 0.5;
+}
+
+button.vf-canvas-zoom-btn:disabled:hover {
+  background: transparent;
+}
+
+.vf-canvas-zoom-pct {
+  min-width: 38px;
+  text-align: center;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  font-variant-numeric: tabular-nums;
+}
+
+/* No cursor position to anchor to (unlike wheel-zoom or +/-), so moving this
+   zooms around the viewport's centre — same `transform`/clamp as everything
+   else in this cluster. */
+.vf-canvas-zoom-slider {
+  width: 70px;
+  margin: 0 2px;
+  accent-color: var(--interactive-accent);
+}
+
+button.vf-canvas-zoom-fit {
+  font-size: var(--font-ui-smaller);
+}
+
+/* A zero-size anchor at the click point that selected the edge — the
+   `Popover` inside positions itself just below it via its own `top: calc(100%
+   + 5px)`. Lives outside `.vf-canvas-surface`, in screen space, so it doesn't
+   pan/scale with the graph. */
+.vf-canvas-edge-popup {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+.vf-canvas-legend {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  pointer-events: none;
+}
+
+.vf-canvas-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* The toggle for this relation kind is off — the graph isn't drawing it. */
+.vf-canvas-legend-row.is-hidden {
+  opacity: 0.3;
+  text-decoration: line-through;
+}
+
+/* Tap-to-connect's confirm bar — bottom-center, screen-anchored like the
+   zoom cluster and legend either side of it (outside `.vf-canvas-surface`,
+   so it never pans/scales with the graph). Fixed to the viewport rather than
+   either node's canvas position is deliberate: panning to find a second or
+   third node must never carry this off-screen, since there's no other way
+   to reach Cancel. Guarded out of the background-pan `onPointerDown` the
+   same way the zoom cluster is. */
+.vf-canvas-tap-connect {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-secondary);
+}
+
+.vf-canvas-tap-connect-label {
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  white-space: nowrap;
+}
+
+.vf-canvas-tap-connect-error {
+  color: var(--text-error, #e03131);
+  font-size: var(--font-ui-smaller);
+  white-space: nowrap;
+}
+
+.vf-canvas-tap-connect-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.vf-canvas-node {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-secondary);
+  overflow: hidden;
+  cursor: pointer;
+  transition:
+    transform 300ms ease,
+    width 300ms ease,
+    height 300ms ease;
+}
+
+.vf-canvas-node:hover {
+  border-color: var(--interactive-accent);
+}
+
+/* Dims a node not connected to whichever card is currently hovered. */
+.vf-canvas-node.is-dimmed {
+  opacity: 0.35;
+}
+
+/* A neighbor of the currently-hovered node — stays full-opacity and gets
+   a border so the "this is what's connected" story is unmistakable
+   against the dimmed nodes around it. One notch quieter than the pink
+   tap-target pulse, since this is informational, not an active
+   drop-target state. */
+.vf-canvas-node.is-hover-connected {
+  border-color: var(--color-yellow);
+}
+
+/* ...and dropping here right now would be refused (self-loop or a cycle).
+   The one deliberately non-pulsing state — an error should read as
+   immediately "no", not as another in-progress "waiting" state. */
+.vf-canvas-node.is-connect-invalid {
+  border-color: var(--text-error, #e03131);
+  box-shadow: 0 0 0 2px var(--text-error, #e03131);
+  cursor: not-allowed;
+}
+
+/* The armed/pending roles for BOTH connection input methods — tap-to-connect
+   and the drag handle share one visual language: a connection's source is
+   always purple, a valid target is always pink. A pulsing border, not a
+   static selection, so "waiting for the next tap/drop" reads as active
+   rather than a fixed choice. Deliberately not yellow (that's
+   `is-hover-connected`'s own, unrelated meaning elsewhere on this same card)
+   and deliberately two different colours *and* two different speeds from
+   each other, so which role is which is never ambiguous once both are
+   showing at once. */
+@keyframes vf-tap-source-pulse {
+  0%,
+  100% {
+    border-color: var(--color-purple);
+  }
+  50% {
+    border-color: var(--vf-border);
+  }
+}
+@keyframes vf-tap-target-pulse {
+  0%,
+  100% {
+    border-color: var(--color-pink);
+  }
+  50% {
+    border-color: var(--vf-border);
+  }
+}
+
+.vf-canvas-node.is-tap-source {
+  border-width: 4px;
+  animation: vf-tap-source-pulse 1.6s ease-in-out infinite;
+}
+
+.vf-canvas-node.is-tap-target {
+  border-width: 4px;
+  animation: vf-tap-target-pulse 0.9s ease-in-out infinite;
+}
+
+/* The hovered card's *preview* of the target state while connect mode is on —
+   the target pink but static, no pulse: the card is being considered, not yet
+   chosen. The animation only begins once it's actually set as a target. */
+.vf-canvas-node.is-hover-target {
+  border-width: 4px;
+  border-color: var(--color-pink);
+}
+
+/* The drag-to-connect handle: invisible until the card is hovered, sitting in
+   a corner away from the card body (the click-to-open target) so the two
+   gestures never fight over the same pixels. Inset within the card's own
+   clipped bounds rather than overhanging them. */
+.vf-canvas-node-handle {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 12px;
+  height: 12px;
+  z-index: 1;
+  border: 2px solid var(--background-secondary);
+  border-radius: 50%;
+  background: var(--vf-muted);
+  opacity: 0;
+  cursor: crosshair;
+  transition: opacity 0.1s ease;
+  touch-action: none;
+}
+
+.vf-canvas-node:hover .vf-canvas-node-handle {
+  opacity: 1;
+}
+
+.vf-canvas-node-handle:hover {
+  background: var(--interactive-accent);
+}
+
+.vf-canvas-node-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* No due date / assignee on this task — drop the row so its gap doesn't
+   eat into the title's two lines. */
+.vf-canvas-node-row:empty {
+  display: none;
+}
+
+.vf-canvas-node .vf-chip-project {
+  max-width: 100%;
+}
+
+/* The top row (StatusDot, ID, Type chip, Priority icon) is a no-wrap flex
+   row with no truncation of its own — a long ID or Type label would
+   otherwise overflow the row's width and get silently cut off mid-character
+   by the card's own `overflow: hidden`. Truncate each in place instead.
+   Scoped to Canvas: `.vf-id`/`.vf-label-chip` outside `.vf-canvas-node-row`
+   (List, Board, filters, …) are untouched. Deliberately not wrapping the
+   row — that reopens the "how tall can a card get" question this phase
+   already answers once, cleanly, for the title. */
+.vf-canvas-node-row .vf-id {
+  max-width: 70px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vf-canvas-node-row .vf-label-chip {
+  min-width: 0;
+  max-width: 90px;
+}
+
+.vf-canvas-node-row .vf-label-chip-name {
+  /* Flex items default to `min-width: auto` (their content's intrinsic
+     width), which silently defeats `text-overflow: ellipsis` no matter what
+     the parent's own max-width says — this is the one line that actually
+     makes the chip's existing ellipsis rule (`.vf-label-chip-name`) apply. */
+  min-width: 0;
+}
+
+.vf-canvas-node-title {
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  line-height: 1.3;
+  overflow: hidden;
+  display: -webkit-box;
+  /* The card itself grows to fit up to this many lines (see CanvasView's
+     `estimateTitleLines`/`MAX_TITLE_LINES`) — this clamp only catches the
+     rare title that estimates beyond the cap, so it still ends in a clean
+     ellipsis instead of visually overflowing the now-taller-but-still-finite
+     card. The full text is always available via the native `title=` tooltip. */
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+}
+
+/* Sits inline next to the Canvas icon in the layout picker (LayoutToggle),
+   only while Canvas is the active view — never a floating overlay on the
+   graph itself, where dynamically-laid-out content could eventually cover it. */
+.vf-canvas-beta-badge {
+  margin-left: 4px;
+  padding: 1px 5px;
+  border: 1px solid var(--text-warning, orange);
+  border-radius: 8px;
+  color: var(--text-warning, orange);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1.4;
+  pointer-events: none;
 }

@@ -26,7 +26,7 @@ import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, ChevronsUpDown } from "lucide-react";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { EvaluatedView } from "../../core/views";
-import { layoutIcon, renderedHiddenFields } from "../../core/views";
+import { layoutIcon } from "../../core/views";
 import {
   bucketByDay,
   calendarAnchor,
@@ -57,6 +57,7 @@ import { usePlugin } from "../context";
 import { useSelection, useScrollFocusIntoView } from "../selection";
 import { useTabs } from "../tabs-context";
 import { useScheduleDrag } from "./useScheduleDrag";
+import { layoutHiddenFields } from "./viewOptions";
 
 /** How many chips a day cell shows before the rest fold into "+N more". */
 const MAX_CHIPS_PER_DAY = 3;
@@ -121,7 +122,7 @@ export function CalendarView({
   onChange,
 }: CalendarViewProps) {
   // Fields the view saved as hidden, plus any the filters make redundant.
-  const shownFields = useMemo(() => renderedHiddenFields(view), [view]);
+  const shownFields = useMemo(() => layoutHiddenFields(view), [view]);
 
   const plugin = usePlugin();
   const selection = useSelection();

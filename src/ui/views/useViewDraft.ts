@@ -39,6 +39,10 @@ import { useViewWriter } from "./useViewWriter";
  * `filters` in token order on every keystroke, would hit that constantly.
  */
 function definitionOf(view: SavedView) {
+	// `canvasHiddenRelationKinds` now round-trips through the query string
+	// (the `relations:` clause) alongside `canvasArrangement`/`canvasDirection`,
+	// so `canonicalizeDefinition(viewDefinition(view))` already carries it —
+	// no bolt-on key needed here any more.
 	return JSON.stringify(canonicalizeDefinition(viewDefinition(view)));
 }
 

@@ -24,6 +24,8 @@ import {
 import { DEFAULT_DEFINITION } from "../views/defaults";
 import type { QueryContext, QueryEntity } from "./context";
 import {
+	CANVAS_DIRECTION_VALUES,
+	CANVAS_LAYOUT_VALUES,
 	DATE_FIELD_VALUES,
 	EMPTY_VALUES,
 	FIELD_VALUES,
@@ -31,6 +33,7 @@ import {
 	FLAG_TOKENS,
 	GROUP_VALUES,
 	LAYOUT_VALUES,
+	RELATION_KIND_VALUES,
 	SORT_VALUES,
 	SUBTASK_VALUES,
 	TEXT_FIELD,
@@ -263,6 +266,31 @@ export function printQuery(
 	parts.push(
 		`sort:${canonical.sortDirection === "desc" ? "-" : ""}${SORT_VALUES[canonical.sortBy].token}`,
 	);
+	// Canvas arrangement/direction are printed only when the layout is Canvas
+	// AND the value differs from the default. Unlike `date:`/`subtasks:` they
+	// configure nothing any other layout renders, so a clause a non-canvas view
+	// ignores is dropped rather than kept silently. (`canonicalizeDefinition`
+	// always fills them, but the field is optional on `ViewDefinition`, hence
+	// the fallback reads.)
+	const canvasArrangement = canonical.canvasArrangement ?? DEFAULT_DEFINITION.canvasArrangement;
+	const canvasDirection = canonical.canvasDirection ?? DEFAULT_DEFINITION.canvasDirection;
+	if (
+		canonical.viewType === "canvas" &&
+		canvasArrangement !== DEFAULT_DEFINITION.canvasArrangement
+	) {
+		parts.push(`canvas-layout:${CANVAS_LAYOUT_VALUES[canvasArrangement].token}`);
+	}
+	if (
+		canonical.viewType === "canvas" &&
+		canvasDirection !== DEFAULT_DEFINITION.canvasDirection
+	) {
+		parts.push(`canvas-direction:${CANVAS_DIRECTION_VALUES[canvasDirection].token}`);
+	}
+	const canvasHiddenRelationKinds = canonical.canvasHiddenRelationKinds ?? [];
+	if (canonical.viewType === "canvas" && canvasHiddenRelationKinds.length > 0) {
+		const tokens = canvasHiddenRelationKinds.map((kind) => RELATION_KIND_VALUES[kind].token);
+		parts.push(`relations:${tokens.join(",")}`);
+	}
 	if (canonical.emptyColumnBehavior !== DEFAULT_DEFINITION.emptyColumnBehavior) {
 		parts.push(`empty:${EMPTY_VALUES[canonical.emptyColumnBehavior].token}`);
 	}

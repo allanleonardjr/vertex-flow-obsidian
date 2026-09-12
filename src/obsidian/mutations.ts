@@ -15,7 +15,7 @@ import {
   suggestPrefix,
 } from "../core/ids";
 import { localTodayIso } from "../core/date";
-import { formatLink, joinPath, sanitizeFileName } from "../core/links";
+import { formatLink, joinPath, linksMatch, sanitizeFileName } from "../core/links";
 import { planReorder, planReorderMany, rankAfter, rankForNewTask, rankForPosition, sortTasksByRank } from "../core/ranking";
 import {
   describeRecurrence,
@@ -90,6 +90,7 @@ import {
   danglingRelationEditsForWorkspaceDeletion,
   newTaskProject,
   scopeOf,
+  wouldCreateDependencyCycle,
   type DeletionChoice,
   type DeletionOutcome,
   type DeletionPlan,
@@ -572,6 +573,148 @@ private async spawnOccurrences(
    */
   async setProject(task: Task, project: string | null): Promise<void> {
     await this.updateTask(task, { project });
+  }
+
+  /** The full workspace task set a cycle check needs — never the caller's own
+   *  (possibly filtered) list, since a cycle can close through a task that
+   *  isn't in it. */
+  private allTasksFor(task: Task): Task[] {
+    return this.index.workspaceFor(task.path)?.tasks ?? [task];
+  }
+
+  /**
+   * `blocks`/`blockedBy` are maintained on both tasks at once — writing one
+   * writes the other. Two separate file writes (Obsidian has no cross-file
+   * transaction): if the first succeeds and the second throws, this attempts
+   * to revert the first back to its prior state before rethrowing, so a
+   * mid-sequence failure never leaves one side of the link silently written
+   * and the other not. Idempotent — a link that already exists is a no-op,
+   * not a duplicate entry or an error.
+   */
+  async addDependency(blocker: Task, blocked: Task): Promise<void> {
+    if (blocker.path === blocked.path) return;
+    if (blocker.relations.blocks.some((l) => linksMatch(l, blocked.path))) {
+      return; // already linked
+    }
+    if (wouldCreateDependencyCycle(this.allTasksFor(blocker), blocker.path, blocked.path)) {
+      new Notice(
+        `Can't link — "${blocker.id}" and "${blocked.id}" would block each other in a cycle.`,
+      );
+      throw new Error("addDependency: would create a cycle");
+    }
+
+    await this.updateTask(blocker, {
+      relations: { ...blocker.relations, blocks: [...blocker.relations.blocks, blocked.path] },
+    });
+    try {
+      await this.updateTask(blocked, {
+        relations: {
+          ...blocked.relations,
+          blockedBy: [...blocked.relations.blockedBy, blocker.path],
+        },
+      });
+    } catch (err) {
+      await this.revertRelationsOrWarn(blocker, err, "link");
+      throw err;
+    }
+  }
+
+  /** The mirror of `addDependency` — idempotent, strips both sides. */
+  async removeDependency(blocker: Task, blocked: Task): Promise<void> {
+    if (!blocker.relations.blocks.some((l) => linksMatch(l, blocked.path))) {
+      return; // already unlinked
+    }
+    await this.updateTask(blocker, {
+      relations: {
+        ...blocker.relations,
+        blocks: blocker.relations.blocks.filter((l) => !linksMatch(l, blocked.path)),
+      },
+    });
+    try {
+      await this.updateTask(blocked, {
+        relations: {
+          ...blocked.relations,
+          blockedBy: blocked.relations.blockedBy.filter(
+            (l) => !linksMatch(l, blocker.path),
+          ),
+        },
+      });
+    } catch (err) {
+      await this.revertRelationsOrWarn(blocker, err, "unlink");
+      throw err;
+    }
+  }
+
+  /**
+   * `related` is symmetric — both sides carry the same link. Same two-write
+   * caveat and revert-on-failure as `addDependency`; no cycle concept since
+   * the relation has no direction.
+   */
+  async addRelated(a: Task, b: Task): Promise<void> {
+    if (a.path === b.path) return;
+    if (a.relations.related.some((l) => linksMatch(l, b.path))) return;
+
+    await this.updateTask(a, {
+      relations: { ...a.relations, related: [...a.relations.related, b.path] },
+    });
+    try {
+      await this.updateTask(b, {
+        relations: { ...b.relations, related: [...b.relations.related, a.path] },
+      });
+    } catch (err) {
+      await this.revertRelationsOrWarn(a, err, "link");
+      throw err;
+    }
+  }
+
+  /** The mirror of `addRelated` — idempotent, strips both sides. */
+  async removeRelated(a: Task, b: Task): Promise<void> {
+    if (!a.relations.related.some((l) => linksMatch(l, b.path))) return;
+
+    await this.updateTask(a, {
+      relations: {
+        ...a.relations,
+        related: a.relations.related.filter((l) => !linksMatch(l, b.path)),
+      },
+    });
+    try {
+      await this.updateTask(b, {
+        relations: {
+          ...b.relations,
+          related: b.relations.related.filter((l) => !linksMatch(l, a.path)),
+        },
+      });
+    } catch (err) {
+      await this.revertRelationsOrWarn(a, err, "unlink");
+      throw err;
+    }
+  }
+
+  /**
+   * Best-effort recovery when the *second* of a two-file relation write
+   * fails: put the first file's `relations` back to what `task` (the
+   * pre-write snapshot the caller already had in hand) carried, so a
+   * half-applied link/unlink never sits silently in the vault. Surfaces a
+   * `Notice` either way — success ("reverted") or failure (the vault needs a
+   * manual look) — since this is the one write path in `Mutations` that can
+   * leave two files disagreeing if it isn't loud about it.
+   */
+  private async revertRelationsOrWarn(
+    task: Task,
+    originalError: unknown,
+    verb: "link" | "unlink",
+  ): Promise<void> {
+    try {
+      await this.updateTask(task, { relations: task.relations });
+      new Notice(
+        `Couldn't ${verb} "${task.id}" — the other task's write failed, so this side was reverted.`,
+      );
+    } catch {
+      new Notice(
+        `Couldn't ${verb} "${task.id}", and the partial write to it couldn't be reverted — check its Relations manually.`,
+      );
+    }
+    console.error(`Mutations relation write partial failure on "${task.path}":`, originalError);
   }
 
   /**

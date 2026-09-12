@@ -416,7 +416,13 @@ function enumOr<T extends string>(
 	return match;
 }
 
-const VIEW_TYPES: readonly ViewType[] = ["list", "board", "timeline", "calendar"];
+const VIEW_TYPES: readonly ViewType[] = [
+	"list",
+	"board",
+	"timeline",
+	"calendar",
+	"canvas",
+];
 const GROUP_FIELDS: readonly GroupByField[] = [
 	"none",
 	"status",

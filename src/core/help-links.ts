@@ -1,29 +1,33 @@
 /**
  * Semantic keys for the help deep-link targets sprinkled across the UI.
  *
- * Topic ids are slugs derived from the markdown file's path (e.g.
- * `views/saved-views.md` → `views-saved-views`), so renaming or moving a help
- * doc silently breaks any raw string hardcoded in the UI. Call sites go through
- * `HELP_TOPIC.*` instead of typing ids by hand, and a Vitest test walks every
- * entry — resolving the id against the real topic tree and, when an `anchor`
- * is set, asserting the heading slug still exists in that topic's content — so
- * a content change fails a test rather than quietly producing a dead link.
+ * Topic IDs are slugs derived from the markdown file's path (for example,
+ * `views/saved-views.md` becomes `views-saved-views`). Renaming or moving a
+ * help document would silently break raw IDs hardcoded in the UI, so call
+ * sites use `HELP_TOPIC.*` instead.
+ *
+ * The help-links Vitest test walks each entry, resolves its topic ID against
+ * the real generated topic tree, and—when an anchor is provided—verifies that
+ * its heading slug still exists in the topic content.
  */
 
 export interface HelpLinkTarget {
-	/** A topic id from the generated HELP_TOPICS tree. */
-	topicId: string;
-	/** A `slugifyHeading` slug of a heading inside the topic's content. */
-	anchor?: string;
+  /** A topic ID from the generated HELP_TOPICS tree. */
+  topicId: string;
+  /** A `slugifyHeading` slug of a heading inside the topic's content. */
+  anchor?: string;
 }
 
 /**
- * `as const satisfies Record<...>` keeps the literal key (`savedViewsQuery`)
- * in the type so `HELP_TOPIC[key]` resolves to a value whose fields are fully
- * known — a `Record<string, ...>` annotation would widen `keyof` to `string`
- * and make every lookup look like opaque, `any`-adjacent indexing to lint.
+ * `as const satisfies Record<...>` retains the literal key and value types
+ * while still verifying every entry conforms to HelpLinkTarget. In particular,
+ * `keyof typeof HELP_TOPIC` remains the finite union of semantic keys rather
+ * than widening to `string`.
  */
 export const HELP_TOPIC = {
-	/** The Saved Views topic — hosts the "Query Language" section. */
-	savedViewsQuery: { topicId: "views-saved-views", anchor: "query-language" },
+  /** The Saved Views topic — hosts the Query Language section. */
+  savedViewsQuery: {
+    topicId: "views-saved-views",
+    anchor: "query-language",
+  },
 } as const satisfies Record<string, HelpLinkTarget>;

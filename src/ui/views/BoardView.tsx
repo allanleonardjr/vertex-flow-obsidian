@@ -11,7 +11,7 @@ import { createPortal } from "react-dom";
 import { scopeOf, subtaskProgress } from "../../core/hierarchy";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { EvaluatedView } from "../../core/views";
-import { layoutIcon, renderedHiddenFields, toggleColumnCollapsed } from "../../core/views";
+import { layoutIcon, toggleColumnCollapsed } from "../../core/views";
 import { EmptyView } from "../components/EmptyView";
 import {
   emptyProgress,
@@ -39,6 +39,7 @@ import { TaskTitle, displayTitle } from "../components/TaskTitle";
 import { useTabs, type TabsApi } from "../tabs-context";
 import { useScrollFocusIntoView, useSelection } from "../selection";
 import { useTaskDropHandler } from "./useDropHandler";
+import { layoutHiddenFields } from "./viewOptions";
 import {
   PREVIEW_OFFSET_PX,
   useTaskDrag,
@@ -63,7 +64,7 @@ export function BoardView({
   onColumnsChange,
 }: BoardViewProps) {
   // Fields the view saved as hidden, plus any the filters make redundant.
-  const shownFields = useMemo(() => renderedHiddenFields(view), [view]);
+  const shownFields = useMemo(() => layoutHiddenFields(view), [view]);
 
   const selection = useSelection();
   const resolveDragBatch = useCallback(

@@ -88,6 +88,12 @@ describe("round-trip (Invariant A)", () => {
 		["stale person", withFilters({ assignee: ["ghost"] })],
 		["board layout", def({ viewType: "board" })],
 		["calendar layout", def({ viewType: "calendar" })],
+		["canvas layout", def({ viewType: "canvas" })],
+		["canvas flow down", def({ viewType: "canvas", canvasArrangement: "flow", canvasDirection: "down" })],
+		["canvas tree right", def({ viewType: "canvas", canvasArrangement: "tree", canvasDirection: "right" })],
+		["canvas tree down", def({ viewType: "canvas", canvasArrangement: "tree", canvasDirection: "down" })],
+		["canvas one relation hidden", def({ viewType: "canvas", canvasHiddenRelationKinds: ["dependency"] })],
+		["canvas all relations hidden", def({ viewType: "canvas", canvasHiddenRelationKinds: ["dependency", "hierarchy", "related"] })],
 		["calendar by start date", def({ viewType: "calendar", calendarDateField: "startDate" })],
 		["grouping", def({ groupBy: "priority" })],
 		["sorting", def({ sortBy: "dueDate" })],
@@ -145,11 +151,21 @@ describe("round-trip (Invariant A)", () => {
 		for (const viewType of ["list", "board", "timeline", "calendar"] as const) {
 			expectRoundTrip(def({ viewType }));
 		}
+		for (const arrangement of ["flow", "tree"] as const) {
+			for (const direction of ["right", "down"] as const) {
+				expectRoundTrip(
+					def({ viewType: "canvas", canvasArrangement: arrangement, canvasDirection: direction }),
+				);
+			}
+		}
 		for (const calendarDateField of ["dueDate", "startDate"] as const) {
 			expectRoundTrip(def({ viewType: "calendar", calendarDateField }));
 		}
 		for (const field of TASK_FIELDS) {
 			expectRoundTrip(def({ hiddenFields: [field] }));
+		}
+		for (const kind of ["dependency", "hierarchy", "related"] as const) {
+			expectRoundTrip(def({ viewType: "canvas", canvasHiddenRelationKinds: [kind] }));
 		}
 	});
 });
@@ -262,7 +278,8 @@ describe("canonicalisation", () => {
 
 	it("viewDefinition drops identity and column state", () => {
 		expect(Object.keys(viewDefinition(defaultViews()[0])).sort()).toEqual([
-			"calendarDateField", "emptyColumnBehavior", "filters", "groupBy",
+			"calendarDateField", "canvasArrangement", "canvasDirection",
+			"canvasHiddenRelationKinds", "emptyColumnBehavior", "filters", "groupBy",
 			"hiddenFields", "recurringPreview", "sortBy", "sortDirection",
 			"subtaskDisplay", "viewType",
 		]);
@@ -281,6 +298,171 @@ describe("canonicalisation", () => {
 				);
 			}
 		}
+	});
+});
+
+/* -------------------------------------------------- canvas clauses -- */
+
+describe("canvas arrangement clauses", () => {
+	it("accepts the current tokens and their legacy/alias spellings", () => {
+		const parse = (q: string) => parseQuery(q, ctx).definition;
+		expect(parse("canvas-layout:flow")).toMatchObject({ canvasArrangement: "flow" });
+		expect(parse("canvas-layout:layered")).toMatchObject({ canvasArrangement: "flow" });
+		expect(parse("canvas-layout:dependency")).toMatchObject({ canvasArrangement: "flow" });
+		expect(parse("canvas-layout:tree")).toMatchObject({ canvasArrangement: "tree" });
+		expect(parse("canvas-layout:hierarchy")).toMatchObject({ canvasArrangement: "tree" });
+		expect(parse("canvas-layout:hierarchical")).toMatchObject({ canvasArrangement: "tree" });
+		expect(parse("canvas-direction:right")).toMatchObject({ canvasDirection: "right" });
+		expect(parse("canvas-direction:lr")).toMatchObject({ canvasDirection: "right" });
+		expect(parse("canvas-direction:left-to-right")).toMatchObject({ canvasDirection: "right" });
+		expect(parse("canvas-direction:down")).toMatchObject({ canvasDirection: "down" });
+		expect(parse("canvas-direction:tb")).toMatchObject({ canvasDirection: "down" });
+		expect(parse("canvas-direction:top-to-bottom")).toMatchObject({ canvasDirection: "down" });
+	});
+
+	it("rejects an unknown arrangement/direction", () => {
+		const badLayout = parseQuery("canvas-layout:spiral", ctx);
+		expect(badLayout.ok).toBe(false);
+		const badDirection = parseQuery("canvas-direction:diagonal", ctx);
+		expect(badDirection.ok).toBe(false);
+	});
+
+	it("prints the clauses after sort: in canonical order", () => {
+		const src = printQuery(
+			def({
+				viewType: "canvas",
+				groupBy: "status",
+				sortBy: "rank",
+				canvasArrangement: "tree",
+				canvasDirection: "down",
+			}),
+			ctx,
+		);
+		const at = (needle: string) => src.indexOf(needle);
+		expect(at("layout:canvas")).toBeGreaterThanOrEqual(0);
+		expect(at("sort:rank")).toBeGreaterThan(at("group:status"));
+		expect(at("canvas-layout:tree")).toBeGreaterThan(at("sort:rank"));
+		expect(at("canvas-direction:down")).toBeGreaterThan(at("canvas-layout:tree"));
+		expect(src).toBe("layout:canvas group:status sort:rank canvas-layout:tree canvas-direction:down");
+	});
+
+	it("omits canvas clauses unless the layout is canvas", () => {
+		expect(printQuery(def({ viewType: "list", canvasArrangement: "tree" }), ctx)).not.toContain("canvas-");
+		expect(printQuery(def({ viewType: "list", canvasDirection: "down" }), ctx)).not.toContain("canvas-");
+		// Defaults on a canvas view omit the clauses too.
+		expect(printQuery(def({ viewType: "canvas" }), ctx)).not.toContain("canvas-");
+	});
+
+	it("canonicalises omitted canvas fields to their defaults", () => {
+		expect(
+			canonicalizeDefinition(def({ viewType: "canvas" })).canvasArrangement,
+		).toBe("flow");
+		expect(
+			canonicalizeDefinition(def({ viewType: "canvas" })).canvasDirection,
+		).toBe("right");
+	});
+});
+
+describe("relations: clause (canvas relation visibility)", () => {
+	it("accepts the current tokens and their aliases", () => {
+		const parse = (q: string) => parseQuery(q, ctx).definition;
+		expect(parse("relations:blocks")).toMatchObject({
+			canvasHiddenRelationKinds: ["dependency"],
+		});
+		expect(parse("relations:dependency")).toMatchObject({
+			canvasHiddenRelationKinds: ["dependency"],
+		});
+		expect(parse("relations:depends")).toMatchObject({
+			canvasHiddenRelationKinds: ["dependency"],
+		});
+		expect(parse("relations:blocked")).toMatchObject({
+			canvasHiddenRelationKinds: ["dependency"],
+		});
+		expect(parse("relations:parent")).toMatchObject({
+			canvasHiddenRelationKinds: ["hierarchy"],
+		});
+		expect(parse("relations:hierarchy")).toMatchObject({
+			canvasHiddenRelationKinds: ["hierarchy"],
+		});
+		expect(parse("relations:subtask")).toMatchObject({
+			canvasHiddenRelationKinds: ["hierarchy"],
+		});
+		expect(parse("relations:child")).toMatchObject({
+			canvasHiddenRelationKinds: ["hierarchy"],
+		});
+		expect(parse("relations:related")).toMatchObject({
+			canvasHiddenRelationKinds: ["related"],
+		});
+		expect(parse("relations:rel")).toMatchObject({
+			canvasHiddenRelationKinds: ["related"],
+		});
+	});
+
+	it("hides both dependency and hierarchy edges from a comma-separated list", () => {
+		const parsed = parseQuery("relations:blocks,parent", ctx);
+		expect(parsed.ok).toBe(true);
+		expect(parsed.definition.canvasHiddenRelationKinds).toEqual([
+			"dependency",
+			"hierarchy",
+		]);
+	});
+
+	it("errors on an unknown relation kind", () => {
+		const parsed = parseQuery("relations:foo", ctx);
+		expect(parsed.ok).toBe(false);
+		expect(parsed.issues[0].code).toBe("unknown-value");
+	});
+
+	it("errors on relations: with no value", () => {
+		const parsed = parseQuery("relations:", ctx);
+		expect(parsed.ok).toBe(false);
+		expect(parsed.issues[0].code).toBe("empty-value");
+	});
+
+	it("warns but still parses a repeated relations:", () => {
+		const parsed = parseQuery("relations:blocks relations:parent", ctx);
+		expect(parsed.ok).toBe(true);
+		expect(parsed.issues.map((i) => i.code)).toContain("duplicate-field");
+		expect(parsed.definition.canvasHiddenRelationKinds).toEqual([
+			"dependency",
+			"hierarchy",
+		]);
+	});
+
+	it("prints in canonical (CANVAS_RELATION_KINDS) order regardless of input order", () => {
+		expect(
+			printQuery(
+				def({ viewType: "canvas", canvasHiddenRelationKinds: ["related", "dependency"] }),
+				ctx,
+			),
+		).toContain("relations:blocks,related");
+	});
+
+	it("is dropped from the printed query on a non-canvas view", () => {
+		expect(
+			printQuery(def({ viewType: "list", canvasHiddenRelationKinds: ["dependency"] }), ctx),
+		).not.toContain("relations:");
+	});
+
+	it("prints no relations: clause when nothing is hidden", () => {
+		expect(printQuery(def({ viewType: "canvas" }), ctx)).not.toContain("relations:");
+	});
+
+	it("leaves existing hide:/canvas-layout:/canvas-direction: clauses unaffected", () => {
+		const src = printQuery(
+			def({
+				viewType: "canvas",
+				canvasArrangement: "tree",
+				canvasDirection: "down",
+				hiddenFields: ["priority"],
+				canvasHiddenRelationKinds: ["dependency"],
+			}),
+			ctx,
+		);
+		expect(src).toContain("canvas-layout:tree");
+		expect(src).toContain("canvas-direction:down");
+		expect(src).toContain("hide:priority");
+		expect(src).toContain("relations:blocks");
 	});
 });
 
