@@ -9,9 +9,11 @@
  *   mounts only when there's at least one clause to show.
  *
  * The `pending` (a clause added this session with no value yet still needs a
- * tag) and `editing` (a freshly-added clause opens its editor popover
- * immediately) state is owned by the parent via `useFilterClauseState` and
- * handed to both, so the Row 1 trigger and the Row 2 tag list stay in step.
+ * tag) and `openId` (which single popover on the whole bar is open — a
+ * filter clause's editor, or one of the non-filter Row 1 controls) state is
+ * owned by the parent via `useFilterClauseState` and handed to both, so the
+ * Row 1 trigger and the Row 2 tag list stay in step with each other and with
+ * every other bar control.
  */
 
 import { useState, type Dispatch, type SetStateAction } from "react";
@@ -45,20 +47,36 @@ function withFilter(
 	return next;
 }
 
+/** The non-filter Row 1 controls that share the bar's single open-popover state. */
+export type BarControlId =
+	| "group"
+	| "sort"
+	| "subtasks"
+	| "recurring"
+	| "emptyColumns"
+	| "fields"
+	| "addFilter"
+	| "canvasRelations"
+	| "canvasArrange";
+
 export interface FilterClauseControl {
 	/** Clauses added this session that don't carry a value yet. */
 	pending: FilterKey[];
 	setPending: Dispatch<SetStateAction<FilterKey[]>>;
-	/** The clause whose editor popover is open, or null. */
-	editing: FilterKey | null;
-	setEditing: Dispatch<SetStateAction<FilterKey | null>>;
+	/**
+	 * Which popover on this toolbar is open — a filter clause's editor, or
+	 * one of the non-filter bar controls (Group, Sort, Fields, etc). Exactly
+	 * one shared value so opening any popover on the bar closes any other.
+	 */
+	openId: FilterKey | BarControlId | null;
+	setOpenId: Dispatch<SetStateAction<FilterKey | BarControlId | null>>;
 }
 
-/** Owns the shared `pending`/`editing` state — call once in the parent. */
+/** Owns the shared `pending`/`openId` state — call once in the parent. */
 export function useFilterClauseState(): FilterClauseControl {
 	const [pending, setPending] = useState<FilterKey[]>([]);
-	const [editing, setEditing] = useState<FilterKey | null>(null);
-	return { pending, setPending, editing, setEditing };
+	const [openId, setOpenId] = useState<FilterKey | BarControlId | null>(null);
+	return { pending, setPending, openId, setOpenId };
 }
 
 /** The clause keys the filters row shows: those with a value, plus valueless pending ones. */
@@ -77,8 +95,8 @@ export function AddFilterTrigger({
 	view: SavedView;
 	clause: FilterClauseControl;
 }) {
-	const [adding, setAdding] = useState(false);
-	const { pending, setPending, setEditing } = clause;
+	const { pending, setPending, openId, setOpenId } = clause;
+	const adding = openId === "addFilter";
 
 	const shownKeys = shownFilterKeys(view.filters, pending);
 	const availableFields = FILTER_FIELDS.filter(
@@ -92,13 +110,13 @@ export function AddFilterTrigger({
 				className={`vf-add-filter${adding ? " is-on" : ""}`}
 				onClick={(event) => {
 					event.stopPropagation();
-					setAdding((current) => !current);
+					setOpenId((current) => (current === "addFilter" ? null : "addFilter"));
 				}}
 			>
 				+ Filter
 			</button>
 			{adding && availableFields.length > 0 && (
-				<Popover align="left" onClose={() => setAdding(false)}>
+				<Popover align="left" onClose={() => setOpenId(null)}>
 					<div className="vf-option-list">
 						{availableFields.map((field) => (
 							<button
@@ -106,9 +124,8 @@ export function AddFilterTrigger({
 								type="button"
 								className="vf-menu-item"
 								onClick={() => {
-									setAdding(false);
 									setPending((keys) => [...keys, field.key]);
-									setEditing(field.key);
+									setOpenId(field.key);
 								}}
 							>
 								{field.label}
@@ -136,7 +153,7 @@ export function FilterControls({
 }) {
 	const filters = view.filters;
 	const setFilters = (next: ViewFilters) => onChange({ ...view, filters: next });
-	const { pending, setPending, editing, setEditing } = clause;
+	const { pending, setPending, openId: editing, setOpenId: setEditing } = clause;
 
 	const shownKeys = shownFilterKeys(filters, pending);
 	const readonlyKeys = activeReadonlyFilterKeys(filters);

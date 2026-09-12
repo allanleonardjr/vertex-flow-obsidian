@@ -34,6 +34,12 @@ This project uses [Semantic Versioning](https://semver.org/).
   scrolls internally instead of pushing the popover past the viewport,
   which previously hijacked the mouse wheel and scrolled the whole task
   list instead of the dropdown.
+- View bar: opening one control's popover (Group, Sort, Sub-tasks,
+  Upcoming, Empty cols, Fields, Relations, Arrange, + Filter, or a filter
+  tag's editor) now closes any other popover already open on the bar,
+  instead of letting them all stack on top of each other. Each control
+  used to own its own independent open/closed state; they now share one
+  value, the same pattern the filter tag list already used for itself.
 
 ## 1.0.21 — 2026-09-11
 - **Canvas layout (`v` `d`) — a relationship graph.** Any Saved View
