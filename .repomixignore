@@ -14,4 +14,6 @@ data.json
 .DS_Store
 coverage/
 
+webllm.worker.js
 repomix-*
+

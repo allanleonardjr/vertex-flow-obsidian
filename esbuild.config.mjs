@@ -74,9 +74,35 @@ const context = await esbuild.context({
 	},
 });
 
+// Separate context: the WebLLM worker runs off-main-thread and is loaded via
+// `new Worker(url)` rather than imported, so it needs its own bundle rather
+// than a module inlined into main.js.
+const workerContext = await esbuild.context({
+	entryPoints: ["src/ai/webllm.worker.ts"],
+	bundle: true,
+	format: "iife",
+	platform: "browser",
+	target: "es2020",
+	logLevel: "info",
+	sourcemap: prod ? false : "inline",
+	treeShaking: true,
+	outfile: "webllm.worker.js",
+	minify: prod,
+	define: {
+		// WebLLM bundles an Emscripten loader that picks its Node branch when
+		// `typeof process === "object" && process.versions.node` — true inside
+		// Electron's worker context, where it then reaches for `fs`/`path` and
+		// dies on `path.dirname`. Defining `process` away makes that check
+		// statically false, so the browser/worker branch is the only one left.
+		process: "undefined",
+	},
+});
+
 if (prod) {
 	await context.rebuild();
+	await workerContext.rebuild();
 	process.exit(0);
 } else {
 	await context.watch();
+	await workerContext.watch();
 }

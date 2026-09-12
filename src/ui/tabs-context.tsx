@@ -47,7 +47,8 @@ export type BrowseKind =
     | "labels"
     | "people"
     | "history"
-    | "recurring";
+    | "recurring"
+    | "ai-chat";
 
 export type Tab =
 	| { id: BrowseKind; kind: BrowseKind }
@@ -179,6 +180,7 @@ export function tabAccentRoot(
 		case "settings":
 		case "history":
 		case "recurring":
+		case "ai-chat":
 			return activeRoot;
 		case "help":
 		case "new-workspace":

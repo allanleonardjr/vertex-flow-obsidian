@@ -2,6 +2,7 @@ node_modules/
 
 # Build output — shipped via GitHub releases, not committed.
 main.js
+webllm.worker.js
 dist/
 *.js.map
 .template-validate-*/

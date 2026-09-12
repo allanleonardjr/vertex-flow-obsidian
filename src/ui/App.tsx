@@ -33,6 +33,8 @@ import { Sidebar } from "./Sidebar";
 import { WorkspaceSettingsView } from "./settings/WorkspaceSettingsView";
 import { TabsProvider, useTabs } from "./tabs-context";
 import { HelpView } from "./help/HelpView";
+import { AiChatView } from "./ai-chat/AiChatView";
+import { AiChatSessionProvider } from "./ai-chat/ai-chat-session";
 import { TabStrip } from "./TabStrip";
 import { TaskPane } from "./TaskPane";
 import { TaskViewport } from "./views/TaskViewport";
@@ -221,6 +223,7 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
   const { navOpen, propertiesOpen, closeDrawers } = useCompactNav();
 
   return (
+    <AiChatSessionProvider>
     <div
       className={`vf-shell${navOpen ? " is-nav-open" : ""}${
         propertiesOpen ? " is-properties-open" : ""
@@ -262,6 +265,8 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
           <WorkspaceSettingsView snapshot={snapshot} />
         ) : activeTab.kind === "help" ? (
           <HelpView />
+        ) : activeTab.kind === "ai-chat" ? (
+          <AiChatView snapshot={snapshot} taxonomies={active.taxonomies} />
         ) : activeTab.kind === "new-workspace" ? (
           <TemplateGallery onClose={() => tabs.close("new-workspace")} />
         ) : activeTab.kind === "dashboards" ? (
@@ -334,6 +339,7 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
         )}
       </main>
     </div>
+    </AiChatSessionProvider>
   );
 }
 

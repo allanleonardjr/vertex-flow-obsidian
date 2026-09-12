@@ -35,6 +35,7 @@ const BROWSE_ICON: Record<BrowseKind, string> = {
 	people: "👤",
 	history: "🕘",
 	recurring: "↻",
+	"ai-chat": "✦",
 };
 
 const BROWSE_LABEL: Record<BrowseKind, string> = {
@@ -49,6 +50,7 @@ const BROWSE_LABEL: Record<BrowseKind, string> = {
 	people: "People",
 	history: "History",
 	recurring: "Recurring",
+	"ai-chat": "AI Chat",
 };
 
 function browseLabel(kind: BrowseKind): string {

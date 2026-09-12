@@ -8,7 +8,8 @@
  * plugin-private scheme.
  */
 
-import { Notice, Plugin, WorkspaceLeaf } from "obsidian";
+import { normalizePath, Notice, Plugin, WorkspaceLeaf } from "obsidian";
+import { AiEngineService } from "./ai/AiEngineService";
 import { VaultIndex } from "./obsidian/index-store";
 import { Mutations } from "./obsidian/mutations";
 import { NoteIO } from "./obsidian/note-io";
@@ -42,6 +43,12 @@ export default class VertexFlowPlugin extends Plugin {
   index!: VaultIndex;
   mutations!: Mutations;
   history!: HistoryLog;
+  aiEngine!: AiEngineService;
+  /** Blob URL backing the AI worker script — revoked on unload. */
+  private aiWorkerBlobUrl: string | null = null;
+
+  /** One-shot: the React tree opens the AI Chat tab when it sees this. Mirrors `pendingExport`. */
+  pendingOpenAiChat = false;
 
   /** One-shot: consumed by the next `file-open`, then cleared. See `suppressNextRedirect`. */
   private redirectSuppressed = false;
@@ -113,6 +120,20 @@ export default class VertexFlowPlugin extends Plugin {
       (leaf: WorkspaceLeaf) => new VertexFlowView(leaf, this),
     );
 
+    // The worker script is bundled to its own file alongside main.js (see
+    // esbuild.config.mjs) and loaded via a Blob URL built from its own
+    // source, never imported directly — `AiEngineService` itself takes no
+    // Obsidian dependency. A plain `getResourcePath()` URL doesn't work here:
+    // it resolves under the per-vault `app://<id>` origin, while plugin code
+    // itself runs under `app://obsidian.md`, so `new Worker()` refuses it as
+    // cross-origin. A same-document Blob URL sidesteps that entirely.
+    const workerPath = normalizePath(`${this.manifest.dir ?? ""}/webllm.worker.js`);
+    const workerSource = await this.app.vault.adapter.read(workerPath);
+    this.aiWorkerBlobUrl = URL.createObjectURL(
+      new Blob([workerSource], { type: "application/javascript" }),
+    );
+    this.aiEngine = new AiEngineService(this.aiWorkerBlobUrl);
+
     this.addSettingTab(new VertexFlowSettingTab(this.app, this));
 
     // Always opens a fresh instance — each click adds another Vertex Flow
@@ -155,6 +176,7 @@ export default class VertexFlowPlugin extends Plugin {
     // Obsidian detaches registered views automatically; the one bit of
     // global state we add is the text-size body class.
     clearUiTextSize();
+    if (this.aiWorkerBlobUrl) URL.revokeObjectURL(this.aiWorkerBlobUrl);
   }
 
   private registerCommands(): void {
@@ -179,6 +201,15 @@ export default class VertexFlowPlugin extends Plugin {
       id: "quick-capture",
       name: "Quick capture: new task",
       callback: () => void this.quickCapture(),
+    });
+
+    this.addCommand({
+      id: "open-ai-chat",
+      name: "Open AI Chat",
+      callback: () => {
+        this.pendingOpenAiChat = true;
+        void this.activateView().then(() => this.index.touch());
+      },
     });
 
     this.addCommand({

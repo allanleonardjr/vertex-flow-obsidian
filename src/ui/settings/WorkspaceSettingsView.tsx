@@ -9,6 +9,7 @@ import { useEffect, useRef } from "react";
 import { workspaceTaxonomies } from "../../core/taxonomy";
 import type { WorkspaceSnapshot } from "../../core/types";
 import { useTabs } from "../tabs-context";
+import { AiChatSection } from "./AiChatSection";
 import { ArchivingSection } from "./ArchivingSection";
 import { GeneralSection } from "./GeneralSection";
 import { HistorySection } from "./HistorySection";
@@ -74,6 +75,7 @@ export function WorkspaceSettingsView({ snapshot }: { snapshot: WorkspaceSnapsho
 
 				<PeopleSection snapshot={snapshot} id="vf-settings-people" />
 				<ArchivingSection snapshot={snapshot} />
+				<AiChatSection />
 				<HistorySection snapshot={snapshot} />
 			</div>
 		</div>

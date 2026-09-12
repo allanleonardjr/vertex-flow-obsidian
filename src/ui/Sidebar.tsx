@@ -114,6 +114,14 @@ export function Sidebar({
     plugin.pendingExport = false;
     setExporting(true);
   });
+
+  // Bridge for the "Open AI Chat" command — mirrors the pendingExport bridge
+  // above.
+  useEffect(() => {
+    if (!plugin.pendingOpenAiChat) return;
+    plugin.pendingOpenAiChat = false;
+    openScreen("ai-chat");
+  });
   // Compact-mode drawer state. In wide panes `navOpen` stays false and this is
   // inert; in compact panes the strip's Navigation button drives it and the
   // aside slides in as a drawer. Any navigation from a row here closes it.
@@ -261,6 +269,13 @@ export function Sidebar({
           />
 
           <div className="vf-sidebar-sep" aria-hidden />
+
+          <NavRow
+            icon="bot"
+            label="AI Chat"
+            active={activeId === "ai-chat"}
+            onClick={() => openScreen("ai-chat")}
+          />
 
           <NavRow
             icon="circle-help"

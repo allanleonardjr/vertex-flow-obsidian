@@ -4030,6 +4030,38 @@ input.vf-editable-title-input {
   line-height: 1.45;
 }
 
+/* AI Chat model install progress — wider than the tiny sub-task `.vf-progress`
+   meter, since this tracks a multi-gigabyte download. */
+.vf-ai-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 420px;
+  margin: 0 0 12px;
+}
+
+.vf-ai-progress {
+  flex: 1 1 auto;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--background-modifier-border);
+}
+
+.vf-ai-progress-fill {
+  display: block;
+  height: 100%;
+  background: var(--interactive-accent);
+  transition: width 0.2s ease;
+}
+
+.vf-ai-progress-label {
+  flex-shrink: 0;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  white-space: nowrap;
+}
+
 .vf-settings-callout strong {
   color: var(--text-normal);
 }
@@ -4040,6 +4072,60 @@ input.vf-editable-title-input {
   padding: 0;
   font-size: inherit;
   text-decoration: underline;
+}
+
+/* AI Chat screen — reuses `.vf-settings`'s flex-column/scroll shell for the
+   header, then a scrollable message list and a fixed input row. */
+.vf-chat-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 20px;
+  overflow-y: auto;
+}
+
+.vf-chat-bubble {
+  max-width: 70%;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: var(--font-ui-small);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.vf-chat-bubble-user {
+  align-self: flex-end;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.vf-chat-bubble-assistant {
+  align-self: flex-start;
+  background: var(--background-secondary);
+  color: var(--text-normal);
+}
+
+.vf-chat-input-row {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--vf-border);
+}
+
+.vf-chat-input {
+  flex: 1;
+  min-height: 36px;
+  max-height: 140px;
+  padding: 8px 10px;
+  resize: none;
+  border: 1px solid var(--vf-border);
+  border-radius: 6px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  font-family: inherit;
 }
 
 .vf-taxonomy-table {

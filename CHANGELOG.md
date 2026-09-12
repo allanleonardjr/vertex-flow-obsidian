@@ -5,6 +5,27 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Added
+
+- **AI Chat (experimental) — a zero-install, in-browser assistant over your
+  active workspace.** Reachable from the sidebar's new AI Chat row. The
+  model (Qwen2.5-3B, quantized) runs entirely client-side via WebLLM/WebGPU
+  — no API keys, no external server, and nothing about your vault ever
+  leaves the device. Install/uninstall it from a new "AI Chat
+  (experimental)" section in Workspace Settings, which shows download
+  progress and current browser storage use; the model itself is cached in
+  the browser (not written into your vault) and survives Obsidian restarts
+  without re-downloading. Chat history persists while its tab stays open —
+  including across switching to other tabs and back — and resets once the
+  tab is closed; nothing is ever written to disk. Every question is
+  answered from a live snapshot of the active workspace's tasks and
+  projects (titles, status, priority, type, assignee, dates, labels,
+  hierarchy) plus its configured Status/Priority/Task Type/Label taxonomy
+  and People roster, rebuilt fresh on every message — so a status rename or
+  reassignment shows up immediately, with no re-index or restart needed.
+  Requires a WebGPU-capable browser; the feature explains itself and stays
+  inert (no console errors) where that's unavailable, including on mobile.
+
 ### Fixed
 
 - Canvas: the "replace existing parent" confirmation no longer silently
