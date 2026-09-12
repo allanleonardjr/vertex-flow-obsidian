@@ -266,7 +266,11 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
         ) : activeTab.kind === "help" ? (
           <HelpView />
         ) : activeTab.kind === "ai-chat" ? (
-          <AiChatView snapshot={snapshot} taxonomies={active.taxonomies} />
+          <AiChatView
+            snapshot={snapshot}
+            taxonomies={active.taxonomies}
+            context={active.context}
+          />
         ) : activeTab.kind === "new-workspace" ? (
           <TemplateGallery onClose={() => tabs.close("new-workspace")} />
         ) : activeTab.kind === "dashboards" ? (

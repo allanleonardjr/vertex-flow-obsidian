@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
-	buildAiWorkspaceSnapshot,
+	buildFactsSection,
 	buildPeopleRoster,
 	buildTaxonomyLegend,
+	flattenTasks,
 	isOverdueTask,
+	summarizeTasks,
 } from "../../src/core/ai/snapshot";
 import { createTaxonomy, DEFAULT_STATUSES, workspaceTaxonomies } from "../../src/core/taxonomy";
 import type { WorkspaceSnapshot } from "../../src/core/types";
 import { project, task } from "./fixtures";
 import { sampleSnapshot } from "../../src/core/templates/instantiate";
-
-const statuses = createTaxonomy("status", DEFAULT_STATUSES);
 
 function withEntities(tasks: WorkspaceSnapshot["tasks"], projects: WorkspaceSnapshot["projects"]) {
 	const base = sampleSnapshot();
@@ -18,6 +18,8 @@ function withEntities(tasks: WorkspaceSnapshot["tasks"], projects: WorkspaceSnap
 }
 
 describe("isOverdueTask", () => {
+	const statuses = createTaxonomy("status", DEFAULT_STATUSES);
+
 	it("is overdue only when due before today and not completed/canceled", () => {
 		const overdue = task({ dueDate: "2020-01-01", status: "todo" });
 		const done = task({ dueDate: "2020-01-01", status: "done" });
@@ -27,10 +29,14 @@ describe("isOverdueTask", () => {
 		expect(isOverdueTask(done, statuses, "2026-01-01")).toBe(false);
 		expect(isOverdueTask(future, statuses, "2026-01-01")).toBe(false);
 	});
+
+	it("is not overdue with no dueDate set", () => {
+		expect(isOverdueTask(task({ dueDate: null }), statuses, "2026-01-01")).toBe(false);
+	});
 });
 
-describe("buildAiWorkspaceSnapshot", () => {
-	it("resolves task project/parent titles and rolls up project status counts + overdue", () => {
+describe("summarizeTasks", () => {
+	it("resolves task project/parent titles", () => {
 		const p = project({ path: "W/Projects/P", title: "Launch" });
 		const parent = task({ id: "TSK-1", path: "W/Tasks/TSK-1", title: "Parent" });
 		const child = task({
@@ -39,55 +45,14 @@ describe("buildAiWorkspaceSnapshot", () => {
 			title: "Child",
 			parent: "W/Tasks/TSK-1",
 			project: "W/Projects/P",
-			status: "todo",
-			dueDate: "2020-01-01",
-		});
-		const other = task({
-			id: "TSK-3",
-			path: "W/Tasks/TSK-3",
-			title: "Other",
-			project: "W/Projects/P",
-			status: "done",
 		});
 
-		const snapshot = withEntities([parent, child, other], [p]);
+		const snapshot = withEntities([parent, child], [p]);
 		const taxonomies = workspaceTaxonomies(snapshot.workspace);
-		const result = buildAiWorkspaceSnapshot(snapshot, taxonomies, { today: "2026-01-01" });
+		const [, childSummary] = summarizeTasks([parent, child], snapshot, taxonomies);
 
-		const childSummary = result.tasks.find((t) => t.id === "TSK-2")!;
-		expect(childSummary.project).toBe("Launch");
-		expect(childSummary.parent).toBe("Parent");
-
-		const projectSummary = result.projects.find((p2) => p2.title === "Launch")!;
-		expect(projectSummary.overdueCount).toBe(1);
-		expect(Object.values(projectSummary.statusCounts).reduce((a, b) => a + b, 0)).toBe(2);
-		expect(result.truncated).toBe(false);
-	});
-
-	it("truncates least-recently-updated tasks first and reports the omitted count", () => {
-		const old = task({ id: "TSK-1", path: "W/Tasks/TSK-1", updatedAt: "2020-01-01T00:00:00Z" });
-		const recent = task({ id: "TSK-2", path: "W/Tasks/TSK-2", updatedAt: "2026-01-01T00:00:00Z" });
-
-		const snapshot = withEntities([old, recent], []);
-		const taxonomies = workspaceTaxonomies(snapshot.workspace);
-		const result = buildAiWorkspaceSnapshot(snapshot, taxonomies, { maxTasks: 1 });
-
-		expect(result.tasks).toHaveLength(1);
-		expect(result.tasks[0]?.id).toBe("TSK-2");
-		expect(result.truncated).toBe(true);
-		expect(result.omittedTaskCount).toBe(1);
-	});
-
-	it("excludes archived tasks and projects", () => {
-		const archivedTask = task({ id: "TSK-1", path: "W/Tasks/TSK-1", archived: true });
-		const archivedProject = project({ path: "W/Projects/P", archived: true });
-
-		const snapshot = withEntities([archivedTask], [archivedProject]);
-		const taxonomies = workspaceTaxonomies(snapshot.workspace);
-		const result = buildAiWorkspaceSnapshot(snapshot, taxonomies);
-
-		expect(result.tasks).toHaveLength(0);
-		expect(result.projects).toHaveLength(0);
+		expect(childSummary!.project).toBe("Launch");
+		expect(childSummary!.parent).toBe("Parent");
 	});
 
 	it("resolves taskType and assignee to their configured/display names, and carries estimate/startDate", () => {
@@ -102,13 +67,12 @@ describe("buildAiWorkspaceSnapshot", () => {
 
 		const snapshot = withEntities([t], []);
 		const taxonomies = workspaceTaxonomies(snapshot.workspace);
-		const result = buildAiWorkspaceSnapshot(snapshot, taxonomies);
+		const [summary] = summarizeTasks([t], snapshot, taxonomies);
 
-		const summary = result.tasks[0]!;
-		expect(summary.taskType).toBe("Bug");
-		expect(summary.assignee).toBe("Alice");
-		expect(summary.estimate).toBe(5);
-		expect(summary.startDate).toBe("2026-01-01");
+		expect(summary!.taskType).toBe("Bug");
+		expect(summary!.assignee).toBe("Alice");
+		expect(summary!.estimate).toBe(5);
+		expect(summary!.startDate).toBe("2026-01-01");
 	});
 
 	it("falls back to null for an assignee/taskType id that isn't in the workspace", () => {
@@ -116,29 +80,74 @@ describe("buildAiWorkspaceSnapshot", () => {
 
 		const snapshot = withEntities([t], []);
 		const taxonomies = workspaceTaxonomies(snapshot.workspace);
-		const result = buildAiWorkspaceSnapshot(snapshot, taxonomies);
+		const [summary] = summarizeTasks([t], snapshot, taxonomies);
 
-		expect(result.tasks[0]?.taskType).toBeNull();
-		expect(result.tasks[0]?.assignee).toBeNull();
+		expect(summary!.taskType).toBeNull();
+		expect(summary!.assignee).toBeNull();
+	});
+});
+
+describe("flattenTasks", () => {
+	it("renders a header and one pipe-delimited row per task", () => {
+		const t = task({ id: "TSK-1", path: "W/Tasks/TSK-1", title: "Fix bug" });
+		const snapshot = withEntities([t], []);
+		const taxonomies = workspaceTaxonomies(snapshot.workspace);
+		const text = flattenTasks(summarizeTasks([t], snapshot, taxonomies));
+
+		const lines = text.split("\n");
+		expect(lines[0]).toContain("id | title | status");
+		expect(lines[1]).toContain("TSK-1");
+		expect(lines[1]).toContain("Fix bug");
 	});
 
-	it("resolves project owner to a display name and carries its dates", () => {
-		const p = project({
-			path: "W/Projects/P",
-			title: "Launch",
-			owner: "bob",
-			startDate: "2026-01-10",
-			dueDate: "2026-06-30",
-		});
+	it("says '(none)' for an empty list instead of a bare header", () => {
+		expect(flattenTasks([])).toContain("(none)");
+	});
 
-		const snapshot = withEntities([], [p]);
+	it("escapes a pipe character inside a field so it can't be mistaken for a column boundary", () => {
+		const t = task({ id: "TSK-1", path: "W/Tasks/TSK-1", title: "A | B" });
+		const snapshot = withEntities([t], []);
 		const taxonomies = workspaceTaxonomies(snapshot.workspace);
-		const result = buildAiWorkspaceSnapshot(snapshot, taxonomies);
+		const text = flattenTasks(summarizeTasks([t], snapshot, taxonomies));
 
-		const summary = result.projects[0]!;
-		expect(summary.owner).toBe("Bob");
-		expect(summary.startDate).toBe("2026-01-10");
-		expect(summary.dueDate).toBe("2026-06-30");
+		expect(text).toContain("A / B");
+		expect(text.split("\n")[1]!.split(" | ")).toHaveLength(12);
+	});
+});
+
+describe("buildFactsSection", () => {
+	it("reports real, untruncated counts regardless of task list size", () => {
+		const tasks = Array.from({ length: 90 }, (_, i) =>
+			task({ id: `TSK-${i}`, path: `W/Tasks/TSK-${i}` }),
+		);
+		const snapshot = withEntities(tasks, []);
+		const taxonomies = workspaceTaxonomies(snapshot.workspace);
+		const facts = buildFactsSection(snapshot, taxonomies, "2026-01-01");
+
+		expect(facts).toContain("Tasks: 90 (0 archived)");
+	});
+
+	it("excludes archived tasks/projects from the live counts but reports the archived count", () => {
+		const live = task({ id: "TSK-1", path: "W/Tasks/TSK-1" });
+		const archived = task({ id: "TSK-2", path: "W/Tasks/TSK-2", archived: true });
+		const archivedProject = project({ path: "W/Projects/P", archived: true });
+
+		const snapshot = withEntities([live, archived], [archivedProject]);
+		const taxonomies = workspaceTaxonomies(snapshot.workspace);
+		const facts = buildFactsSection(snapshot, taxonomies, "2026-01-01");
+
+		expect(facts).toContain("Tasks: 1 (1 archived)");
+		expect(facts).toContain("Projects: 0");
+	});
+
+	it("includes today's date, the taxonomy legend, and the people roster", () => {
+		const snapshot = sampleSnapshot();
+		const taxonomies = workspaceTaxonomies(snapshot.workspace);
+		const facts = buildFactsSection(snapshot, taxonomies, "2026-03-14");
+
+		expect(facts).toContain("Today's date: 2026-03-14");
+		expect(facts).toContain("Statuses (in order):");
+		expect(facts).toContain("People:");
 	});
 });
 

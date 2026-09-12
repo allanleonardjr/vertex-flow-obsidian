@@ -6,6 +6,8 @@
  * holds per-install UI state that would be meaningless to sync or diff.
  */
 
+import { DEFAULT_AI_MODEL_ID } from "../ai/AiEngineService";
+
 /**
  * Interface text density. `compact` is the built-in baseline;
  * the larger tiers scale the plugin's `--font-ui-*` tokens up by a fixed
@@ -70,6 +72,16 @@ export interface VertexFlowSettings {
 	 * data, so it lives here rather than in `_workspace.md`.
 	 */
 	redirectTaskNotes: boolean;
+	/**
+	 * Which AI Chat model is active — a device/install setting like the rest of
+	 * this file, not workspace data, since exactly one model is ever loaded in
+	 * the worker regardless of which workspace is open. Several other models
+	 * may still be cached in IndexedDB without being this one (see
+	 * `AiEngineService`); switching this resets the AI Chat session's message
+	 * history (`AiChatSessionProvider`), since a fresh model has no memory of
+	 * the old one's conversation anyway.
+	 */
+	selectedAiModelId: string;
 	// "Who me is" is deliberately NOT here. It's per-device and per-workspace,
 	// held in the app's own localStorage (never the vault) — see
 	// `src/obsidian/me-storage.ts`. A single global value in this synced file
@@ -116,4 +128,5 @@ export const DEFAULT_SETTINGS: VertexFlowSettings = {
 	taskPickerHeight: 360,
 	helpSidebarWidth: 240,
 	redirectTaskNotes: true,
+	selectedAiModelId: DEFAULT_AI_MODEL_ID,
 };

@@ -8,23 +8,29 @@ This project uses [Semantic Versioning](https://semver.org/).
 ### Added
 
 - **AI Chat (experimental) — a zero-install, in-browser assistant over your
-  active workspace.** Reachable from the sidebar's new AI Chat row. The
-  model (Qwen2.5-3B, quantized) runs entirely client-side via WebLLM/WebGPU
-  — no API keys, no external server, and nothing about your vault ever
-  leaves the device. Install/uninstall it from a new "AI Chat
-  (experimental)" section in Workspace Settings, which shows download
-  progress and current browser storage use; the model itself is cached in
-  the browser (not written into your vault) and survives Obsidian restarts
-  without re-downloading. Chat history persists while its tab stays open —
-  including across switching to other tabs and back — and resets once the
-  tab is closed; nothing is ever written to disk. Every question is
-  answered from a live snapshot of the active workspace's tasks and
-  projects (titles, status, priority, type, assignee, dates, labels,
-  hierarchy) plus its configured Status/Priority/Task Type/Label taxonomy
-  and People roster, rebuilt fresh on every message — so a status rename or
-  reassignment shows up immediately, with no re-index or restart needed.
-  Requires a WebGPU-capable browser; the feature explains itself and stays
-  inert (no console errors) where that's unavailable, including on mobile.
+  active workspace.** Reachable from the sidebar's new AI Chat row. Models
+  run entirely client-side via WebLLM/WebGPU — no API keys, no external
+  server, and nothing about your vault ever leaves the device. Choose from
+  three models in a new "AI Chat (experimental)" section in Workspace
+  Settings (Fast, Balanced, or Most capable — each shows its real VRAM/context
+  requirements and installs, shows progress, and clears independently, so
+  several can be cached at once even though only one is ever active);
+  switching models activates the new one immediately (instant if already
+  cached) and starts a fresh conversation, since a different model has no
+  memory of the old one's history. Models are cached in the browser (never
+  written into your vault) and survive Obsidian restarts without
+  re-downloading. Chat history persists while its tab stays open — including
+  across switching to other tabs and back — and resets once the tab closes;
+  nothing is ever written to disk. Every message sends a small, fixed-cost
+  facts layer (task/project counts, your configured Status/Priority/Task
+  Type/Label taxonomy, and People roster — rebuilt fresh every time, so a
+  rename shows up on the very next question) plus conversation history; when
+  a question needs specific tasks, the assistant queries them on demand
+  through the same filtering engine that powers Saved Views, so accuracy
+  doesn't degrade as a workspace grows. A Stop button appears mid-response to
+  interrupt generation immediately. Requires a WebGPU-capable browser; the
+  feature explains itself and stays inert (no console errors) where that's
+  unavailable, including on mobile.
 
 ### Fixed
 

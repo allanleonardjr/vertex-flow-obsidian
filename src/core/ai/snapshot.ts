@@ -1,8 +1,19 @@
 /**
- * Builds the JSON snapshot injected as the AI Chat system message — no
- * retrieval/RAG for this spike, just the active workspace's tasks/projects
- * inlined directly. Pure over `WorkspaceSnapshot` + `WorkspaceTaxonomies`, so
- * it's testable without the Obsidian API (Golden Rule) and without WebLLM.
+ * Core building blocks the AI Chat system message is built from: a small,
+ * fixed-cost facts layer (counts + taxonomy legend + people roster — see
+ * `buildFactsSection`) sent on every message, and task summarization used
+ * both by that facts layer's callers and by the on-demand `searchTasks`/
+ * `countTasks` query actions in `./query-action.ts`. Pure over
+ * `WorkspaceSnapshot` + `WorkspaceTaxonomies`, so it's testable without the
+ * Obsidian API (Golden Rule) and without WebLLM.
+ *
+ * There is deliberately no "the whole workspace, maybe truncated" builder
+ * here any more. That shape silently dropped tasks past a fixed token
+ * budget — confirmed to misreport totals on a 90-task workspace — which is
+ * exactly the failure mode the query-on-demand architecture in
+ * `../../ui/ai-chat/AiChatView.tsx` replaces: the facts layer answers
+ * aggregate questions from real counts, and specific-task questions go
+ * through `query-action.ts` against the real filtering engine instead.
  */
 
 import { getValue, isCanceled, isCompleted, listValues, type Taxonomy } from "../taxonomy/engine";
@@ -24,26 +35,13 @@ export interface AiTaskSummary {
 	parent: string | null;
 }
 
-export interface AiProjectSummary {
-	title: string;
-	statusCounts: Record<string, number>;
-	overdueCount: number;
-	owner: string | null;
-	startDate: IsoDate | null;
-	dueDate: IsoDate | null;
-}
-
-export interface AiWorkspaceSnapshot {
-	workspaceName: string;
-	today: IsoDate;
-	tasks: AiTaskSummary[];
-	projects: AiProjectSummary[];
-	/** True when tasks were dropped to fit the model's context window. */
-	truncated: boolean;
-	omittedTaskCount: number;
-}
-
-/** A task counts as overdue only while it's still real, outstanding work. */
+/**
+ * A task counts as overdue only while it's still real, outstanding work.
+ * Used by the `searchTasks`/`countTasks` `overdue` query-action flag
+ * (`./query-action.ts`) — there's no such field on `Task` itself, and no
+ * `ViewFilters` equivalent, since it's derived from `dueDate` + status
+ * category + "today" rather than a stored value.
+ */
 export function isOverdueTask(task: Task, statuses: Taxonomy, today: IsoDate): boolean {
 	if (!task.dueDate || task.dueDate >= today) return false;
 	return !isCompleted(statuses, task.status) && !isCanceled(statuses, task.status);
@@ -85,66 +83,63 @@ function summarizeTask(
 	};
 }
 
-function summarizeProject(
-	project: Project,
+/** Summarize an already-filtered task list (e.g. a `searchTasks` query result) for display to the model. */
+export function summarizeTasks(
 	tasks: Task[],
-	statuses: Taxonomy,
-	today: IsoDate,
-	people: Person[],
-): AiProjectSummary {
-	const ownTasks = tasks.filter((task) => task.project === project.path && !task.archived);
-
-	const statusCounts: Record<string, number> = {};
-	let overdueCount = 0;
-	for (const task of ownTasks) {
-		const statusName = getValue(statuses, task.status)?.name ?? "None";
-		statusCounts[statusName] = (statusCounts[statusName] ?? 0) + 1;
-		if (isOverdueTask(task, statuses, today)) overdueCount++;
-	}
-
-	return {
-		title: project.title,
-		statusCounts,
-		overdueCount,
-		owner: personName(people, project.owner),
-		startDate: project.startDate,
-		dueDate: project.dueDate,
-	};
-}
-
-/**
- * @param maxTasks Truncation budget — when the task list is longer, the
- *   least-recently-updated tasks are dropped first (they're the least likely
- *   to matter to "what's happening now" questions).
- */
-export function buildAiWorkspaceSnapshot(
 	snapshot: WorkspaceSnapshot,
 	taxonomies: WorkspaceTaxonomies,
-	options: { maxTasks?: number; today?: IsoDate } = {},
-): AiWorkspaceSnapshot {
-	const today = options.today ?? new Date().toISOString().slice(0, 10);
-	const maxTasks = options.maxTasks ?? Infinity;
-	const people = snapshot.workspace.people;
-
-	const liveTasks = snapshot.tasks.filter((task) => !task.archived);
-	const sorted = [...liveTasks].sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
-	const kept = sorted.slice(0, maxTasks);
-
-	return {
-		workspaceName: snapshot.workspace.name,
-		today,
-		tasks: kept.map((task) =>
-			summarizeTask(task, snapshot.tasks, snapshot.projects, taxonomies.taskType, people),
+): AiTaskSummary[] {
+	return tasks.map((task) =>
+		summarizeTask(
+			task,
+			snapshot.tasks,
+			snapshot.projects,
+			taxonomies.taskType,
+			snapshot.workspace.people,
 		),
-		projects: snapshot.projects
-			.filter((project) => !project.archived)
-			.map((project) =>
-				summarizeProject(project, liveTasks, taxonomies.status, today, people),
-			),
-		truncated: kept.length < sorted.length,
-		omittedTaskCount: sorted.length - kept.length,
-	};
+	);
 }
+
+// ---------------------------------------------------------------------------
+// Prompt formatting — pipe-delimited rows instead of JSON: repeated object
+// keys cost real tokens against a budget, and the model only ever reads
+// this, never round-trips it.
+// ---------------------------------------------------------------------------
+
+function csvField(value: string): string {
+	return value.includes("|") || value.includes("\n")
+		? value.replace(/\|/g, "/").replace(/\n/g, " ")
+		: value;
+}
+
+export function flattenTasks(tasks: AiTaskSummary[]): string {
+	const header =
+		"id | title | status | priority | taskType | assignee | project | parent | labels | startDate | dueDate | estimate";
+	if (tasks.length === 0) return `${header}\n(none)`;
+	const rows = tasks.map((task) =>
+		[
+			task.id,
+			task.title,
+			task.status ?? "-",
+			task.priority ?? "-",
+			task.taskType ?? "-",
+			task.assignee ?? "-",
+			task.project ?? "-",
+			task.parent ?? "-",
+			task.labels.length ? task.labels.join(",") : "-",
+			task.startDate ?? "-",
+			task.dueDate ?? "-",
+			task.estimate ?? "-",
+		]
+			.map((value) => csvField(String(value)))
+			.join(" | "),
+	);
+	return [header, ...rows].join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// Taxonomy legend + people roster — workspace configuration, not task data.
+// ---------------------------------------------------------------------------
 
 /**
  * The configured meaning of each taxonomy in this workspace — Status,
@@ -180,6 +175,41 @@ export function buildTaxonomyLegend(taxonomies: WorkspaceTaxonomies): string {
 export function buildPeopleRoster(people: Person[]): string {
 	if (people.length === 0) return "People: none registered";
 	return `People: ${people.map((person) => person.name).join(", ")}`;
+}
+
+/**
+ * The fixed-cost layer sent on every message, regardless of workspace size.
+ * Counts are cheap `.length`/`.filter().length` reads off the real arrays —
+ * never derived from a possibly-truncated list, which is what made "how many
+ * tasks do I have?" answerable wrong before. The legend and roster are
+ * bounded by how many taxonomy values and people this workspace has
+ * configured, not by how many tasks exist.
+ *
+ * Invariant: this function's output must never need truncation. Don't be
+ * tempted to list every project's name here — that scales with task-adjacent
+ * data, unbounded, exactly like the thing this replaces. Specific task/project
+ * identities are what the on-demand `searchTasks`/`countTasks` query actions
+ * (`./query-action.ts`) are for.
+ */
+export function buildFactsSection(
+	snapshot: WorkspaceSnapshot,
+	taxonomies: WorkspaceTaxonomies,
+	today: IsoDate = new Date().toISOString().slice(0, 10),
+): string {
+	const liveTaskCount = snapshot.tasks.filter((task) => !task.archived).length;
+	const archivedTaskCount = snapshot.tasks.length - liveTaskCount;
+	const projectCount = snapshot.projects.filter((project) => !project.archived).length;
+
+	const counts =
+		`Today's date: ${today}. ` +
+		`Tasks: ${liveTaskCount} (${archivedTaskCount} archived). ` +
+		`Projects: ${projectCount}.`;
+
+	return [
+		counts,
+		buildTaxonomyLegend(taxonomies),
+		buildPeopleRoster(snapshot.workspace.people),
+	].join("\n");
 }
 
 /** Rough token estimate (chars/4) used to size the truncation budget before serializing. */

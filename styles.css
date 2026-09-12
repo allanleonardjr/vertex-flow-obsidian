@@ -4062,6 +4062,37 @@ input.vf-editable-title-input {
   white-space: nowrap;
 }
 
+.vf-ai-model-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 640px;
+  margin: 0 0 12px;
+}
+
+.vf-ai-model-row {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--vf-border);
+}
+
+.vf-ai-model-row:last-child {
+  border-bottom: none;
+}
+
+.vf-ai-model-row .vf-toggle {
+  margin-bottom: 8px;
+}
+
+.vf-ai-model-meta {
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.vf-ai-model-row-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .vf-settings-callout strong {
   color: var(--text-normal);
 }
@@ -4092,6 +4123,7 @@ input.vf-editable-title-input {
   font-size: var(--font-ui-small);
   line-height: 1.5;
   white-space: pre-wrap;
+  user-select: text;
 }
 
 .vf-chat-bubble-user {
