@@ -5,6 +5,64 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.25 — 2026-09-13
+
+### Added
+
+- **Labels and Projects can now be filtered by their `/`-nested group, not
+  just an exact match.** `LabelA`/`Application`-style names have always
+  rendered as nested, collapsible folders in the sidebar; that grouping is
+  now searchable too. `label:LabelA/*` or `project:Application/*` in the
+  text query bar matches everything under that group at any depth, live —
+  no re-save needed when something new is added under it later. Bare
+  `label:LabelA`/`project:Application` are unchanged: an exact match on
+  that one label/project. The Labels and Project filter chip popovers now
+  show the same searchable, collapsible tree as the sidebar, with a
+  selectable chip per folder (the group) alongside the per-item chips.
+
+- **Dashboards can now edit their filter as a text query, matching Saved
+  Views.** A "Query" toggle in the dashboard filter bar reveals a text row
+  (e.g. `status:backlog,in-progress project:obsidian`) two-way synced with
+  the chip bar — useful once a filter grows past the chip bar's "+N" chip.
+  Shares the same open/closed setting as the List/Board/Calendar/Timeline
+  query toggle.
+
+- **List and Board rows/cards now animate into place instead of snapping.**
+  A task moving between groups or columns — from a status change, a drag,
+  a bulk edit, or the `u s` shortcut — slides smoothly to its new spot, and
+  the other rows/cards that shift to make room animate too. Tasks that are
+  created, deleted, archived, or filtered in/out fade in or out rather than
+  popping. Dragging is unaffected — layout animation is suspended for the
+  duration of any drag gesture so drop-target detection stays exactly as
+  accurate as before. Respects the OS-level "reduce motion" setting.
+
+- **Comment fields gain Cmd/Ctrl+Enter to submit and a Live Preview/Source
+  toggle.** Cmd+Enter (macOS) / Ctrl+Enter (Windows/Linux) posts a new
+  comment or saves an edit, in both the native embedded editor and the
+  plain-textarea fallback — plain Enter still inserts a newline, and the
+  `[[` link-suggestion popup still wins over the modifier combo while it's
+  open. A small toggle button, top-right of the composer and any open
+  edit-in-place field, switches both between Live Preview and raw Source,
+  mirroring the Description field's own toggle; the choice is a single
+  shared setting that persists across reopening the task.
+
+### Fixed
+
+- **A task due today no longer shows today's-date styling once it's completed
+  or canceled.** The `is-overdue` fix in 1.0.24 gated overdue styling on the
+  task still having an open status, but the "due today" styling on the same
+  badge didn't get the same guard. Both now share one open-status check.
+
+- **A Project's canvas view no longer forgets its arrangement, direction,
+  or hidden relation kinds right after saving.** Picking "Tree" (or a
+  direction, or hiding a relation kind) on a Project's embedded canvas view
+  was already persisted to the project note's frontmatter correctly, but
+  the rebuild that reconstructs the rendered view straight after save
+  dropped those three fields and silently fell back to the defaults —
+  looking like the save hadn't taken. The rebuild now carries them through
+  like every other canvas view setting.
+- Removed unused `ConfirmDeleteDialog` import from `CanvasView`.
+
 ## 1.0.24 — 2026-09-13
 
 ### Changed

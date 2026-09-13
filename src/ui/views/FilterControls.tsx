@@ -18,8 +18,10 @@
 
 import { useState, type Dispatch, type SetStateAction } from "react";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
+import { NONE } from "../../core/types";
 import type { SavedView, ViewFilters, WorkspaceSnapshot } from "../../core/types";
 import { Popover } from "../components/Popover";
+import { buildTree, TreeList } from "../components/Tree";
 import {
 	FILTER_FIELDS,
 	activeFilterKeys,
@@ -27,6 +29,7 @@ import {
 	filterChoices,
 	filterFieldLabel,
 	summarizeClause,
+	type Choice,
 	type FilterKey,
 	type ReadonlyFilterKey,
 } from "./viewOptions";
@@ -308,6 +311,16 @@ function ClauseEditor({
 			),
 		);
 
+	if (fieldKey === "labels" || fieldKey === "project") {
+		return (
+			<GroupedFilterField
+				choices={filterChoices(fieldKey, snapshot, taxonomies)}
+				current={current}
+				onToggle={toggle}
+			/>
+		);
+	}
+
 	return (
 		<div className="vf-chip-set">
 			{filterChoices(fieldKey, snapshot, taxonomies).map((choice) => {
@@ -331,6 +344,87 @@ function ClauseEditor({
 					</button>
 				);
 			})}
+		</div>
+	);
+}
+
+/**
+ * Shared searchable-tree editor for the `labels` and `project` filter
+ * clauses — both use `/`-nested display names for the same sidebar-style
+ * grouping (see `vault-schema.md`'s Labels/Projects group-wildcard notes).
+ * A folder node gets its own toggle chip whose value is the group-wildcard
+ * pattern `"<path>/*"`; a leaf node gets the ordinary per-choice chip.
+ */
+function GroupedFilterField({
+	choices,
+	current,
+	onToggle,
+}: {
+	choices: Choice[];
+	current: string[];
+	onToggle: (value: string) => void;
+}) {
+	const [search, setSearch] = useState("");
+	const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+
+	const noneChoice = choices.find((c) => c.value === NONE);
+	const treeChoices = choices.filter((c) => c.value !== NONE);
+
+	const needle = search.trim().toLowerCase();
+	const visibleChoices = needle
+		? treeChoices.filter((c) => c.label.toLowerCase().includes(needle))
+		: treeChoices;
+
+	const tree = buildTree(visibleChoices, (c) => c.label);
+
+	const chip = (value: string, label: string, color?: string | null) => {
+		const chosen = current.includes(value);
+		return (
+			<button
+				key={value}
+				type="button"
+				className={`vf-chip vf-chip-button${chosen ? " is-on" : ""}`}
+				style={
+					color
+						? { borderColor: color, color: chosen ? undefined : color }
+						: undefined
+				}
+				onClick={() => onToggle(value)}
+			>
+				{label}
+			</button>
+		);
+	};
+
+	return (
+		<div className="vf-grouped-filter-field">
+			<input
+				type="text"
+				className="vf-input"
+				autoFocus
+				value={search}
+				placeholder="Search…"
+				onChange={(event) => setSearch(event.target.value)}
+			/>
+			{noneChoice && (
+				<div className="vf-chip-set">{chip(noneChoice.value, noneChoice.label)}</div>
+			)}
+			<div className="vf-chip-set vf-grouped-filter-tree">
+				<TreeList
+					nodes={tree}
+					depth={0}
+					groupKeyPrefix="filter-group"
+					isCollapsed={(id) => collapsed[id] ?? needle.length === 0}
+					onToggle={(id) =>
+						setCollapsed((prev) => ({
+							...prev,
+							[id]: !(prev[id] ?? needle.length === 0),
+						}))
+					}
+					renderLeaf={(choice) => chip(choice.value, choice.label, choice.color)}
+					renderFolderExtra={(path) => chip(`${path}/*`, `${path}/*`)}
+				/>
+			</div>
 		</div>
 	);
 }

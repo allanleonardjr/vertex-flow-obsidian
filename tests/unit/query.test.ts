@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { sampleSnapshot } from "../../src/core/templates/instantiate";
 import { parseQuery, printQuery, queryContext } from "../../src/core/query";
+import { createTaxonomy } from "../../src/core/taxonomy";
 import {
 	applyFilters,
 	canonicalizeDefinition,
@@ -707,6 +708,96 @@ describe("resolution", () => {
 		expect(printQuery(withFilters({ project: ["Projects/A"] }), ambiguous)).toBe(
 			"project:Projects/A group:none sort:rank",
 		);
+	});
+});
+
+/* ---------------------------------------------------- group wildcards -- */
+
+describe("group-wildcard filters (label:*/project:*)", () => {
+	// Local fixture: labels and projects that use the `/`-nesting convention,
+	// layered onto the base context. Not added to the shared sample-workspace
+	// fixture, which many other suites depend on unchanged.
+	const groupCtx: typeof ctx = {
+		...ctx,
+		taxonomies: {
+			...ctx.taxonomies,
+			label: createTaxonomy("label", [
+				{ id: "labelA", name: "LabelA", color: "#111111" },
+				{ id: "labelAB", name: "LabelA/B", color: "#222222" },
+				{ id: "labelACD", name: "LabelA/C/D", color: "#333333" },
+			]),
+		},
+		projects: [
+			...ctx.projects,
+			{ path: "Projects/Application", title: "Application" },
+			{ path: "Projects/Application-UI", title: "Application/UI" },
+			{ path: "Projects/Application-UI-Forms", title: "Application/UI/Forms" },
+		],
+	};
+
+	it("resolves a group pattern to itself, verbatim, when something matches", () => {
+		expect(
+			parseQuery("label:LabelA/*", groupCtx).definition.filters.labels,
+		).toEqual(["LabelA/*"]);
+		expect(
+			parseQuery("project:Application/*", groupCtx).definition.filters.project,
+		).toEqual(["Application/*"]);
+	});
+
+	it("still resolves a pattern with no matches, but warns", () => {
+		const label = parseQuery("label:Nothing/*", groupCtx);
+		expect(label.definition.filters.labels).toEqual(["Nothing/*"]);
+		expect(label.issues[0].code).toBe("unknown-value");
+
+		const project = parseQuery("project:Nothing/*", groupCtx);
+		expect(project.definition.filters.project).toEqual(["Nothing/*"]);
+		expect(project.issues[0].code).toBe("unknown-value");
+	});
+
+	it("round-trips a group pattern exactly", () => {
+		const labelSrc = printQuery(
+			withFilters({ labels: ["LabelA/*"] }),
+			groupCtx,
+		);
+		expect(parseQuery(labelSrc, groupCtx).definition.filters.labels).toEqual([
+			"LabelA/*",
+		]);
+
+		const projectSrc = printQuery(
+			withFilters({ project: ["Application/*"] }),
+			groupCtx,
+		);
+		expect(
+			parseQuery(projectSrc, groupCtx).definition.filters.project,
+		).toEqual(["Application/*"]);
+	});
+
+	it("leaves a bare name/title as an exact match, never a group", () => {
+		expect(
+			parseQuery("label:LabelA", groupCtx).definition.filters.labels,
+		).toEqual(["labelA"]);
+		expect(
+			parseQuery("project:Application", groupCtx).definition.filters.project,
+		).toEqual(["Projects/Application"]);
+	});
+
+	it("parses a combined OR-list of an exact value and a group pattern, in order", () => {
+		expect(
+			parseQuery("label:LabelA,LabelA/*", groupCtx).definition.filters.labels,
+		).toEqual(["labelA", "LabelA/*"]);
+		expect(
+			parseQuery("project:Application,Application/*", groupCtx).definition
+				.filters.project,
+		).toEqual(["Projects/Application", "Application/*"]);
+	});
+
+	it("gives parent: no group behaviour, even with a /*-suffixed value", () => {
+		// `parent` also routes through the entity branch, but with
+		// `resolveAs: "task"` — the group-wildcard hook only fires for "project".
+		const withoutMatch = parseQuery("parent:Something/*", groupCtx);
+		expect(withoutMatch.definition.filters.parent).toEqual(["Something/*"]);
+		expect(withoutMatch.issues[0].code).toBe("unknown-value");
+		expect(withoutMatch.issues[0].message).not.toContain("start with");
 	});
 });
 

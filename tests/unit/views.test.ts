@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { sampleSnapshot } from "../../src/core/templates/instantiate";
+import { createTaxonomy } from "../../src/core/taxonomy";
 import {
 	applyFilters,
 	canonicalizeDefinition,
@@ -224,6 +225,101 @@ describe("filtering", () => {
 		);
 		expect(byPath.length).toBe(5);
 		expect(byShortForm.map((t) => t.id)).toEqual(byPath.map((t) => t.id));
+	});
+
+	describe("group-wildcard filters (label:*/project:*)", () => {
+		// Local fixture layering `/`-nested labels and a project onto the base
+		// context — not added to the shared sample-workspace fixture.
+		const groupContext: typeof context = {
+			...context,
+			taxonomies: {
+				...context.taxonomies,
+				label: createTaxonomy("label", [
+					{ id: "labelA", name: "LabelA", color: "#111111" },
+					{ id: "labelACD", name: "LabelA/C/D", color: "#333333" },
+				]),
+			},
+			titles: new Map([
+				...(context.titles ?? []),
+				["Projects/Application" as const, "Application"],
+				["Projects/Application-UI-Forms" as const, "Application/UI/Forms"],
+			]),
+		};
+
+		it("matches a nested label at any depth under the group, not a bare sibling", () => {
+			const nested = task({ path: "A", labels: ["labelACD"] });
+			const bare = task({ path: "B", labels: ["labelA"] });
+
+			for (const pattern of ["LabelA/*", "LabelA/C/*"]) {
+				expect(
+					matchesFilters(nested, { labels: [pattern] }, groupContext),
+				).toBe(true);
+				expect(
+					matchesFilters(bare, { labels: [pattern] }, groupContext),
+				).toBe(false);
+			}
+		});
+
+		it("matches a nested project at any depth under the group, not a bare sibling", () => {
+			const nested = task({ path: "A", project: "Projects/Application-UI-Forms" });
+			const bare = task({ path: "B", project: "Projects/Application" });
+
+			for (const pattern of ["Application/*", "Application/UI/*"]) {
+				expect(
+					matchesFilters(nested, { project: [pattern] }, groupContext),
+				).toBe(true);
+				expect(
+					matchesFilters(bare, { project: [pattern] }, groupContext),
+				).toBe(false);
+			}
+		});
+
+		it("keeps NONE handling unchanged when mixed with a group pattern", () => {
+			const unlabeled = task({ path: "A", labels: [] });
+			const noProject = task({ path: "B", project: null });
+
+			expect(
+				matchesFilters(unlabeled, { labels: [NONE, "LabelA/*"] }, groupContext),
+			).toBe(true);
+			expect(
+				matchesFilters(noProject, { project: [NONE, "Application/*"] }, groupContext),
+			).toBe(true);
+
+			const labeled = task({ path: "C", labels: ["labelACD"] });
+			expect(
+				matchesFilters(labeled, { labels: [NONE] }, groupContext),
+			).toBe(false);
+		});
+
+		it("ORs an exact id/path with a group pattern in the same filter array", () => {
+			const bareLabelA = task({ path: "A", labels: ["labelA"] });
+			const nestedLabel = task({ path: "B", labels: ["labelACD"] });
+			const unrelated = task({ path: "C", labels: [] });
+
+			for (const t of [bareLabelA, nestedLabel]) {
+				expect(
+					matchesFilters(t, { labels: ["labelA", "LabelA/*"] }, groupContext),
+				).toBe(true);
+			}
+			expect(
+				matchesFilters(unrelated, { labels: ["labelA", "LabelA/*"] }, groupContext),
+			).toBe(false);
+
+			const bareProject = task({ path: "D", project: "Projects/Application" });
+			const nestedProject = task({
+				path: "E",
+				project: "Projects/Application-UI-Forms",
+			});
+			for (const t of [bareProject, nestedProject]) {
+				expect(
+					matchesFilters(
+						t,
+						{ project: ["Projects/Application", "Application/*"] },
+						groupContext,
+					),
+				).toBe(true);
+			}
+		});
 	});
 
 	it("drops sub-tasks only when subtaskDisplay is hidden", () => {

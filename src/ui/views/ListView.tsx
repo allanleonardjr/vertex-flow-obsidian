@@ -186,6 +186,7 @@ export function ListView({
         onToggleSubtree={onToggleSubtree}
         containerRef={setList}
         rowAction={rowAction}
+        animateLayout={!drag.drag}
       >
         {!nested && drag.drag && draggedTask && (
           <RowPreview

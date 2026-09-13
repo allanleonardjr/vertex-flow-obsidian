@@ -97,6 +97,37 @@ function resolveTaxonomyValue(
 	};
 }
 
+const GROUP_WILDCARD_SUFFIX = "/*";
+
+/**
+ * A `"Parent/*"` group pattern resolves to itself (verbatim) rather than
+ * to a concrete id/path — matching happens live, at evaluation time,
+ * against whatever currently exists under that prefix. `names` is every
+ * current display name/title for the field being resolved, just for the
+ * "does anything match" warning below.
+ */
+function resolveGroupWildcard(
+	raw: string,
+	names: string[],
+	fieldLabel: string,
+): Resolved | null {
+	if (!raw.endsWith(GROUP_WILDCARD_SUFFIX)) return null;
+	const prefix = raw.slice(0, -1); // keep the trailing "/", drop the "*"
+	const hasMatch = names.some((name) =>
+		name.toLowerCase().startsWith(prefix.toLowerCase()),
+	);
+	return {
+		value: raw,
+		issue: hasMatch
+			? undefined
+			: {
+					severity: "warning",
+					code: "unknown-value",
+					message: `No ${fieldLabel} start with "${prefix}" — keeping it as written`,
+				},
+	};
+}
+
 function resolvePerson(raw: string, context: QueryContext): Resolved {
 	const { people } = context;
 
@@ -223,12 +254,32 @@ export function resolveValue(
 	}
 
 	const taxonomy = taxonomyFor(spec.resolveAs, context);
-	if (taxonomy) return resolveTaxonomyValue(taxonomy, raw, spec.token);
+	if (taxonomy) {
+		if (spec.resolveAs === "label") {
+			const group = resolveGroupWildcard(
+				raw,
+				taxonomy.values.map((v) => v.name),
+				spec.token,
+			);
+			if (group) return group;
+		}
+		return resolveTaxonomyValue(taxonomy, raw, spec.token);
+	}
 
 	if (spec.resolveAs === "person") return resolvePerson(raw, context);
 
 	const entities = entitiesFor(spec.resolveAs, context);
-	if (entities) return resolveEntity(raw, entities, spec.token);
+	if (entities) {
+		if (spec.resolveAs === "project") {
+			const group = resolveGroupWildcard(
+				raw,
+				entities.map((e) => e.title),
+				spec.token,
+			);
+			if (group) return group;
+		}
+		return resolveEntity(raw, entities, spec.token);
+	}
 
 	// Unreachable: every `ResolveAs` is handled above. Kept as a total fallback
 	// that still normalises a pasted wikilink rather than throwing.

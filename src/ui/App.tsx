@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { MotionConfig } from "motion/react";
 import { Platform } from "obsidian";
 import {
   viewById,
@@ -12,8 +13,7 @@ import {
   type ActiveWorkspace,
 } from "./context";
 import { workspaceTaxonomies } from "../core/taxonomy";
-import { projectViewId } from "../core/views/defaults";
-import type { Project, SavedView, WorkspaceSnapshot } from "../core/types";
+import type { SavedView, WorkspaceSnapshot } from "../core/types";
 import { EmptyState } from "./EmptyState";
 import { EmptyTabsPane } from "./EmptyTabsPane";
 import { ProjectDetailView } from "./ProjectDetailView";
@@ -51,22 +51,24 @@ export function App() {
   if (!active) return <EmptyState />;
 
   return (
-    <SelectionProvider>
-      <TabsProvider>
-        {/* Remounting on workspace switch resets focus and selection. Tabs
-            live *above* this boundary on purpose — `openTask` on a
-            cross-workspace link switches the active workspace and then opens
-            the tab, so wiping the strip on every switch would throw that tab
-            away. The prune effects below do the workspace-scoped cleanup
-            instead. `CompactNavProvider` sits above `Workspace` so the drawer
-            state is shared by the sidebar, the toggle strip, and the property
-            rail regardless of which pane is in front — and is remounted (fresh,
-            closed) whenever the whole workspace remounts. */}
-        <CompactNavProvider>
-          <Workspace key={active.snapshot.workspace.root} active={active} />
-        </CompactNavProvider>
-      </TabsProvider>
-    </SelectionProvider>
+    <MotionConfig reducedMotion="user">
+      <SelectionProvider>
+        <TabsProvider>
+          {/* Remounting on workspace switch resets focus and selection. Tabs
+              live *above* this boundary on purpose — `openTask` on a
+              cross-workspace link switches the active workspace and then opens
+              the tab, so wiping the strip on every switch would throw that tab
+              away. The prune effects below do the workspace-scoped cleanup
+              instead. `CompactNavProvider` sits above `Workspace` so the drawer
+              state is shared by the sidebar, the toggle strip, and the property
+              rail regardless of which pane is in front — and is remounted (fresh,
+              closed) whenever the whole workspace remounts. */}
+          <CompactNavProvider>
+            <Workspace key={active.snapshot.workspace.root} active={active} />
+          </CompactNavProvider>
+        </TabsProvider>
+      </SelectionProvider>
+    </MotionConfig>
   );
 }
 
@@ -397,28 +399,7 @@ export function personView(
  * sub-tasks nested under their parent. Same shape as `labelView`;
  * `ProjectDetailView` renders it beneath the project header.
  */
-export function projectView(project: Project): SavedView {
-  const definition = project.view;
-  return {
-    type: "vertex-flow-view",
-    path: "",
-    id: projectViewId(project.path),
-    name: project.title,
-    viewType: definition?.viewType ?? "list",
-    // The project filter is always forced, regardless of what's stored — a
-    // safety net against a stale or missing value (e.g. after a rename).
-    filters: { ...(definition?.filters ?? {}), project: [project.path] },
-    groupBy: definition?.groupBy ?? "status",
-    sortBy: definition?.sortBy ?? "rank",
-    sortDirection: definition?.sortDirection ?? "asc",
-    columns: definition?.columns ?? { collapsed: [], hidden: [] },
-    emptyColumnBehavior: definition?.emptyColumnBehavior ?? "show-normal",
-    hiddenFields: definition?.hiddenFields ?? [],
-    subtaskDisplay: definition?.subtaskDisplay ?? "nested",
-    calendarDateField: definition?.calendarDateField ?? "dueDate",
-    recurringPreview: definition?.recurringPreview ?? false,
-  };
-}
+export { projectView } from "./project-view";
 
 /**
  * Mobile on-screen keyboard handling.

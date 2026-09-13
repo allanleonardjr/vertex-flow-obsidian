@@ -348,11 +348,10 @@ export function DueDate({
 	if (!task.dueDate) return null;
 
 	const today = new Date().toISOString().slice(0, 10);
-	const isToday = task.dueDate === today;
-	const isOverdue =
-		task.dueDate < today &&
-		!isCompleted(statuses, task.status) &&
-		!isCanceled(statuses, task.status);
+	const isOpen =
+		!isCompleted(statuses, task.status) && !isCanceled(statuses, task.status);
+	const isToday = task.dueDate === today && isOpen;
+	const isOverdue = task.dueDate < today && isOpen;
 
   return (
     <span
