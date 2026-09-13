@@ -36,6 +36,13 @@ This project uses [Semantic Versioning](https://semver.org/).
   has an open status — once it lands in a Completed- or Canceled-category
   status, the passed date renders as a plain date instead of sounding an
   alarm the team has already resolved. Today's-date styling is unaffected.
+- **Plain-clicking a task outside a multi-selection now opens that task,
+  not the old selection.** In List and Board views, clicking an unselected
+  task while others were multi-selected used to re-open the stale
+  selection instead — a state-timing bug in `openOrSelect` that read the
+  selection before it had updated. It now decides which tasks to open from
+  the selection as it stood before the click, so opening the whole batch
+  still works when you click a task that's already part of it.
 
 ## 1.0.23 — 2026-09-12
 
