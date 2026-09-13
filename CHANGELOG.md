@@ -5,6 +5,17 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Added
+
+- **List and Board rows/cards now animate into place instead of snapping.**
+  A task moving between groups or columns — from a status change, a drag,
+  a bulk edit, or the `u s` shortcut — slides smoothly to its new spot, and
+  the other rows/cards that shift to make room animate too. Tasks that are
+  created, deleted, archived, or filtered in/out fade in or out rather than
+  popping. Dragging is unaffected — layout animation is suspended for the
+  duration of any drag gesture so drop-target detection stays exactly as
+  accurate as before. Respects the OS-level "reduce motion" setting.
+
 ### Fixed
 
 - **A Project's canvas view no longer forgets its arrangement, direction,

@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { MotionConfig } from "motion/react";
 import { Platform } from "obsidian";
 import {
   viewById,
@@ -50,22 +51,24 @@ export function App() {
   if (!active) return <EmptyState />;
 
   return (
-    <SelectionProvider>
-      <TabsProvider>
-        {/* Remounting on workspace switch resets focus and selection. Tabs
-            live *above* this boundary on purpose — `openTask` on a
-            cross-workspace link switches the active workspace and then opens
-            the tab, so wiping the strip on every switch would throw that tab
-            away. The prune effects below do the workspace-scoped cleanup
-            instead. `CompactNavProvider` sits above `Workspace` so the drawer
-            state is shared by the sidebar, the toggle strip, and the property
-            rail regardless of which pane is in front — and is remounted (fresh,
-            closed) whenever the whole workspace remounts. */}
-        <CompactNavProvider>
-          <Workspace key={active.snapshot.workspace.root} active={active} />
-        </CompactNavProvider>
-      </TabsProvider>
-    </SelectionProvider>
+    <MotionConfig reducedMotion="user">
+      <SelectionProvider>
+        <TabsProvider>
+          {/* Remounting on workspace switch resets focus and selection. Tabs
+              live *above* this boundary on purpose — `openTask` on a
+              cross-workspace link switches the active workspace and then opens
+              the tab, so wiping the strip on every switch would throw that tab
+              away. The prune effects below do the workspace-scoped cleanup
+              instead. `CompactNavProvider` sits above `Workspace` so the drawer
+              state is shared by the sidebar, the toggle strip, and the property
+              rail regardless of which pane is in front — and is remounted (fresh,
+              closed) whenever the whole workspace remounts. */}
+          <CompactNavProvider>
+            <Workspace key={active.snapshot.workspace.root} active={active} />
+          </CompactNavProvider>
+        </TabsProvider>
+      </SelectionProvider>
+    </MotionConfig>
   );
 }
 
