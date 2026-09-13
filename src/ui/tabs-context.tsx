@@ -378,6 +378,19 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 	const activeWorkspaceRootRef = useRef(activeWorkspaceRoot);
 	activeWorkspaceRootRef.current = activeWorkspaceRoot;
 
+	// Most-recently-used stack of tab ids, front = most recent. Used only to pick
+	// the next active tab when the active one is closed (see `close`); positional
+	// neighbour selection remains the fallback when no MRU survivor is found.
+	// Memory-only, like the draft store — not persisted across reload.
+	const mruRef = useRef<string[]>([]);
+
+	// Drop ids for tabs that no longer exist, keeping relative order. Called
+	// after any close path removes tabs, so the stack stays bounded over a long
+	// session instead of accumulating every id ever activated.
+	function pruneMruStack(survivingIds: ReadonlySet<string>) {
+		mruRef.current = mruRef.current.filter((mruId) => survivingIds.has(mruId));
+	}
+
 	// Transient View / Dashboard drafts, lifted out of the per-view/dashboard
 	// component (where they died on every tab background) into the provider.
 	// Only non-null drafts are stored; clearing deletes the key. Reads go
@@ -750,12 +763,22 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 
 					setActiveId((active) => {
 						if (active !== id) return active;
-						// Prefer the neighbour to the right, like a browser. Closing the
-						// last tab leaves nothing active — the empty-tabs pane renders.
+						// Closing the last tab leaves nothing active — the empty-tabs pane
+						// renders.
 						if (next.length === 0) return null;
+						// Prefer the most recently viewed surviving tab (browser-style MRU
+						// close behaviour) over positional neighbour selection. Falls back to
+						// the neighbour-to-the-right when no surviving tab has MRU history
+						// (e.g. right after a workspace switch reset, or tabs opened but never
+						// individually activated).
+						const mruSurvivor = mruRef.current.find(
+							(mruId) => mruId !== id && next.some((tab) => tab.id === mruId),
+						);
+						if (mruSurvivor) return mruSurvivor;
 						return next[Math.min(index, next.length - 1)].id;
 					});
 
+					pruneMruStack(new Set(next.map((tab) => tab.id)));
 					return next;
 				});
 			})();
@@ -800,7 +823,11 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 	);
 
 	const closeAllTasks = useCallback(() => {
-		setTabs((current) => current.filter((tab) => tab.kind !== "task"));
+		setTabs((current) => {
+			const next = current.filter((tab) => tab.kind !== "task");
+			pruneMruStack(new Set(next.map((tab) => tab.id)));
+			return next;
+		});
 		setActiveId((active) => {
 			// Only the active tab's *kind* matters here, read from this render's
 			// `tabs` — legitimately a dependency, not a stale closure: this just
@@ -836,6 +863,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			// Only the guard could abort; if we got here the close always lands.
 			setTabs(survivors);
 			setActiveId(survivors.length > 0 ? survivors[0].id : null);
+			pruneMruStack(new Set(survivors.map((tab) => tab.id)));
 		},
 		[mayLeaveActive],
 	);
@@ -893,6 +921,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 						? active
 						: (next[0]?.id ?? null),
 				);
+				pruneMruStack(new Set(next.map((tab) => tab.id)));
 				return next;
 			});
 		},
@@ -983,6 +1012,17 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			void openView(SYSTEM_VIEW_ALL_TASKS_ID, activeWorkspaceRoot);
 		}
 	}, [plugin, activeWorkspaceRoot, openView]);
+
+	// Record every activation into the MRU stack (most recent first), for `close`
+	// to consult. Runs on every activeId change, however it was set — activate,
+	// openView/openTask/etc., or the close/prune fallbacks below.
+	useEffect(() => {
+		if (activeId == null) return;
+		mruRef.current = [
+			activeId,
+			...mruRef.current.filter((mruId) => mruId !== activeId),
+		];
+	}, [activeId]);
 
 	// A sidebar workspace switch leaves `activeId` untouched — but the front tab
 	// may belong to the workspace just left, so its content pane would resolve

@@ -5,6 +5,47 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.24 — 2026-09-13
+
+### Changed
+
+- **Closing a tab returns you to the tab you were last looking at, not
+  whichever one slid into its spot.** Tab close now follows the same
+  most-recently-viewed order a browser uses: closing the active tab
+  reactivates the surviving tab you most recently had in front, falling
+  back to today's "select the neighbour to the right" behavior only when
+  the closed tab (or a tab you never actually switched to) has no viewing
+  history to fall back on.
+- **The sidebar nav now scrolls independently of its chrome.** The top row
+  (search + minimize) and the bottom band (Help, Settings, and the version
+  footer) stay pinned in place while the sections between them — Workspaces,
+  Views, Dashboards, Projects, Labels, People, Recurring, and the
+  Export/History/Trash rows — scroll normally. The nav sits in a recessed
+  well (a slightly different background with hairline borders top and
+  bottom), so the scrollable region reads as a sunken panel at a glance —
+  no ambiguity about whether more rows are hidden until you scroll.
+- **Compact panes drop the nav drawer's header chrome.** The drawer's
+  "Navigation" title, its close icon, and the search/minimize row no longer
+  render in compact mode — the toggle strip above the drawer already
+  carries those (its Navigation button doubles as the drawer close, and its
+  Search… button opens workspace search). The drawer now opens straight into
+  the Workspaces section, gaining back the space its header used.
+
+### Fixed
+
+- **Completed and canceled tasks no longer render as overdue.** A due date
+  in the past only picks up the `is-overdue` styling while the task still
+  has an open status — once it lands in a Completed- or Canceled-category
+  status, the passed date renders as a plain date instead of sounding an
+  alarm the team has already resolved. Today's-date styling is unaffected.
+- **Plain-clicking a task outside a multi-selection now opens that task,
+  not the old selection.** In List and Board views, clicking an unselected
+  task while others were multi-selected used to re-open the stale
+  selection instead — a state-timing bug in `openOrSelect` that read the
+  selection before it had updated. It now decides which tasks to open from
+  the selection as it stood before the click, so opening the whole batch
+  still works when you click a task that's already part of it.
+
 ## 1.0.23 — 2026-09-12
 
 ### Added

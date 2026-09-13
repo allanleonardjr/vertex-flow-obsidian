@@ -13,7 +13,12 @@ import {
 import { Repeat } from "lucide-react";
 import { basename } from "../../core/links";
 import { Icon } from "./Icon";
-import { listValues, type WorkspaceTaxonomies } from "../../core/taxonomy";
+import {
+	isCanceled,
+	isCompleted,
+	listValues,
+	type WorkspaceTaxonomies,
+} from "../../core/taxonomy";
 import { describeRecurrence } from "../../core/recurrence";
 import type { StatusValue, Task } from "../../core/types";
 
@@ -333,12 +338,21 @@ export function ArchivedBadge({ task }: { task: Task }) {
   );
 }
 
-export function DueDate({ task }: { task: Task }) {
-  if (!task.dueDate) return null;
+export function DueDate({
+	task,
+	statuses,
+}: {
+	task: Task;
+	statuses: WorkspaceTaxonomies["status"];
+}) {
+	if (!task.dueDate) return null;
 
-  const today = new Date().toISOString().slice(0, 10);
-  const isToday = task.dueDate === today;
-  const isOverdue = task.dueDate < today;
+	const today = new Date().toISOString().slice(0, 10);
+	const isToday = task.dueDate === today;
+	const isOverdue =
+		task.dueDate < today &&
+		!isCompleted(statuses, task.status) &&
+		!isCanceled(statuses, task.status);
 
   return (
     <span

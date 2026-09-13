@@ -346,15 +346,23 @@ export function openOrSelect(
   const toggle = event.metaKey || event.ctrlKey;
   const range = event.shiftKey;
 
-  selection.select(path, { toggle, range });
   if (!toggle && !range) {
-    // If there's a multi-selection, open all selected tasks.
-    // Otherwise fall back to opening the clicked task.
-    const targets = selection.selectedPaths.length > 0
-      ? selection.selectedPaths
-      : [path];
+    // Only open the whole batch if the clicked task is already part of an
+    // existing multi-selection. Clicking a task outside the selection opens
+    // just that task and drops the old selection — matching resolveDragBatch
+    // and standard list-UI conventions (Finder/Gmail-style). Must be read
+    // before select() mutates state, since selectedPaths otherwise reflects
+    // the pre-click selection until the next render.
+    const targets =
+      selection.isSelected(path) && selection.selectedPaths.length > 1
+        ? selection.selectedPaths
+        : [path];
+    selection.select(path, { toggle, range });
     for (const p of targets) tabs.openTask(p);
+    return;
   }
+
+  selection.select(path, { toggle, range });
 }
 
 /**
@@ -468,7 +476,7 @@ function CardContent({
               />
             )}
             {showStart && <StartDate task={task} />}
-            {showDue && <DueDate task={task} />}
+            {showDue && <DueDate task={task} statuses={taxonomies.status} />}
           </div>
           {showAssignee && (
             <Assignee

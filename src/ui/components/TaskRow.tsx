@@ -118,7 +118,7 @@ export function TaskRowContent({
 					/>
 				)}
 				{!off("startDate") && <StartDate task={task} />}
-				{!off("dueDate") && <DueDate task={task} />}
+				{!off("dueDate") && <DueDate task={task} statuses={taxonomies.status} />}
 				{!off("assignee") && (
 					<Assignee people={snapshot.workspace.people} assignee={task.assignee} />
 				)}
