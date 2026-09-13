@@ -80,6 +80,7 @@ export function MarkdownContent({
 export function MarkdownField({
 	value,
 	onChange,
+	onSubmit,
 	sourcePath,
 	placeholder,
 	className,
@@ -87,6 +88,8 @@ export function MarkdownField({
 }: {
 	value: string;
 	onChange: (value: string) => void;
+	/** Fires on Cmd/Ctrl+Enter while the field has focus. */
+	onSubmit?: () => void;
 	sourcePath: string;
 	placeholder?: string;
 	className?: string;
@@ -148,7 +151,17 @@ export function MarkdownField({
 	return (
 		<div className={`vf-markdown-field${className ? ` ${className}` : ""}`}>
 			{!forceRawSource && mode !== "fallback" && (
-				<div className="vf-markdown-native" ref={setHost}>
+				<div
+					className="vf-markdown-native"
+					ref={setHost}
+					onKeyDownCapture={(event) => {
+						if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+							event.preventDefault();
+							event.stopPropagation();
+							onSubmit?.();
+						}
+					}}
+				>
 					{mode === "native" && !value.trim() && placeholder && (
 						<div className="vf-markdown-placeholder">{placeholder}</div>
 					)}
@@ -159,6 +172,7 @@ export function MarkdownField({
 				<FallbackEditor
 					value={value}
 					onChange={onChange}
+					onSubmit={onSubmit}
 					sourcePath={sourcePath}
 					placeholder={placeholder}
 					showPreview={!forceRawSource}
@@ -188,12 +202,15 @@ function useDebouncedValue<T>(value: T, delay: number): T {
 function FallbackEditor({
 	value,
 	onChange,
+	onSubmit,
 	sourcePath,
 	placeholder,
 	showPreview = true,
 }: {
 	value: string;
 	onChange: (value: string) => void;
+	/** Fires on Cmd/Ctrl+Enter while the field has focus. */
+	onSubmit?: () => void;
 	sourcePath: string;
 	placeholder?: string;
 	/** Off when this is standing in for raw Source mode rather than falling back. */
@@ -227,7 +244,14 @@ function FallbackEditor({
 					onChange(event.target.value);
 					syncCaret();
 				}}
-				onKeyDown={autocomplete.onKeyDown}
+				onKeyDown={(event) => {
+					autocomplete.onKeyDown(event);
+					if (event.defaultPrevented) return;
+					if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+						event.preventDefault();
+						onSubmit?.();
+					}
+				}}
 				onKeyUp={syncCaret}
 				onClick={syncCaret}
 				onBlur={autocomplete.close}

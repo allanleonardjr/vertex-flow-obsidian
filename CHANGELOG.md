@@ -34,6 +34,16 @@ This project uses [Semantic Versioning](https://semver.org/).
   duration of any drag gesture so drop-target detection stays exactly as
   accurate as before. Respects the OS-level "reduce motion" setting.
 
+- **Comment fields gain Cmd/Ctrl+Enter to submit and a Live Preview/Source
+  toggle.** Cmd+Enter (macOS) / Ctrl+Enter (Windows/Linux) posts a new
+  comment or saves an edit, in both the native embedded editor and the
+  plain-textarea fallback — plain Enter still inserts a newline, and the
+  `[[` link-suggestion popup still wins over the modifier combo while it's
+  open. A small toggle button, top-right of the composer and any open
+  edit-in-place field, switches both between Live Preview and raw Source,
+  mirroring the Description field's own toggle; the choice is a single
+  shared setting that persists across reopening the task.
+
 ### Fixed
 
 - **A task due today no longer shows today's-date styling once it's completed
@@ -49,6 +59,7 @@ This project uses [Semantic Versioning](https://semver.org/).
   dropped those three fields and silently fell back to the defaults —
   looking like the save hadn't taken. The rebuild now carries them through
   like every other canvas view setting.
+- Removed unused `ConfirmDeleteDialog` import from `CanvasView`.
 
 ## 1.0.24 — 2026-09-13
 

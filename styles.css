@@ -3359,6 +3359,23 @@ button.vf-chip-button.is-on {
   margin-top: 6px;
 }
 
+.vf-comment-source-head {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 4px;
+}
+
+.vf-comment-source-toggle {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 2px 5px;
+}
+
+.vf-comment-source-toggle.is-on {
+  color: var(--text-accent);
+}
+
 .vf-comments button {
   margin-top: 8px;
 }

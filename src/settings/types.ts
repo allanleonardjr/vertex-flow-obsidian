@@ -37,6 +37,8 @@ export interface VertexFlowSettings {
 	descriptionCollapsed: boolean;
 	/** Whether the Description field shows raw Source text instead of Live Preview. */
 	descriptionSourceMode: boolean;
+	/** Whether comment fields (composer + edit-in-place) show raw Source instead of Live Preview. */
+	commentSourceMode: boolean;
 	/** Collapsed state of the other task-editor sections, keyed by section id. */
 	editorSectionsCollapsed: Record<string, boolean>;
 	/** Height, in pixels, of the Project editor's info pane above its task list. */
@@ -102,6 +104,7 @@ export const DEFAULT_SETTINGS: VertexFlowSettings = {
 	editorSourceOpen: false,
 	descriptionCollapsed: false,
 	descriptionSourceMode: false,
+	commentSourceMode: false,
 	editorSectionsCollapsed: {},
 	projectInfoHeight: 220,
 	taskDescriptionHeight: 220,
