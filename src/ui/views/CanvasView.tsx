@@ -94,7 +94,6 @@ import {
   type WorkspaceSnapshot,
 } from "../../core/types";
 import { usePlugin } from "../context";
-import { ConfirmDeleteDialog } from "../components/ConfirmDeleteDialog";
 import { EmptyView } from "../components/EmptyView";
 import { Popover } from "../components/Popover";
 import {
@@ -1911,8 +1910,8 @@ function CanvasNode({
       </div>
       <div className="vf-canvas-node-row">
         {!off("dueDate") && (
-  <DueDate task={task} statuses={taxonomies.status} />
-)}
+          <DueDate task={task} statuses={taxonomies.status} />
+        )}
         {!off("assignee") && (
           <Assignee
             people={snapshot.workspace.people}
