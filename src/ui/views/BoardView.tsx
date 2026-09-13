@@ -468,7 +468,7 @@ function CardContent({
               />
             )}
             {showStart && <StartDate task={task} />}
-            {showDue && <DueDate task={task} />}
+            {showDue && <DueDate task={task} statuses={taxonomies.status} />}
           </div>
           {showAssignee && (
             <Assignee

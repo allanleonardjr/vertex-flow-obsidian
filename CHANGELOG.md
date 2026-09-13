@@ -22,6 +22,14 @@ This project uses [Semantic Versioning](https://semver.org/).
   Search… button opens workspace search). The drawer now opens straight into
   the Workspaces section, gaining back the space its header used.
 
+### Fixed
+
+- **Completed and canceled tasks no longer render as overdue.** A due date
+  in the past only picks up the `is-overdue` styling while the task still
+  has an open status — once it lands in a Completed- or Canceled-category
+  status, the passed date renders as a plain date instead of sounding an
+  alarm the team has already resolved. Today's-date styling is unaffected.
+
 ## 1.0.23 — 2026-09-12
 
 ### Added
