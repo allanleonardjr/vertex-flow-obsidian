@@ -171,94 +171,82 @@ export function Sidebar({
         </button>
       </div>
 
-      <div className="vf-drawer-head">
-        <span className="vf-drawer-head-title">Navigation</span>
-        <button
-          className="vf-nav-close"
-          title="Close navigation"
-          aria-label="Close navigation"
-          onClick={() => closeDrawers()}
-        >
-          <PanelLeftClose size={16} />
-        </button>
-      </div>
-
       {!minimized && (
         <>
-          <WorkspacesSection snapshot={snapshot} />
+          <div className="vf-sidebar-scroll">
+            <WorkspacesSection snapshot={snapshot} />
 
-          {/* All Tasks + Untriaged are permanent System Views — they can't be
-              deleted and don't belong in the Views section list. Rendered as
-              bare rows (like Help/Settings), fenced off with a divider top and
-              bottom so they read as their own band between Workspaces and
-              Views. */}
-          <div className="vf-sidebar-sep" aria-hidden />
-          <div className="vf-permanent-views">
-            <PermanentViewRow
+            {/* All Tasks + Untriaged are permanent System Views — they can't be
+                deleted and don't belong in the Views section list. Rendered as
+                bare rows (like Help/Settings), fenced off with a divider top
+                and bottom so they read as their own band between Workspaces
+                and Views. */}
+            <div className="vf-sidebar-sep" aria-hidden />
+            <div className="vf-permanent-views">
+              <PermanentViewRow
+                snapshot={snapshot}
+                viewId={SYSTEM_VIEW_UNTRIAGED_ID}
+                name={SYSTEM_VIEW_UNTRIAGED_NAME}
+                fallbackIcon="inbox"
+                activeViewId={activeViewId}
+                onSelectView={onSelectView}
+              />
+              <PermanentViewRow
+                snapshot={snapshot}
+                viewId={SYSTEM_VIEW_ALL_TASKS_ID}
+                name={SYSTEM_VIEW_ALL_TASKS_NAME}
+                fallbackIcon="list"
+                activeViewId={activeViewId}
+                onSelectView={onSelectView}
+              />
+            </div>
+            <div className="vf-sidebar-sep" aria-hidden />
+
+            <ViewsSection
               snapshot={snapshot}
-              viewId={SYSTEM_VIEW_UNTRIAGED_ID}
-              name={SYSTEM_VIEW_UNTRIAGED_NAME}
-              fallbackIcon="inbox"
               activeViewId={activeViewId}
               onSelectView={onSelectView}
             />
-            <PermanentViewRow
-              snapshot={snapshot}
-              viewId={SYSTEM_VIEW_ALL_TASKS_ID}
-              name={SYSTEM_VIEW_ALL_TASKS_NAME}
-              fallbackIcon="list"
-              activeViewId={activeViewId}
-              onSelectView={onSelectView}
+
+            <DashboardsSection snapshot={snapshot} />
+
+            <ProjectsSection snapshot={snapshot} />
+
+            <LabelsSection snapshot={snapshot} />
+
+            <PeopleSection snapshot={snapshot} />
+
+            <div className="vf-sidebar-sep" aria-hidden />
+
+            <NavRow
+              icon="repeat"
+              label="Recurring"
+              active={activeId === "recurring"}
+              onClick={() => openScreen("recurring")}
+            />
+
+            <div className="vf-sidebar-sep" aria-hidden />
+
+            <NavRow
+              icon="download"
+              label="Export…"
+              onClick={() => setExporting(true)}
+            />
+
+            <NavRow
+              icon="history"
+              label="History"
+              active={activeId === "history"}
+              onClick={() => openScreen("history")}
+            />
+
+            <NavRow
+              icon="trash-2"
+              label="Trash"
+              active={activeId === "trash"}
+              onClick={() => openScreen("trash")}
             />
           </div>
-          <div className="vf-sidebar-sep" aria-hidden />
-
-          <ViewsSection
-            snapshot={snapshot}
-            activeViewId={activeViewId}
-            onSelectView={onSelectView}
-          />
-
-          <DashboardsSection snapshot={snapshot} />
-
-          <ProjectsSection snapshot={snapshot} />
-
-          <LabelsSection snapshot={snapshot} />
-
-          <PeopleSection snapshot={snapshot} />
-
-          <div className="vf-sidebar-sep" aria-hidden />
-
-          <NavRow
-            icon="repeat"
-            label="Recurring"
-            active={activeId === "recurring"}
-            onClick={() => openScreen("recurring")}
-          />
-
-          <div className="vf-sidebar-spacer" />
-
-          <div className="vf-sidebar-sep" aria-hidden />
-
-          <NavRow
-            icon="download"
-            label="Export…"
-            onClick={() => setExporting(true)}
-          />
-
-          <NavRow
-            icon="history"
-            label="History"
-            active={activeId === "history"}
-            onClick={() => openScreen("history")}
-          />
-
-          <NavRow
-            icon="trash-2"
-            label="Trash"
-            active={activeId === "trash"}
-            onClick={() => openScreen("trash")}
-          />
 
           <div className="vf-sidebar-sep" aria-hidden />
 

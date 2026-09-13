@@ -5,6 +5,23 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Changed
+
+- **The sidebar nav now scrolls independently of its chrome.** The top row
+  (search + minimize) and the bottom band (Help, Settings, and the version
+  footer) stay pinned in place while the sections between them — Workspaces,
+  Views, Dashboards, Projects, Labels, People, Recurring, and the
+  Export/History/Trash rows — scroll normally. The nav sits in a recessed
+  well (a slightly different background with hairline borders top and
+  bottom), so the scrollable region reads as a sunken panel at a glance —
+  no ambiguity about whether more rows are hidden until you scroll.
+- **Compact panes drop the nav drawer's header chrome.** The drawer's
+  "Navigation" title, its close icon, and the search/minimize row no longer
+  render in compact mode — the toggle strip above the drawer already
+  carries those (its Navigation button doubles as the drawer close, and its
+  Search… button opens workspace search). The drawer now opens straight into
+  the Workspaces section, gaining back the space its header used.
+
 ## 1.0.23 — 2026-09-12
 
 ### Added

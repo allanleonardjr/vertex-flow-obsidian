@@ -99,7 +99,7 @@ body.vf-text-comfortable {
   /* width + flex-basis are set inline from settings.sidebarWidth */
   min-width: 0;
   padding: 12px 8px;
-  overflow-y: auto;
+  overflow: hidden;
   border-right: 1px solid var(--vf-border);
   background: var(--background-secondary);
 }
@@ -107,6 +107,22 @@ body.vf-text-comfortable {
 .vf-sidebar.is-minimized {
   padding: 12px 0;
   overflow: hidden;
+}
+
+/* The scrollable middle band: pinned between the top chrome (search +
+   minimize) and the bottom region (Help / Settings / version footer). The
+   `min-height: 0` is what lets it shrink so overflow scrolls instead of
+   pushing the footer off-screen. */
+.vf-sidebar-scroll {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--background-secondary-alt, var(--background-secondary));
+  border-top: 1px solid var(--vf-border);
+  border-bottom: 1px solid var(--vf-border);
+  padding: 8px 0px;
 }
 
 /* -- Top row: the minimize / expand toggle ------------------------------- */
@@ -160,11 +176,6 @@ button.vf-sidebar-search:hover {
 .vf-sidebar-resize:hover {
   background: var(--interactive-accent);
   opacity: 0.35;
-}
-
-/* Pushes Settings to the bottom of the sidebar, Linear-style. */
-.vf-sidebar-spacer {
-  flex: 1;
 }
 
 /* The version footer pinned to the very bottom of the sidebar. */
@@ -2194,10 +2205,11 @@ button.vf-color-trigger.is-on {
     transform: translateX(0);
   }
 
-  /* Wide-only affordances (the minimize toggle and the drag-resize strip) make
-     no sense for a drawer — but the workspace-search button stays: it's the
-     only pointer-driven way into the overlay without a physical Alt key. */
-  .vf-shell .vf-sidebar-top .vf-sidebar-minimize,
+  /* Wide-only chrome (the top row's search + minimize and the drag-resize
+     strip) makes no sense inside a drawer — the toggle strip above the drawer
+     already carries the Search… button and the Navigation toggle that doubles
+     as this drawer's close. */
+  .vf-shell .vf-sidebar-top,
   .vf-shell .vf-sidebar-resize {
     display: none;
   }
@@ -2268,45 +2280,10 @@ button.vf-color-trigger.is-on {
     background: rgb(0 0 0 / 35%);
   }
 
-  /* A dedicated header row for the drawer's close button. Full-width flex row
-     so the close icon sits at the far right, clearly separated from the first
-     nav section's "+" add button below it. */
-  .vf-shell .vf-drawer-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-shrink: 0;
-    min-height: 44px;
-    padding: 0 12px;
-    border-bottom: 1px solid var(--vf-border);
-  }
-
-  .vf-shell .vf-drawer-head-title {
-    color: var(--vf-muted);
-    font-size: var(--font-ui-small);
-    font-weight: 600;
-    letter-spacing: 0.02em;
-  }
-
-  .vf-shell .vf-nav-close {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    border: none;
-    border-radius: var(--vf-radius);
-    background: transparent;
-    box-shadow: none;
-    color: var(--vf-muted);
-    cursor: pointer;
-  }
-
-  .vf-shell .vf-nav-close:hover {
-    background: var(--background-modifier-hover);
-    color: var(--text-normal);
-  }
+  /* The drawer's Navigation header row is dropped in compact too: the toggle
+     strip's Navigation button (which doubles as the close) and its Search…
+     button are the drawer's only chrome. `.vf-drawer-head` stays hidden by the
+     wide-pane `display: none` rule below. */
 
   /* The task/project properties rail becomes a right overlay drawer: always
      off-screen, slid in only while the strip's Properties button is active
