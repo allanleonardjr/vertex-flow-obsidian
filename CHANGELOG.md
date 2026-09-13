@@ -18,6 +18,11 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **A task due today no longer shows today's-date styling once it's completed
+  or canceled.** The `is-overdue` fix in 1.0.24 gated overdue styling on the
+  task still having an open status, but the "due today" styling on the same
+  badge didn't get the same guard. Both now share one open-status check.
+
 - **A Project's canvas view no longer forgets its arrangement, direction,
   or hidden relation kinds right after saving.** Picking "Tree" (or a
   direction, or hiding a relation kind) on a Project's embedded canvas view
