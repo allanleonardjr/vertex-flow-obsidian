@@ -28,9 +28,10 @@ import type {
   DashboardConfig,
   DashboardWidget,
   SavedView,
+  ViewFilters,
   WorkspaceSnapshot,
 } from "../../core/types";
-import { usePlugin } from "../context";
+import { usePlugin, useSettingsWriter } from "../context";
 import { useTabs } from "../tabs-context";
 import {
   AddFilterTrigger,
@@ -52,6 +53,7 @@ import {
   type WidgetConfigResult,
 } from "./WidgetConfigDialog";
 import { WidgetFrame } from "./WidgetFrame";
+import { DashboardQueryBar } from "./DashboardQueryBar";
 
 type DialogState =
   | { mode: "add" }
@@ -129,6 +131,8 @@ function DashboardBody({
   const effective = draft.effective;
   const [dialog, setDialog] = useState<DialogState>(null);
   const filterClause = useFilterClauseState();
+  const writeSettings = useSettingsWriter();
+  const queryOpen = plugin.settings.queryBarOpen;
 
   const canOverwrite = snapshot.dashboards.some((d) => d.id === dashboard.id);
 
@@ -213,6 +217,8 @@ function DashboardBody({
   };
   const onFilterChange = (next: SavedView) =>
     draft.edit({ ...effective, filters: next.filters });
+  const onFiltersChange = (filters: ViewFilters) =>
+    draft.edit({ ...effective, filters });
 
   return (
     <>
@@ -313,7 +319,33 @@ function DashboardBody({
             onChange={onFilterChange}
             clause={filterClause}
           />
+          <button
+            type="button"
+            className={`vf-bar-item vf-query-toggle${queryOpen ? " is-on" : ""}`}
+            aria-expanded={queryOpen}
+            aria-controls="vf-dash-query-row"
+            title="Edit this dashboard's filter as a text query"
+            onClick={() => writeSettings({ queryBarOpen: !queryOpen })}
+          >
+            <span
+              className={`vf-section-chevron${queryOpen ? " is-open" : ""}`}
+              aria-hidden
+            >
+              ›
+            </span>
+            Query
+          </button>
         </div>
+
+        {queryOpen && (
+          <div id="vf-dash-query-row">
+            <DashboardQueryBar
+              snapshot={snapshot}
+              filters={effective.filters}
+              onChange={onFiltersChange}
+            />
+          </div>
+        )}
       </header>
 
       <div className="vf-dash-scroll">

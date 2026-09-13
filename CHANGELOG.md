@@ -7,6 +7,13 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Dashboards can now edit their filter as a text query, matching Saved
+  Views.** A "Query" toggle in the dashboard filter bar reveals a text row
+  (e.g. `status:backlog,in-progress project:obsidian`) two-way synced with
+  the chip bar — useful once a filter grows past the chip bar's "+N" chip.
+  Shares the same open/closed setting as the List/Board/Calendar/Timeline
+  query toggle.
+
 - **List and Board rows/cards now animate into place instead of snapping.**
   A task moving between groups or columns — from a status change, a drag,
   a bulk edit, or the `u s` shortcut — slides smoothly to its new spot, and
