@@ -7,6 +7,17 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Labels and Projects can now be filtered by their `/`-nested group, not
+  just an exact match.** `LabelA`/`Application`-style names have always
+  rendered as nested, collapsible folders in the sidebar; that grouping is
+  now searchable too. `label:LabelA/*` or `project:Application/*` in the
+  text query bar matches everything under that group at any depth, live —
+  no re-save needed when something new is added under it later. Bare
+  `label:LabelA`/`project:Application` are unchanged: an exact match on
+  that one label/project. The Labels and Project filter chip popovers now
+  show the same searchable, collapsible tree as the sidebar, with a
+  selectable chip per folder (the group) alongside the per-item chips.
+
 - **Dashboards can now edit their filter as a text query, matching Saved
   Views.** A "Query" toggle in the dashboard filter bar reveals a text row
   (e.g. `status:backlog,in-progress project:obsidian`) two-way synced with

@@ -8,7 +8,7 @@
  */
 
 import { linksMatch } from "../links";
-import { isOpen } from "../taxonomy";
+import { getValue, isOpen, type Taxonomy } from "../taxonomy";
 import { DEFAULT_DEFINITION } from "./defaults";
 import {
 	CANVAS_RELATION_KINDS,
@@ -70,6 +70,47 @@ function matchesLink(
 	);
 }
 
+/** Does `name` fall under the group named by a `"Parent/*"` pattern? */
+function matchesGroupPattern(name: string | null, pattern: string): boolean {
+	if (name == null || !pattern.endsWith("/*")) return false;
+	return name.toLowerCase().startsWith(pattern.slice(0, -1).toLowerCase());
+}
+
+/** OR-match labels: exact id, or a live group-pattern match on the
+ *  label's current name (any nesting depth). */
+function matchesLabels(
+	actual: string[],
+	allowed: string[] | undefined,
+	taxonomy: Taxonomy,
+): boolean {
+	if (!allowed || allowed.length === 0) return true;
+	if (actual.length === 0) return allowed.includes(NONE);
+	return actual.some((id) =>
+		allowed.some(
+			(pattern) =>
+				pattern === id ||
+				matchesGroupPattern(getValue(taxonomy, id)?.name ?? null, pattern),
+		),
+	);
+}
+
+/** OR-match project: exact path (tolerating wikilink forms, as today), or
+ *  a live group-pattern match on the project's current title. */
+function matchesProject(
+	actual: LinkTarget | null,
+	allowed: string[] | undefined,
+	titles: Map<LinkTarget, string> | undefined,
+): boolean {
+	if (!allowed || allowed.length === 0) return true;
+	if (actual == null) return allowed.includes(NONE);
+	return allowed.some(
+		(pattern) =>
+			(pattern !== NONE &&
+				(pattern === actual || linksMatch(actual, pattern))) ||
+			matchesGroupPattern(titles?.get(actual) ?? null, pattern),
+	);
+}
+
 export function matchesFilters(
 	task: Task,
 	filters: ViewFilters,
@@ -94,7 +135,8 @@ export function matchesFilters(
 	if (!matchesSingle(task.status, filters.status)) return false;
 	if (!matchesSingle(task.priority, filters.priority)) return false;
 	if (!matchesSingle(task.taskType, filters.taskType)) return false;
-	if (!matchesAny(task.labels, filters.labels)) return false;
+	if (!matchesLabels(task.labels, filters.labels, context.taxonomies.label))
+		return false;
 
 	if (filters.assignee && filters.assignee.length > 0) {
 		const allowed = resolvePeople(filters.assignee, context);
@@ -111,7 +153,8 @@ export function matchesFilters(
 		if (!task.mentions.some((id) => allowed.includes(id))) return false;
 	}
 
-	if (!matchesLink(task.project, filters.project)) return false;
+	if (!matchesProject(task.project, filters.project, context.titles))
+		return false;
 	if (!matchesLink(task.parent, filters.parent)) return false;
 
 	if (filters.text && filters.text.trim()) {
