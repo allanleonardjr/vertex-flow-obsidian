@@ -5,6 +5,8 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.25 — 2026-09-13
+
 ### Added
 
 - **Labels and Projects can now be filtered by their `/`-nested group, not
