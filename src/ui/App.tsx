@@ -12,8 +12,7 @@ import {
   type ActiveWorkspace,
 } from "./context";
 import { workspaceTaxonomies } from "../core/taxonomy";
-import { projectViewId } from "../core/views/defaults";
-import type { Project, SavedView, WorkspaceSnapshot } from "../core/types";
+import type { SavedView, WorkspaceSnapshot } from "../core/types";
 import { EmptyState } from "./EmptyState";
 import { EmptyTabsPane } from "./EmptyTabsPane";
 import { ProjectDetailView } from "./ProjectDetailView";
@@ -397,28 +396,7 @@ export function personView(
  * sub-tasks nested under their parent. Same shape as `labelView`;
  * `ProjectDetailView` renders it beneath the project header.
  */
-export function projectView(project: Project): SavedView {
-  const definition = project.view;
-  return {
-    type: "vertex-flow-view",
-    path: "",
-    id: projectViewId(project.path),
-    name: project.title,
-    viewType: definition?.viewType ?? "list",
-    // The project filter is always forced, regardless of what's stored — a
-    // safety net against a stale or missing value (e.g. after a rename).
-    filters: { ...(definition?.filters ?? {}), project: [project.path] },
-    groupBy: definition?.groupBy ?? "status",
-    sortBy: definition?.sortBy ?? "rank",
-    sortDirection: definition?.sortDirection ?? "asc",
-    columns: definition?.columns ?? { collapsed: [], hidden: [] },
-    emptyColumnBehavior: definition?.emptyColumnBehavior ?? "show-normal",
-    hiddenFields: definition?.hiddenFields ?? [],
-    subtaskDisplay: definition?.subtaskDisplay ?? "nested",
-    calendarDateField: definition?.calendarDateField ?? "dueDate",
-    recurringPreview: definition?.recurringPreview ?? false,
-  };
-}
+export { projectView } from "./project-view";
 
 /**
  * Mobile on-screen keyboard handling.

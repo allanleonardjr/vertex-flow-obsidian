@@ -5,6 +5,17 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Fixed
+
+- **A Project's canvas view no longer forgets its arrangement, direction,
+  or hidden relation kinds right after saving.** Picking "Tree" (or a
+  direction, or hiding a relation kind) on a Project's embedded canvas view
+  was already persisted to the project note's frontmatter correctly, but
+  the rebuild that reconstructs the rendered view straight after save
+  dropped those three fields and silently fell back to the defaults —
+  looking like the save hadn't taken. The rebuild now carries them through
+  like every other canvas view setting.
+
 ## 1.0.24 — 2026-09-13
 
 ### Changed
