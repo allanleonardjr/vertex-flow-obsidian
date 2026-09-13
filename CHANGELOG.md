@@ -5,6 +5,8 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.24 — 2026-09-13
+
 ### Changed
 
 - **Closing a tab returns you to the tab you were last looking at, not
