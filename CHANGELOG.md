@@ -7,6 +7,13 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Closing a tab returns you to the tab you were last looking at, not
+  whichever one slid into its spot.** Tab close now follows the same
+  most-recently-viewed order a browser uses: closing the active tab
+  reactivates the surviving tab you most recently had in front, falling
+  back to today's "select the neighbour to the right" behavior only when
+  the closed tab (or a tab you never actually switched to) has no viewing
+  history to fall back on.
 - **The sidebar nav now scrolls independently of its chrome.** The top row
   (search + minimize) and the bottom band (Help, Settings, and the version
   footer) stay pinned in place while the sections between them — Workspaces,
