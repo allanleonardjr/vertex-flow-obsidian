@@ -1260,6 +1260,10 @@ button.vf-nest-chevron {
   text-align: left;
 }
 
+.vf-table-td.is-dragging {
+  opacity: 0.4;
+}
+
 .vf-table-td > .vf-icon-select,
 .vf-table-td > .vf-label-editor,
 .vf-table-td > .vf-table-cell-edit-trigger,
@@ -1446,26 +1450,26 @@ button.vf-nest-chevron {
   opacity: 0.95;
 }
 
-/* Floating copy of the dragged column header, portaled to <body> inside
-   .vf-drag-layer — same visual language as the List/Board row preview and
-   the tab strip's own drag preview. */
-.vf-table-th-preview {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  height: var(--vf-row-height);
-  padding: 0 12px;
+/* The dragged column's re-rendered cells, portaled to <body> inside
+   .vf-drag-layer, positioned at the column's real screen coordinates and
+   slid sideways only (see ColumnDragPreview's own doc comment) — not
+   rotated or drop-shadowed like the other drag previews, since this one is
+   meant to read as "still part of the table," not "picked up." */
+.vf-column-drag-preview {
+  position: absolute;
+  overflow: hidden;
   background: var(--background-primary);
   border: 1px solid var(--vf-border);
-  border-radius: var(--vf-radius);
-  box-shadow: 0 10px 24px rgb(0 0 0 / 28%);
-  color: var(--text-normal);
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  transform: rotate(1deg);
-  opacity: 0.95;
+  opacity: 0.92;
+}
+
+.vf-column-drag-preview-cell {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
 }
 
 /* --- Drag count badge for multi-task drags --- */

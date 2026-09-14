@@ -61,7 +61,6 @@ import { nextTableSort } from "../../core/views";
 import type { Mutations } from "../../obsidian/mutations";
 import { usePlugin } from "../context";
 import type { ColumnDragState } from "../views/useColumnDrag";
-import { PREVIEW_OFFSET_PX } from "../views/useTaskDrag";
 import {
 	DateField,
 	NumberField,
@@ -375,6 +374,7 @@ export function TaskTable({
 												mutations={mutations}
 												editingCell={editingCell}
 												setEditingCell={setEditingCell}
+												reorder={reorder}
 											/>
 										))
 									))}
@@ -383,25 +383,124 @@ export function TaskTable({
 					</tbody>
 				</table>
 			</div>
-			{reorder?.drag && <ColumnDragPreview drag={reorder.drag} />}
+			{reorder?.drag && (
+				<ColumnDragPreview
+					drag={reorder.drag}
+					groups={groups}
+					snapshot={snapshot}
+					taxonomies={taxonomies}
+					scope={scope}
+					mutations={mutations}
+					scrollXRef={scrollXRef}
+					columns={columns}
+					widthFor={widthFor}
+				/>
+			)}
 		</div>
 	);
 }
 
-/** The column header label that follows the pointer while a drag is live. */
-function ColumnDragPreview({ drag }: { drag: ColumnDragState }) {
+/**
+ * The dragged column's real cells, re-rendered via `TableCell` (the exact
+ * function the live table uses — see the module-level doc above `TaskTable`
+ * on why this reuses the renderer rather than cloning DOM) and stacked at
+ * their real vertical offsets. The whole slab slides sideways by
+ * `drag.deltaX`; it never moves vertically, so it reads as "this column is
+ * sliding over," not "this column got picked up."
+ */
+function ColumnDragPreview({
+	drag,
+	groups,
+	snapshot,
+	taxonomies,
+	scope,
+	mutations,
+	scrollXRef,
+	columns,
+	widthFor,
+}: {
+	drag: ColumnDragState;
+	groups: TaskListGroup[];
+	snapshot: WorkspaceSnapshot;
+	taxonomies: WorkspaceTaxonomies;
+	scope: HierarchyScope;
+	mutations: Mutations;
+	scrollXRef: React.RefObject<HTMLDivElement>;
+	columns: Column[];
+	widthFor: (column: Column) => number;
+}) {
+	const [rows, setRows] = useState<
+		{ task: Task; top: number; height: number }[]
+	>([]);
+	const [left, setLeft] = useState(0);
+
+	// Measure once, at mount (i.e. once per drag) — see the "measured once"
+	// note above. Re-running this on every pointer move would re-query the
+	// DOM for every visible row on every frame for no visible benefit, since
+	// only the wrapper's `transform` needs to change as the pointer moves.
+	useEffect(() => {
+		const visibleTasks = groups.flatMap((g) => (g.collapsed ? [] : g.tasks));
+		const found = visibleTasks.flatMap((task) => {
+			const el = document.querySelector<HTMLElement>(
+				`[data-task-path="${CSS.escape(task.path)}"]`,
+			);
+			if (!el) return [];
+			const rect = el.getBoundingClientRect();
+			if (rect.bottom <= 0 || rect.top >= window.innerHeight) return [];
+			return [{ task, top: rect.top, height: rect.height }];
+		});
+		setRows(found);
+
+		// The column's on-screen left edge, computed from state (column
+		// order + each column's width) rather than a DOM query — the one
+		// thing here that genuinely doesn't need measuring. 32 matches the
+		// open-button column's own fixed `<col style={{ width: 32 }} />`.
+		const scrollRect = scrollXRef.current?.getBoundingClientRect();
+		const scrollLeft = scrollXRef.current?.scrollLeft ?? 0;
+		let x = (scrollRect?.left ?? 0) - scrollLeft + 32;
+		for (const c of columns) {
+			if (c === drag.column) break;
+			x += widthFor(c);
+		}
+		setLeft(x);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
+	if (rows.length === 0) return null;
+
+	const top = Math.min(...rows.map((r) => r.top));
+	const bottom = Math.max(...rows.map((r) => r.top + r.height));
+
 	return createPortal(
 		<div
 			className="vf-drag-layer"
-			style={{
-				transform: `translate(${drag.x + PREVIEW_OFFSET_PX}px, ${
-					drag.y + PREVIEW_OFFSET_PX
-				}px)`,
-				width: drag.width,
-			}}
+			style={{ transform: `translateX(${drag.deltaX}px)` }}
 			aria-hidden
 		>
-			<div className="vf-table-th-preview">{COLUMN_LABEL[drag.column]}</div>
+			<div
+				className="vf-column-drag-preview"
+				style={{ top, left, width: drag.width, height: bottom - top }}
+			>
+				{rows.map(({ task, top: rowTop, height }) => (
+					<div
+						key={task.path}
+						className="vf-column-drag-preview-cell"
+						style={{ top: rowTop - top, height }}
+					>
+						<TableCell
+							column={drag.column}
+							task={task}
+							snapshot={snapshot}
+							taxonomies={taxonomies}
+							scope={scope}
+							mutations={mutations}
+							editing={false}
+							onStartEdit={() => {}}
+							onDoneEditing={() => {}}
+						/>
+					</div>
+				))}
+			</div>
 		</div>,
 		document.body,
 	);
@@ -515,6 +614,7 @@ function TaskTableRow({
 	mutations,
 	editingCell,
 	setEditingCell,
+	reorder,
 }: {
 	task: Task;
 	groupKey: string;
@@ -527,6 +627,7 @@ function TaskTableRow({
 	mutations: Mutations;
 	editingCell: EditingCell | null;
 	setEditingCell: (next: EditingCell | null) => void;
+	reorder?: TableColumnReorder;
 }) {
 	const className = [
 		"vf-table-row",
@@ -561,23 +662,29 @@ function TaskTableRow({
 					<SquareArrowOutUpRight size={13} />
 				</button>
 			</td>
-			{columns.map((column) => (
-				<td key={column} className={`vf-table-td vf-table-td-${column}`}>
-					<TableCell
-						column={column}
-						task={task}
-						snapshot={snapshot}
-						taxonomies={taxonomies}
-						scope={scope}
-						mutations={mutations}
-						editing={
-							editingCell?.path === task.path && editingCell.column === column
-						}
-						onStartEdit={() => setEditingCell({ path: task.path, column })}
-						onDoneEditing={() => setEditingCell(null)}
-					/>
-				</td>
-			))}
+			{columns.map((column) => {
+				const dragging = reorder?.isDragging(column as TaskField) ?? false;
+				return (
+					<td
+						key={column}
+						className={`vf-table-td vf-table-td-${column}${dragging ? " is-dragging" : ""}`}
+					>
+						<TableCell
+							column={column}
+							task={task}
+							snapshot={snapshot}
+							taxonomies={taxonomies}
+							scope={scope}
+							mutations={mutations}
+							editing={
+								editingCell?.path === task.path && editingCell.column === column
+							}
+							onStartEdit={() => setEditingCell({ path: task.path, column })}
+							onDoneEditing={() => setEditingCell(null)}
+						/>
+					</td>
+				);
+			})}
 		</tr>
 	);
 }

@@ -26,6 +26,13 @@ export interface ColumnDragState {
 	width: number;
 	/** Insertion index among the reorderable columns, excluding the dragged one. */
 	targetIndex: number;
+	/**
+	 * Horizontal distance moved since the gesture's original pointerdown
+	 * (not since it lifted past the drag threshold), so a sideways-sliding
+	 * preview starts moving the instant it appears rather than snapping in
+	 * from zero.
+	 */
+	deltaX: number;
 }
 
 export interface ColumnDragApi {
@@ -102,6 +109,7 @@ export function useColumnDrag(
 			y,
 			width: current.width,
 			targetIndex: resolveIndex(x, current.column),
+			deltaX: x - current.startX,
 		});
 	}, []);
 
@@ -153,6 +161,7 @@ export function useColumnDrag(
 				y: event.clientY,
 				width: current.width,
 				targetIndex: resolveIndex(event.clientX, current.column),
+				deltaX: event.clientX - current.startX,
 			});
 		};
 
