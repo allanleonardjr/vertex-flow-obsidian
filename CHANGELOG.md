@@ -19,13 +19,13 @@ This project uses [Semantic Versioning](https://semver.org/).
   Relations' new sort counts the same way the Relations badge always has
   (including "duplicate of"), so the two can't disagree.
 - **Dragging a Table column to reorder it now shows a live preview of that
-  column's actual cells — the real chips, avatars, and status dots, not a
-  placeholder label — sliding sideways with the pointer.** The preview
-  stays pinned to the column's real vertical position rather than
-  following the cursor's Y, closer to how a spreadsheet handles a column
-  drag than the "lifted card" language List/Board rows and browser tabs
-  use elsewhere. The source column (header and every visible body cell)
-  dims while its preview is up.
+  column — its header label on top, then its actual cells (the real chips,
+  avatars, and status dots, not placeholder text) below — sliding sideways
+  with the pointer.** The preview stays pinned to the column's real
+  vertical position rather than following the cursor's Y, closer to how a
+  spreadsheet handles a column drag than the "lifted card" language
+  List/Board rows and browser tabs use elsewhere. The source column (header
+  and every visible body cell) dims while its preview is up.
 - **`v` `s` switches the current view to the Table layout**, alongside the
   existing `v` `l`/`b`/`t`/`c`/`d` shortcuts. A new Table layout page in
   the in-app Help pane documents columns, sorting, in-place editing, the

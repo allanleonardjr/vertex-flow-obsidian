@@ -1463,6 +1463,22 @@ button.vf-nest-chevron {
   opacity: 0.92;
 }
 
+/* Caps the slab so it reads as one detached column, not just a stack of
+   unlabelled values — same left-aligned, bold treatment as the real
+   (now-untinted) header from Phase 4a/4d, plus the bottom border that
+   already separates every header from its body. */
+.vf-column-drag-preview-header {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--vf-border);
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
 .vf-column-drag-preview-cell {
   position: absolute;
   left: 0;

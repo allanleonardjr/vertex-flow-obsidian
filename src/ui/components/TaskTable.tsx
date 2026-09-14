@@ -401,12 +401,15 @@ export function TaskTable({
 }
 
 /**
- * The dragged column's real cells, re-rendered via `TableCell` (the exact
- * function the live table uses — see the module-level doc above `TaskTable`
- * on why this reuses the renderer rather than cloning DOM) and stacked at
- * their real vertical offsets. The whole slab slides sideways by
- * `drag.deltaX`; it never moves vertically, so it reads as "this column is
- * sliding over," not "this column got picked up."
+ * The dragged column's header label plus its real cells, re-rendered via
+ * `TableCell` (the exact function the live table uses — see the
+ * module-level doc above `TaskTable` on why this reuses the renderer rather
+ * than cloning DOM) and stacked at their real vertical offsets, capped by
+ * the column's own header so the whole thing reads as one detached strip —
+ * not just a column of values with no idea which field they belong to. The
+ * whole slab slides sideways by `drag.deltaX`; it never moves vertically,
+ * so it reads as "this column is sliding over," not "this column got
+ * picked up."
  */
 function ColumnDragPreview({
 	drag,
@@ -432,6 +435,9 @@ function ColumnDragPreview({
 	const [rows, setRows] = useState<
 		{ task: Task; top: number; height: number }[]
 	>([]);
+	const [header, setHeader] = useState<{ top: number; height: number } | null>(
+		null,
+	);
 	const [left, setLeft] = useState(0);
 
 	// Measure once, at mount (i.e. once per drag) — see the "measured once"
@@ -451,6 +457,20 @@ function ColumnDragPreview({
 		});
 		setRows(found);
 
+		// The real header cell, so its label can cap the preview and its own
+		// height sets where the row stack starts — the header is always
+		// above the topmost visible row, so it's the natural top edge rather
+		// than a second thing to reconcile against `rows`. Reuses the same
+		// `[data-column-key]` attribute `resolveIndex` already relies on for
+		// drop-target resolution, which only headers carry.
+		const headerEl = document.querySelector<HTMLElement>(
+			`[data-column-key="${CSS.escape(drag.column)}"]`,
+		);
+		const headerRect = headerEl?.getBoundingClientRect() ?? null;
+		setHeader(
+			headerRect ? { top: headerRect.top, height: headerRect.height } : null,
+		);
+
 		// The column's on-screen left edge, computed from state (column
 		// order + each column's width) rather than a DOM query — the one
 		// thing here that genuinely doesn't need measuring. 32 matches the
@@ -468,7 +488,11 @@ function ColumnDragPreview({
 
 	if (rows.length === 0) return null;
 
-	const top = Math.min(...rows.map((r) => r.top));
+	// The header (when found) is always above every row, so it — not
+	// `Math.min` over `rows` — is the preview's top edge; falling back to the
+	// rows' own top keeps this from disappearing entirely in the unlikely
+	// case the header element isn't found.
+	const top = header ? header.top : Math.min(...rows.map((r) => r.top));
 	const bottom = Math.max(...rows.map((r) => r.top + r.height));
 
 	return createPortal(
@@ -481,6 +505,14 @@ function ColumnDragPreview({
 				className="vf-column-drag-preview"
 				style={{ top, left, width: drag.width, height: bottom - top }}
 			>
+				{header && (
+					<div
+						className="vf-column-drag-preview-header"
+						style={{ top: header.top - top, height: header.height }}
+					>
+						{COLUMN_LABEL[drag.column]}
+					</div>
+				)}
 				{rows.map(({ task, top: rowTop, height }) => (
 					<div
 						key={task.path}
