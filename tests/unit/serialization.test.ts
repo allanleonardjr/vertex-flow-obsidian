@@ -1324,6 +1324,25 @@ describe("parseView (per-file)", () => {
 		expect(parseView(frontmatter, { path: "W/Views/v" }).value).toEqual(value);
 	});
 
+	it("round-trips a tableSort using two of the new fields through serializeView/parseView unchanged", () => {
+		const { value } = parseView(
+			{
+				id: "v",
+				name: "V",
+				query: "layout:table table-sort:project,-assignee",
+			},
+			{ path: "W/Views/v" },
+		);
+		expect(value.tableSort).toEqual([
+			{ field: "project", direction: "asc" },
+			{ field: "assignee", direction: "desc" },
+		]);
+
+		const frontmatter = serializeView(value);
+		expect(frontmatter.query).toContain("table-sort:project,-assignee");
+		expect(parseView(frontmatter, { path: "W/Views/v" }).value).toEqual(value);
+	});
+
 	it("silently drops an unknown columnOrder field instead of erroring", () => {
 		const { value, issues } = parseView(
 			{

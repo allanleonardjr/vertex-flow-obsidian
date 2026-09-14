@@ -24,9 +24,11 @@ import {
 	setColumnsCollapsed,
 	toggleColumnCollapsed,
 	toggleColumnHidden,
+	viewContext,
 	viewDefinition,
 	visibleGroups,
 } from "../../src/core/views";
+import type { HierarchyScope } from "../../src/core/hierarchy";
 import {
 	NONE,
 	SELF,
@@ -422,6 +424,184 @@ describe("sorting", () => {
 		const copy = [...snapshot.tasks];
 		sortTasks(snapshot.tasks, "title", "desc", context);
 		expect(snapshot.tasks).toEqual(copy);
+	});
+});
+
+describe("sorting — new Table-only fields", () => {
+	it("taskType orders by taxonomy order, unset last", () => {
+		// Task Type is an unordered taxonomy by default (no `order` on the
+		// sample workspace's values), so this builds a local taxonomy that
+		// carries explicit orders to exercise `taxonomyOrder`.
+		const typeContext: typeof context = {
+			...context,
+			taxonomies: {
+				...context.taxonomies,
+				taskType: createTaxonomy("taskType", [
+					{ id: "bug", name: "Bug", color: "#ef4444", order: 1 },
+					{ id: "feature", name: "Feature", color: "#3b82f6", order: 2 },
+				]),
+			},
+		};
+		const tasks = [
+			task({ path: "unset", taskType: null }),
+			task({ path: "feature", taskType: "feature" }),
+			task({ path: "bug", taskType: "bug" }),
+		];
+		// Only ascending is asserted here: `taskType` reuses the same
+		// `taxonomyOrder` + `nullSkewed: false` shape `status`/`priority`
+		// already use, and that shape does not keep unset values pinned last
+		// under a flipped (`desc`) direction — the same is true for
+		// `priority` today (untested there too). Out of scope for this
+		// change to alter; see the PR notes.
+		expect(
+			sortTasks(tasks, "taskType", "asc", typeContext).map((t) => t.path),
+		).toEqual(["bug", "feature", "unset"]);
+	});
+
+	it("project orders by resolved title, not path", () => {
+		// The path order is deliberately the opposite of the title order, so
+		// a test that accidentally sorted by path would fail.
+		const projectContext: typeof context = {
+			...context,
+			titles: new Map([
+				["Projects/ZPath" as const, "Alpha Project"],
+				["Projects/APath" as const, "Zulu Project"],
+			]),
+		};
+		const tasks = [
+			task({ path: "unset", project: null }),
+			task({ path: "zulu", project: "Projects/APath" }),
+			task({ path: "alpha", project: "Projects/ZPath" }),
+		];
+		expect(
+			sortTasks(tasks, "project", "asc", projectContext).map((t) => t.path),
+		).toEqual(["alpha", "zulu", "unset"]);
+		expect(
+			sortTasks(tasks, "project", "desc", projectContext).map((t) => t.path),
+		).toEqual(["zulu", "alpha", "unset"]);
+	});
+
+	it("assignee orders by person name, not id, unassigned last", () => {
+		// "zed"'s name ("Aaron") sorts before "alice"'s ("Alice") even though
+		// the id order is the reverse — proves it's comparing names.
+		const peopleContext: typeof context = {
+			...context,
+			people: [...context.people, { id: "zed", name: "Aaron" }],
+		};
+		const tasks = [
+			task({ path: "unassigned", assignee: null }),
+			task({ path: "alice", assignee: "alice" }),
+			task({ path: "zed", assignee: "zed" }),
+		];
+		expect(
+			sortTasks(tasks, "assignee", "asc", peopleContext).map((t) => t.path),
+		).toEqual(["zed", "alice", "unassigned"]);
+		expect(
+			sortTasks(tasks, "assignee", "desc", peopleContext).map((t) => t.path),
+		).toEqual(["alice", "zed", "unassigned"]);
+	});
+
+	it("labels orders by the task's first label in taxonomy order, unlabelled last", () => {
+		const labelContext: typeof context = {
+			...context,
+			taxonomies: {
+				...context.taxonomies,
+				label: createTaxonomy("label", [
+					{ id: "first", name: "First", color: "#111111", order: 1 },
+					{ id: "second", name: "Second", color: "#222222", order: 2 },
+				]),
+			},
+		};
+		const tasks = [
+			task({ path: "unlabelled", labels: [] }),
+			// This task's *first* label is the higher-order one, so it should
+			// sort as if positioned by "first", not by any label it carries.
+			task({ path: "hasFirst", labels: ["second", "first"] }),
+			task({ path: "hasSecondOnly", labels: ["second"] }),
+		];
+		expect(
+			sortTasks(tasks, "labels", "asc", labelContext).map((t) => t.path),
+		).toEqual(["hasFirst", "hasSecondOnly", "unlabelled"]);
+	});
+
+	it("progress orders by completed/total ratio, no sub-tasks sorts last", () => {
+		const parentHalf = task({ path: "parentHalf" });
+		const childHalfDone = task({
+			path: "childHalfDone",
+			parent: "parentHalf",
+			status: "done",
+		});
+		const childHalfTodo = task({
+			path: "childHalfTodo",
+			parent: "parentHalf",
+			status: "todo",
+		});
+		const parentFull = task({ path: "parentFull" });
+		const childFullDone = task({
+			path: "childFullDone",
+			parent: "parentFull",
+			status: "done",
+		});
+		const parentNone = task({ path: "parentNone" });
+
+		const scope: HierarchyScope = {
+			tasks: [
+				parentHalf,
+				childHalfDone,
+				childHalfTodo,
+				parentFull,
+				childFullDone,
+				parentNone,
+			],
+			projects: [],
+		};
+		const progressContext: typeof context = { ...context, scope };
+		const parents = [parentNone, parentHalf, parentFull];
+
+		expect(
+			sortTasks(parents, "progress", "asc", progressContext).map((t) => t.path),
+		).toEqual(["parentHalf", "parentFull", "parentNone"]);
+		expect(
+			sortTasks(parents, "progress", "desc", progressContext).map((t) => t.path),
+		).toEqual(["parentFull", "parentHalf", "parentNone"]);
+	});
+
+	it("progress treats every task as unset when the context has no scope (viewContext())", () => {
+		const bareContext = viewContext(snapshot.workspace, "alice");
+		expect(bareContext.scope).toBeUndefined();
+
+		const tasks = [
+			task({ path: "b", rank: "0|i00002:" }),
+			task({ path: "a", rank: "0|i00001:" }),
+		];
+		// No scope => every task compares as unset => falls straight through
+		// to the rank tiebreak, same as a fully-tied sort.
+		expect(
+			sortTasks(tasks, "progress", "asc", bareContext).map((t) => t.path),
+		).toEqual(["a", "b"]);
+	});
+
+	it("relations orders by count, zero is a real value (not null-skewed)", () => {
+		const zero = task({ path: "zero" });
+		const one = task({
+			path: "one",
+			relations: { blocks: ["x"], blockedBy: [], related: [], duplicateOf: null },
+		});
+		// `duplicateOf` counts too.
+		const two = task({
+			path: "two",
+			relations: { blocks: ["x"], blockedBy: [], related: [], duplicateOf: "y" },
+		});
+
+		expect(
+			sortTasks([zero, one, two], "relations", "asc", context).map((t) => t.path),
+		).toEqual(["zero", "one", "two"]);
+		// Descending puts the highest count first and zero last — proving
+		// zero isn't treated as an absence that always sorts last regardless
+		// of direction.
+		expect(
+			sortTasks([zero, one, two], "relations", "desc", context).map((t) => t.path),
+		).toEqual(["two", "one", "zero"]);
 	});
 });
 

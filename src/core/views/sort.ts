@@ -7,15 +7,16 @@
  * shouldn't suddenly make it so.
  */
 
+import { subtaskProgress } from "../hierarchy";
 import { compareTasksByRank } from "../ranking";
 import { getValue } from "../taxonomy/engine";
-import type { SortDirection, SortField, TableSortKey, Task } from "../types";
+import { relationCount, type SortDirection, type SortField, type TableSortKey, type Task } from "../types";
 import type { ViewContext } from "./context";
 
 /** Ordered-taxonomy position, or `Infinity` for unset/unknown values. */
 function taxonomyOrder(
 	context: ViewContext,
-	field: "status" | "priority",
+	field: "status" | "priority" | "taskType",
 	id: string | null,
 ): number {
 	if (!id) return Number.POSITIVE_INFINITY;
@@ -81,6 +82,80 @@ export function compareField(
 		case "updatedAt":
 			return {
 				value: compareNullable(a[field], b[field], (x, y) => x.localeCompare(y)),
+				nullSkewed: false,
+			};
+
+		case "taskType": {
+			const oa = taxonomyOrder(context, "taskType", a.taskType);
+			const ob = taxonomyOrder(context, "taskType", b.taskType);
+			return { value: oa === ob ? 0 : oa < ob ? -1 : 1, nullSkewed: false };
+		}
+
+		case "project": {
+			// Compare by project *title*, not path — the path is a storage
+			// detail and sorting by it would look arbitrary on screen. A
+			// context without `titles` falls back to the raw link.
+			const na = a.project ? (context.titles?.get(a.project) ?? a.project) : null;
+			const nb = b.project ? (context.titles?.get(b.project) ?? b.project) : null;
+			return {
+				value: compareNullable(na, nb, (x, y) => x.localeCompare(y)),
+				nullSkewed: na == null || nb == null,
+			};
+		}
+
+		case "assignee": {
+			const nameOf = (id: string | null) =>
+				id ? (context.people.find((p) => p.id === id)?.name ?? id) : null;
+			const na = nameOf(a.assignee);
+			const nb = nameOf(b.assignee);
+			return {
+				value: compareNullable(na, nb, (x, y) => x.localeCompare(y)),
+				nullSkewed: na == null || nb == null,
+			};
+		}
+
+		case "labels": {
+			// A task's position is its *first* label in taxonomy order, so
+			// visually similar rows cluster. Unlabelled tasks are an absence.
+			const firstOrder = (task: Task): number | null => {
+				if (task.labels.length === 0) return null;
+				let min = Number.POSITIVE_INFINITY;
+				for (const id of task.labels) {
+					const order = getValue(context.taxonomies.label, id)?.order;
+					if (order != null && order < min) min = order;
+				}
+				return Number.isFinite(min) ? min : null;
+			};
+			const oa = firstOrder(a);
+			const ob = firstOrder(b);
+			return {
+				value: compareNullable(oa, ob, (x, y) => x - y),
+				nullSkewed: oa == null || ob == null,
+			};
+		}
+
+		case "progress": {
+			// No scope (bare-config context) or no sub-tasks => absent, not
+			// zero. "Nothing to roll up" is not "0% done".
+			const ratio = (task: Task): number | null => {
+				if (!context.scope) return null;
+				const progress = subtaskProgress(context.scope, task, context.taxonomies.status);
+				return progress.total === 0 ? null : progress.completed / progress.total;
+			};
+			const ra = ratio(a);
+			const rb = ratio(b);
+			return {
+				value: compareNullable(ra, rb, (x, y) => x - y),
+				nullSkewed: ra == null || rb == null,
+			};
+		}
+
+		case "relations":
+			// Zero is a real value here, not an absence — a task with no
+			// relations is meaningfully "least related", so this is never
+			// null-skewed and descending order behaves as expected.
+			return {
+				value: relationCount(a) - relationCount(b),
 				nullSkewed: false,
 			};
 	}

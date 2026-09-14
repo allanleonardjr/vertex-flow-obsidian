@@ -1078,6 +1078,7 @@ button.vf-nest-chevron {
   z-index: 1;
   flex: none;
   overflow: hidden;
+  background: var(--background-primary);
 }
 
 .vf-table-scroll-x {
@@ -1092,8 +1093,19 @@ button.vf-nest-chevron {
   font-size: var(--font-ui-smaller);
 }
 
-.vf-table-header-row {
-  background: var(--background-secondary);
+/*
+ * The header table's row is moved by a manual `translateX` on scroll (see
+ * `TaskTable.tsx`), not by native scrolling. With `border-collapse: collapse`
+ * (the default from `.vf-table`), collapsed borders belong to the table's
+ * layout pass rather than each cell's own paint box, and don't reliably
+ * follow a transformed row — the grid lines can stay put while the header
+ * content slides under them. `separate` with zero spacing puts each border
+ * back on its own `<th>`, so it moves with the transform; adjacent cells'
+ * borders land on the same pixel, so there is no visible doubling.
+ */
+.vf-table-header-table {
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
 .vf-table-th {
@@ -1103,6 +1115,7 @@ button.vf-nest-chevron {
   border-right: 1px solid var(--vf-border);
   text-align: left;
   white-space: nowrap;
+  user-select: none;
 }
 
 .vf-table-th:last-child {
@@ -1119,27 +1132,34 @@ button.vf-nest-chevron {
   opacity: 0.4;
 }
 
-.vf-table-wrap.has-stripe .vf-table-header-row {
-  background: color-mix(in srgb, var(--vf-table-stripe) 20%, var(--background-primary));
-}
-
-.vf-table-th button.vf-table-th-handle {
+/*
+ * Decorative "this column moves" marker, absolutely positioned inside the
+ * header button's own 12px left padding so the label stays flush with the
+ * 12px content edge of `.vf-table-td` below it. `.vf-table-th` is already
+ * `position: relative` (the resize handle depends on it). The three
+ * measurements below share that 12px budget exactly (2 + 6 + 4 = 12):
+ * a small inset from the column's true left edge, so the grip doesn't read
+ * as the alignment anchor itself; a smaller-than-usual icon, to make room
+ * for that inset; and the same 4px clearance before the label as before, so
+ * shrinking the icon doesn't undo the earlier fix for that gap. Dim at rest
+ * so a row of grips doesn't shout; full strength when that header is
+ * hovered.
+ */
+.vf-table-th-grip {
+  position: absolute;
+  top: 0;
+  left: 2px;
+  z-index: 1;
   display: flex;
-  flex: none;
   align-items: center;
-  justify-content: center;
-  width: 16px;
   height: 100%;
-  padding: 0;
-  border: none;
-  background: transparent;
   color: var(--vf-muted);
-  cursor: grab;
-  touch-action: none;
+  opacity: 0.35;
+  pointer-events: none;
 }
 
-.vf-table-th button.vf-table-th-handle:hover {
-  color: var(--text-normal);
+.vf-table-th:hover .vf-table-th-grip {
+  opacity: 1;
 }
 
 .vf-table-th button.vf-table-th-btn {
@@ -1157,10 +1177,11 @@ button.vf-nest-chevron {
   font-weight: 600;
   text-align: left;
   cursor: pointer;
-}
-
-.vf-table-th button.vf-table-th-btn:hover {
-  background: var(--background-modifier-hover);
+  /* Obsidian's base `button` rule sets `justify-content: center`; without
+     this override an unsorted header centers its label, while a sorted one
+     only looks left-aligned because `.vf-table-th-sort`'s auto-margin
+     incidentally pins it there. */
+  justify-content: flex-start;
 }
 
 .vf-table-th button.vf-table-th-btn.is-active {
@@ -1171,14 +1192,6 @@ button.vf-nest-chevron {
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
-}
-
-.vf-table-th-inner:not(:has(.vf-table-th-btn)) {
-  flex: 1;
-  height: 100%;
-  padding: 8px 12px;
-  color: var(--text-normal);
-  font-weight: 600;
 }
 
 .vf-table-th-resize {
@@ -1244,6 +1257,7 @@ button.vf-nest-chevron {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+  text-align: left;
 }
 
 .vf-table-td > .vf-icon-select,
@@ -1429,6 +1443,28 @@ button.vf-nest-chevron {
   background: var(--background-primary);
   box-shadow: 0 10px 24px rgb(0 0 0 / 28%);
   transform: rotate(1.5deg);
+  opacity: 0.95;
+}
+
+/* Floating copy of the dragged column header, portaled to <body> inside
+   .vf-drag-layer — same visual language as the List/Board row preview and
+   the tab strip's own drag preview. */
+.vf-table-th-preview {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: var(--vf-row-height);
+  padding: 0 12px;
+  background: var(--background-primary);
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  box-shadow: 0 10px 24px rgb(0 0 0 / 28%);
+  color: var(--text-normal);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transform: rotate(1deg);
   opacity: 0.95;
 }
 
@@ -2538,6 +2574,28 @@ button.vf-color-trigger.is-on {
   min-width: 0;
   width: auto;
   max-width: 100%;
+}
+
+button.vf-color-custom-apply {
+  flex: 0 0 auto;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-primary);
+  box-shadow: none;
+  color: var(--text-normal);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+}
+
+button.vf-color-custom-apply:hover:not(:disabled) {
+  background: var(--background-modifier-hover);
+}
+
+button.vf-color-custom-apply:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 /* ------------------------------------------------------------ Compact mode --

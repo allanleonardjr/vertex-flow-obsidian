@@ -631,6 +631,34 @@ describe("table-sort: clause", () => {
 			}),
 		);
 	});
+
+	it("round-trips layout:table table-sort:type,-progress byte-for-byte", () => {
+		const source = "layout:table table-sort:type,-progress";
+		const parsed = parseQuery(source, ctx);
+		expect(parsed.ok).toBe(true);
+		expect(parsed.definition.tableSort).toEqual([
+			{ field: "taskType", direction: "asc" },
+			{ field: "progress", direction: "desc" },
+		]);
+		expect(printQuery(parsed.definition, ctx)).toBe(
+			`layout:table group:none sort:rank ${source.split(" ")[1]}`,
+		);
+	});
+
+	it("resolves each new field's alias", () => {
+		expect(parseQuery("table-sort:kind", ctx).definition.tableSort).toEqual([
+			{ field: "taskType", direction: "asc" },
+		]);
+		expect(parseQuery("table-sort:owner", ctx).definition.tableSort).toEqual([
+			{ field: "assignee", direction: "asc" },
+		]);
+		expect(parseQuery("table-sort:tag", ctx).definition.tableSort).toEqual([
+			{ field: "labels", direction: "asc" },
+		]);
+		expect(parseQuery("table-sort:rel", ctx).definition.tableSort).toEqual([
+			{ field: "relations", direction: "asc" },
+		]);
+	});
 });
 
 /* --------------------------------------------------------- name resolution -- */

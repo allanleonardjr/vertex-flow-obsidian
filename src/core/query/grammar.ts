@@ -125,6 +125,12 @@ export const SORT_VALUES: Record<SortField, EnumValueSpec> = {
 	estimate: { token: "estimate", aliases: [] },
 	createdAt: { token: "created", aliases: ["createdat"] },
 	updatedAt: { token: "updated", aliases: ["updatedat"] },
+	taskType: { token: "type", aliases: ["tasktype", "kind"] },
+	project: { token: "project", aliases: [] },
+	assignee: { token: "assignee", aliases: ["owner"] },
+	labels: { token: "labels", aliases: ["label", "tag", "tags"] },
+	progress: { token: "progress", aliases: [] },
+	relations: { token: "relations", aliases: ["rel"] },
 };
 
 export const LAYOUT_VALUES: Record<ViewType, EnumValueSpec> = {

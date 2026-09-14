@@ -172,6 +172,15 @@ export function emptyRelations(): TaskRelations {
 	return { blocks: [], blockedBy: [], related: [], duplicateOf: null };
 }
 
+/**
+ * How many relations a task has, counted exactly the way `RelationBadge`
+ * renders it — `duplicateOf` included. Shared so the Relations column's
+ * badge and its sort can never disagree about what the number means.
+ */
+export function relationCount(task: Pick<Task, "relations">): number {
+	return Object.values(task.relations ?? {}).flat().filter(Boolean).length;
+}
+
 // ---------------------------------------------------------------------------
 // Recurring tasks
 // ---------------------------------------------------------------------------
@@ -598,7 +607,13 @@ export type SortField =
 	| "startDate"
 	| "estimate"
 	| "createdAt"
-	| "updatedAt";
+	| "updatedAt"
+	| "taskType"
+	| "project"
+	| "assignee"
+	| "labels"
+	| "progress"
+	| "relations";
 
 export type SortDirection = "asc" | "desc";
 

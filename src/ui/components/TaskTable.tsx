@@ -60,6 +60,8 @@ import {
 import { nextTableSort } from "../../core/views";
 import type { Mutations } from "../../obsidian/mutations";
 import { usePlugin } from "../context";
+import type { ColumnDragState } from "../views/useColumnDrag";
+import { PREVIEW_OFFSET_PX } from "../views/useTaskDrag";
 import {
 	DateField,
 	NumberField,
@@ -125,15 +127,21 @@ const MIN_WIDTH: Record<Column, number> = {
 /** No max-width cap is a deliberate Table hard non-goal — this floor is generous by design. */
 const NO_MAX_WIDTH = Number.MAX_SAFE_INTEGER;
 
-/** Which `SortField` a column maps to, or absent when the column isn't sortable. */
-const COLUMN_SORT_FIELD: Partial<Record<Column, SortField>> = {
+/** Which `SortField` a column sorts by. Every column is sortable. */
+const COLUMN_SORT_FIELD: Record<Column, SortField> = {
 	status: "status",
 	id: "id",
 	title: "title",
+	type: "taskType",
+	project: "project",
 	priority: "priority",
+	assignee: "assignee",
+	labels: "labels",
+	estimate: "estimate",
 	startDate: "startDate",
 	dueDate: "dueDate",
-	estimate: "estimate",
+	progress: "progress",
+	relations: "relations",
 };
 
 const COLUMN_LABEL: Record<Column, string> = {
@@ -174,6 +182,8 @@ export interface TableColumnReorder {
 	isDragging: (column: TaskField) => boolean;
 	/** A drag just ended — swallow the trailing click so the header doesn't also sort. */
 	consumeDragClick: () => boolean;
+	/** Live drag state, so a caller can float a preview of the column being moved. */
+	drag: ColumnDragState | null;
 }
 
 export interface TaskTableProps {
@@ -373,7 +383,27 @@ export function TaskTable({
 					</tbody>
 				</table>
 			</div>
+			{reorder?.drag && <ColumnDragPreview drag={reorder.drag} />}
 		</div>
+	);
+}
+
+/** The column header label that follows the pointer while a drag is live. */
+function ColumnDragPreview({ drag }: { drag: ColumnDragState }) {
+	return createPortal(
+		<div
+			className="vf-drag-layer"
+			style={{
+				transform: `translate(${drag.x + PREVIEW_OFFSET_PX}px, ${
+					drag.y + PREVIEW_OFFSET_PX
+				}px)`,
+				width: drag.width,
+			}}
+			aria-hidden
+		>
+			<div className="vf-table-th-preview">{COLUMN_LABEL[drag.column]}</div>
+		</div>,
+		document.body,
 	);
 }
 
@@ -406,16 +436,13 @@ function TableHeaderCell({
 		.filter(Boolean)
 		.join(" ");
 
+	// Decorative only — the whole header cell is the drag target (see the
+	// button's own `onPointerDown` below). This marks *which* columns move,
+	// which is the one thing a whole-cell gesture can't communicate on its own.
 	const handle = reorder && (
-		<button
-			type="button"
-			className="vf-table-th-handle"
-			aria-label={`Reorder ${label || column} column`}
-			title="Drag to reorder"
-			onPointerDown={(event) => reorder.onPointerDown(event, column as TaskField)}
-		>
-			<GripVertical size={12} />
-		</button>
+		<span className="vf-table-th-grip" aria-hidden>
+			<GripVertical size={6} />
+		</span>
 	);
 
 	const resizeHandle = (
@@ -432,21 +459,6 @@ function TableHeaderCell({
 		/>
 	);
 
-	if (!field) {
-		return (
-			<th
-				className={className}
-				data-column-key={reorder ? column : undefined}
-			>
-				<div className="vf-table-th-inner">
-					{handle}
-					{label && <span className="vf-table-th-label">{label}</span>}
-				</div>
-				{resizeHandle}
-			</th>
-		);
-	}
-
 	const index = tableSort.findIndex((key) => key.field === field);
 	const active = index !== -1;
 	const direction = active ? tableSort[index].direction : null;
@@ -460,6 +472,16 @@ function TableHeaderCell({
 					type="button"
 					className={`vf-table-th-btn${active ? " is-active" : ""}`}
 					aria-label={ariaLabel}
+					title={
+						reorder
+							? "Click to sort · drag to reorder"
+							: "Click to sort"
+					}
+					onPointerDown={
+						reorder
+							? (event) => reorder.onPointerDown(event, column as TaskField)
+							: undefined
+					}
 					onClick={(event) => {
 						if (reorder?.consumeDragClick()) return;
 						onClick(field, event);

@@ -343,6 +343,17 @@ export function TaskViewport({
     () => ({
       l: "list",
       b: "board",
+      // `s` for "Spreadsheet" — Table's own initial, `t`, is Timeline's.
+      // `g` ("Grid") was considered and rejected: `PrefixEngine` arms its
+      // own go-to chord on *any* bare `g` keypress, with no awareness of
+      // this component's `pendingV`. Both listeners bind on `window` and
+      // neither calls `stopImmediatePropagation`, so `v` `g` would switch
+      // to Table *and* silently arm the go-to chord for the next second —
+      // the following keystroke could get hijacked into a navigation
+      // shortcut. `s` isn't an arm-key for any of the app's chord engines
+      // (`g`/`c` here, `u` for field updates, `v` for this one), so it
+      // carries none of that risk.
+      s: "table",
       t: "timeline",
       c: "calendar",
       // `d` for "DAG" — the one topology Phase 1 Canvas supports. Not "draw":

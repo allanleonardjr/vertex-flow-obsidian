@@ -443,6 +443,12 @@ const SORT_FIELDS: readonly SortField[] = [
 	"estimate",
 	"createdAt",
 	"updatedAt",
+	"taskType",
+	"project",
+	"assignee",
+	"labels",
+	"progress",
+	"relations",
 ];
 
 /** The view/dashboard shorthand accepts the query language's friendlier

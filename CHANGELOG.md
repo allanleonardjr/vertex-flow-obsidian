@@ -7,6 +7,25 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Every Table column is now sortable, including Type, Project, Assignee,
+  Labels, Progress, and Relations.** These six join the existing Status,
+  Title, ID, Priority, Estimate, Start date, and Due date as full column
+  headers with click / shift-click / clear cycling. Type, Project,
+  Assignee, and Labels are also now selectable in the List/Board Sort
+  dropdown and the `sort:`/`table-sort:` query tokens (`sort:type`,
+  `sort:project`, `sort:owner`, `sort:tag`, and more — see the Saved Views
+  help page); Progress and Relations stay reachable through Table headers
+  and the query bar only, matching how they're presented everywhere else.
+  Relations' new sort counts the same way the Relations badge always has
+  (including "duplicate of"), so the two can't disagree.
+- **Dragging a Table column to reorder it now shows a floating preview of
+  the column's name following the pointer**, with the source header
+  dimmed — the same drag language already used for List/Board rows and
+  browser tabs.
+- **`v` `s` switches the current view to the Table layout**, alongside the
+  existing `v` `l`/`b`/`t`/`c`/`d` shortcuts. A new Table layout page in
+  the in-app Help pane documents columns, sorting, in-place editing, the
+  row stripe, and how it all saves with the view.
 - **New Table layout for Saved Views.** A spreadsheet-style grid — one row
   per task, one column per field — joins List/Board/Timeline/Calendar/Canvas
   as a selectable `viewType`. Columns are sortable by clicking a header
@@ -27,6 +46,23 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Picking a custom stripe, taxonomy, or label color via the color wheel or
+  a typed hex code now reliably commits.** The color picker's custom-color
+  row only ever committed from an outside-click listener; nested one level
+  deeper inside the Table view bar's Stripe popover, that listener never
+  fired, so only pressing Enter in the hex box actually saved a custom
+  stripe color — dragging the wheel or typing without Enter silently lost
+  it. The same latent fragility existed in the taxonomy and label color
+  editors, just harder to hit. A new **Apply** button next to the hex field
+  commits explicitly everywhere `ColorField` is used; presets still apply
+  immediately on click, unchanged.
+- **Sorting a Table column, clearing a filter, or editing a dashboard
+  widget's filter no longer flashes a `→ N tasks` line above the query bar
+  and shifts everything below it.** The count was (re)computed against the
+  view/filters prop directly, which can change one render before the query
+  bar's own text buffer catches up to it — comparing against the same
+  "last agreed" value the text-resync logic already tracks removes the
+  one-frame false mismatch that caused the flash.
 - **Editing a Table cell more than once no longer silently stops saving.**
   Re-entering the same Title/Estimate/Start date/Due date cell after a
   first commit used to keep the typed text in memory but never write it to
@@ -50,6 +86,17 @@ This project uses [Semantic Versioning](https://semver.org/).
   hover draws a thin border outline instead of a filled tint, and the
   inline inputs render on the table's own background with an
   accent-colored border rather than Obsidian's default form-field fill.
+- **Table's sticky header is now a solid, untinted pane, and it no longer
+  drifts from its columns while scrolling.** The header background used to
+  pick up the row stripe color and show body rows scrolling through it
+  underneath; it's now always opaque and stripe-free (striping stays a
+  body-rows-only effect). Scrolling the table sideways used to leave the
+  header's column borders visually behind for a moment — they now track
+  the header text and background in lockstep. Header labels are left-aligned
+  at rest instead of only once a column is actively sorted, body cell text
+  lines up at the same edge, and the reorder-column grip sits with a small,
+  consistent gap from both the column edge and the label instead of
+  crowding either one.
 
 ## 1.0.25 — 2026-09-13
 

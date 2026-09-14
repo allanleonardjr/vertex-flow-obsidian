@@ -160,6 +160,12 @@ const SORT_FIELDS: SortField[] = [
 	"estimate",
 	"createdAt",
 	"updatedAt",
+	"taskType",
+	"project",
+	"assignee",
+	"labels",
+	"progress",
+	"relations",
 ];
 const EMPTY_BEHAVIORS: EmptyColumnBehavior[] = [
 	"show-normal",
