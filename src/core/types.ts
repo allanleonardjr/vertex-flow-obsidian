@@ -593,6 +593,7 @@ export type SortField =
 	| "priority"
 	| "status"
 	| "title"
+	| "id"
 	| "dueDate"
 	| "startDate"
 	| "estimate"

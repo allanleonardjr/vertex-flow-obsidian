@@ -1170,6 +1170,7 @@ button.vf-nest-chevron {
 .vf-table-th-label {
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .vf-table-th-inner:not(:has(.vf-table-th-btn)) {
@@ -1192,6 +1193,9 @@ button.vf-nest-chevron {
   display: inline-flex;
   align-items: center;
   gap: 2px;
+  /* Pin the sort arrows to the header's right edge; the label gets the
+   * remaining space (and ellipsizes) via its own min-width: 0 above. */
+  margin-left: auto;
 }
 
 .vf-table-th-rank {
@@ -1261,6 +1265,18 @@ button.vf-nest-chevron {
   background: transparent;
 }
 
+/*
+ * Table-specific un-hover: the app-wide `button.vf-icon-select-trigger:hover`
+ * fill applies everywhere (rail pickers included), so it has to be overridden
+ * here, not deleted — a light border instead of a filled background.
+ * `box-shadow: inset ... 1px` rather than `border`, so nothing shifts the
+ * element's box (and its row neighbors) when the outline appears/disappears.
+ */
+.vf-table-td button.vf-icon-select-trigger:hover {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--vf-border);
+}
+
 .vf-table-td .vf-icon-select-caret {
   opacity: 0;
 }
@@ -1324,13 +1340,29 @@ button.vf-nest-chevron {
   text-overflow: ellipsis;
 }
 
+.vf-table-td button.vf-table-cell-edit-trigger:hover {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--vf-border);
+}
+
 .vf-table-cell-empty {
   color: var(--vf-muted);
 }
 
+/*
+ * Actively-editing input: Obsidian's global input styling (gray form-field
+ * fill + border) shows through `.vf-input`'s own sizing-only rule, so pin the
+ * table cell's inputs to the table's resting background with an accent border
+ * instead of the heavy default form-field look.
+ */
 .vf-table-td input.vf-input {
   width: 100%;
   height: 100%;
+  padding: 0 4px;
+  border: 1px solid var(--interactive-accent);
+  border-radius: 0;
+  background: var(--background-primary);
+  box-shadow: none;
 }
 
 .vf-table-relations-cell {

@@ -437,6 +437,7 @@ const SORT_FIELDS: readonly SortField[] = [
 	"priority",
 	"status",
 	"title",
+	"id",
 	"dueDate",
 	"startDate",
 	"estimate",

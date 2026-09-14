@@ -119,6 +119,7 @@ export const SORT_VALUES: Record<SortField, EnumValueSpec> = {
 	priority: { token: "priority", aliases: [] },
 	status: { token: "status", aliases: [] },
 	title: { token: "title", aliases: ["name"] },
+	id: { token: "id", aliases: [] },
 	dueDate: { token: "due", aliases: ["duedate"] },
 	startDate: { token: "start", aliases: ["startdate"] },
 	estimate: { token: "estimate", aliases: [] },

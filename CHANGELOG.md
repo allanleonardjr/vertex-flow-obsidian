@@ -25,6 +25,32 @@ This project uses [Semantic Versioning](https://semver.org/).
   itself is now interactive. Progress stays display-only, matching every
   other view.
 
+### Fixed
+
+- **Editing a Table cell more than once no longer silently stops saving.**
+  Re-entering the same Title/Estimate/Start date/Due date cell after a
+  first commit used to keep the typed text in memory but never write it to
+  disk again, and Enter stopped closing the field — the edit-session guard
+  in the cell editor only reset when the row mounted, so every commit after
+  the first became a permanent no-op. Each new edit session now starts
+  fresh: the saved value is re-seeded and the double-commit guard is
+  cleared, so repeated in-place edits all persist and Escape still reverts.
+
+### Changed
+
+- **Table headers show their column names with sort arrows pinned to the
+  right, and ID is now sortable.** The Status column previously rendered as
+  a bare sort glyph with no label; every sortable header now displays its
+  text with the direction indicator sitting against the column's right
+  edge, appearing once the column is sorted. The ID column joins the
+  sortable set with the same click / shift-click cycle as the others.
+- **Table cells keep a light touch on hover and while editing.** Opening a
+  Status/Priority/Type/Assignee/Project/Labels dropdown or starting a
+  Title/Estimate/date edit no longer fills the cell with a gray background —
+  hover draws a thin border outline instead of a filled tint, and the
+  inline inputs render on the table's own background with an
+  accent-colored border rather than Obsidian's default form-field fill.
+
 ## 1.0.25 — 2026-09-13
 
 ### Added

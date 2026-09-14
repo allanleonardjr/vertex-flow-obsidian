@@ -128,6 +128,7 @@ const NO_MAX_WIDTH = Number.MAX_SAFE_INTEGER;
 /** Which `SortField` a column maps to, or absent when the column isn't sortable. */
 const COLUMN_SORT_FIELD: Partial<Record<Column, SortField>> = {
 	status: "status",
+	id: "id",
 	title: "title",
 	priority: "priority",
 	startDate: "startDate",
@@ -136,7 +137,7 @@ const COLUMN_SORT_FIELD: Partial<Record<Column, SortField>> = {
 };
 
 const COLUMN_LABEL: Record<Column, string> = {
-	status: "",
+	status: "Status",
 	id: "ID",
 	title: "Title",
 	type: "Type",
@@ -565,8 +566,14 @@ function TaskTableRow({
  * `blur` fired while the input unmounts doesn't write anyway, and a
  * successful commit (blur or Enter) marks itself resolved too, so a trailing
  * blur after an Enter-commit can't double-write.
+ *
+ * The hook instance is mounted for the entire life of the row's cell (every
+ * `TableCell` render calls it, editing or not), so `resolvedRef`/`value`
+ * must reset at the start of each new edit session — otherwise the
+ * first-commit guard leaks forever and every later commit is a no-op.
  */
 function useCellEditor<T>(
+	editing: boolean,
 	initialValue: T,
 	commitValue: (value: T) => void,
 	onDone: () => void,
@@ -578,6 +585,13 @@ function useCellEditor<T>(
 } {
 	const [value, setValue] = useState(initialValue);
 	const resolvedRef = useRef(false);
+
+	useEffect(() => {
+		if (editing) {
+			resolvedRef.current = false;
+			setValue(initialValue);
+		}
+	}, [editing]);
 
 	const commitAndClose = () => {
 		if (resolvedRef.current) return;
@@ -631,6 +645,7 @@ function TableTitleCell({
 	onDoneEditing,
 }: { task: Task; mutations: Mutations } & CellEditProps) {
 	const editor = useCellEditor(
+		editing,
 		task.title,
 		(next) => void mutations.updateTask(task, { title: next.trim() }),
 		onDoneEditing,
@@ -685,6 +700,7 @@ function TableEstimateCell({
 	mutations: Mutations;
 } & CellEditProps) {
 	const editor = useCellEditor(
+		editing,
 		task.estimate,
 		(next) => void mutations.updateTask(task, { estimate: next }),
 		onDoneEditing,
@@ -738,6 +754,7 @@ function TableStartDateCell({
 	onDoneEditing,
 }: { task: Task; mutations: Mutations } & CellEditProps) {
 	const editor = useCellEditor(
+		editing,
 		task.startDate,
 		(next) => void mutations.updateTask(task, { startDate: next }),
 		onDoneEditing,
@@ -802,6 +819,7 @@ function TableDueDateCell({
 	mutations: Mutations;
 } & CellEditProps) {
 	const editor = useCellEditor(
+		editing,
 		task.dueDate,
 		(next) => void mutations.updateTask(task, { dueDate: next }),
 		onDoneEditing,

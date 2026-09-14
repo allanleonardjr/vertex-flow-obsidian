@@ -57,6 +57,9 @@ export function compareField(
 		case "title":
 			return { value: a.title.localeCompare(b.title), nullSkewed: false };
 
+		case "id":
+			return { value: a.id.localeCompare(b.id), nullSkewed: false };
+
 		case "estimate": {
 			const nullSkewed = a.estimate == null || b.estimate == null;
 			return {
