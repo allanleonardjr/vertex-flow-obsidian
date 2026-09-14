@@ -19,6 +19,7 @@ import type {
 	GroupByField,
 	SortField,
 	SubtaskDisplay,
+	TableSortKey,
 	TaskField,
 	ViewDefinition,
 	ViewFilters,
@@ -108,6 +109,7 @@ export function parseQuery(
 		...DEFAULT_DEFINITION.canvasHiddenRelationKinds,
 	];
 	let recurringPreview = DEFAULT_DEFINITION.recurringPreview;
+	const tableSort: TableSortKey[] = [...DEFAULT_DEFINITION.tableSort];
 
 	const seen = new Set<string>();
 
@@ -329,6 +331,31 @@ export function parseQuery(
 			continue;
 		}
 
+		/* -- table sort -- */
+
+		if (field === "table-sort") {
+			if (token.values.length === 0) {
+				fail("empty-value", `"table-sort" needs a value`, token.span);
+				continue;
+			}
+			noteDuplicate("table-sort", token.span);
+			for (const value of token.values) {
+				let raw = value.text.trim().toLowerCase();
+				let descending = false;
+				if (raw.startsWith("-")) {
+					descending = true;
+					raw = raw.slice(1);
+				}
+				const match = SORT_BY_TOKEN.get(raw);
+				if (!match) {
+					fail("unknown-value", `"${raw}" isn't a sort field`, value.span);
+				} else if (!tableSort.some((key) => key.field === match)) {
+					tableSort.push({ field: match, direction: descending ? "desc" : "asc" });
+				}
+			}
+			continue;
+		}
+
 		/* -- filters -- */
 
 		const filterKey = FILTER_FIELD_BY_TOKEN.get(field);
@@ -382,6 +409,7 @@ export function parseQuery(
 		canvasDirection,
 		canvasHiddenRelationKinds,
 		recurringPreview,
+		tableSort,
 	});
 
 	return {

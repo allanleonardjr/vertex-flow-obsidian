@@ -15,6 +15,7 @@ import { NONE, type CanvasArrangement, type CanvasDirection, type CanvasRelation
 /** The default curated icon for a view of each layout. */
 export function layoutIcon(viewType: ViewType): string {
 	if (viewType === "board") return "columns-3";
+	if (viewType === "table") return "table";
 	if (viewType === "timeline") return "chart-gantt";
 	if (viewType === "calendar") return "calendar";
 	if (viewType === "canvas") return "workflow";
@@ -48,6 +49,7 @@ export const DEFAULT_DEFINITION: ViewDefinition & {
 	canvasDirection: "right",
 	canvasHiddenRelationKinds: [],
 	recurringPreview: false,
+	tableSort: [],
 };
 
 function view(partial: Partial<SavedView> & Pick<SavedView, "id" | "name">): SavedView {

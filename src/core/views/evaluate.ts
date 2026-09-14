@@ -16,7 +16,7 @@ import { projectRecurrences } from "../recurrence/project";
 import { snapshotContext, type ViewContext } from "./context";
 import { applyFilters } from "./filter";
 import { groupTasksForView } from "./group";
-import { sortTasks } from "./sort";
+import { sortTasks, sortTasksMulti } from "./sort";
 
 export interface EvaluatedView {
 	view: SavedView;
@@ -60,7 +60,10 @@ export function evaluateView(
 			? projectRecurrences(snapshot, visible, today)
 			: [];
 	const merged = projected.length > 0 ? [...visible, ...projected] : visible;
-	const sorted = sortTasks(merged, view.sortBy, view.sortDirection, context);
+	const sorted =
+		view.viewType === "table" && view.tableSort.length > 0
+			? sortTasksMulti(merged, view.tableSort, context)
+			: sortTasks(merged, view.sortBy, view.sortDirection, context);
 
 	return {
 		view,

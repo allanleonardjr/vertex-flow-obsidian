@@ -21,6 +21,7 @@ import {
   type ViewType,
 } from "../../core/types";
 import { layoutIcon } from "../../core/views";
+import { ColorField } from "../components/ColorField";
 import { Icon } from "../components/Icon";
 import { Popover } from "../components/Popover";
 import { RELATION_KIND_LABELS } from "./CanvasView";
@@ -46,6 +47,7 @@ export function LayoutToggle({
   const layouts: { value: ViewType; label: string }[] = [
     { value: "list", label: "List" },
     { value: "board", label: "Board" },
+    { value: "table", label: "Table" },
     { value: "timeline", label: "Timeline" },
     { value: "calendar", label: "Calendar" },
     { value: "canvas", label: "Canvas" },
@@ -584,6 +586,81 @@ export function SortChip({
       >
         {view.sortDirection === "asc" ? "↑" : "↓"}
       </button>
+    </span>
+  );
+}
+
+const DEFAULT_STRIPE_SWATCH = "#3b82f6";
+
+/**
+ * Table-only: row/header stripe color. Furniture (Phase 1 decision) — writes
+ * straight through via `draft.setTableStripe`, never through `editView`, so
+ * picking a color never puts the view bar into its "unsaved" state.
+ */
+export function StripeChip({
+  view,
+  onChange,
+  openId,
+  onOpenChange,
+}: {
+  view: SavedView;
+  onChange: (tableStripe: string | undefined) => void;
+  openId: BarControlId | FilterKey | null;
+  onOpenChange: (id: BarControlId | FilterKey | null) => void;
+}) {
+  const open = openId === "stripe";
+  const stripe = view.tableStripe;
+
+  return (
+    <span className="vf-control-anchor">
+      <button
+        type="button"
+        className={`vf-bar-item${open ? " is-on" : ""}`}
+        onClick={(event) => {
+          event.stopPropagation();
+          onOpenChange(open ? null : "stripe");
+        }}
+      >
+        <span className="vf-bar-label">Stripe</span>
+        <span className="vf-bar-value">
+          {stripe ? (
+            <span
+              className="vf-color-trigger-swatch"
+              aria-hidden
+              style={{ backgroundColor: stripe }}
+            />
+          ) : (
+            "None"
+          )}
+        </span>
+        <span className="vf-bar-caret" aria-hidden>
+          ⌄
+        </span>
+      </button>
+      {open && (
+        <Popover align="left" onClose={() => onOpenChange(null)}>
+          <div className="vf-field-list">
+            <button
+              type="button"
+              className={`vf-field-row${!stripe ? " is-on" : ""}`}
+              aria-pressed={!stripe}
+              onClick={() => {
+                onChange(undefined);
+                onOpenChange(null);
+              }}
+            >
+              <span className="vf-field-label">None</span>
+            </button>
+          </div>
+          <ColorField
+            value={stripe ?? DEFAULT_STRIPE_SWATCH}
+            onChange={(color) => {
+              onChange(color);
+              onOpenChange(null);
+            }}
+          />
+        </Popover>
+      )}
     </span>
   );
 }

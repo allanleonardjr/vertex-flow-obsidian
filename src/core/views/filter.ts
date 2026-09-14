@@ -18,7 +18,9 @@ import {
 	type CanvasRelationKind,
 	type LinkTarget,
 	type SavedView,
+	type SortField,
 	type Task,
+	type TableSortKey,
 	type TaskField,
 	type ViewDefinition,
 	type ViewFilters,
@@ -256,6 +258,25 @@ export function canonicalizeHiddenFields(
 	return TASK_FIELDS.filter((field) => set.has(field));
 }
 
+/**
+ * One table-sort set, one representation: deduped by field, first occurrence
+ * wins. Unlike `canonicalizeHiddenFields`, order is meaningful (index 0 is the
+ * primary key) so it's preserved in encounter order rather than sorted into
+ * `TASK_FIELDS`/`SortField` canonical order.
+ */
+export function canonicalizeTableSort(
+	sorts: readonly TableSortKey[] | undefined,
+): TableSortKey[] {
+	const seen = new Set<SortField>();
+	const out: TableSortKey[] = [];
+	for (const key of sorts ?? []) {
+		if (seen.has(key.field)) continue;
+		seen.add(key.field);
+		out.push(key);
+	}
+	return out;
+}
+
 export function canonicalizeHiddenRelationKinds(
 	kinds: readonly CanvasRelationKind[] | undefined,
 ): CanvasRelationKind[] {
@@ -301,6 +322,7 @@ export function viewDefinition(view: SavedView): ViewDefinition {
 		canvasDirection: view.canvasDirection,
 		canvasHiddenRelationKinds: view.canvasHiddenRelationKinds,
 		recurringPreview: view.recurringPreview,
+		tableSort: view.tableSort,
 	};
 }
 
@@ -331,6 +353,7 @@ export function canonicalizeDefinition(
 			definition.canvasHiddenRelationKinds,
 		),
 		recurringPreview: definition.recurringPreview,
+		tableSort: canonicalizeTableSort(definition.tableSort),
 	};
 }
 

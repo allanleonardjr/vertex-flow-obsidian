@@ -54,6 +54,7 @@ import { BoardView } from "./BoardView";
 import { CalendarView } from "./CalendarView";
 import { CanvasView } from "./CanvasView";
 import { ListView } from "./ListView";
+import { TableView } from "./TableView";
 import { TimelineView } from "./TimelineView";
 import { ViewControls } from "./ViewControls";
 import { useViewDraft } from "./useViewDraft";
@@ -699,6 +700,19 @@ export function TaskViewport({
           evaluated={evaluated}
           taxonomies={taxonomies}
           onColumnsChange={draft.setColumns}
+        />
+      ) : effective.viewType === "table" ? (
+        <TableView
+          snapshot={snapshot}
+          view={effective}
+          evaluated={evaluated}
+          taxonomies={taxonomies}
+          onColumnsChange={draft.setColumns}
+          onChange={draft.edit}
+          onColumnOrderChange={draft.setColumnOrder}
+          onColumnWidthsChange={draft.setColumnWidths}
+          onNewTask={newTask}
+          onClearFilters={clearFilters}
         />
       ) : (
         <ListView

@@ -17,8 +17,10 @@ import {
 	isEmptyFilterSet,
 	isSystemViewId,
 	matchesFilters,
+	nextTableSort,
 	snapshotContext,
 	sortTasks,
+	sortTasksMulti,
 	setColumnsCollapsed,
 	toggleColumnCollapsed,
 	toggleColumnHidden,
@@ -420,6 +422,113 @@ describe("sorting", () => {
 		const copy = [...snapshot.tasks];
 		sortTasks(snapshot.tasks, "title", "desc", context);
 		expect(snapshot.tasks).toEqual(copy);
+	});
+});
+
+describe("sortTasksMulti (Table)", () => {
+	it("breaks a tied primary key with the secondary key", () => {
+		const tasks = [
+			task({ path: "a", priority: "high", dueDate: "2026-01-02" }),
+			task({ path: "b", priority: "high", dueDate: "2026-01-01" }),
+			task({ path: "c", priority: "low", dueDate: "2026-01-01" }),
+		];
+		const sorted = sortTasksMulti(
+			tasks,
+			[
+				{ field: "priority", direction: "asc" },
+				{ field: "dueDate", direction: "asc" },
+			],
+			context,
+		);
+		expect(sorted.map((t) => t.path)).toEqual(["b", "a", "c"]);
+	});
+
+	it("falls back to rank when every key is fully tied", () => {
+		const tasks = [
+			task({ path: "b", priority: "high", rank: "0|i00002:" }),
+			task({ path: "a", priority: "high", rank: "0|i00001:" }),
+		];
+		const sorted = sortTasksMulti(
+			tasks,
+			[{ field: "priority", direction: "asc" }],
+			context,
+		);
+		expect(sorted.map((t) => t.path)).toEqual(["a", "b"]);
+	});
+
+	it("applies direction per key independently", () => {
+		const tasks = [
+			task({ path: "a", priority: "high", dueDate: "2026-01-02" }),
+			task({ path: "b", priority: "high", dueDate: "2026-01-01" }),
+			task({ path: "c", priority: "low", dueDate: "2026-01-03" }),
+		];
+		const sorted = sortTasksMulti(
+			tasks,
+			[
+				{ field: "priority", direction: "asc" },
+				{ field: "dueDate", direction: "desc" },
+			],
+			context,
+		);
+		expect(sorted.map((t) => t.path)).toEqual(["a", "b", "c"]);
+	});
+});
+
+describe("nextTableSort (Table column header click cycle)", () => {
+	it("plain click on a fresh column sets it as the sole ascending key", () => {
+		expect(nextTableSort([], "priority", false)).toEqual([
+			{ field: "priority", direction: "asc" },
+		]);
+	});
+
+	it("plain click replaces the whole sort, not just adds", () => {
+		expect(
+			nextTableSort(
+				[
+					{ field: "status", direction: "asc" },
+					{ field: "priority", direction: "asc" },
+				],
+				"dueDate",
+				false,
+			),
+		).toEqual([{ field: "dueDate", direction: "asc" }]);
+	});
+
+	it("plain click on the sole active ascending key flips it to descending", () => {
+		expect(
+			nextTableSort([{ field: "priority", direction: "asc" }], "priority", false),
+		).toEqual([{ field: "priority", direction: "desc" }]);
+	});
+
+	it("a third plain click on the sole active key clears the sort", () => {
+		expect(
+			nextTableSort([{ field: "priority", direction: "desc" }], "priority", false),
+		).toEqual([]);
+	});
+
+	it("shift-click appends a new key to the end without disturbing the rest", () => {
+		expect(
+			nextTableSort([{ field: "status", direction: "asc" }], "priority", true),
+		).toEqual([
+			{ field: "status", direction: "asc" },
+			{ field: "priority", direction: "asc" },
+		]);
+	});
+
+	it("shift-click on an existing key flips its direction in place", () => {
+		expect(
+			nextTableSort(
+				[
+					{ field: "status", direction: "asc" },
+					{ field: "priority", direction: "asc" },
+				],
+				"priority",
+				true,
+			),
+		).toEqual([
+			{ field: "status", direction: "asc" },
+			{ field: "priority", direction: "desc" },
+		]);
 	});
 });
 

@@ -16,6 +16,7 @@ describe("projectView", () => {
 				subtaskDisplay: "nested",
 				calendarDateField: "dueDate",
 				recurringPreview: false,
+				tableSort: [],
 				canvasArrangement: "tree",
 				canvasDirection: "down",
 				canvasHiddenRelationKinds: ["related"],

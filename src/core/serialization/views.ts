@@ -34,6 +34,7 @@ import {
 	type SavedView,
 	type SortField,
 	type SubtaskDisplay,
+	type TaskField,
 	type ViewCalendarState,
 	type ViewDefinition,
 	type ViewFilters,
@@ -55,6 +56,7 @@ import {
 const VIEW_TYPES: ViewType[] = [
 	"list",
 	"board",
+	"table",
 	"timeline",
 	"calendar",
 	"canvas",
@@ -115,6 +117,28 @@ function parseCalendar(raw: unknown): ViewCalendarState | undefined {
 	const visibleMonth = asDate(record.visibleMonth);
 	if (visibleMonth == null) return undefined;
 	return { visibleMonth };
+}
+
+/**
+ * Table-only column order. Unknown fields (e.g. a field renamed since this was
+ * written) are silently dropped, not an error — same convention as
+ * `pickAll`. Absent/empty → `undefined`, never a bare `[]`.
+ */
+function parseColumnOrder(raw: unknown, log: IssueLog): TaskField[] | undefined {
+	const fields = pickAll(raw, TASK_FIELDS, log, "columnOrder");
+	return fields.length > 0 ? fields : undefined;
+}
+
+/** Table-only per-column pixel widths. Non-positive/non-numeric entries are dropped. */
+function parseColumnWidths(raw: unknown): Record<string, number> | undefined {
+	if (raw == null) return undefined;
+	const record = asRecord(raw);
+	const out: Record<string, number> = {};
+	for (const [key, value] of Object.entries(record)) {
+		const width = asNumber(value);
+		if (width != null && width > 0) out[key] = width;
+	}
+	return Object.keys(out).length > 0 ? out : undefined;
 }
 const GROUP_FIELDS: GroupByField[] = [
 	"none",
@@ -284,8 +308,12 @@ function parseViewValue(
 		canvasHiddenRelationKinds:
 			parseCanvasHiddenRelationKinds(record.canvasHiddenRelationKinds) ??
 			def.canvasHiddenRelationKinds,
+		tableSort: def.tableSort,
 		timeline: parseTimeline(record.timeline),
 		calendar: parseCalendar(record.calendar),
+		columnOrder: parseColumnOrder(record.columnOrder, log),
+		columnWidths: parseColumnWidths(record.columnWidths),
+		tableStripe: asString(record.tableStripe) ?? undefined,
 	};
 }
 
@@ -357,6 +385,7 @@ function parseLegacyViewValue(
 				"calendarDateField",
 			),
 			recurringPreview: asBoolean(record.recurringPreview, false),
+			tableSort: [],
 			canvasDirection: parseCanvasDirection(record.canvasDirection),
 			canvasHiddenRelationKinds: parseCanvasHiddenRelationKinds(
 				record.canvasHiddenRelationKinds,
@@ -518,6 +547,12 @@ export function serializeView(
 		calendar: view.calendar?.visibleMonth
 			? { visibleMonth: view.calendar.visibleMonth }
 			: undefined,
+		columnOrder: view.columnOrder?.length ? view.columnOrder : undefined,
+		columnWidths:
+			view.columnWidths && Object.keys(view.columnWidths).length > 0
+				? view.columnWidths
+				: undefined,
+		tableStripe: view.tableStripe,
 	});
 }
 

@@ -129,6 +129,7 @@ export const SORT_VALUES: Record<SortField, EnumValueSpec> = {
 export const LAYOUT_VALUES: Record<ViewType, EnumValueSpec> = {
 	list: { token: "list", aliases: [] },
 	board: { token: "board", aliases: ["kanban"] },
+	table: { token: "table", aliases: [] },
 	timeline: { token: "timeline", aliases: ["gantt"] },
 	calendar: { token: "calendar", aliases: ["cal"] },
 	canvas: { token: "canvas", aliases: [] },
@@ -337,6 +338,7 @@ export const LAYOUT_ONLY_CLAUSES: ReadonlySet<string> = new Set([
 	"layout",
 	"group",
 	"sort",
+	"table-sort",
 	"hide",
 	"date",
 	"subtasks",
@@ -351,6 +353,7 @@ export const ALL_FIELD_TOKENS: readonly string[] = [
 	...FILTER_FIELD_BY_TOKEN.keys(),
 	"group",
 	"sort",
+	"table-sort",
 	"layout",
 	"empty",
 	"hide",

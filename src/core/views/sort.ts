@@ -9,7 +9,7 @@
 
 import { compareTasksByRank } from "../ranking";
 import { getValue } from "../taxonomy/engine";
-import type { SortDirection, SortField, Task } from "../types";
+import type { SortDirection, SortField, TableSortKey, Task } from "../types";
 import type { ViewContext } from "./context";
 
 /** Ordered-taxonomy position, or `Infinity` for unset/unknown values. */
@@ -37,7 +37,7 @@ function compareNullable<T>(
 }
 
 /** Signed comparison for a field, before direction is applied. */
-function compareField(
+export function compareField(
 	a: Task,
 	b: Task,
 	field: SortField,
@@ -98,6 +98,66 @@ export function sortTasks(
 			if (value !== 0) return nullSkewed ? value : value * flip;
 			// Rank is the tiebreak for every other sort: two tasks with the same
 			// due date still land in the order the user arranged them in.
+			const byRank = compareTasksByRank(a.task, b.task);
+			if (byRank !== 0) return byRank;
+			return a.index - b.index;
+		})
+		.map((entry) => entry.task);
+}
+
+/**
+ * The click-cycle state transition for a Table column header.
+ *
+ * Plain click: replaces `tableSort` entirely with `[{field, asc}]` — unless
+ * `field` is already the *sole* active key, in which case it cycles
+ * asc → desc → cleared (third click returns to `[]`, i.e. rank order).
+ *
+ * Shift-click: leaves every other key alone. Appends `{field, asc}` to the end
+ * if `field` isn't already a key; flips that key's direction in place if it is.
+ */
+export function nextTableSort(
+	current: readonly TableSortKey[],
+	field: SortField,
+	shiftKey: boolean,
+): TableSortKey[] {
+	if (shiftKey) {
+		const index = current.findIndex((key) => key.field === field);
+		if (index === -1) return [...current, { field, direction: "asc" }];
+		return current.map((key, i) =>
+			i === index
+				? { field, direction: key.direction === "asc" ? "desc" : "asc" }
+				: key,
+		);
+	}
+
+	const sole = current.length === 1 && current[0].field === field;
+	if (sole) {
+		return current[0].direction === "asc"
+			? [{ field, direction: "desc" }]
+			: [];
+	}
+	return [{ field, direction: "asc" }];
+}
+
+/**
+ * Table-only multi-column sort. Each key in turn, first non-zero result wins;
+ * rank breaks a total tie — same null-handling and tiebreak convention as
+ * `sortTasks`.
+ */
+export function sortTasksMulti(
+	tasks: Task[],
+	sorts: TableSortKey[],
+	context: ViewContext,
+): Task[] {
+	const flips = sorts.map((s) => (s.direction === "desc" ? -1 : 1));
+
+	return tasks
+		.map((task, index) => ({ task, index }))
+		.sort((a, b) => {
+			for (let i = 0; i < sorts.length; i++) {
+				const { value, nullSkewed } = compareField(a.task, b.task, sorts[i].field, context);
+				if (value !== 0) return nullSkewed ? value : value * flips[i];
+			}
 			const byRank = compareTasksByRank(a.task, b.task);
 			if (byRank !== 0) return byRank;
 			return a.index - b.index;

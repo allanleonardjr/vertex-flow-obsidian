@@ -5,6 +5,26 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Added
+
+- **New Table layout for Saved Views.** A spreadsheet-style grid — one row
+  per task, one column per field — joins List/Board/Timeline/Calendar/Canvas
+  as a selectable `viewType`. Columns are sortable by clicking a header
+  (shift-click adds a secondary/tertiary sort key; a third click on the sole
+  active key clears it back to manual rank order), drag-to-reorder via a
+  grip handle, and resize via a trailing drag handle with no max-width cap.
+  Rows can carry an optional stripe color, set from the view bar's new
+  Stripe chip. Every field cell is directly editable in place: Title,
+  Estimate, Start date, and Due date swap to an inline input on click
+  (commits on blur/Enter, Escape reverts with no write); Status, Priority,
+  Type, Assignee, Project, and Labels open the exact same dropdown the task
+  editor's rail uses for that field; Relations keeps its read-only badge and
+  gains a "+" to add a Blocks/Blocked-by/Related link through the same
+  cycle-guarded flow the task editor offers. A dedicated open-task button
+  (revealed on row hover) replaces click-anywhere-to-open, since the row
+  itself is now interactive. Progress stays display-only, matching every
+  other view.
+
 ## 1.0.25 — 2026-09-13
 
 ### Added

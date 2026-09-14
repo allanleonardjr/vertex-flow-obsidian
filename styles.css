@@ -1045,6 +1045,341 @@ button.vf-nest-chevron {
   margin-bottom: 10px;
 }
 
+/* ----------------------------------------------------------------- Table -- */
+
+/*
+ * Two single-axis scroll containers, not one two-axis `.vf-table-wrap` — a
+ * shared `overflow: auto` on both axes makes Chromium/Electron fall back
+ * from an auto-hiding overlay scrollbar to a classic reserved-space one (it
+ * can't cleanly render the corner where both bars would meet).
+ *
+ * The outer container (`.vf-table-wrap`) owns vertical scroll and is the
+ * `position: sticky` reference for the header track. The inner container
+ * (`.vf-table-scroll-x`) owns horizontal scroll for the body only —
+ * `position: sticky` can't cross an `overflow-x: auto` ancestor to reach a
+ * further-out scrolling container, so the header lives in its own
+ * non-scrolling, clipped track (`.vf-table-header-track`) instead, and its
+ * horizontal position is synced to the body's `scrollLeft` by hand (see
+ * `TaskTable.tsx`'s scroll listener) rather than by native scrolling.
+ */
+.vf-table-wrap {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 40px;
+}
+
+.vf-table-header-track {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  flex: none;
+  overflow: hidden;
+}
+
+.vf-table-scroll-x {
+  flex: none;
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.vf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-ui-smaller);
+}
+
+.vf-table-header-row {
+  background: var(--background-secondary);
+}
+
+.vf-table-th {
+  position: relative;
+  padding: 0;
+  border-bottom: 1px solid var(--vf-border);
+  border-right: 1px solid var(--vf-border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.vf-table-th:last-child {
+  border-right: none;
+}
+
+.vf-table-th-inner {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.vf-table-th.is-dragging {
+  opacity: 0.4;
+}
+
+.vf-table-wrap.has-stripe .vf-table-header-row {
+  background: color-mix(in srgb, var(--vf-table-stripe) 20%, var(--background-primary));
+}
+
+.vf-table-th button.vf-table-th-handle {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--vf-muted);
+  cursor: grab;
+  touch-action: none;
+}
+
+.vf-table-th button.vf-table-th-handle:hover {
+  color: var(--text-normal);
+}
+
+.vf-table-th button.vf-table-th-btn {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  height: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-normal);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.vf-table-th button.vf-table-th-btn:hover {
+  background: var(--background-modifier-hover);
+}
+
+.vf-table-th button.vf-table-th-btn.is-active {
+  color: var(--interactive-accent);
+}
+
+.vf-table-th-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vf-table-th-inner:not(:has(.vf-table-th-btn)) {
+  flex: 1;
+  height: 100%;
+  padding: 8px 12px;
+  color: var(--text-normal);
+  font-weight: 600;
+}
+
+.vf-table-th-resize {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 6px;
+  height: 100%;
+}
+
+.vf-table-th-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.vf-table-th-rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.vf-table-row {
+  border-bottom: 1px solid var(--vf-border);
+  cursor: default;
+  user-select: none;
+}
+
+.vf-table-row:hover {
+  background: var(--background-modifier-hover);
+}
+
+.vf-table-row.is-focused {
+  outline: 1px solid var(--interactive-accent);
+  outline-offset: -2px;
+}
+
+.vf-table-row.is-selected {
+  background: var(--text-selection);
+}
+
+.vf-table-row.is-archived {
+  opacity: 0.55;
+}
+
+.vf-table-wrap.has-stripe .vf-table-row:nth-child(odd) {
+  background: color-mix(in srgb, var(--vf-table-stripe) 8%, transparent);
+}
+
+.vf-table-td {
+  height: var(--vf-row-height);
+  padding: 0 12px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.vf-table-td > .vf-icon-select,
+.vf-table-td > .vf-label-editor,
+.vf-table-td > .vf-table-cell-edit-trigger,
+.vf-table-td > .vf-table-relations-cell {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.vf-table-td button.vf-icon-select-trigger {
+  height: 100%;
+  min-height: 0;
+  padding: 0 4px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+.vf-table-td .vf-icon-select-caret {
+  opacity: 0;
+}
+
+.vf-table-row:hover .vf-table-td .vf-icon-select-caret,
+.vf-table-td button.vf-icon-select-trigger:focus-visible .vf-icon-select-caret,
+.vf-table-td button.vf-icon-select-trigger[aria-expanded="true"] .vf-icon-select-caret {
+  opacity: 1;
+}
+
+.vf-table-td-status {
+  width: 1%;
+}
+
+.vf-table-td-id {
+  width: 1%;
+}
+
+.vf-table-td-open {
+  width: 1%;
+  padding: 0 4px;
+}
+
+.vf-table-open-btn {
+  opacity: 0;
+}
+
+.vf-table-row:hover .vf-table-open-btn,
+.vf-table-open-btn:focus-visible {
+  opacity: 1;
+}
+
+.vf-table-cell-text {
+  color: var(--vf-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.vf-table-cell-text.is-today {
+  color: var(--text-warning, orange);
+}
+
+.vf-table-cell-text.is-overdue {
+  color: var(--text-error, red);
+}
+
+.vf-table-td button.vf-table-cell-edit-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  height: 100%;
+  padding: 0 4px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: text;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.vf-table-cell-empty {
+  color: var(--vf-muted);
+}
+
+.vf-table-td input.vf-input {
+  width: 100%;
+  height: 100%;
+}
+
+.vf-table-relations-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.vf-table-relations-add {
+  opacity: 0;
+}
+
+.vf-table-row:hover .vf-table-relations-add,
+.vf-table-relations-add:focus-visible {
+  opacity: 1;
+}
+
+.vf-table-relations-menu {
+  position: fixed;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 200px;
+  padding: 4px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-primary);
+  box-shadow: var(--shadow-l, 0 4px 16px rgb(0 0 0 / 20%));
+}
+
+.vf-table-group-row td {
+  padding: 8px 12px;
+  background: var(--background-secondary-alt, var(--background-secondary));
+  font-weight: 600;
+}
+
+.vf-table-group-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vf-table-empty-row td {
+  padding: 16px 12px;
+  color: var(--vf-muted);
+  text-align: center;
+}
+
 /* --- Drag preview ------------------------------------------------------- */
 
 .vf-drag-layer {

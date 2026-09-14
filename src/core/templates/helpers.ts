@@ -126,6 +126,7 @@ export function makeView(
 		subtaskDisplay: partial.subtaskDisplay ?? "flat",
 		calendarDateField: "dueDate",
 		recurringPreview: false,
+		tableSort: [],
 	};
 }
 
