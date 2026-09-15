@@ -60,7 +60,7 @@ import {
 import { nextTableSort } from "../../core/views";
 import type { Mutations } from "../../obsidian/mutations";
 import { usePlugin } from "../context";
-import type { ColumnDragState } from "../views/useColumnDrag";
+import { reorderColumns, type ColumnDragState } from "../views/useColumnDrag";
 import {
 	DateField,
 	NumberField,
@@ -237,10 +237,15 @@ export function TaskTable({
 	const plugin = usePlugin();
 	const mutations = plugin.mutations;
 
-	const columns: Column[] = [
-		...MANDATORY_COLUMNS,
-		...orderedTaskFields(hiddenFields, columnOrder),
-	];
+	const fieldColumns = orderedTaskFields(hiddenFields, columnOrder);
+	// While a drag is live, preview the other columns shuffling into the
+	// gap — using the exact same `reorderColumns` the hook itself commits
+	// on drop (Phase 3c), so this can never settle into an order different
+	// from what actually gets saved.
+	const liveFieldColumns = reorder?.drag
+		? reorderColumns(fieldColumns, reorder.drag.column, reorder.drag.targetIndex)
+		: fieldColumns;
+	const columns: Column[] = [...MANDATORY_COLUMNS, ...liveFieldColumns];
 	const scope = scopeOf(snapshot);
 
 	// Local width overrides during a live drag, so resizing feels immediate
@@ -438,12 +443,12 @@ function ColumnDragPreview({
 	const [header, setHeader] = useState<{ top: number; height: number } | null>(
 		null,
 	);
-	const [left, setLeft] = useState(0);
-
-	// Measure once, at mount (i.e. once per drag) — see the "measured once"
-	// note above. Re-running this on every pointer move would re-query the
-	// DOM for every visible row on every frame for no visible benefit, since
-	// only the wrapper's `transform` needs to change as the pointer moves.
+	// Measure vertical positions once, at mount (i.e. once per drag) — see
+	// the "measured once" note above. Re-running this on every pointer move
+	// would re-query the DOM for every visible row on every frame, and
+	// vertical positions don't change just because columns reorder
+	// horizontally. `left`, below, is the one measurement that's genuinely
+	// live — see its own comment for why.
 	useEffect(() => {
 		const visibleTasks = groups.flatMap((g) => (g.collapsed ? [] : g.tasks));
 		const found = visibleTasks.flatMap((task) => {
@@ -470,21 +475,24 @@ function ColumnDragPreview({
 		setHeader(
 			headerRect ? { top: headerRect.top, height: headerRect.height } : null,
 		);
-
-		// The column's on-screen left edge, computed from state (column
-		// order + each column's width) rather than a DOM query — the one
-		// thing here that genuinely doesn't need measuring. 32 matches the
-		// open-button column's own fixed `<col style={{ width: 32 }} />`.
-		const scrollRect = scrollXRef.current?.getBoundingClientRect();
-		const scrollLeft = scrollXRef.current?.scrollLeft ?? 0;
-		let x = (scrollRect?.left ?? 0) - scrollLeft + 32;
-		for (const c of columns) {
-			if (c === drag.column) break;
-			x += widthFor(c);
-		}
-		setLeft(x);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
+
+	// Recomputed on every render, not measured once like the vertical
+	// positions above. Once Phase 3e's live shuffle is in place, `columns`'s
+	// order itself changes as the drag crosses each column boundary — if
+	// this were frozen at mount, the preview would stay at its *starting*
+	// slot while the real gap opened up elsewhere, drifting out of sync with
+	// the very columns it's supposed to be sliding over. It's cheap either
+	// way: one rect read plus a sum over already-known widths, not a
+	// per-row DOM query.
+	const scrollRect = scrollXRef.current?.getBoundingClientRect();
+	const scrollLeft = scrollXRef.current?.scrollLeft ?? 0;
+	let left = (scrollRect?.left ?? 0) - scrollLeft + 32;
+	for (const c of columns) {
+		if (c === drag.column) break;
+		left += widthFor(c);
+	}
 
 	if (rows.length === 0) return null;
 

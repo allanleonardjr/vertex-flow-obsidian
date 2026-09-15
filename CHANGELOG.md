@@ -18,10 +18,12 @@ This project uses [Semantic Versioning](https://semver.org/).
   and the query bar only, matching how they're presented everywhere else.
   Relations' new sort counts the same way the Relations badge always has
   (including "duplicate of"), so the two can't disagree.
-- **Dragging a Table column to reorder it now shows a live preview of that
-  column — its header label on top, then its actual cells (the real chips,
-  avatars, and status dots, not placeholder text) below — sliding sideways
-  with the pointer.** The preview stays pinned to the column's real
+- **Dragging a Table column to reorder it now shuffles the other columns
+  out of the way in real time, not just at drop, alongside a live preview
+  of the dragged column itself.** The preview shows that column's header
+  label on top, then its actual cells (the real chips, avatars, and status
+  dots, not placeholder text) below, sliding sideways with the pointer and
+  tracking the live gap as it opens. It stays pinned to the column's real
   vertical position rather than following the cursor's Y, closer to how a
   spreadsheet handles a column drag than the "lifted card" language
   List/Board rows and browser tabs use elsewhere. The source column (header

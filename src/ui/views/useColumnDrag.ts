@@ -44,6 +44,24 @@ export interface ColumnDragApi {
 	consumeDragClick: () => boolean;
 }
 
+/**
+ * Reinserts `column` into `order` at `targetIndex`, among the columns that
+ * aren't it. The one true implementation of "what does the order look like
+ * with this column at this index" — used both to preview the other columns
+ * shuffling live during a drag (`TaskTable.tsx`) and to compute the order
+ * actually committed when the drag ends, just below. Keeping both on this
+ * one function means the live preview can never settle into an order
+ * different from the one that gets saved.
+ */
+export function reorderColumns(
+	order: readonly TaskField[],
+	column: TaskField,
+	targetIndex: number,
+): TaskField[] {
+	const rest = order.filter((c) => c !== column);
+	return [...rest.slice(0, targetIndex), column, ...rest.slice(targetIndex)];
+}
+
 export function useColumnDrag(
 	order: readonly TaskField[],
 	onDrop: (nextOrder: TaskField[]) => void,
@@ -172,13 +190,7 @@ export function useColumnDrag(
 			if (current.lifted) {
 				const active = dragRef.current;
 				if (active) {
-					const rest = orderRef.current.filter((c) => c !== active.column);
-					const next = [
-						...rest.slice(0, active.targetIndex),
-						active.column,
-						...rest.slice(active.targetIndex),
-					];
-					onDrop(next);
+					onDrop(reorderColumns(orderRef.current, active.column, active.targetIndex));
 				}
 				suppressClick.current = true;
 			}
