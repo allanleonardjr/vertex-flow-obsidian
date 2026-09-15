@@ -1488,6 +1488,24 @@ button.vf-nest-chevron {
   padding: 0 12px;
 }
 
+/* An outline the exact size of the dragged column, framing the live slot
+   it would land in. Transparent fill, so the ghost's own content (which
+   now occupies this identical rectangle — see ColumnDragPreview's
+   `targetLeft`) still reads through; the accent border is what marks the
+   slot as the drop target, not a filled overlay competing with it.
+   Positioned directly (not nested inside .vf-drag-layer), since it must
+   NOT inherit that layer's own transform. Same accent color as
+   .vf-tab-drop-line / .vf-drop-indicator elsewhere in the app. */
+.vf-column-drop-box {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: var(--layer-notice, 60);
+  border: 2px solid var(--interactive-accent);
+  border-radius: var(--vf-radius);
+  pointer-events: none;
+}
+
 /* --- Drag count badge for multi-task drags --- */
 
 .vf-drag-count-badge {

@@ -396,9 +396,6 @@ export function TaskTable({
 					taxonomies={taxonomies}
 					scope={scope}
 					mutations={mutations}
-					scrollXRef={scrollXRef}
-					columns={columns}
-					widthFor={widthFor}
 				/>
 			)}
 		</div>
@@ -412,9 +409,12 @@ export function TaskTable({
  * than cloning DOM) and stacked at their real vertical offsets, capped by
  * the column's own header so the whole thing reads as one detached strip —
  * not just a column of values with no idea which field they belong to. The
- * whole slab slides sideways by `drag.deltaX`; it never moves vertically,
- * so it reads as "this column is sliding over," not "this column got
- * picked up."
+ * whole slab tracks `targetLeft` — the exact spot dropping right now would
+ * place it — rather than the raw pointer position, so it moves toward
+ * wherever the column is actually headed (left when dragging left, right
+ * when dragging right) instead of gliding under the cursor pixel-for-pixel.
+ * It never moves vertically, so it reads as "this column is sliding into
+ * place," not "this column got picked up."
  */
 function ColumnDragPreview({
 	drag,
@@ -423,9 +423,6 @@ function ColumnDragPreview({
 	taxonomies,
 	scope,
 	mutations,
-	scrollXRef,
-	columns,
-	widthFor,
 }: {
 	drag: ColumnDragState;
 	groups: TaskListGroup[];
@@ -433,9 +430,6 @@ function ColumnDragPreview({
 	taxonomies: WorkspaceTaxonomies;
 	scope: HierarchyScope;
 	mutations: Mutations;
-	scrollXRef: React.RefObject<HTMLDivElement>;
-	columns: Column[];
-	widthFor: (column: Column) => number;
 }) {
 	const [rows, setRows] = useState<
 		{ task: Task; top: number; height: number }[]
@@ -443,6 +437,10 @@ function ColumnDragPreview({
 	const [header, setHeader] = useState<{ top: number; height: number } | null>(
 		null,
 	);
+	// Which side of the gap the drop-line anchors to — see the comment on
+	// `dropLineLeft` below.
+	const prevXRef = useRef(drag.x);
+	const directionRef = useRef<"left" | "right">("right");
 	// Measure vertical positions once, at mount (i.e. once per drag) — see
 	// the "measured once" note above. Re-running this on every pointer move
 	// would re-query the DOM for every visible row on every frame, and
@@ -478,20 +476,40 @@ function ColumnDragPreview({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
-	// Recomputed on every render, not measured once like the vertical
-	// positions above. Once Phase 3e's live shuffle is in place, `columns`'s
-	// order itself changes as the drag crosses each column boundary — if
-	// this were frozen at mount, the preview would stay at its *starting*
-	// slot while the real gap opened up elsewhere, drifting out of sync with
-	// the very columns it's supposed to be sliding over. It's cheap either
-	// way: one rect read plus a sum over already-known widths, not a
-	// per-row DOM query.
-	const scrollRect = scrollXRef.current?.getBoundingClientRect();
-	const scrollLeft = scrollXRef.current?.scrollLeft ?? 0;
-	let left = (scrollRect?.left ?? 0) - scrollLeft + 32;
-	for (const c of columns) {
-		if (c === drag.column) break;
-		left += widthFor(c);
+	// `targetLeft` is where the drag would actually land right now — read
+	// directly off the same `[data-column-key]` header elements
+	// `resolveIndex` (in `useColumnDrag.ts`) uses to decide `targetIndex` in
+	// the first place, rather than computed from a hand-summed total. Both
+	// the sliding preview and the framing box below anchor to this one
+	// value, so the ghost always sits exactly where dropping now would
+	// place it — moving toward wherever the column is headed, not glued to
+	// the raw pointer position — and the box can never disagree with it.
+	const headers = [
+		...document.querySelectorAll<HTMLElement>("[data-column-key]"),
+	].filter((el) => el.dataset.columnKey !== drag.column);
+
+	// Which side of the gap to read the boundary from: the trailing edge of
+	// the column just settled coming from (dragging right) or the leading
+	// edge of the one just settled going to (dragging left). The two land
+	// on the same pixel in a contiguous table, but anchoring to whichever
+	// column the drag is currently approaching means `targetLeft` always
+	// matches a column that's actually finished settling.
+	if (drag.x > prevXRef.current) directionRef.current = "right";
+	else if (drag.x < prevXRef.current) directionRef.current = "left";
+	prevXRef.current = drag.x;
+
+	let targetLeft = 0;
+	if (headers.length > 0) {
+		if (drag.targetIndex <= 0) {
+			targetLeft = headers[0].getBoundingClientRect().left;
+		} else if (drag.targetIndex >= headers.length) {
+			targetLeft = headers[headers.length - 1].getBoundingClientRect().right;
+		} else if (directionRef.current === "right") {
+			targetLeft = headers[drag.targetIndex].getBoundingClientRect().left;
+		} else {
+			targetLeft =
+				headers[drag.targetIndex - 1].getBoundingClientRect().right;
+		}
 	}
 
 	if (rows.length === 0) return null;
@@ -504,14 +522,11 @@ function ColumnDragPreview({
 	const bottom = Math.max(...rows.map((r) => r.top + r.height));
 
 	return createPortal(
-		<div
-			className="vf-drag-layer"
-			style={{ transform: `translateX(${drag.deltaX}px)` }}
-			aria-hidden
-		>
+		<>
+		<div className="vf-drag-layer" aria-hidden>
 			<div
 				className="vf-column-drag-preview"
-				style={{ top, left, width: drag.width, height: bottom - top }}
+				style={{ top, left: targetLeft, width: drag.width, height: bottom - top }}
 			>
 				{header && (
 					<div
@@ -541,7 +556,13 @@ function ColumnDragPreview({
 					</div>
 				))}
 			</div>
-		</div>,
+		</div>
+		<div
+			className="vf-column-drop-box"
+			style={{ top, left: targetLeft, width: drag.width, height: bottom - top }}
+			aria-hidden
+		/>
+		</>,
 		document.body,
 	);
 }
