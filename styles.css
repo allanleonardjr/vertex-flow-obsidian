@@ -1316,6 +1316,11 @@ button.vf-nest-chevron {
 .vf-table-td-open {
   width: 1%;
   padding: 0 4px;
+  /* Never holds text — only the icon button — so the inherited
+     text-overflow: ellipsis from .vf-table-td has nothing to truncate. At
+     narrow column widths it was still rendering its "…" glyph over the
+     button's invisible-at-rest state, showing as a stray dot. */
+  text-overflow: clip;
 }
 
 .vf-table-open-btn {
