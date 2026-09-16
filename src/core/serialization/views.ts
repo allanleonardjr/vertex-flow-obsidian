@@ -321,6 +321,7 @@ function parseViewValue(
 		columnOrder: parseColumnOrder(record.columnOrder, log),
 		columnWidths: parseColumnWidths(record.columnWidths),
 		tableStripe: asString(record.tableStripe) ?? undefined,
+		frozenColumnCount: asNumber(record.frozenColumnCount) ?? undefined,
 	};
 }
 
@@ -560,6 +561,7 @@ export function serializeView(
 				? view.columnWidths
 				: undefined,
 		tableStripe: view.tableStripe,
+		frozenColumnCount: view.frozenColumnCount,
 	});
 }
 

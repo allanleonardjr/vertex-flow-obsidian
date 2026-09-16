@@ -80,10 +80,10 @@ import { LabelChip, RelationBadge } from "./TaskBits";
 import type { TaskListGroup, TaskListInteraction } from "./TaskList";
 import { displayTitle, TaskTitle } from "./TaskTitle";
 
-type MandatoryColumn = "status" | "id" | "title";
-type Column = MandatoryColumn | TaskField;
+export type MandatoryColumn = "status" | "id" | "title";
+export type Column = MandatoryColumn | TaskField;
 
-const MANDATORY_COLUMNS: readonly MandatoryColumn[] = ["status", "id", "title"];
+export const MANDATORY_COLUMNS: readonly MandatoryColumn[] = ["status", "id", "title"];
 
 function isMandatory(column: Column): column is MandatoryColumn {
 	return (MANDATORY_COLUMNS as readonly Column[]).includes(column);
@@ -143,7 +143,7 @@ const COLUMN_SORT_FIELD: Record<Column, SortField> = {
 	relations: "relations",
 };
 
-const COLUMN_LABEL: Record<Column, string> = {
+export const COLUMN_LABEL: Record<Column, string> = {
 	status: "Status",
 	id: "ID",
 	title: "Title",
@@ -209,6 +209,10 @@ export interface TaskTableProps {
 	columnWidths?: Record<string, number>;
 	/** Persists the full width map — furniture, writes straight through on drag-end. */
 	onColumnWidthsChange?: (widths: Record<string, number>) => void;
+	/** How many columns (from the left) stay pinned during horizontal scroll. */
+	frozenColumnCount?: number;
+	/** Persists the frozen-column count — furniture, writes straight through. */
+	onFrozenColumnCountChange?: (frozenColumnCount: number) => void;
 }
 
 /** Which single cell (task × column) is mid-edit — only one at a time. */
@@ -233,6 +237,7 @@ export function TaskTable({
 	reorder,
 	columnWidths,
 	onColumnWidthsChange,
+	frozenColumnCount,
 }: TaskTableProps) {
 	const plugin = usePlugin();
 	const mutations = plugin.mutations;
@@ -254,6 +259,55 @@ export function TaskTable({
 	const [liveWidths, setLiveWidths] = useState<Record<string, number>>({});
 	const widthFor = (column: Column) =>
 		liveWidths[column] ?? columnWidths?.[column] ?? DEFAULT_WIDTH[column];
+
+	// Saved count, clamped so a stale value (e.g. from before a column was
+	// hidden) can never exceed or go negative relative to the columns
+	// actually rendered right now.
+	const savedFrozenCount = Math.max(
+		0,
+		Math.min(frozenColumnCount ?? 3, columns.length),
+	);
+
+	// Live during a drag: grows or shrinks by exactly 1 the moment the
+	// dragged column crosses the freeze boundary, so the header split and
+	// the sticky cells reflect the crossing the instant the live shuffle
+	// shows it — not one frame later, at drop. Growing/shrinking by
+	// exactly 1 (rather than just moving the column) is what keeps an
+	// *uninvolved* column from silently changing frozen status as a side
+	// effect of someone else's drag: without it, dragging a column into the
+	// frozen zone would bump the previous last-frozen column out, and
+	// dragging one out would pull the next scrolling column in — in both
+	// cases, a column nobody touched changes state. `TableView.tsx` runs
+	// this exact same calculation once more at drop time to decide what to
+	// actually persist; the two must never disagree, so if this formula
+	// ever needs to change, change it in both places.
+	let frozenCount = savedFrozenCount;
+	if (reorder?.drag) {
+		const draggedColumn = reorder.drag.column;
+		const originalIndex =
+			MANDATORY_COLUMNS.length + fieldColumns.indexOf(draggedColumn);
+		const finalIndex = MANDATORY_COLUMNS.length + reorder.drag.targetIndex;
+		const wasFrozen = originalIndex < savedFrozenCount;
+		const willBeFrozen = finalIndex < savedFrozenCount;
+		if (!wasFrozen && willBeFrozen) frozenCount = savedFrozenCount + 1;
+		else if (wasFrozen && !willBeFrozen) {
+			frozenCount = Math.max(0, savedFrozenCount - 1);
+		}
+	}
+	const frozenColumns = columns.slice(0, frozenCount);
+	const scrollColumns = columns.slice(frozenCount);
+
+	// Cumulative on-screen left offset for each frozen column, keyed by
+	// column — 32 accounts for the always-frozen open-button column that
+	// precedes every data column. Both the sticky `<td>`s and the frozen
+	// header mini-table read from this same map, so they can never
+	// disagree about where a column sits.
+	const frozenLeft = new Map<Column, number>();
+	let cursor = 32;
+	for (const column of frozenColumns) {
+		frozenLeft.set(column, cursor);
+		cursor += widthFor(column);
+	}
 
 	// The one simple-field cell (Title/Estimate/Start/Due) currently swapped
 	// into its input. Picker cells (Status/Priority/…) manage their own
@@ -312,14 +366,48 @@ export function TaskTable({
 	);
 
 	return (
-		<div className={`vf-table-wrap${tableStripe ? " has-stripe" : ""}`} style={style}>
+		<div
+			className={`vf-table-wrap${tableStripe ? " has-stripe" : ""}${frozenCount === 0 ? " has-no-frozen-columns" : ""}`}
+			style={style}
+		>
 			<div className="vf-table-header-track">
-				<table className="vf-table vf-table-header-table" style={{ tableLayout: "fixed" }}>
-					{colgroup}
+				<table className="vf-table vf-table-header-table vf-table-header-frozen" style={{ tableLayout: "fixed" }}>
+					<colgroup>
+						<col style={{ width: 32 }} />
+						{frozenColumns.map((column) => (
+							<col key={column} style={{ width: widthFor(column) }} />
+						))}
+					</colgroup>
+					<thead>
+						<tr className="vf-table-header-row">
+							<th className="vf-table-th vf-table-th-open" aria-hidden />
+							{frozenColumns.map((column) => (
+								<TableHeaderCell
+									key={column}
+									column={column}
+									tableSort={tableSort}
+									onClick={handleHeaderClick}
+									reorder={isMandatory(column) ? undefined : reorder}
+									width={widthFor(column)}
+									onResize={(next) =>
+										setLiveWidths((widths) => ({ ...widths, [column]: next }))
+									}
+									onResizeEnd={(next) => commitWidth(column, next)}
+									frozenBoundary={column === frozenColumns[frozenColumns.length - 1]}
+								/>
+							))}
+						</tr>
+					</thead>
+				</table>
+				<table className="vf-table vf-table-header-table vf-table-header-scroll" style={{ tableLayout: "fixed" }}>
+					<colgroup>
+						{scrollColumns.map((column) => (
+							<col key={column} style={{ width: widthFor(column) }} />
+						))}
+					</colgroup>
 					<thead>
 						<tr className="vf-table-header-row" ref={headerRowRef}>
-							<th className="vf-table-th vf-table-th-open" aria-hidden />
-							{columns.map((column) => (
+							{scrollColumns.map((column) => (
 								<TableHeaderCell
 									key={column}
 									column={column}
@@ -380,6 +468,8 @@ export function TaskTable({
 												editingCell={editingCell}
 												setEditingCell={setEditingCell}
 												reorder={reorder}
+												frozenCount={frozenCount}
+												frozenLeft={frozenLeft}
 											/>
 										))
 									))}
@@ -396,6 +486,9 @@ export function TaskTable({
 					taxonomies={taxonomies}
 					scope={scope}
 					mutations={mutations}
+					scrollXRef={scrollXRef}
+					columns={columns}
+					widthFor={widthFor}
 				/>
 			)}
 		</div>
@@ -404,17 +497,23 @@ export function TaskTable({
 
 /**
  * The dragged column's header label plus its real cells, re-rendered via
- * `TableCell` (the exact function the live table uses — see the
- * module-level doc above `TaskTable` on why this reuses the renderer rather
- * than cloning DOM) and stacked at their real vertical offsets, capped by
- * the column's own header so the whole thing reads as one detached strip —
- * not just a column of values with no idea which field they belong to. The
- * whole slab tracks `targetLeft` — the exact spot dropping right now would
- * place it — rather than the raw pointer position, so it moves toward
- * wherever the column is actually headed (left when dragging left, right
- * when dragging right) instead of gliding under the cursor pixel-for-pixel.
- * It never moves vertically, so it reads as "this column is sliding into
- * place," not "this column got picked up."
+ * `TableCell` (the exact function the live table uses, so the ghost is
+ * pixel-identical to the real column without duplicating any per-field
+ * rendering logic) and stacked at their real vertical offsets, capped by
+ * the column's own header so the whole thing reads as one detached strip.
+ *
+ * Position is `left` (frozen once, at mount) plus `drag.deltaX` (the
+ * pointer's raw movement since the gesture began) — nothing else. This is
+ * deliberate: `deltaX` already tracks the pointer exactly on its own.
+ * Computing `left` from the other columns' *live*, shuffling positions
+ * instead of freezing it was tried and reverted — it double-counts the
+ * same motion `deltaX` already accounts for, so the preview races ahead of
+ * the cursor, farther ahead the more columns get crossed, and the actual
+ * drop (computed from the raw cursor position in `useColumnDrag.ts`) stops
+ * matching where the ghost visually appears to be. Freezing `left` and
+ * letting `deltaX` alone carry all the motion is what keeps the preview
+ * and the real drop target permanently in agreement, no matter how the
+ * other columns reorder underneath it.
  */
 function ColumnDragPreview({
 	drag,
@@ -423,6 +522,9 @@ function ColumnDragPreview({
 	taxonomies,
 	scope,
 	mutations,
+	scrollXRef,
+	columns,
+	widthFor,
 }: {
 	drag: ColumnDragState;
 	groups: TaskListGroup[];
@@ -430,6 +532,9 @@ function ColumnDragPreview({
 	taxonomies: WorkspaceTaxonomies;
 	scope: HierarchyScope;
 	mutations: Mutations;
+	scrollXRef: React.RefObject<HTMLDivElement>;
+	columns: Column[];
+	widthFor: (column: Column) => number;
 }) {
 	const [rows, setRows] = useState<
 		{ task: Task; top: number; height: number }[]
@@ -437,16 +542,13 @@ function ColumnDragPreview({
 	const [header, setHeader] = useState<{ top: number; height: number } | null>(
 		null,
 	);
-	// Which side of the gap the drop-line anchors to — see the comment on
-	// `dropLineLeft` below.
-	const prevXRef = useRef(drag.x);
-	const directionRef = useRef<"left" | "right">("right");
-	// Measure vertical positions once, at mount (i.e. once per drag) — see
-	// the "measured once" note above. Re-running this on every pointer move
-	// would re-query the DOM for every visible row on every frame, and
-	// vertical positions don't change just because columns reorder
-	// horizontally. `left`, below, is the one measurement that's genuinely
-	// live — see its own comment for why.
+	const [left, setLeft] = useState(0);
+
+	// Measure everything once, at mount (i.e. once per drag), `left`
+	// included. `left` freezes the column's starting horizontal position;
+	// `drag.deltaX` (applied below, as the wrapper's transform) is the only
+	// thing that moves the preview after that. See the module comment above
+	// for why this specific split is load-bearing, not a style choice.
 	useEffect(() => {
 		const visibleTasks = groups.flatMap((g) => (g.collapsed ? [] : g.tasks));
 		const found = visibleTasks.flatMap((task) => {
@@ -460,12 +562,6 @@ function ColumnDragPreview({
 		});
 		setRows(found);
 
-		// The real header cell, so its label can cap the preview and its own
-		// height sets where the row stack starts — the header is always
-		// above the topmost visible row, so it's the natural top edge rather
-		// than a second thing to reconcile against `rows`. Reuses the same
-		// `[data-column-key]` attribute `resolveIndex` already relies on for
-		// drop-target resolution, which only headers carry.
 		const headerEl = document.querySelector<HTMLElement>(
 			`[data-column-key="${CSS.escape(drag.column)}"]`,
 		);
@@ -473,60 +569,32 @@ function ColumnDragPreview({
 		setHeader(
 			headerRect ? { top: headerRect.top, height: headerRect.height } : null,
 		);
+
+		const scrollRect = scrollXRef.current?.getBoundingClientRect();
+		const scrollLeft = scrollXRef.current?.scrollLeft ?? 0;
+		let x = (scrollRect?.left ?? 0) - scrollLeft + 32;
+		for (const c of columns) {
+			if (c === drag.column) break;
+			x += widthFor(c);
+		}
+		setLeft(x);
 		// eslint-disable-next-line react-hooks/exhaustive-deps -- measure once per drag (on mount), not on every re-render
 	}, []);
 
-	// `targetLeft` is where the drag would actually land right now — read
-	// directly off the same `[data-column-key]` header elements
-	// `resolveIndex` (in `useColumnDrag.ts`) uses to decide `targetIndex` in
-	// the first place, rather than computed from a hand-summed total. Both
-	// the sliding preview and the framing box below anchor to this one
-	// value, so the ghost always sits exactly where dropping now would
-	// place it — moving toward wherever the column is headed, not glued to
-	// the raw pointer position — and the box can never disagree with it.
-	const headers = [
-		...document.querySelectorAll<HTMLElement>("[data-column-key]"),
-	].filter((el) => el.dataset.columnKey !== drag.column);
-
-	// Which side of the gap to read the boundary from: the trailing edge of
-	// the column just settled coming from (dragging right) or the leading
-	// edge of the one just settled going to (dragging left). The two land
-	// on the same pixel in a contiguous table, but anchoring to whichever
-	// column the drag is currently approaching means `targetLeft` always
-	// matches a column that's actually finished settling.
-	if (drag.x > prevXRef.current) directionRef.current = "right";
-	else if (drag.x < prevXRef.current) directionRef.current = "left";
-	prevXRef.current = drag.x;
-
-	let targetLeft = 0;
-	if (headers.length > 0) {
-		if (drag.targetIndex <= 0) {
-			targetLeft = headers[0].getBoundingClientRect().left;
-		} else if (drag.targetIndex >= headers.length) {
-			targetLeft = headers[headers.length - 1].getBoundingClientRect().right;
-		} else if (directionRef.current === "right") {
-			targetLeft = headers[drag.targetIndex].getBoundingClientRect().left;
-		} else {
-			targetLeft =
-				headers[drag.targetIndex - 1].getBoundingClientRect().right;
-		}
-	}
-
 	if (rows.length === 0) return null;
 
-	// The header (when found) is always above every row, so it — not
-	// `Math.min` over `rows` — is the preview's top edge; falling back to the
-	// rows' own top keeps this from disappearing entirely in the unlikely
-	// case the header element isn't found.
 	const top = header ? header.top : Math.min(...rows.map((r) => r.top));
 	const bottom = Math.max(...rows.map((r) => r.top + r.height));
 
 	return createPortal(
-		<>
-		<div className="vf-drag-layer" aria-hidden>
+		<div
+			className="vf-drag-layer"
+			style={{ transform: `translateX(${drag.deltaX}px)` }}
+			aria-hidden
+		>
 			<div
 				className="vf-column-drag-preview"
-				style={{ top, left: targetLeft, width: drag.width, height: bottom - top }}
+				style={{ top, left, width: drag.width, height: bottom - top }}
 			>
 				{header && (
 					<div
@@ -556,13 +624,7 @@ function ColumnDragPreview({
 					</div>
 				))}
 			</div>
-		</div>
-		<div
-			className="vf-column-drop-box"
-			style={{ top, left: targetLeft, width: drag.width, height: bottom - top }}
-			aria-hidden
-		/>
-		</>,
+		</div>,
 		document.body,
 	);
 }
@@ -575,6 +637,7 @@ function TableHeaderCell({
 	width,
 	onResize,
 	onResizeEnd,
+	frozenBoundary = false,
 }: {
 	column: Column;
 	tableSort: TableSortKey[];
@@ -584,6 +647,8 @@ function TableHeaderCell({
 	width: number;
 	onResize: (next: number) => void;
 	onResizeEnd: (next: number) => void;
+	/** True for the last column in the frozen set — draws the boundary marker. */
+	frozenBoundary?: boolean;
 }) {
 	const field = COLUMN_SORT_FIELD[column];
 	const label = COLUMN_LABEL[column];
@@ -592,6 +657,7 @@ function TableHeaderCell({
 		"vf-table-th",
 		`vf-table-th-${column}`,
 		dragging ? "is-dragging" : "",
+		frozenBoundary ? "is-frozen-boundary" : "",
 	]
 		.filter(Boolean)
 		.join(" ");
@@ -676,6 +742,8 @@ function TaskTableRow({
 	editingCell,
 	setEditingCell,
 	reorder,
+	frozenCount,
+	frozenLeft,
 }: {
 	task: Task;
 	groupKey: string;
@@ -689,6 +757,8 @@ function TaskTableRow({
 	editingCell: EditingCell | null;
 	setEditingCell: (next: EditingCell | null) => void;
 	reorder?: TableColumnReorder;
+	frozenCount: number;
+	frozenLeft: Map<Column, number>;
 }) {
 	const className = [
 		"vf-table-row",
@@ -723,12 +793,15 @@ function TaskTableRow({
 					<SquareArrowOutUpRight size={13} />
 				</button>
 			</td>
-			{columns.map((column) => {
+			{columns.map((column, index) => {
 				const dragging = reorder?.isDragging(column as TaskField) ?? false;
+				const frozen = index < frozenCount;
+				const boundary = index === frozenCount - 1;
 				return (
 					<td
 						key={column}
-						className={`vf-table-td vf-table-td-${column}${dragging ? " is-dragging" : ""}`}
+						className={`vf-table-td vf-table-td-${column}${dragging ? " is-dragging" : ""}${frozen ? " is-frozen" : ""}${boundary ? " is-frozen-boundary" : ""}`}
+						style={frozen ? { left: frozenLeft.get(column) } : undefined}
 					>
 						<TableCell
 							column={column}

@@ -843,6 +843,14 @@ export interface SavedView {
 	columnWidths?: Record<string, number>;
 	/** Table-only row/header stripe color (hex), or absent for no striping. Furniture. */
 	tableStripe?: string;
+	/**
+	 * Table-only: how many columns (from the left — status/id/title, then
+	 * `columnOrder`) stay pinned during horizontal scroll. Absent = 3 (the
+	 * mandatory columns). Furniture, same bucket as `columnOrder`/
+	 * `columnWidths`/`tableStripe` — writes straight through, never marks
+	 * the view dirty.
+	 */
+	frozenColumnCount?: number;
 }
 
 /**

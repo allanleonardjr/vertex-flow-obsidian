@@ -21,7 +21,7 @@ import type {
   WorkspaceSnapshot,
 } from "../../core/types";
 import { EmptyView } from "../components/EmptyView";
-import { orderedTaskFields, TaskTable } from "../components/TaskTable";
+import { MANDATORY_COLUMNS, orderedTaskFields, TaskTable } from "../components/TaskTable";
 import type { TaskListGroup, TaskListInteraction } from "../components/TaskList";
 import { useTabs } from "../tabs-context";
 import { useSelection } from "../selection";
@@ -52,6 +52,8 @@ export interface TableViewProps {
   onColumnOrderChange: (order: TaskField[]) => void;
   /** Column widths are furniture — writes straight through on resize-end. */
   onColumnWidthsChange: (widths: Record<string, number>) => void;
+  /** Frozen-column count is furniture — writes straight through. */
+  onFrozenColumnCountChange: (frozenColumnCount: number) => void;
   /** Create a task seeded from this view's filters (see `TaskViewport`). */
   onNewTask: () => void;
   /** Discard unsaved view edits — the view bar's "Reset". */
@@ -67,6 +69,7 @@ export function TableView({
   onChange,
   onColumnOrderChange,
   onColumnWidthsChange,
+  onFrozenColumnCountChange,
   onNewTask,
   onClearFilters,
 }: TableViewProps) {
@@ -79,7 +82,32 @@ export function TableView({
     () => orderedTaskFields(shownFields, view.columnOrder),
     [shownFields, view.columnOrder],
   );
-  const columnDrag = useColumnDrag(fieldColumns, onColumnOrderChange);
+  // Wraps `onColumnOrderChange` so a drop that crosses the freeze boundary
+  // also adjusts `frozenColumnCount` by exactly 1 — the same calculation
+  // `TaskTable.tsx` runs live during the drag (see its own comment), run
+  // once more here to decide what actually gets persisted. The two must
+  // stay in agreement, or the table would render one thing mid-drag and
+  // save something else at drop.
+  const handleColumnDrop = (
+    nextOrder: TaskField[],
+    droppedColumn: TaskField,
+    targetIndex: number,
+  ) => {
+    onColumnOrderChange(nextOrder);
+
+    const frozenCount = view.frozenColumnCount ?? 3;
+    const originalIndex =
+      MANDATORY_COLUMNS.length + fieldColumns.indexOf(droppedColumn);
+    const finalIndex = MANDATORY_COLUMNS.length + targetIndex;
+    const wasFrozen = originalIndex < frozenCount;
+    const willBeFrozen = finalIndex < frozenCount;
+    if (!wasFrozen && willBeFrozen) {
+      onFrozenColumnCountChange(frozenCount + 1);
+    } else if (wasFrozen && !willBeFrozen) {
+      onFrozenColumnCountChange(Math.max(0, frozenCount - 1));
+    }
+  };
+  const columnDrag = useColumnDrag(fieldColumns, handleColumnDrop);
 
   const selection = useSelection();
   const tabs = useTabs();
@@ -144,6 +172,8 @@ export function TableView({
       reorder={columnDrag}
       columnWidths={view.columnWidths}
       onColumnWidthsChange={onColumnWidthsChange}
+      frozenColumnCount={view.frozenColumnCount}
+      onFrozenColumnCountChange={onFrozenColumnCountChange}
     />
   );
 }

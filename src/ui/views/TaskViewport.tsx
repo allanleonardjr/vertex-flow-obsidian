@@ -736,6 +736,7 @@ export function TaskViewport({
           onChange={draft.edit}
           onColumnOrderChange={draft.setColumnOrder}
           onColumnWidthsChange={draft.setColumnWidths}
+          onFrozenColumnCountChange={draft.setFrozenColumnCount}
           onNewTask={newTask}
           onClearFilters={clearFilters}
         />

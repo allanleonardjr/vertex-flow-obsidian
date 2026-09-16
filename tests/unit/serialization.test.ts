@@ -1324,6 +1324,30 @@ describe("parseView (per-file)", () => {
 		expect(parseView(frontmatter, { path: "W/Views/v" }).value).toEqual(value);
 	});
 
+	it("round-trips frozenColumnCount through serializeView/parseView unchanged, and omits it when absent", () => {
+		const { value } = parseView(
+			{
+				id: "v",
+				name: "V",
+				query: "layout:table",
+				frozenColumnCount: 5,
+			},
+			{ path: "W/Views/v" },
+		);
+		expect(value.frozenColumnCount).toBe(5);
+
+		const frontmatter = serializeView(value);
+		expect(frontmatter.frozenColumnCount).toBe(5);
+		expect(parseView(frontmatter, { path: "W/Views/v" }).value).toEqual(value);
+
+		const { value: withoutFreeze } = parseView(
+			{ id: "v2", name: "V2", query: "layout:table" },
+			{ path: "W/Views/v2" },
+		);
+		expect(withoutFreeze.frozenColumnCount).toBeUndefined();
+		expect(serializeView(withoutFreeze)).not.toHaveProperty("frozenColumnCount");
+	});
+
 	it("round-trips a tableSort using two of the new fields through serializeView/parseView unchanged", () => {
 		const { value } = parseView(
 			{

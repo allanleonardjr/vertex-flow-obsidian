@@ -66,6 +66,8 @@ export interface ViewDraft {
 	setColumnWidths: (columnWidths: Record<string, number>) => void;
 	/** Table-only: persist row/header stripe color straight to disk, bypassing the draft. */
 	setTableStripe: (tableStripe: string | undefined) => void;
+	/** Table-only: persist frozen-column count straight to disk, bypassing the draft. */
+	setFrozenColumnCount: (frozenColumnCount: number) => void;
 	/** Write the draft over the saved view. */
 	save: () => void;
 	/** Throw the draft away. */
@@ -106,6 +108,7 @@ export function useViewDraft(
 				columnOrder: view.columnOrder,
 				columnWidths: view.columnWidths,
 				tableStripe: view.tableStripe,
+				frozenColumnCount: view.frozenColumnCount,
 			}
 		: transientColumns
 			? { ...view, columns }
@@ -155,6 +158,11 @@ export function useViewDraft(
 		[writeView, view],
 	);
 
+	const setFrozenColumnCount = useCallback(
+		(frozenColumnCount: number) => writeView({ ...view, frozenColumnCount }),
+		[writeView, view],
+	);
+
 	const save = useCallback(() => {
 		if (!draft) return;
 		writeView({
@@ -165,6 +173,7 @@ export function useViewDraft(
 			columnOrder: view.columnOrder,
 			columnWidths: view.columnWidths,
 			tableStripe: view.tableStripe,
+			frozenColumnCount: view.frozenColumnCount,
 		});
 		setViewDraft(view.id, null);
 	}, [
@@ -177,6 +186,7 @@ export function useViewDraft(
 		view.columnOrder,
 		view.columnWidths,
 		view.tableStripe,
+		view.frozenColumnCount,
 		setViewDraft,
 	]);
 
@@ -195,6 +205,7 @@ export function useViewDraft(
 		setColumnOrder,
 		setColumnWidths,
 		setTableStripe,
+		setFrozenColumnCount,
 		save,
 		reset,
 	};

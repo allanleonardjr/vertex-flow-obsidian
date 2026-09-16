@@ -36,6 +36,7 @@ import {
   CanvasRelationsChip,
   EmptyColumnsChip,
   FieldsControl,
+  FreezeChip,
   GroupChip,
   LayoutToggle,
   SortChip,
@@ -313,6 +314,13 @@ export function ViewControls({
           />
           {view.viewType === "table" && (
             <>
+              <span className="vf-bar-divider" />
+              <FreezeChip
+                view={view}
+                onChange={draft.setFrozenColumnCount}
+                openId={filterClause.openId}
+                onOpenChange={filterClause.setOpenId}
+              />
               <span className="vf-bar-divider" />
               <StripeChip
                 view={view}

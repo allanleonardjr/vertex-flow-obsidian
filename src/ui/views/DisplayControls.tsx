@@ -26,6 +26,12 @@ import { Icon } from "../components/Icon";
 import { Popover } from "../components/Popover";
 import { RELATION_KIND_LABELS } from "./CanvasView";
 import {
+  COLUMN_LABEL,
+  MANDATORY_COLUMNS,
+  orderedTaskFields,
+  type Column,
+} from "../components/TaskTable";
+import {
   CANVAS_ARRANGE_OPTIONS,
   EMPTY_COLUMN_OPTIONS,
   FIELD_OPTIONS,
@@ -33,6 +39,7 @@ import {
   SORT_OPTIONS,
   SUBTASK_OPTIONS,
   canvasArrangeSummary,
+  layoutHiddenFields,
   optionLabel,
   type TaskField,
 } from "./viewOptions";
@@ -659,6 +666,87 @@ export function StripeChip({
               onOpenChange(null);
             }}
           />
+        </Popover>
+      )}
+    </span>
+  );
+}
+
+const DEFAULT_FROZEN_COLUMN_COUNT = 3;
+
+/**
+ * Table-only: how many columns (from the left) stay pinned during
+ * horizontal scroll. Furniture, exactly like `StripeChip` above — writes
+ * straight through via `draft.setFrozenColumnCount`, never through
+ * `editView`.
+ */
+export function FreezeChip({
+  view,
+  onChange,
+  openId,
+  onOpenChange,
+}: {
+  view: SavedView;
+  onChange: (frozenColumnCount: number) => void;
+  openId: BarControlId | FilterKey | null;
+  onOpenChange: (id: BarControlId | FilterKey | null) => void;
+}) {
+  const open = openId === "freeze";
+  const count = view.frozenColumnCount ?? DEFAULT_FROZEN_COLUMN_COUNT;
+
+  const shownFields = layoutHiddenFields(view);
+  const fieldColumns = orderedTaskFields(shownFields, view.columnOrder);
+  const allColumns: Column[] = [...MANDATORY_COLUMNS, ...fieldColumns];
+
+  return (
+    <span className="vf-control-anchor">
+      <button
+        type="button"
+        className={`vf-bar-item${open ? " is-on" : ""}`}
+        onClick={(event) => {
+          event.stopPropagation();
+          onOpenChange(open ? null : "freeze");
+        }}
+      >
+        <span className="vf-bar-label">Freeze</span>
+        <span className="vf-bar-value">
+          {count === 0 ? "None" : count}
+        </span>
+        <span className="vf-bar-caret" aria-hidden>
+          ⌄
+        </span>
+      </button>
+      {open && (
+        <Popover align="left" onClose={() => onOpenChange(null)}>
+          <div className="vf-field-list">
+            <button
+              type="button"
+              className={`vf-field-row${count === 0 ? " is-on" : ""}`}
+              aria-pressed={count === 0}
+              onClick={() => {
+                onChange(0);
+                onOpenChange(null);
+              }}
+            >
+              <span className="vf-field-label">None</span>
+            </button>
+            {allColumns.map((column, index) => (
+              <button
+                key={column}
+                type="button"
+                className={`vf-field-row${count === index + 1 ? " is-on" : ""}`}
+                aria-pressed={count === index + 1}
+                onClick={() => {
+                  onChange(index + 1);
+                  onOpenChange(null);
+                }}
+              >
+                <span className="vf-field-label">
+                  Through {COLUMN_LABEL[column]}
+                </span>
+              </button>
+            ))}
+          </div>
         </Popover>
       )}
     </span>

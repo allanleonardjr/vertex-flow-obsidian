@@ -1323,6 +1323,103 @@ button.vf-nest-chevron {
   text-overflow: clip;
 }
 
+/* The open-button column is always frozen, regardless of frozenColumnCount —
+   it's the row's own affordance, not a data column, so it never scrolls
+   away. */
+.vf-table-th-open,
+.vf-table-td-open {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--background-primary);
+}
+
+/* Frozen data columns (the first frozenColumnCount of them). `left` itself
+   is set inline per-cell from `frozenLeft` (TaskTable.tsx) — it varies per
+   column, so it can't be a static rule here. */
+.vf-table-td.is-frozen {
+  position: sticky;
+  z-index: 1;
+  background: var(--background-primary);
+}
+
+/*
+ * A sticky cell paints its own opaque background over whatever the row
+ * itself would otherwise show through — without these, hovering or
+ * selecting a row would visibly skip its frozen cells, and the stripe
+ * would too. Duplicates the plain row-state rules above, scoped to frozen
+ * cells (the open-button column included, since it's sticky too).
+ */
+.vf-table-row:hover td.vf-table-td.is-frozen,
+.vf-table-row:hover .vf-table-td-open {
+  background: var(--background-modifier-hover);
+}
+
+.vf-table-row.is-selected td.vf-table-td.is-frozen,
+.vf-table-row.is-selected .vf-table-td-open {
+  background: var(--text-selection);
+}
+
+/* Mixed against var(--background-primary) rather than transparent — unlike
+   the plain row rule, this one has to stay opaque to keep occluding
+   scrolled-under columns even when striped. */
+.vf-table-wrap.has-stripe .vf-table-row:nth-child(odd) td.vf-table-td.is-frozen,
+.vf-table-wrap.has-stripe .vf-table-row:nth-child(odd) .vf-table-td-open {
+  background: color-mix(in srgb, var(--vf-table-stripe) 8%, var(--background-primary));
+}
+
+/* The freeze boundary marker: a border-and-shadow edge immediately after
+   the last frozen column. */
+.vf-table-th.is-frozen-boundary,
+.vf-table-td.is-frozen-boundary {
+  border-right: 1px solid var(--interactive-accent);
+  box-shadow: 4px 0 8px -4px rgba(0, 0, 0, 0.35);
+}
+
+/* When frozenCount is 0, nothing in `columns` gets is-frozen-boundary — the
+   always-frozen open-button column gets the same treatment instead, so the
+   boundary marker still has somewhere to sit. */
+.vf-table-wrap.has-no-frozen-columns .vf-table-th-open,
+.vf-table-wrap.has-no-frozen-columns .vf-table-td-open {
+  border-right: 1px solid var(--interactive-accent);
+  box-shadow: 4px 0 8px -4px rgba(0, 0, 0, 0.35);
+}
+
+/* The header split: a frozen mini-table (never transformed) and a
+   scrollable one (whose row is moved by the manual translateX, same as
+   before) laid out side by side instead of stacked. */
+.vf-table-header-track {
+  display: flex;
+}
+
+.vf-table-header-frozen {
+  flex: none;
+}
+
+.vf-table-header-scroll {
+  flex: none;
+  overflow: hidden;
+}
+
+/* Keeps the group row's label text reachable after scrolling right,
+   independent of frozenColumnCount — the surrounding <td> still spans the
+   full row and paints one continuous background under it either way. */
+.vf-table-group-label {
+  position: sticky;
+  left: 12px;
+  z-index: 1;
+}
+
+/* Docks the current group's header just below the column header track
+   (which is itself sticky at top: 0) rather than underneath it — same idea
+   as .vf-list-group, offset by one row height plus the header's own bottom
+   border. */
+.vf-table-group-row {
+  position: sticky;
+  top: calc(var(--vf-row-height) + 1px);
+  z-index: 1;
+}
+
 .vf-table-open-btn {
   opacity: 0;
 }
@@ -1491,24 +1588,6 @@ button.vf-nest-chevron {
   display: flex;
   align-items: center;
   padding: 0 12px;
-}
-
-/* An outline the exact size of the dragged column, framing the live slot
-   it would land in. Transparent fill, so the ghost's own content (which
-   now occupies this identical rectangle — see ColumnDragPreview's
-   `targetLeft`) still reads through; the accent border is what marks the
-   slot as the drop target, not a filled overlay competing with it.
-   Positioned directly (not nested inside .vf-drag-layer), since it must
-   NOT inherit that layer's own transform. Same accent color as
-   .vf-tab-drop-line / .vf-drop-indicator elsewhere in the app. */
-.vf-column-drop-box {
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: var(--layer-notice, 60);
-  border: 2px solid var(--interactive-accent);
-  border-radius: var(--vf-radius);
-  pointer-events: none;
 }
 
 /* --- Drag count badge for multi-task drags --- */

@@ -64,7 +64,11 @@ export function reorderColumns(
 
 export function useColumnDrag(
 	order: readonly TaskField[],
-	onDrop: (nextOrder: TaskField[]) => void,
+	onDrop: (
+		nextOrder: TaskField[],
+		droppedColumn: TaskField,
+		targetIndex: number,
+	) => void,
 ): ColumnDragApi {
 	const [drag, setDrag] = useState<ColumnDragState | null>(null);
 	const dragRef = useRef<ColumnDragState | null>(null);
@@ -190,7 +194,11 @@ export function useColumnDrag(
 			if (current.lifted) {
 				const active = dragRef.current;
 				if (active) {
-					onDrop(reorderColumns(orderRef.current, active.column, active.targetIndex));
+					onDrop(
+						reorderColumns(orderRef.current, active.column, active.targetIndex),
+						active.column,
+						active.targetIndex,
+					);
 				}
 				suppressClick.current = true;
 			}
