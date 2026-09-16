@@ -473,7 +473,7 @@ function ColumnDragPreview({
 		setHeader(
 			headerRect ? { top: headerRect.top, height: headerRect.height } : null,
 		);
-		// eslint-disable-next-line react-hooks/exhaustive-deps
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- measure once per drag (on mount), not on every re-render
 	}, []);
 
 	// `targetLeft` is where the drag would actually land right now — read
