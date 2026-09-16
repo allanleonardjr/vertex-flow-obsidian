@@ -53,13 +53,6 @@ function matchesSingle(
 	return allowed.includes(actual);
 }
 
-/** OR-match a multi-valued field (labels, mentions). */
-function matchesAny(actual: string[], allowed: string[] | undefined): boolean {
-	if (!allowed || allowed.length === 0) return true;
-	if (actual.length === 0) return allowed.includes(NONE);
-	return actual.some((value) => allowed.includes(value));
-}
-
 /** OR-match a link field, tolerating short-form vs full-path wikilinks. */
 function matchesLink(
 	actual: LinkTarget | null,
