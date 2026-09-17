@@ -21,6 +21,7 @@ import {
 } from "../../core/taxonomy";
 import { describeRecurrence } from "../../core/recurrence";
 import { relationCount, type StatusValue, type Task } from "../../core/types";
+import { dueDateStatus } from "../../core/date";
 
 /** Signal glyphs from weakest to strongest — the buckets a priority maps into. */
 const SIGNAL_GLYPHS = [SignalLow, SignalMedium, SignalHigh, Signal] as const;
@@ -347,11 +348,9 @@ export function DueDate({
 }) {
 	if (!task.dueDate) return null;
 
-	const today = new Date().toISOString().slice(0, 10);
 	const isOpen =
 		!isCompleted(statuses, task.status) && !isCanceled(statuses, task.status);
-	const isToday = task.dueDate === today && isOpen;
-	const isOverdue = task.dueDate < today && isOpen;
+	const { isToday, isOverdue } = dueDateStatus(task.dueDate, isOpen);
 
   return (
     <span

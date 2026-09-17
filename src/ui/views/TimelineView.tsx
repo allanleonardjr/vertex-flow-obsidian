@@ -34,6 +34,7 @@ import { ChevronLeft, ChevronRight, ChevronsUpDown } from "lucide-react";
 import { getValue, type WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { EvaluatedView } from "../../core/views";
 import { layoutIcon } from "../../core/views";
+import { localTodayIso } from "../../core/date";
 import {
   barDates,
   dateRangeOf,
@@ -201,7 +202,7 @@ export function TimelineView({
   // either side of today when nothing is scheduled yet. Drives the "All" zoom.
   const contentDomain = useMemo(() => {
     const range = dateRangeOf([...bars.values()]);
-    const todayDay = dayNumber(new Date().toISOString());
+    const todayDay = dayNumber(localTodayIso());
     let minDay = range
       ? dayNumber(range.min) - DOMAIN_PADDING_DAYS
       : todayDay - 30;
@@ -281,7 +282,7 @@ export function TimelineView({
     const target = view.timeline?.scrollDate;
     chartEl.scrollLeft = target
       ? Math.max(0, (dayNumber(target) - domain.minDay) * scale)
-      : Math.max(0, dayOffset(new Date().toISOString()) - width / 3);
+      : Math.max(0, dayOffset(localTodayIso()) - width / 3);
   }, [
     chartEl,
     width,
@@ -338,7 +339,7 @@ export function TimelineView({
 
   const scrollToToday = () => {
     chartEl?.scrollTo({
-      left: Math.max(0, dayOffset(new Date().toISOString()) - width / 3),
+      left: Math.max(0, dayOffset(localTodayIso()) - width / 3),
       behavior: "smooth",
     });
   };
@@ -416,7 +417,7 @@ export function TimelineView({
   }
 
   const { bands, ticks } = buildTimeScale(domain.minDay, domain.days, scale);
-  const todayLeft = dayOffset(new Date().toISOString());
+  const todayLeft = dayOffset(localTodayIso());
   const todayInView = todayLeft >= 0 && todayLeft <= chartWidth;
   const bodyHeight = HEADER_HEIGHT + scheduled.length * ROW_HEIGHT;
 

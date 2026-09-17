@@ -27,6 +27,7 @@ import { ChevronLeft, ChevronRight, ChevronsUpDown } from "lucide-react";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { EvaluatedView } from "../../core/views";
 import { layoutIcon } from "../../core/views";
+import { localTodayIso } from "../../core/date";
 import {
   bucketByDay,
   calendarAnchor,
@@ -158,7 +159,7 @@ export function CalendarView({
   );
 
   const dateField = view.calendarDateField;
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const todayIso = localTodayIso();
 
   const visibleMonth = startOfMonth(view.calendar?.visibleMonth ?? todayIso);
   const onCurrentMonth = visibleMonth === startOfMonth(todayIso);
