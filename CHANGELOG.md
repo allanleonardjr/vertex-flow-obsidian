@@ -7,6 +7,19 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **"Today" is now computed in local time, not UTC.** Calendar, Timeline,
+  and the due-date badge on List rows, Board cards, and Table cells all
+  used `new Date().toISOString()`, which reads the UTC calendar date — for
+  anyone west of UTC, that rolls over to the next day several hours before
+  local midnight. Late in the evening this made Calendar highlight tomorrow
+  as "today" and flagged tasks due today as overdue. All four call sites
+  now use the existing `localTodayIso()` helper from `core/date.ts`
+  (already used correctly by the recurring-tasks screen). Also
+  consolidated the duplicated due-date today/overdue calculation in
+  `TaskBits.tsx` and `TaskTable.tsx` into one shared `dueDateStatus()`
+  helper so List, Board, Calendar, Timeline, and Table can no longer drift
+  from each other.
+
 - **Table now treats a recurring-preview (ghost) occurrence the same way
   List already does.** Previously Table rendered a projected occurrence as a
   fully interactive row — editable cells, an open-task button pointing at a

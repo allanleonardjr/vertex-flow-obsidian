@@ -52,6 +52,7 @@ import {
 } from "../../core/hierarchy";
 import { listValues, type WorkspaceTaxonomies } from "../../core/taxonomy";
 import { isCanceled, isCompleted } from "../../core/taxonomy";
+import { dueDateStatus } from "../../core/date";
 import {
 	TASK_FIELDS,
 	emptyProgress,
@@ -1028,21 +1029,6 @@ function TableStartDateCell({
 	);
 }
 
-/** Due-date today/overdue treatment matches `DueDate` — computed off the taxonomy, not `task.archived` alone. */
-function dueDateIsOverdueOrToday(
-	task: Task,
-	statuses: WorkspaceTaxonomies["status"],
-): { isToday: boolean; isOverdue: boolean } {
-	if (!task.dueDate) return { isToday: false, isOverdue: false };
-	const today = new Date().toISOString().slice(0, 10);
-	const isOpen =
-		!isCompleted(statuses, task.status) && !isCanceled(statuses, task.status);
-	return {
-		isToday: task.dueDate === today && isOpen,
-		isOverdue: task.dueDate < today && isOpen,
-	};
-}
-
 function TableDueDateCell({
 	task,
 	statuses,
@@ -1061,7 +1047,9 @@ function TableDueDateCell({
 		(next) => void mutations.updateTask(task, { dueDate: next }),
 		onDoneEditing,
 	);
-	const { isToday, isOverdue } = dueDateIsOverdueOrToday(task, statuses);
+	const isOpen =
+		!isCompleted(statuses, task.status) && !isCanceled(statuses, task.status);
+	const { isToday, isOverdue } = dueDateStatus(task.dueDate, isOpen);
 
 	return (
 		<EditableCell
@@ -1377,10 +1365,10 @@ function TableCellStatic({
 			);
 		case "dueDate": {
 			if (!task.dueDate) return null;
-			const { isToday, isOverdue } = dueDateIsOverdueOrToday(
-				task,
-				taxonomies.status,
-			);
+			const isOpen =
+				!isCompleted(taxonomies.status, task.status) &&
+				!isCanceled(taxonomies.status, task.status);
+			const { isToday, isOverdue } = dueDateStatus(task.dueDate, isOpen);
 			return (
 				<span
 					className={`vf-table-cell-text${isToday ? " is-today" : ""}${
