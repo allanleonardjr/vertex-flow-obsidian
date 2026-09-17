@@ -16,3 +16,4 @@ CLAUDE.md
 
 repomix-*
 /src/core/help-generated.ts
+/src/core/templates/generated.ts
