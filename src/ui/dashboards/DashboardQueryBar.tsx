@@ -85,7 +85,6 @@ export function DashboardQueryBar({
 		cancelCommit();
 		lastAgreed.current = canonicalizeFilters(filters);
 		setText(desired);
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- adopt effect derives from filters, not from deps
 	}, [filters, qctx]);
 
 	useEffect(() => {
@@ -99,7 +98,6 @@ export function DashboardQueryBar({
 			commit(parsed.filters);
 		}, COMMIT_DELAY_MS);
 		return cancelCommit;
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- commit effect keys off the parse result; parse() is the pipeline
 	}, [parsed, composing]);
 
 	useEffect(() => () => cancelCommit(), []);

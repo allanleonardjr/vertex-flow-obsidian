@@ -386,6 +386,14 @@ function optionalString(
 	return value.trim() || undefined;
 }
 
+function renderValue(value: unknown): string {
+	if (typeof value === "string") return value;
+	if (typeof value === "number" || typeof value === "boolean")
+		return String(value);
+	if (value == null) return "";
+	return JSON.stringify(value);
+}
+
 function optionalBoolean(
 	data: Record<string, unknown>,
 	key: string,
@@ -588,7 +596,7 @@ function parseWidget(raw: unknown, where: string): ParsedWidget {
 					line,
 				);
 			if (!field) fail(`${where} ("${title}") — "scope" needs a "field"`);
-			widget.scope = { field, value: String(scopeData.value ?? "").trim() };
+			widget.scope = { field, value: renderValue(scopeData.value ?? "").trim() };
 			if (!widget.scope.value) {
 				fail(`${where} ("${title}") — "scope" needs a "value"`);
 			}
@@ -1292,7 +1300,10 @@ export function parseTemplateMarkdown(source: string): ParsedTemplate {
 	}
 	const schema = Number(data.templateSchema);
 	if (!Number.isInteger(schema)) {
-		fail(`"templateSchema" must be an integer, got "${data.templateSchema}"`, 2);
+		fail(
+			`"templateSchema" must be an integer, got "${renderValue(data.templateSchema)}"`,
+			2,
+		);
 	}
 	if (schema > TEMPLATE_SCHEMA_VERSION) {
 		fail(
@@ -1324,7 +1335,7 @@ export function parseTemplateMarkdown(source: string): ParsedTemplate {
 		fail(
 			normalizedKind === "snapshot"
 				? `"type: vertex-flow-workspace-snapshot" is not yet supported — only "type: vertex-flow-workspace-template" can be loaded`
-				: `Unknown "${kindField}: ${String(rawKind)}" — only "type: vertex-flow-workspace-template" is supported`,
+				: `Unknown "${kindField}: ${renderValue(rawKind)}" — only "type: vertex-flow-workspace-template" is supported`,
 			3,
 		);
 	}

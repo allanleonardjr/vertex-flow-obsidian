@@ -4,7 +4,7 @@ import obsidianmd from "eslint-plugin-obsidianmd";
 export default defineConfig([
   ...obsidianmd.configs.recommended,
   {
-    files: ["src/**/*.{ts,tsx}"],
+    files: ["src/**/*.{ts,tsx}", "tests/**/*.{ts,tsx}"],
     languageOptions: {
       parserOptions: {
         projectService: {
@@ -21,6 +21,21 @@ export default defineConfig([
         "warn",
         { brands: ["Vertex Flow"], enforceCamelCaseLower: true },
       ],
+    },
+  },
+  {
+    // Unit tests run under Vitest in Node, not in Obsidian: Node built-ins are
+    // expected there, and the plugin's mobile guard doesn't apply.
+    files: ["tests/**/*.{ts,tsx}"],
+    languageOptions: {
+      globals: {
+        __dirname: "readonly",
+        __filename: "readonly",
+        process: "readonly",
+      },
+    },
+    rules: {
+      "obsidianmd/no-nodejs-modules": "off",
     },
   },
 ]);

@@ -64,6 +64,7 @@ export function getCaretCoordinates(
 	style.width = computed.width;
 
 	for (const prop of MIRRORED_PROPERTIES) {
+		// eslint-disable-next-line @typescript-eslint/unbound-method -- index access yields a CSS value, guarded below
 		const value = computed[prop];
 		if (typeof value === "string") {
 			// CSSStyleDeclaration's index signature is looser than what TS lets us

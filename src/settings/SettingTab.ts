@@ -100,12 +100,18 @@ export class VertexFlowSettingTab extends PluginSettingTab {
 	override async setControlValue(key: string, value: unknown): Promise<void> {
 		if (key === ME_PREFILL_NAME_KEY || key === ME_PREFILL_ALIASES_KEY) {
 			const current = getMePrefill() ?? {};
+			const text = (value: unknown) =>
+				typeof value === "string"
+					? value
+					: value == null
+						? ""
+						: JSON.stringify(value);
 			const next =
 				key === ME_PREFILL_NAME_KEY
-					? { ...current, name: String(value ?? "").trim() || undefined }
+					? { ...current, name: text(value).trim() || undefined }
 					: {
 							...current,
-							aliases: String(value ?? "")
+							aliases: text(value)
 								.split(",")
 								.map((alias) => alias.trim())
 								.filter(Boolean),

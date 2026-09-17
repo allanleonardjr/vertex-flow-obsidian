@@ -382,10 +382,13 @@ export function TaskTable({
 											<td colSpan={columns.length + 1}>{emptyGroupLabel}</td>
 										</tr>
 									) : (
-										group.tasks.map((task) => (
+										group.tasks.map((task, index) => (
 											<TaskTableRow
 												key={task.path}
 												task={task}
+												isBeforeProjected={
+													group.tasks[index + 1]?.projected === true
+												}
 												groupKey={group.key}
 												columns={columns}
 												snapshot={snapshot}
@@ -490,7 +493,6 @@ function ColumnDragPreview({
 		setHeader(
 			headerRect ? { top: headerRect.top, height: headerRect.height } : null,
 		);
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- measure once per drag (on mount), not on every re-render
 	}, []);
 
 	// `targetLeft` is where the drag would actually land right now — read
@@ -692,6 +694,7 @@ function TableHeaderCell({
 
 function TaskTableRow({
 	task,
+	isBeforeProjected,
 	groupKey,
 	columns,
 	snapshot,
@@ -705,6 +708,7 @@ function TaskTableRow({
 	reorder,
 }: {
 	task: Task;
+	isBeforeProjected: boolean;
 	groupKey: string;
 	columns: Column[];
 	snapshot: WorkspaceSnapshot;
@@ -726,6 +730,7 @@ function TaskTableRow({
 		!projected && interaction?.isSelected?.(task) ? "is-selected" : "",
 		task.archived ? "is-archived" : "",
 		projected ? "is-projected" : "",
+		isBeforeProjected ? "is-before-projected" : "",
 	]
 		.filter(Boolean)
 		.join(" ");

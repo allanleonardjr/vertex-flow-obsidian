@@ -184,7 +184,10 @@ describe("migrateViewQueries", () => {
 		expect(view).not.toHaveProperty("viewType");
 		// Per-session chrome is preserved.
 		expect(view.columns).toEqual({ collapsed: ["todo"], hidden: [] });
-		expect(record.mock.calls.map((c) => c[1].action)).toContain(
+		const actions = (record.mock.calls as [string, { action: string }][]).map(
+		(c) => c[1].action,
+	);
+		expect(actions).toContain(
 			"project.migrate-query-format",
 		);
 	});

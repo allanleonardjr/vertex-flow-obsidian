@@ -117,7 +117,6 @@ export function QueryBar({
 		cancelCommit();
 		lastAgreed.current = canonicalizeDefinition(incoming);
 		setText(desired);
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- adopt effect derives from the view, not from deps
 	}, [view, qctx]);
 
 	/* -- commit: text → view (debounced; Enter and blur flush) -------------- */
@@ -132,7 +131,6 @@ export function QueryBar({
 			commit(parsed.definition);
 		}, COMMIT_DELAY_MS);
 		return cancelCommit;
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- commit effect keys off the parse result; parse() is the pipeline
 	}, [parsed, composing]);
 
 	useEffect(() => () => cancelCommit(), []);

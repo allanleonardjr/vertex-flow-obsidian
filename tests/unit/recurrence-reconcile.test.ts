@@ -204,9 +204,10 @@ describe("recurrence edits are logged once, on Save", () => {
 		return { mutations, snap };
 	}
 
+	/** `history.record` is called as `record(workspace, { action, changes, … })`. */
 	const recurrenceChanges = () =>
-		history.record.mock.calls
-			.flatMap((call) => (call[1]?.changes ?? []) as { field: string }[])
+		(history.record.mock.calls as [string, { changes?: { field: string }[] }][])
+			.flatMap((call) => call[1]?.changes ?? [])
 			.filter((change) => change.field === "recurrence");
 
 	it("setRecurrence: setting a schedule up logs one `recurrence` change with only `to`", async () => {

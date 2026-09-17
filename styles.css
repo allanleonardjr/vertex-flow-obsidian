@@ -8053,12 +8053,14 @@ button.vf-history-expand {
  * edge, silently erasing the dashed line wherever a ghost follows a real
  * row. Fix it from the real row's side instead: make *its* border dashed
  * when the next sibling is a ghost, so both sides agree and there's nothing
- * left to resolve. `--vf-ghost-border` is set on `.is-projected` elements,
+ * left to resolve. The next-sibling lookup can't use `:has` (banned by
+ * stylelint), so `TaskTableRow` sets `is-before-projected` itself, from the
+ * group's next task. `--vf-ghost-border` is set on `.is-projected` elements,
  * not on this row, and a custom property only inherits to descendants, not
  * across siblings — so the same `color-mix(...)` is spelled out again here
  * rather than relied on via inheritance.
  */
-.vf-table-row:has(+ .vf-table-row.is-projected) {
+.vf-table-row.is-before-projected {
   border-bottom: 1px dashed
     color-mix(in srgb, var(--interactive-accent) 55%, var(--vf-border));
 }
