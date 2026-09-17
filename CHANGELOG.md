@@ -5,6 +5,27 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Fixed
+
+- **Table now treats a recurring-preview (ghost) occurrence the same way
+  List already does.** Previously Table rendered a projected occurrence as a
+  fully interactive row — editable cells, an open-task button pointing at a
+  note that doesn't exist, and a Relations "+" that could try to link a fake
+  task. A ghost row is now entirely inert except for one thing: clicking
+  anywhere on the row opens the real recurring task it was projected from.
+  It carries no `data-task-path` and never joins selection or drag. Every
+  cell falls back to a plain, read-only rendering of its value (status dot,
+  priority glyph, chips, dates, avatar, the bare `RelationBadge` with no
+  quick-add) instead of its picker/editor, the whole row's content dims to
+  55% opacity, and the title renders in italics — matching List's existing
+  ghost treatment. The dashed purple outline around a run of ghost rows
+  could also silently vanish wherever a ghost sat next to a real row:
+  `border-collapse` resolves a shared edge by picking the row with the
+  higher-priority border style, and a real row's plain solid divider always
+  beat the ghost's dashed one on that shared edge. Fixed by making the real
+  row's own border dashed when its next sibling is a ghost, so both sides of
+  the edge agree and there's nothing left for the browser to resolve.
+
 ## 1.0.26 — 2026-09-16
 
 ### Added

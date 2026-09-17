@@ -45,7 +45,11 @@ import {
 	Plus,
 	SquareArrowOutUpRight,
 } from "lucide-react";
-import { scopeOf, subtaskProgress, type HierarchyScope } from "../../core/hierarchy";
+import {
+	scopeOf,
+	subtaskProgress,
+	type HierarchyScope,
+} from "../../core/hierarchy";
 import { listValues, type WorkspaceTaxonomies } from "../../core/taxonomy";
 import { isCanceled, isCompleted } from "../../core/taxonomy";
 import {
@@ -76,7 +80,7 @@ import {
 import { Icon } from "./Icon";
 import { AddRelationTrigger, RELATION_KINDS } from "./RelationsEditor";
 import { ResizeHandle } from "./ResizeHandle";
-import { LabelChip, RelationBadge } from "./TaskBits";
+import { LabelChip, PersonAvatar, PriorityIcon, RelationBadge } from "./TaskBits";
 import type { TaskListGroup, TaskListInteraction } from "./TaskList";
 import { displayTitle, TaskTitle } from "./TaskTitle";
 
@@ -170,7 +174,9 @@ export function orderedTaskFields(
 ): TaskField[] {
 	const hidden = new Set(hiddenFields ?? []);
 	const visible = TASK_FIELDS.filter((field) => !hidden.has(field));
-	const ordered = (columnOrder ?? []).filter((field) => visible.includes(field));
+	const ordered = (columnOrder ?? []).filter((field) =>
+		visible.includes(field),
+	);
 	const rest = visible.filter((field) => !ordered.includes(field));
 	return [...ordered, ...rest];
 }
@@ -243,7 +249,11 @@ export function TaskTable({
 	// on drop (Phase 3c), so this can never settle into an order different
 	// from what actually gets saved.
 	const liveFieldColumns = reorder?.drag
-		? reorderColumns(fieldColumns, reorder.drag.column, reorder.drag.targetIndex)
+		? reorderColumns(
+				fieldColumns,
+				reorder.drag.column,
+				reorder.drag.targetIndex,
+			)
 		: fieldColumns;
 	const columns: Column[] = [...MANDATORY_COLUMNS, ...liveFieldColumns];
 	const scope = scopeOf(snapshot);
@@ -312,9 +322,15 @@ export function TaskTable({
 	);
 
 	return (
-		<div className={`vf-table-wrap${tableStripe ? " has-stripe" : ""}`} style={style}>
+		<div
+			className={`vf-table-wrap${tableStripe ? " has-stripe" : ""}`}
+			style={style}
+		>
 			<div className="vf-table-header-track">
-				<table className="vf-table vf-table-header-table" style={{ tableLayout: "fixed" }}>
+				<table
+					className="vf-table vf-table-header-table"
+					style={{ tableLayout: "fixed" }}
+				>
 					{colgroup}
 					<thead>
 						<tr className="vf-table-header-row" ref={headerRowRef}>
@@ -507,8 +523,7 @@ function ColumnDragPreview({
 		} else if (directionRef.current === "right") {
 			targetLeft = headers[drag.targetIndex].getBoundingClientRect().left;
 		} else {
-			targetLeft =
-				headers[drag.targetIndex - 1].getBoundingClientRect().right;
+			targetLeft = headers[drag.targetIndex - 1].getBoundingClientRect().right;
 		}
 	}
 
@@ -523,45 +538,56 @@ function ColumnDragPreview({
 
 	return createPortal(
 		<>
-		<div className="vf-drag-layer" aria-hidden>
-			<div
-				className="vf-column-drag-preview"
-				style={{ top, left: targetLeft, width: drag.width, height: bottom - top }}
-			>
-				{header && (
-					<div
-						className="vf-column-drag-preview-header"
-						style={{ top: header.top - top, height: header.height }}
-					>
-						{COLUMN_LABEL[drag.column]}
-					</div>
-				)}
-				{rows.map(({ task, top: rowTop, height }) => (
-					<div
-						key={task.path}
-						className="vf-column-drag-preview-cell"
-						style={{ top: rowTop - top, height }}
-					>
-						<TableCell
-							column={drag.column}
-							task={task}
-							snapshot={snapshot}
-							taxonomies={taxonomies}
-							scope={scope}
-							mutations={mutations}
-							editing={false}
-							onStartEdit={() => {}}
-							onDoneEditing={() => {}}
-						/>
-					</div>
-				))}
+			<div className="vf-drag-layer" aria-hidden>
+				<div
+					className="vf-column-drag-preview"
+					style={{
+						top,
+						left: targetLeft,
+						width: drag.width,
+						height: bottom - top,
+					}}
+				>
+					{header && (
+						<div
+							className="vf-column-drag-preview-header"
+							style={{ top: header.top - top, height: header.height }}
+						>
+							{COLUMN_LABEL[drag.column]}
+						</div>
+					)}
+					{rows.map(({ task, top: rowTop, height }) => (
+						<div
+							key={task.path}
+							className="vf-column-drag-preview-cell"
+							style={{ top: rowTop - top, height }}
+						>
+							<TableCell
+								column={drag.column}
+								task={task}
+								snapshot={snapshot}
+								taxonomies={taxonomies}
+								scope={scope}
+								mutations={mutations}
+								projected={task.projected === true}
+								editing={false}
+								onStartEdit={() => {}}
+								onDoneEditing={() => {}}
+							/>
+						</div>
+					))}
+				</div>
 			</div>
-		</div>
-		<div
-			className="vf-column-drop-box"
-			style={{ top, left: targetLeft, width: drag.width, height: bottom - top }}
-			aria-hidden
-		/>
+			<div
+				className="vf-column-drop-box"
+				style={{
+					top,
+					left: targetLeft,
+					width: drag.width,
+					height: bottom - top,
+				}}
+				aria-hidden
+			/>
 		</>,
 		document.body,
 	);
@@ -632,11 +658,7 @@ function TableHeaderCell({
 					type="button"
 					className={`vf-table-th-btn${active ? " is-active" : ""}`}
 					aria-label={ariaLabel}
-					title={
-						reorder
-							? "Click to sort · drag to reorder"
-							: "Click to sort"
-					}
+					title={reorder ? "Click to sort · drag to reorder" : "Click to sort"}
 					onPointerDown={
 						reorder
 							? (event) => reorder.onPointerDown(event, column as TaskField)
@@ -650,7 +672,11 @@ function TableHeaderCell({
 					{label && <span className="vf-table-th-label">{label}</span>}
 					{active && (
 						<span className="vf-table-th-sort" aria-hidden>
-							{direction === "asc" ? <ArrowUp size={11} /> : <ArrowDown size={11} />}
+							{direction === "asc" ? (
+								<ArrowUp size={11} />
+							) : (
+								<ArrowDown size={11} />
+							)}
 							{tableSort.length > 1 && (
 								<span className="vf-table-th-rank">{index + 1}</span>
 							)}
@@ -690,11 +716,15 @@ function TaskTableRow({
 	setEditingCell: (next: EditingCell | null) => void;
 	reorder?: TableColumnReorder;
 }) {
+	const projected = task.projected === true;
+	const openTarget = projected ? (task.recurringFrom ?? task.path) : task.path;
+
 	const className = [
 		"vf-table-row",
-		interaction?.isFocused?.(task) ? "is-focused" : "",
-		interaction?.isSelected?.(task) ? "is-selected" : "",
+		!projected && interaction?.isFocused?.(task) ? "is-focused" : "",
+		!projected && interaction?.isSelected?.(task) ? "is-selected" : "",
 		task.archived ? "is-archived" : "",
+		projected ? "is-projected" : "",
 	]
 		.filter(Boolean)
 		.join(" ");
@@ -702,26 +732,31 @@ function TaskTableRow({
 	return (
 		<tr
 			className={className}
-			data-task-path={task.path}
-			onPointerDown={(event) =>
-				interaction?.onRowPointerDown?.(event, task, groupKey)
+			data-task-path={projected ? undefined : task.path}
+			onPointerDown={
+				projected
+					? undefined
+					: (event) => interaction?.onRowPointerDown?.(event, task, groupKey)
 			}
+			onClick={projected ? () => onOpenTask?.(openTarget) : undefined}
 		>
 			<td className="vf-table-td vf-table-td-open">
-				<button
-					type="button"
-					className="vf-icon-button vf-table-open-btn"
-					title={`Open "${displayTitle(task)}"`}
-					aria-label={`Open "${displayTitle(task)}"`}
-					onClick={(event) => {
-						event.stopPropagation();
-						interaction?.onRowClick
-							? interaction.onRowClick(event, task)
-							: onOpenTask?.(task.path);
-					}}
-				>
-					<SquareArrowOutUpRight size={13} />
-				</button>
+				{!projected && (
+					<button
+						type="button"
+						className="vf-icon-button vf-table-open-btn"
+						title={`Open "${displayTitle(task)}"`}
+						aria-label={`Open "${displayTitle(task)}"`}
+						onClick={(event) => {
+							event.stopPropagation();
+							interaction?.onRowClick
+								? interaction.onRowClick(event, task)
+								: onOpenTask?.(task.path);
+						}}
+					>
+						<SquareArrowOutUpRight size={13} />
+					</button>
+				)}
 			</td>
 			{columns.map((column) => {
 				const dragging = reorder?.isDragging(column as TaskField) ?? false;
@@ -737,10 +772,15 @@ function TaskTableRow({
 							taxonomies={taxonomies}
 							scope={scope}
 							mutations={mutations}
+							projected={projected}
 							editing={
-								editingCell?.path === task.path && editingCell.column === column
+								!projected &&
+								editingCell?.path === task.path &&
+								editingCell.column === column
 							}
-							onStartEdit={() => setEditingCell({ path: task.path, column })}
+							onStartEdit={() => {
+								if (!projected) setEditingCell({ path: task.path, column });
+							}}
 							onDoneEditing={() => setEditingCell(null)}
 						/>
 					</td>
@@ -815,7 +855,11 @@ function EditableCell({
 }) {
 	if (editing) return <>{editor}</>;
 	return (
-		<button type="button" className="vf-table-cell-edit-trigger" onClick={onStartEdit}>
+		<button
+			type="button"
+			className="vf-table-cell-edit-trigger"
+			onClick={onStartEdit}
+		>
 			{display ?? <span className="vf-table-cell-empty">—</span>}
 		</button>
 	);
@@ -956,7 +1000,10 @@ function TableStartDateCell({
 			onStartEdit={onStartEdit}
 			display={
 				!task.startDate ? null : (
-					<span className="vf-table-cell-text" title={`Starts ${task.startDate}`}>
+					<span
+						className="vf-table-cell-text"
+						title={`Starts ${task.startDate}`}
+					>
 						{task.startDate}
 					</span>
 				)
@@ -1091,7 +1138,10 @@ function TableRelationsCell({
 		const place = () => {
 			const rect = anchorRef.current?.getBoundingClientRect();
 			if (!rect) return;
-			setPos({ top: rect.bottom + 4, left: Math.min(rect.left, window.innerWidth - 220) });
+			setPos({
+				top: rect.bottom + 4,
+				left: Math.min(rect.left, window.innerWidth - 220),
+			});
 		};
 		place();
 		const close = () => setOpen(false);
@@ -1106,24 +1156,27 @@ function TableRelationsCell({
 		};
 	}, [open]);
 
-	const others = snapshot.tasks.filter((candidate) => candidate.path !== task.path);
+	const others = snapshot.tasks.filter(
+		(candidate) => candidate.path !== task.path,
+	);
 
 	// `addDependency` throws (after showing its own Notice) when the pick would
 	// create a cycle — that's its cycle-guard's only signal, not a bug to
 	// surface again here, so the rejection is swallowed rather than reimplementing
 	// or bypassing the check.
-	const onAddFor = (key: (typeof RELATION_KINDS)[number]["key"]) => (path: string) => {
-		const target = snapshot.tasks.find((t) => t.path === path);
-		if (!target) return;
-		if (key === "blocks") {
-			void mutations.addDependency(task, target).catch(() => {});
-		} else if (key === "blockedBy") {
-			void mutations.addDependency(target, task).catch(() => {});
-		} else {
-			void mutations.addRelated(task, target).catch(() => {});
-		}
-		setOpen(false);
-	};
+	const onAddFor =
+		(key: (typeof RELATION_KINDS)[number]["key"]) => (path: string) => {
+			const target = snapshot.tasks.find((t) => t.path === path);
+			if (!target) return;
+			if (key === "blocks") {
+				void mutations.addDependency(task, target).catch(() => {});
+			} else if (key === "blockedBy") {
+				void mutations.addDependency(target, task).catch(() => {});
+			} else {
+				void mutations.addRelated(task, target).catch(() => {});
+			}
+			setOpen(false);
+		};
 
 	return (
 		<span className="vf-table-relations-cell">
@@ -1171,6 +1224,182 @@ function TableRelationsCell({
 	);
 }
 
+/**
+ * The read-only face a projected (ghost) row shows for every column — the
+ * same value-presentation each interactive cell already renders at rest
+ * (status dot + name, priority glyph + name, the project's icon + title,
+ * the assignee's avatar + name, label chips, `RelationBadge` alone), just
+ * never wrapped in a picker, `SelectMenu`, or the "+" quick-add trigger. A
+ * synthesized occurrence has no real note to write to, so nothing here is
+ * clickable — see `TaskTableRow`'s own `projected` branch for the row-level
+ * open action that replaces per-cell interaction entirely.
+ */
+function TableCellStatic({
+	column,
+	task,
+	snapshot,
+	taxonomies,
+	scope,
+}: {
+	column: Column;
+	task: Task;
+	snapshot: WorkspaceSnapshot;
+	taxonomies: WorkspaceTaxonomies;
+	scope: HierarchyScope;
+}): ReactNode {
+	switch (column) {
+		case "status": {
+			const entry =
+				taxonomies.status.values.find((v) => v.id === task.status) ?? null;
+			return (
+				<span className="vf-table-cell-static">
+					<span
+						className="vf-status-dot"
+						style={entry?.color ? { background: entry.color } : undefined}
+						aria-hidden
+					/>
+					<span className="vf-icon-select-name">{entry ? entry.name : "—"}</span>
+				</span>
+			);
+		}
+		case "id":
+			return <span className="vf-id">{task.id}</span>;
+		case "title":
+			return (
+				<span className="vf-row-title">
+					{task.parent && (
+						<span className="vf-subtask-marker" title="Sub-task">
+							↳
+						</span>
+					)}
+					<TaskTitle task={task} />
+				</span>
+			);
+		case "type": {
+			const entry =
+				taxonomies.taskType.values.find((v) => v.id === task.taskType) ?? null;
+			return entry ? (
+				<LabelChip
+					name={entry.name}
+					color={entry.color}
+					className="vf-label-chip--bordered"
+				/>
+			) : (
+				<span className="vf-icon-select-name vf-prop-empty">None</span>
+			);
+		}
+		case "project": {
+			if (!task.project) {
+				return (
+					<span className="vf-icon-select-name vf-prop-empty">No project</span>
+				);
+			}
+			const project = snapshot.projects.find((p) => p.path === task.project);
+			return (
+				<span className="vf-table-cell-static">
+					<Icon id={project?.icon} fallback="folder" size={13} />
+					<span className="vf-icon-select-name">
+						{project?.title ?? task.project}
+					</span>
+				</span>
+			);
+		}
+		case "priority": {
+			const ordered = listValues(taxonomies.priority);
+			const entry = task.priority
+				? (ordered.find((v) => v.id === task.priority) ?? null)
+				: null;
+			const index = entry
+				? ordered.findIndex((v) => v.id === entry.id)
+				: -1;
+			return (
+				<span className="vf-table-cell-static">
+					<PriorityIcon
+						index={index}
+						count={ordered.length}
+						color={entry?.color}
+						name={entry?.name}
+					/>
+					<span className="vf-icon-select-name">{entry?.name ?? "None"}</span>
+				</span>
+			);
+		}
+		case "assignee": {
+			if (!task.assignee) {
+				return (
+					<span className="vf-icon-select-name vf-prop-empty">Unassigned</span>
+				);
+			}
+			const person = snapshot.workspace.people.find(
+				(p) => p.id === task.assignee,
+			);
+			return (
+				<span className="vf-table-cell-static">
+					<PersonAvatar name={person?.name ?? task.assignee} />
+					<span className="vf-icon-select-name">
+						{person?.name ?? task.assignee}
+					</span>
+				</span>
+			);
+		}
+		case "labels": {
+			if (task.labels.length === 0) return null;
+			return (
+				<span className="vf-labels">
+					{task.labels.map((id) => {
+						const v = taxonomies.label.values.find((x) => x.id === id);
+						return v ? (
+							<LabelChip key={id} name={v.name} color={v.color} />
+						) : null;
+					})}
+				</span>
+			);
+		}
+		case "estimate": {
+			if (task.estimate == null) return null;
+			const suffix = snapshot.workspace.estimateUnitLabel?.trim();
+			return (
+				<span
+					className="vf-table-cell-text"
+					title={`Estimate: ${task.estimate}${suffix ? ` ${suffix}` : ""}`}
+				>
+					{task.estimate}
+					{suffix ? ` ${suffix}` : ""}
+				</span>
+			);
+		}
+		case "startDate":
+			if (!task.startDate) return null;
+			return (
+				<span className="vf-table-cell-text" title={`Starts ${task.startDate}`}>
+					{task.startDate}
+				</span>
+			);
+		case "dueDate": {
+			if (!task.dueDate) return null;
+			const { isToday, isOverdue } = dueDateIsOverdueOrToday(
+				task,
+				taxonomies.status,
+			);
+			return (
+				<span
+					className={`vf-table-cell-text${isToday ? " is-today" : ""}${
+						isOverdue ? " is-overdue" : ""
+					}`}
+				>
+					{task.dueDate}
+				</span>
+			);
+		}
+		case "progress": {
+			const progress = subtaskProgress(scope, task, taxonomies.status);
+			return <TableProgressCell progress={progress} />;
+		}
+		case "relations":
+			return <RelationBadge task={task} />;
+	}
+}
+
 function TableCell({
 	column,
 	task,
@@ -1178,6 +1407,7 @@ function TableCell({
 	taxonomies,
 	scope,
 	mutations,
+	projected,
 	editing,
 	onStartEdit,
 	onDoneEditing,
@@ -1188,17 +1418,32 @@ function TableCell({
 	taxonomies: WorkspaceTaxonomies;
 	scope: HierarchyScope;
 	mutations: Mutations;
+	projected: boolean;
 	editing: boolean;
 	onStartEdit: () => void;
 	onDoneEditing: () => void;
 }): ReactNode {
+	if (projected) {
+		return (
+			<TableCellStatic
+				column={column}
+				task={task}
+				snapshot={snapshot}
+				taxonomies={taxonomies}
+				scope={scope}
+			/>
+		);
+	}
+
 	switch (column) {
 		case "status":
 			return (
 				<StatusSelect
 					taxonomy={taxonomies.status}
 					value={task.status}
-					onChange={(status) => status && void mutations.setStatus(task, status)}
+					onChange={(status) =>
+						status && void mutations.setStatus(task, status)
+					}
 				/>
 			);
 		case "id":
@@ -1244,9 +1489,7 @@ function TableCell({
 				<PrioritySelect
 					taxonomy={taxonomies.priority}
 					value={task.priority}
-					onChange={(priority) =>
-						void mutations.setPriority(task, priority)
-					}
+					onChange={(priority) => void mutations.setPriority(task, priority)}
 				/>
 			);
 		case "assignee":

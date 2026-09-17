@@ -1264,7 +1264,20 @@ button.vf-nest-chevron {
   opacity: 0.4;
 }
 
+/* A ghost row's icon+name cells (status/priority/project/assignee) — the
+   same flex layout `button.vf-icon-select-trigger` gives the interactive
+   version, minus the button semantics a non-clickable ghost cell has no use
+   for. */
+.vf-table-cell-static {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  overflow: hidden;
+}
+
 .vf-table-td > .vf-icon-select,
+.vf-table-td > .vf-table-cell-static,
 .vf-table-td > .vf-label-editor,
 .vf-table-td > .vf-table-cell-edit-trigger,
 .vf-table-td > .vf-table-relations-cell {
@@ -8012,6 +8025,62 @@ button.vf-history-expand {
 .vf-timeline-row-label.is-projected .vf-row-title,
 .vf-cal-chip.is-projected .vf-row-title,
 .vf-card.is-projected .vf-card-title {
+  font-style: italic;
+}
+
+/* Table's own ghost row — same dashed-hairline knob as List/Timeline above.
+   The row itself is the click target (no dedicated open-icon renders for a
+   ghost, see TaskTableRow), so Table follows List's lighter touch rather
+   than Board's whole-card opacity — but the *content* still dims the same
+   way List's `.vf-row-open` wrapper dims everything inside it. Dimming
+   targets each `.vf-table-td`, not the row, so the dashed border itself
+   stays at full contrast. */
+.vf-table-row.is-projected {
+  --vf-ghost-border: color-mix(
+    in srgb,
+    var(--interactive-accent) 55%,
+    var(--vf-border)
+  );
+  border-bottom: 1px dashed var(--vf-ghost-border);
+}
+
+/*
+ * `border-collapse: collapse` resolves a shared edge by width first, then
+ * style priority (solid beats dashed) — so a real row's plain solid
+ * `border-bottom` always wins over a ghost's dashed `border-top` on the same
+ * edge, silently erasing the dashed line wherever a ghost follows a real
+ * row. Fix it from the real row's side instead: make *its* border dashed
+ * when the next sibling is a ghost, so both sides agree and there's nothing
+ * left to resolve. `--vf-ghost-border` is set on `.is-projected` elements,
+ * not on this row, and a custom property only inherits to descendants, not
+ * across siblings — so the same `color-mix(...)` is spelled out again here
+ * rather than relied on via inheritance.
+ */
+.vf-table-row:has(+ .vf-table-row.is-projected) {
+  border-bottom: 1px dashed
+    color-mix(in srgb, var(--interactive-accent) 55%, var(--vf-border));
+}
+
+/*
+ * Still needed for a ghost's own top edge: the row above now carries the
+ * shared edge correctly (see above), but a ghost with no preceding sibling
+ * at all — the table's very first row — has nothing above it to carry that
+ * border instead.
+ */
+.vf-table-row.is-projected:first-child,
+:not(.vf-table-row.is-projected) + .vf-table-row.is-projected {
+  border-top: 1px dashed var(--vf-ghost-border);
+}
+
+.vf-table-row.is-projected {
+  cursor: pointer;
+}
+
+.vf-table-row.is-projected .vf-table-td {
+  opacity: 0.55;
+}
+
+.vf-table-row.is-projected .vf-row-title {
   font-style: italic;
 }
 
