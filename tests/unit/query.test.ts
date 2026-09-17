@@ -282,7 +282,7 @@ describe("canonicalisation", () => {
 			"calendarDateField", "canvasArrangement", "canvasDirection",
 			"canvasHiddenRelationKinds", "emptyColumnBehavior", "filters", "groupBy",
 			"hiddenFields", "recurringPreview", "sortBy", "sortDirection",
-			"subtaskDisplay", "viewType",
+			"subtaskDisplay", "tableSort", "viewType",
 		]);
 	});
 
@@ -556,6 +556,108 @@ describe("hide: clause", () => {
 		expect(parsed.ok).toBe(true);
 		expect(parsed.issues.map((i) => i.code)).toContain("duplicate-field");
 		expect(parsed.definition.hiddenFields).toEqual(["priority", "labels"]);
+	});
+});
+
+/* --------------------------------------------------------- table sort -- */
+
+describe("table-sort: clause", () => {
+	it("round-trips layout:table table-sort:priority,-due byte-for-byte", () => {
+		const source = "layout:table table-sort:priority,-due";
+		const parsed = parseQuery(source, ctx);
+		expect(parsed.ok).toBe(true);
+		expect(parsed.definition.viewType).toBe("table");
+		expect(parsed.definition.tableSort).toEqual([
+			{ field: "priority", direction: "asc" },
+			{ field: "dueDate", direction: "desc" },
+		]);
+		expect(printQuery(parsed.definition, ctx)).toBe(
+			`layout:table group:none sort:rank ${source.split(" ")[1]}`,
+		);
+	});
+
+	it("parses a single ascending key", () => {
+		expect(parseQuery("table-sort:priority", ctx).definition.tableSort).toEqual([
+			{ field: "priority", direction: "asc" },
+		]);
+	});
+
+	it("parses a leading - as descending", () => {
+		expect(parseQuery("table-sort:-due", ctx).definition.tableSort).toEqual([
+			{ field: "dueDate", direction: "desc" },
+		]);
+	});
+
+	it("skips a field already present, first occurrence wins", () => {
+		expect(
+			parseQuery("table-sort:priority,-priority", ctx).definition.tableSort,
+		).toEqual([{ field: "priority", direction: "asc" }]);
+	});
+
+	it("errors on an unknown field, same shape as sort:", () => {
+		const parsed = parseQuery("table-sort:vibes", ctx);
+		expect(parsed.ok).toBe(false);
+		expect(parsed.issues[0].code).toBe("unknown-value");
+	});
+
+	it("errors on table-sort: with no value", () => {
+		const parsed = parseQuery("table-sort:", ctx);
+		expect(parsed.ok).toBe(false);
+		expect(parsed.issues[0].code).toBe("empty-value");
+	});
+
+	it("warns but still parses a repeated table-sort:", () => {
+		const parsed = parseQuery("table-sort:priority table-sort:due", ctx);
+		expect(parsed.ok).toBe(true);
+		expect(parsed.issues.map((i) => i.code)).toContain("duplicate-field");
+		expect(parsed.definition.tableSort).toEqual([
+			{ field: "priority", direction: "asc" },
+			{ field: "dueDate", direction: "asc" },
+		]);
+	});
+
+	it("prints no table-sort: clause when empty", () => {
+		expect(printQuery(def(), ctx)).not.toContain("table-sort:");
+	});
+
+	it("round-trips through the generic invariant", () => {
+		expectRoundTrip(
+			def({
+				viewType: "table",
+				tableSort: [
+					{ field: "status", direction: "asc" },
+					{ field: "estimate", direction: "desc" },
+				],
+			}),
+		);
+	});
+
+	it("round-trips layout:table table-sort:type,-progress byte-for-byte", () => {
+		const source = "layout:table table-sort:type,-progress";
+		const parsed = parseQuery(source, ctx);
+		expect(parsed.ok).toBe(true);
+		expect(parsed.definition.tableSort).toEqual([
+			{ field: "taskType", direction: "asc" },
+			{ field: "progress", direction: "desc" },
+		]);
+		expect(printQuery(parsed.definition, ctx)).toBe(
+			`layout:table group:none sort:rank ${source.split(" ")[1]}`,
+		);
+	});
+
+	it("resolves each new field's alias", () => {
+		expect(parseQuery("table-sort:kind", ctx).definition.tableSort).toEqual([
+			{ field: "taskType", direction: "asc" },
+		]);
+		expect(parseQuery("table-sort:owner", ctx).definition.tableSort).toEqual([
+			{ field: "assignee", direction: "asc" },
+		]);
+		expect(parseQuery("table-sort:tag", ctx).definition.tableSort).toEqual([
+			{ field: "labels", direction: "asc" },
+		]);
+		expect(parseQuery("table-sort:rel", ctx).definition.tableSort).toEqual([
+			{ field: "relations", direction: "asc" },
+		]);
 	});
 });
 

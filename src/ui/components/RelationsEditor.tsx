@@ -5,7 +5,7 @@ import { ProgressBar } from "./TaskBits";
 import { EmbeddedTaskList } from "./EmbeddedTaskList";
 import { TaskSelectMenu } from "./TaskSelectMenu";
 
-function AddRelationTrigger({
+export function AddRelationTrigger({
   label,
   candidates,
   snapshot,
@@ -43,7 +43,7 @@ function AddRelationTrigger({
   );
 }
 
-const RELATION_KINDS = [
+export const RELATION_KINDS = [
   { key: "blockedBy", label: "Blocked by" },
   { key: "blocks", label: "Blocks" },
   { key: "related", label: "Related" },

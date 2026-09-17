@@ -2,10 +2,11 @@
  * The property rail shared by the Task and Project editors: a drag-resizable,
  * collapsible aside pinned to the right of the editor body.
  *
- * Width and collapsed state are plugin-global (not per-entity) — someone who
- * widens or hides the rail on a task wants the same on a project. They persist
- * through `plugin.settings` (`editorRailWidth` / `editorRailCollapsed`),
- * matching how `editorSourceOpen` is already shared between the two editors.
+ * Width and collapsed state are per editor kind (Task vs. Project) — each
+ * remembers its own, so collapsing or resizing the rail on a task has no
+ * effect on a project's rail and vice versa. They persist through
+ * `plugin.settings` as `<kind>EditorRailWidth` / `<kind>EditorRailCollapsed`,
+ * matching how `<kind>EditorSourceOpen` is keyed per editor kind too.
  */
 
 import { useRef, useState, type ReactNode } from "react";
@@ -18,7 +19,15 @@ const RAIL_MIN_WIDTH = 200;
 const EDITOR_MAIN_MIN_WIDTH = 280;
 const RAIL_DEFAULT_WIDTH = 264;
 
-export function EditorRail({ children }: { children: ReactNode }) {
+export type EditorRailKind = "task" | "project";
+
+export function EditorRail({
+	kind,
+	children,
+}: {
+	kind: EditorRailKind;
+	children: ReactNode;
+}) {
 	const plugin = usePlugin();
 	// In compact (narrow) panes the rail becomes a right-side overlay drawer and
 	// its open/closed state is driven by the toggle strip (`propertiesOpen`),
@@ -27,16 +36,18 @@ export function EditorRail({ children }: { children: ReactNode }) {
 	// perpetually false, so `showFull` collapses back to `!collapsed` (the
 	// original behavior).
 	const { propertiesOpen, closeDrawers } = useCompactNav();
-	const [width, setWidth] = useState(plugin.settings.editorRailWidth);
-	const [collapsed, setCollapsed] = useState(
-		plugin.settings.editorRailCollapsed,
-	);
+	const widthKey =
+		kind === "task" ? "taskEditorRailWidth" : "projectEditorRailWidth";
+	const collapsedKey =
+		kind === "task" ? "taskEditorRailCollapsed" : "projectEditorRailCollapsed";
+	const [width, setWidth] = useState(plugin.settings[widthKey]);
+	const [collapsed, setCollapsed] = useState(plugin.settings[collapsedKey]);
 
 	const showFull = propertiesOpen || !collapsed;
 
 	const setCollapsedState = (next: boolean) => {
 		setCollapsed(next);
-		plugin.settings.editorRailCollapsed = next;
+		plugin.settings[collapsedKey] = next;
 		void plugin.saveSettings();
 	};
 
@@ -62,7 +73,7 @@ export function EditorRail({ children }: { children: ReactNode }) {
 				width={width}
 				onResize={setWidth}
 				onResizeEnd={(next) => {
-					plugin.settings.editorRailWidth = next;
+					plugin.settings[widthKey] = next;
 					void plugin.saveSettings();
 				}}
 			/>

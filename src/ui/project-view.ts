@@ -30,5 +30,6 @@ export function projectView(project: Project): SavedView {
 		canvasDirection: definition?.canvasDirection ?? "right",
 		canvasHiddenRelationKinds: definition?.canvasHiddenRelationKinds ?? [],
 		recurringPreview: definition?.recurringPreview ?? false,
+		tableSort: definition?.tableSort ?? [],
 	};
 }

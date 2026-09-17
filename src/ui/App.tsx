@@ -366,6 +366,7 @@ export function labelView(
     subtaskDisplay: "flat",
     calendarDateField: "dueDate",
     recurringPreview: false,
+    tableSort: [],
   };
 }
 
@@ -391,6 +392,7 @@ export function personView(
     subtaskDisplay: "flat",
     calendarDateField: "dueDate",
     recurringPreview: false,
+    tableSort: [],
   };
 }
 

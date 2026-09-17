@@ -1045,6 +1045,396 @@ button.vf-nest-chevron {
   margin-bottom: 10px;
 }
 
+/* ----------------------------------------------------------------- Table -- */
+
+/*
+ * Two single-axis scroll containers, not one two-axis `.vf-table-wrap` — a
+ * shared `overflow: auto` on both axes makes Chromium/Electron fall back
+ * from an auto-hiding overlay scrollbar to a classic reserved-space one (it
+ * can't cleanly render the corner where both bars would meet).
+ *
+ * The outer container (`.vf-table-wrap`) owns vertical scroll and is the
+ * `position: sticky` reference for the header track. The inner container
+ * (`.vf-table-scroll-x`) owns horizontal scroll for the body only —
+ * `position: sticky` can't cross an `overflow-x: auto` ancestor to reach a
+ * further-out scrolling container, so the header lives in its own
+ * non-scrolling, clipped track (`.vf-table-header-track`) instead, and its
+ * horizontal position is synced to the body's `scrollLeft` by hand (see
+ * `TaskTable.tsx`'s scroll listener) rather than by native scrolling.
+ */
+.vf-table-wrap {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 40px;
+}
+
+.vf-table-header-track {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  flex: none;
+  overflow: hidden;
+  background: var(--background-primary);
+}
+
+.vf-table-scroll-x {
+  flex: none;
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.vf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-ui-smaller);
+}
+
+/*
+ * The header table's row is moved by a manual `translateX` on scroll (see
+ * `TaskTable.tsx`), not by native scrolling. With `border-collapse: collapse`
+ * (the default from `.vf-table`), collapsed borders belong to the table's
+ * layout pass rather than each cell's own paint box, and don't reliably
+ * follow a transformed row — the grid lines can stay put while the header
+ * content slides under them. `separate` with zero spacing puts each border
+ * back on its own `<th>`, so it moves with the transform; adjacent cells'
+ * borders land on the same pixel, so there is no visible doubling.
+ */
+.vf-table-header-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.vf-table-th {
+  position: relative;
+  padding: 0;
+  border-bottom: 1px solid var(--vf-border);
+  border-right: 1px solid var(--vf-border);
+  text-align: left;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.vf-table-th:last-child {
+  border-right: none;
+}
+
+.vf-table-th-inner {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.vf-table-th.is-dragging {
+  opacity: 0.4;
+}
+
+/*
+ * Decorative "this column moves" marker, absolutely positioned inside the
+ * header button's own 12px left padding so the label stays flush with the
+ * 12px content edge of `.vf-table-td` below it. `.vf-table-th` is already
+ * `position: relative` (the resize handle depends on it). The three
+ * measurements below share that 12px budget exactly (2 + 6 + 4 = 12):
+ * a small inset from the column's true left edge, so the grip doesn't read
+ * as the alignment anchor itself; a smaller-than-usual icon, to make room
+ * for that inset; and the same 4px clearance before the label as before, so
+ * shrinking the icon doesn't undo the earlier fix for that gap. Dim at rest
+ * so a row of grips doesn't shout; full strength when that header is
+ * hovered.
+ */
+.vf-table-th-grip {
+  position: absolute;
+  top: 0;
+  left: 2px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  color: var(--vf-muted);
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.vf-table-th:hover .vf-table-th-grip {
+  opacity: 1;
+}
+
+.vf-table-th button.vf-table-th-btn {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  height: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-normal);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  /* Obsidian's base `button` rule sets `justify-content: center`; without
+     this override an unsorted header centers its label, while a sorted one
+     only looks left-aligned because `.vf-table-th-sort`'s auto-margin
+     incidentally pins it there. */
+  justify-content: flex-start;
+}
+
+.vf-table-th button.vf-table-th-btn.is-active {
+  color: var(--interactive-accent);
+}
+
+.vf-table-th-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.vf-table-th-resize {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 6px;
+  height: 100%;
+}
+
+.vf-table-th-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  /* Pin the sort arrows to the header's right edge; the label gets the
+   * remaining space (and ellipsizes) via its own min-width: 0 above. */
+  margin-left: auto;
+}
+
+.vf-table-th-rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.vf-table-row {
+  border-bottom: 1px solid var(--vf-border);
+  cursor: default;
+  user-select: none;
+}
+
+.vf-table-row:hover {
+  background: var(--background-modifier-hover);
+}
+
+.vf-table-row.is-focused {
+  outline: 1px solid var(--interactive-accent);
+  outline-offset: -2px;
+}
+
+.vf-table-row.is-selected {
+  background: var(--text-selection);
+}
+
+.vf-table-row.is-archived {
+  opacity: 0.55;
+}
+
+.vf-table-wrap.has-stripe .vf-table-row:nth-child(odd) {
+  background: color-mix(in srgb, var(--vf-table-stripe) 8%, transparent);
+}
+
+.vf-table-td {
+  height: var(--vf-row-height);
+  padding: 0 12px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+
+.vf-table-td.is-dragging {
+  opacity: 0.4;
+}
+
+.vf-table-td > .vf-icon-select,
+.vf-table-td > .vf-label-editor,
+.vf-table-td > .vf-table-cell-edit-trigger,
+.vf-table-td > .vf-table-relations-cell {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.vf-table-td button.vf-icon-select-trigger {
+  height: 100%;
+  min-height: 0;
+  padding: 0 4px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+/*
+ * Table-specific un-hover: the app-wide `button.vf-icon-select-trigger:hover`
+ * fill applies everywhere (rail pickers included), so it has to be overridden
+ * here, not deleted — a light border instead of a filled background.
+ * `box-shadow: inset ... 1px` rather than `border`, so nothing shifts the
+ * element's box (and its row neighbors) when the outline appears/disappears.
+ */
+.vf-table-td button.vf-icon-select-trigger:hover {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--vf-border);
+}
+
+.vf-table-td .vf-icon-select-caret {
+  opacity: 0;
+}
+
+.vf-table-row:hover .vf-table-td .vf-icon-select-caret,
+.vf-table-td button.vf-icon-select-trigger:focus-visible .vf-icon-select-caret,
+.vf-table-td button.vf-icon-select-trigger[aria-expanded="true"] .vf-icon-select-caret {
+  opacity: 1;
+}
+
+.vf-table-td-status {
+  width: 1%;
+}
+
+.vf-table-td-id {
+  width: 1%;
+}
+
+.vf-table-td-open {
+  width: 1%;
+  padding: 0 4px;
+  /* Never holds text — only the icon button — so the inherited
+     text-overflow: ellipsis from .vf-table-td has nothing to truncate. At
+     narrow column widths it was still rendering its "…" glyph over the
+     button's invisible-at-rest state, showing as a stray dot. */
+  text-overflow: clip;
+}
+
+.vf-table-open-btn {
+  opacity: 0;
+}
+
+.vf-table-row:hover .vf-table-open-btn,
+.vf-table-open-btn:focus-visible {
+  opacity: 1;
+}
+
+.vf-table-cell-text {
+  color: var(--vf-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.vf-table-cell-text.is-today {
+  color: var(--text-warning, orange);
+}
+
+.vf-table-cell-text.is-overdue {
+  color: var(--text-error, red);
+}
+
+.vf-table-td button.vf-table-cell-edit-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  height: 100%;
+  padding: 0 4px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: text;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.vf-table-td button.vf-table-cell-edit-trigger:hover {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--vf-border);
+}
+
+.vf-table-cell-empty {
+  color: var(--vf-muted);
+}
+
+/*
+ * Actively-editing input: Obsidian's global input styling (gray form-field
+ * fill + border) shows through `.vf-input`'s own sizing-only rule, so pin the
+ * table cell's inputs to the table's resting background with an accent border
+ * instead of the heavy default form-field look.
+ */
+.vf-table-td input.vf-input {
+  width: 100%;
+  height: 100%;
+  padding: 0 4px;
+  border: 1px solid var(--interactive-accent);
+  border-radius: 0;
+  background: var(--background-primary);
+  box-shadow: none;
+}
+
+.vf-table-relations-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.vf-table-relations-add {
+  opacity: 0;
+}
+
+.vf-table-row:hover .vf-table-relations-add,
+.vf-table-relations-add:focus-visible {
+  opacity: 1;
+}
+
+.vf-table-relations-menu {
+  position: fixed;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 200px;
+  padding: 4px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-primary);
+  box-shadow: var(--shadow-l, 0 4px 16px rgb(0 0 0 / 20%));
+}
+
+.vf-table-group-row td {
+  padding: 8px 12px;
+  background: var(--background-secondary-alt, var(--background-secondary));
+  font-weight: 600;
+}
+
+.vf-table-group-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vf-table-empty-row td {
+  padding: 16px 12px;
+  color: var(--vf-muted);
+  text-align: center;
+}
+
 /* --- Drag preview ------------------------------------------------------- */
 
 .vf-drag-layer {
@@ -1063,6 +1453,62 @@ button.vf-nest-chevron {
   box-shadow: 0 10px 24px rgb(0 0 0 / 28%);
   transform: rotate(1.5deg);
   opacity: 0.95;
+}
+
+/* The dragged column's re-rendered cells, portaled to <body> inside
+   .vf-drag-layer, positioned at the column's real screen coordinates and
+   slid sideways only (see ColumnDragPreview's own doc comment) — not
+   rotated or drop-shadowed like the other drag previews, since this one is
+   meant to read as "still part of the table," not "picked up." */
+.vf-column-drag-preview {
+  position: absolute;
+  overflow: hidden;
+  background: var(--background-primary);
+  border: 1px solid var(--vf-border);
+  opacity: 0.92;
+}
+
+/* Caps the slab so it reads as one detached column, not just a stack of
+   unlabelled values — same left-aligned, bold treatment as the real
+   (now-untinted) header from Phase 4a/4d, plus the bottom border that
+   already separates every header from its body. */
+.vf-column-drag-preview-header {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--vf-border);
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.vf-column-drag-preview-cell {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+}
+
+/* An outline the exact size of the dragged column, framing the live slot
+   it would land in. Transparent fill, so the ghost's own content (which
+   now occupies this identical rectangle — see ColumnDragPreview's
+   `targetLeft`) still reads through; the accent border is what marks the
+   slot as the drop target, not a filled overlay competing with it.
+   Positioned directly (not nested inside .vf-drag-layer), since it must
+   NOT inherit that layer's own transform. Same accent color as
+   .vf-tab-drop-line / .vf-drop-indicator elsewhere in the app. */
+.vf-column-drop-box {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: var(--layer-notice, 60);
+  border: 2px solid var(--interactive-accent);
+  border-radius: var(--vf-radius);
+  pointer-events: none;
 }
 
 /* --- Drag count badge for multi-task drags --- */
@@ -2171,6 +2617,28 @@ button.vf-color-trigger.is-on {
   min-width: 0;
   width: auto;
   max-width: 100%;
+}
+
+button.vf-color-custom-apply {
+  flex: 0 0 auto;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-primary);
+  box-shadow: none;
+  color: var(--text-normal);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+}
+
+button.vf-color-custom-apply:hover:not(:disabled) {
+  background: var(--background-modifier-hover);
+}
+
+button.vf-color-custom-apply:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 /* ------------------------------------------------------------ Compact mode --
@@ -4322,6 +4790,7 @@ button.vf-add-filter {
 button.vf-layout-opt {
   /* Icon-only: no label to space out from, so drop the gap and tighten the
      box to roughly the icon plus a hair each side. */
+  position: relative;
   gap: 0;
   padding: 3px 6px;
   color: var(--vf-muted);
@@ -4366,6 +4835,22 @@ button.vf-layout-opt.is-on {
   color: var(--text-accent);
   font-weight: 500;
   background: var(--background-modifier-hover);
+}
+
+/* One-time discovery indicator on a layout button whose feature hasn't
+   been visited yet (see LayoutToggle's `seenFeatures` check). Sits in
+   the button's corner rather than inline, so it reads across the whole
+   row without the button needing to be active — unlike the old Beta
+   text badge, this clears itself permanently on first click. */
+.vf-layout-new-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-accent);
+  pointer-events: none;
 }
 
 /* Sort value + its direction arrow sit flush together. */
@@ -8300,18 +8785,3 @@ button.vf-canvas-zoom-fit {
   -webkit-box-orient: vertical;
 }
 
-/* Sits inline next to the Canvas icon in the layout picker (LayoutToggle),
-   only while Canvas is the active view — never a floating overlay on the
-   graph itself, where dynamically-laid-out content could eventually cover it. */
-.vf-canvas-beta-badge {
-  margin-left: 4px;
-  padding: 1px 5px;
-  border: 1px solid var(--text-warning, orange);
-  border-radius: 8px;
-  color: var(--text-warning, orange);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  line-height: 1.4;
-  pointer-events: none;
-}

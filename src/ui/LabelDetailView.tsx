@@ -99,23 +99,23 @@ function LabelEditor({
 }) {
 	const plugin = usePlugin();
 	const [descCollapsed, setDescCollapsed] = useState(
-		plugin.settings.descriptionCollapsed,
+		plugin.settings.labelDescriptionCollapsed,
 	);
 	const [descSourceMode, setDescSourceMode] = useState(
-		plugin.settings.descriptionSourceMode,
+		plugin.settings.labelDescriptionSourceMode,
 	);
 
 	const toggleDescription = () => {
 		const next = !descCollapsed;
 		setDescCollapsed(next);
-		plugin.settings.descriptionCollapsed = next;
+		plugin.settings.labelDescriptionCollapsed = next;
 		void plugin.saveSettings();
 	};
 
 	const toggleSourceMode = () => {
 		const next = !descSourceMode;
 		setDescSourceMode(next);
-		plugin.settings.descriptionSourceMode = next;
+		plugin.settings.labelDescriptionSourceMode = next;
 		void plugin.saveSettings();
 	};
 

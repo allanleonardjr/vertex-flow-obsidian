@@ -60,7 +60,8 @@ export type BarControlId =
 	| "fields"
 	| "addFilter"
 	| "canvasRelations"
-	| "canvasArrange";
+	| "canvasArrange"
+	| "stripe";
 
 export interface FilterClauseControl {
 	/** Clauses added this session that don't carry a value yet. */

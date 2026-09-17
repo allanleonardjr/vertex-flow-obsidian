@@ -53,6 +53,7 @@ Press `v`, then a layout key, to change how the current view is displayed.
 | --- | --- |
 | `v` `l` | List layout |
 | `v` `b` | Board layout |
+| `v` `s` | Table layout |
 | `v` `t` | Timeline layout |
 | `v` `c` | Calendar layout |
 | `v` `d` | Canvas layout (dependency DAG) |

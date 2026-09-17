@@ -141,6 +141,14 @@ export function ColorField({
 								}
 							}}
 						/>
+						<button
+							type="button"
+							className="vf-color-custom-apply"
+							disabled={!hexValid || normalized === value}
+							onClick={() => select(normalized!)}
+						>
+							Apply
+						</button>
 					</div>
 				</div>
 			)}

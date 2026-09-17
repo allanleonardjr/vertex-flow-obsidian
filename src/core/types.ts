@@ -172,6 +172,15 @@ export function emptyRelations(): TaskRelations {
 	return { blocks: [], blockedBy: [], related: [], duplicateOf: null };
 }
 
+/**
+ * How many relations a task has, counted exactly the way `RelationBadge`
+ * renders it — `duplicateOf` included. Shared so the Relations column's
+ * badge and its sort can never disagree about what the number means.
+ */
+export function relationCount(task: Pick<Task, "relations">): number {
+	return Object.values(task.relations ?? {}).flat().filter(Boolean).length;
+}
+
 // ---------------------------------------------------------------------------
 // Recurring tasks
 // ---------------------------------------------------------------------------
@@ -574,7 +583,7 @@ export interface WorkspaceConfig {
  * read-only dependency-graph (DAG) layout — Phase 1 renders it, later phases
  * make it interactive.
  */
-export type ViewType = "list" | "board" | "timeline" | "calendar" | "canvas";
+export type ViewType = "list" | "board" | "table" | "timeline" | "calendar" | "canvas";
 
 export type CanvasArrangement = "flow" | "tree";
 export type CanvasDirection = "right" | "down";
@@ -593,13 +602,29 @@ export type SortField =
 	| "priority"
 	| "status"
 	| "title"
+	| "id"
 	| "dueDate"
 	| "startDate"
 	| "estimate"
 	| "createdAt"
-	| "updatedAt";
+	| "updatedAt"
+	| "taskType"
+	| "project"
+	| "assignee"
+	| "labels"
+	| "progress"
+	| "relations";
 
 export type SortDirection = "asc" | "desc";
+
+/**
+ * One column key in a Table view's multi-column sort. Independent of
+ * `sortBy`/`sortDirection` — List and Board never read this.
+ */
+export interface TableSortKey {
+	field: SortField;
+	direction: SortDirection;
+}
 
 /**
  * How a view treats sub-tasks:
@@ -763,6 +788,12 @@ export interface SavedView {
 	 */
 	calendarDateField: "dueDate" | "startDate";
 	/**
+	 * Table-only multi-column sort. Independent of `sortBy`/`sortDirection` —
+	 * List and Board never read this. Empty array = fall back to `rank` order.
+	 * Order matters: index 0 is the primary key, index 1 the tiebreak, etc.
+	 */
+	tableSort: TableSortKey[];
+	/**
 	 * Canvas arrangement algorithm: `"flow"` (dependency-first layered layout,
 	 * the default) or `"tree"` (hierarchy-first mrtree layout where dependency
 	 * edges are rendered as post-layout overlays).
@@ -802,6 +833,16 @@ export interface SavedView {
 	 * `ViewDefinition`, like `columns` and `timeline`.
 	 */
 	calendar?: ViewCalendarState;
+	/**
+	 * Table-only column order. The mandatory columns (status, id, title) are
+	 * always first and are never members here. Absent/empty = canonical
+	 * `TASK_FIELDS` order. Furniture — writes straight through on drag-drop.
+	 */
+	columnOrder?: TaskField[];
+	/** Table-only per-column pixel widths, keyed by "status" | "id" | "title" | TaskField. Furniture. */
+	columnWidths?: Record<string, number>;
+	/** Table-only row/header stripe color (hex), or absent for no striping. Furniture. */
+	tableStripe?: string;
 }
 
 /**
@@ -828,6 +869,7 @@ export type ViewDefinition = Pick<
 	| "canvasDirection"
 	| "canvasHiddenRelationKinds"
 	| "recurringPreview"
+	| "tableSort"
 >;
 
 /**

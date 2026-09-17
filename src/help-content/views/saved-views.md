@@ -53,6 +53,8 @@ the verbatim name).
 | `sort:priority` / `sort:status` / `sort:title` / `sort:estimate` | Field order |
 | `sort:due` / `sort:start` | By due / start date |
 | `sort:created` / `sort:updated` | By created / updated time |
+| `sort:type` / `sort:project` / `sort:assignee` / `sort:labels` | Field order |
+| `sort:progress` / `sort:relations` | Sub-task rollup / relation count |
 | `group:status` / `priority` / `type` / `assignee` / `label` / `project` | Grouping — `group:none` for none |
 | `layout:list` / `board` / `timeline` / `calendar` | The layout |
 
@@ -71,4 +73,6 @@ the verbatim name).
 
 Sort values accept `asc` / `desc` (e.g. `sort:due asc`). The Query bar gives
 live suggestions and "did you mean…" pointers when a token doesn't parse, and
-shows a match count as you type.
+shows a match count as you type. In the Table layout, every column header is
+also clickable to sort — shift-click a second header to add it as a
+secondary sort key.

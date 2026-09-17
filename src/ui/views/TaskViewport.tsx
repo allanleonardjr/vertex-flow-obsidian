@@ -54,6 +54,7 @@ import { BoardView } from "./BoardView";
 import { CalendarView } from "./CalendarView";
 import { CanvasView } from "./CanvasView";
 import { ListView } from "./ListView";
+import { TableView } from "./TableView";
 import { TimelineView } from "./TimelineView";
 import { ViewControls } from "./ViewControls";
 import { useViewDraft } from "./useViewDraft";
@@ -327,13 +328,20 @@ export function TaskViewport({
           archived: archiving,
           archivedAt: archiving ? new Date().toISOString() : null,
         });
+        // Archiving can drop the target(s) out of the current filter,
+        // but this chord fires on a `window` listener regardless of
+        // where DOM focus currently sits — nothing else in this path
+        // hands it back to the shell, so j/k would otherwise go dead
+        // until the next click (mirrors the QuickFieldPicker close
+        // handler below and App.tsx's tab-change effect).
+        containerRef?.focus();
         return;
       }
       // Any other key cancels the chord and falls through.
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [active, clearPendingU, armU, plugin, setQuickPicker, uPickerKey]);
+  }, [active, clearPendingU, armU, plugin, setQuickPicker, uPickerKey, containerRef]);
 
   // Layout-switch chord: `v <key>` swaps this view's viewType. Mirrors the
   // `u`-chord's shape but is otherwise independent — different prefix key,
@@ -342,6 +350,17 @@ export function TaskViewport({
     () => ({
       l: "list",
       b: "board",
+      // `s` for "Spreadsheet" — Table's own initial, `t`, is Timeline's.
+      // `g` ("Grid") was considered and rejected: `PrefixEngine` arms its
+      // own go-to chord on *any* bare `g` keypress, with no awareness of
+      // this component's `pendingV`. Both listeners bind on `window` and
+      // neither calls `stopImmediatePropagation`, so `v` `g` would switch
+      // to Table *and* silently arm the go-to chord for the next second —
+      // the following keystroke could get hijacked into a navigation
+      // shortcut. `s` isn't an arm-key for any of the app's chord engines
+      // (`g`/`c` here, `u` for field updates, `v` for this one), so it
+      // carries none of that risk.
+      s: "table",
       t: "timeline",
       c: "calendar",
       // `d` for "DAG" — the one topology Phase 1 Canvas supports. Not "draw":
@@ -409,6 +428,13 @@ export function TaskViewport({
         const current = effectiveRef.current;
         if (current.viewType !== viewType) {
           draftRef.current.edit({ ...current, viewType });
+          // Swapping viewType swaps the whole List/Board/Table/etc.
+          // subtree, and this chord fires on a `window` listener
+          // regardless of current focus. App.tsx's focus-restore effect
+          // only re-runs on an `activeTab.id` change, which this isn't,
+          // so nothing else hands focus back to the shell here — without
+          // this, j/k go dead in the new layout until the next click.
+          containerRef?.focus();
         }
         return;
       }
@@ -416,7 +442,7 @@ export function TaskViewport({
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [active, clearPendingV, armV, layoutKeys]);
+  }, [active, clearPendingV, armV, layoutKeys, containerRef]);
 
   /**
    * The nested List view's rows — one forest per rendered group. `null`
@@ -699,6 +725,19 @@ export function TaskViewport({
           evaluated={evaluated}
           taxonomies={taxonomies}
           onColumnsChange={draft.setColumns}
+        />
+      ) : effective.viewType === "table" ? (
+        <TableView
+          snapshot={snapshot}
+          view={effective}
+          evaluated={evaluated}
+          taxonomies={taxonomies}
+          onColumnsChange={draft.setColumns}
+          onChange={draft.edit}
+          onColumnOrderChange={draft.setColumnOrder}
+          onColumnWidthsChange={draft.setColumnWidths}
+          onNewTask={newTask}
+          onClearFilters={clearFilters}
         />
       ) : (
         <ListView

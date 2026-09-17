@@ -5,6 +5,132 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.26 — 2026-09-16
+
+### Added
+
+- **Every Table column is now sortable, including Type, Project, Assignee,
+  Labels, Progress, and Relations.** These six join the existing Status,
+  Title, ID, Priority, Estimate, Start date, and Due date as full column
+  headers with click / shift-click / clear cycling. Type, Project,
+  Assignee, and Labels are also now selectable in the List/Board Sort
+  dropdown and the `sort:`/`table-sort:` query tokens (`sort:type`,
+  `sort:project`, `sort:owner`, `sort:tag`, and more — see the Saved Views
+  help page); Progress and Relations stay reachable through Table headers
+  and the query bar only, matching how they're presented everywhere else.
+  Relations' new sort counts the same way the Relations badge always has
+  (including "duplicate of"), so the two can't disagree.
+- **Dragging a Table column to reorder it now shuffles the other columns
+  out of the way in real time, not just at drop, alongside a live ghost
+  preview of the dragged column itself.** The ghost shows that column's
+  header label on top, then its actual cells (the real chips, avatars, and
+  status dots, not placeholder text) below, framed by a purple outline box.
+  Rather than tracking the raw pointer, the ghost and its outline snap to
+  the exact slot the column would land in if dropped right now — moving
+  toward wherever the drag is headed as it crosses each column boundary,
+  always agreeing with the live shuffle instead of drifting ahead of or
+  behind it. It stays pinned to the column's real vertical position rather
+  than following the cursor's Y, closer to how a spreadsheet handles a
+  column drag than the "lifted card" language List/Board rows and browser
+  tabs use elsewhere. The source column (header and every visible body
+  cell) dims while its preview is up.
+- **`v` `s` switches the current view to the Table layout**, alongside the
+  existing `v` `l`/`b`/`t`/`c`/`d` shortcuts. A new Table layout page in
+  the in-app Help pane documents columns, sorting, in-place editing, the
+  row stripe, and how it all saves with the view.
+- **New Table layout for Saved Views.** A spreadsheet-style grid — one row
+  per task, one column per field — joins List/Board/Timeline/Calendar/Canvas
+  as a selectable `viewType`. Columns are sortable by clicking a header
+  (shift-click adds a secondary/tertiary sort key; a third click on the sole
+  active key clears it back to manual rank order), drag-to-reorder via a
+  grip handle, and resize via a trailing drag handle with no max-width cap.
+  Rows can carry an optional stripe color, set from the view bar's new
+  Stripe chip. Every field cell is directly editable in place: Title,
+  Estimate, Start date, and Due date swap to an inline input on click
+  (commits on blur/Enter, Escape reverts with no write); Status, Priority,
+  Type, Assignee, Project, and Labels open the exact same dropdown the task
+  editor's rail uses for that field; Relations keeps its read-only badge and
+  gains a "+" to add a Blocks/Blocked-by/Related link through the same
+  cycle-guarded flow the task editor offers. A dedicated open-task button
+  (revealed on row hover) replaces click-anywhere-to-open, since the row
+  itself is now interactive. Progress stays display-only, matching every
+  other view.
+
+- **Canvas's "BETA" badge in the layout picker is gone — it's stable now —
+  and Table's layout button shows a small "New" dot until you click it once.**
+  The dot clears permanently on first click, active or not, and is backed by
+  a reusable `seenFeatures` settings flag rather than a one-off, so future
+  layouts or features can reuse the same discovery indicator without another
+  settings-schema change.
+
+### Fixed
+
+- **Collapsing or resizing the Task editor's property rail no longer affects
+  the Project editor's rail, and the same independence now holds for each
+  editor's description collapse/source-mode toggle.** Task, Project, Saved
+  View, and Label editors each had their description collapse/source-mode
+  wired to the same shared setting, and Task/Project additionally shared
+  rail width, rail collapse, and raw-source-open state — so, for example,
+  collapsing a task's description also collapsed a project's the next time
+  it was opened. Each editor kind now persists its own state. Existing
+  installs keep their current on-disk visual state on first load after
+  upgrading (a one-time migration seeds the new per-kind keys from the old
+  shared ones); a handful of long-dead settings keys left over from earlier
+  localStorage migrations (`mePerson`, `activeWorkspaceRoot`,
+  `sidebarCollapsed`, `sidebarWidth`, `sidebarMinimized`) are dropped from
+  `data.json` in the same pass.
+- **Picking a custom stripe, taxonomy, or label color via the color wheel or
+  a typed hex code now reliably commits.** The color picker's custom-color
+  row only ever committed from an outside-click listener; nested one level
+  deeper inside the Table view bar's Stripe popover, that listener never
+  fired, so only pressing Enter in the hex box actually saved a custom
+  stripe color — dragging the wheel or typing without Enter silently lost
+  it. The same latent fragility existed in the taxonomy and label color
+  editors, just harder to hit. A new **Apply** button next to the hex field
+  commits explicitly everywhere `ColorField` is used; presets still apply
+  immediately on click, unchanged.
+- **Sorting a Table column, clearing a filter, or editing a dashboard
+  widget's filter no longer flashes a `→ N tasks` line above the query bar
+  and shifts everything below it.** The count was (re)computed against the
+  view/filters prop directly, which can change one render before the query
+  bar's own text buffer catches up to it — comparing against the same
+  "last agreed" value the text-resync logic already tracks removes the
+  one-frame false mismatch that caused the flash.
+- **Editing a Table cell more than once no longer silently stops saving.**
+  Re-entering the same Title/Estimate/Start date/Due date cell after a
+  first commit used to keep the typed text in memory but never write it to
+  disk again, and Enter stopped closing the field — the edit-session guard
+  in the cell editor only reset when the row mounted, so every commit after
+  the first became a permanent no-op. Each new edit session now starts
+  fresh: the saved value is re-seeded and the double-commit guard is
+  cleared, so repeated in-place edits all persist and Escape still reverts.
+
+### Changed
+
+- **Table headers show their column names with sort arrows pinned to the
+  right, and ID is now sortable.** The Status column previously rendered as
+  a bare sort glyph with no label; every sortable header now displays its
+  text with the direction indicator sitting against the column's right
+  edge, appearing once the column is sorted. The ID column joins the
+  sortable set with the same click / shift-click cycle as the others.
+- **Table cells keep a light touch on hover and while editing.** Opening a
+  Status/Priority/Type/Assignee/Project/Labels dropdown or starting a
+  Title/Estimate/date edit no longer fills the cell with a gray background —
+  hover draws a thin border outline instead of a filled tint, and the
+  inline inputs render on the table's own background with an
+  accent-colored border rather than Obsidian's default form-field fill.
+- **Table's sticky header is now a solid, untinted pane, and it no longer
+  drifts from its columns while scrolling.** The header background used to
+  pick up the row stripe color and show body rows scrolling through it
+  underneath; it's now always opaque and stripe-free (striping stays a
+  body-rows-only effect). Scrolling the table sideways used to leave the
+  header's column borders visually behind for a moment — they now track
+  the header text and background in lockstep. Header labels are left-aligned
+  at rest instead of only once a column is actively sorted, body cell text
+  lines up at the same edge, and the reorder-column grip sits with a small,
+  consistent gap from both the column edge and the label instead of
+  crowding either one.
+
 ## 1.0.25 — 2026-09-13
 
 ### Added

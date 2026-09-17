@@ -20,7 +20,7 @@ import {
 	type WorkspaceTaxonomies,
 } from "../../core/taxonomy";
 import { describeRecurrence } from "../../core/recurrence";
-import type { StatusValue, Task } from "../../core/types";
+import { relationCount, type StatusValue, type Task } from "../../core/types";
 
 /** Signal glyphs from weakest to strongest — the buckets a priority maps into. */
 const SIGNAL_GLYPHS = [SignalLow, SignalMedium, SignalHigh, Signal] as const;
@@ -434,9 +434,7 @@ export function RelationBadge({ task }: { task: Task }) {
 
   return <span className="vf-chip">{count} rel</span>; */
 
-  const count = Object.values(task.relations ?? {})
-    .flat()
-    .filter(Boolean).length;
+  const count = relationCount(task);
   if (count === 0) return null;
 
   const label = `${count} relation${count === 1 ? "" : "s"}`;

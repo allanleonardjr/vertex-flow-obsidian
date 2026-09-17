@@ -2,6 +2,7 @@
  * Everything view evaluation needs to know that isn't the task list itself.
  */
 
+import { scopeOf, type HierarchyScope } from "../hierarchy";
 import { workspaceTaxonomies, type WorkspaceTaxonomies } from "../taxonomy";
 import type {
 	LinkTarget,
@@ -27,6 +28,12 @@ export interface ViewContext {
 	 * than a full snapshot.
 	 */
 	titles?: Map<LinkTarget, string>;
+	/**
+	 * Sub-task/project rollup scope, for sorts that read computed values
+	 * (`progress`). Absent when a caller builds a context from a bare config
+	 * rather than a full snapshot — those sorts then compare as unset.
+	 */
+	scope?: HierarchyScope;
 }
 
 /** The roster person the given `personId` names, if this workspace has that id. */
@@ -58,5 +65,5 @@ export function snapshotContext(
 	const titles = new Map<LinkTarget, string>();
 	for (const project of snapshot.projects) titles.set(project.path, project.title);
 
-	return { ...viewContext(snapshot.workspace, me), titles };
+	return { ...viewContext(snapshot.workspace, me), titles, scope: scopeOf(snapshot) };
 }

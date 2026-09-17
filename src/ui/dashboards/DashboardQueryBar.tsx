@@ -148,9 +148,13 @@ export function DashboardQueryBar({
 
 	const matchCount = useMemo(() => {
 		if (!parsed.ok) return null;
-		if (filtersEqual(parsed.filters, filters)) return null;
+		// See QueryBar.tsx's identical fix: compare against `lastAgreed`, not
+		// `filters` fresh off the prop, so an external filter change can't
+		// paint one frame of stale-vs-fresh mismatch before the adopt effect
+		// resyncs `text`.
+		if (filtersEqual(parsed.filters, lastAgreed.current)) return null;
 		return applyFilters(snapshot.tasks, parsed.filters, viewCtx).length;
-	}, [parsed, filters, snapshot.tasks, viewCtx]);
+	}, [parsed, snapshot.tasks, viewCtx]);
 
 	return (
 		<div className="vf-query-row">

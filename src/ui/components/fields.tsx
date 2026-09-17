@@ -107,12 +107,20 @@ export function SelectMenu({
   trigger,
   onChange,
   searchPlaceholder = "Search…",
+  closeOnSelect = true,
 }: {
   rows: SelectRow[];
   value: string | null;
   trigger: ReactNode;
   onChange: (value: string | null) => void;
   searchPlaceholder?: string;
+  /**
+   * False for a multi-select toggle list (Table's Labels cell): a pick
+   * shouldn't close the menu, so several values can be toggled in a row —
+   * only an outside click or Escape does. Every other caller keeps the
+   * default set-and-close behavior.
+   */
+  closeOnSelect?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -137,7 +145,7 @@ export function SelectMenu({
 
   const choose = (next: string | null) => {
     onChange(next);
-    close();
+    if (closeOnSelect) close();
   };
 
   const toggle = () => {

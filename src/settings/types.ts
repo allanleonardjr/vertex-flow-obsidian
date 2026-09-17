@@ -18,10 +18,14 @@ export interface VertexFlowSettings {
 	uiTextSize: UiTextSize;
 	/** Where new workspaces are offered by default. */
 	defaultWorkspaceFolder: string;
-	/** Width, in pixels, of the property rail in the task/project editor. */
-	editorRailWidth: number;
-	/** Whether that property rail is collapsed to a sliver (shared task/project). */
-	editorRailCollapsed: boolean;
+	/** Width, in pixels, of the property rail in the Task editor. */
+	taskEditorRailWidth: number;
+	/** Width, in pixels, of the property rail in the Project editor. */
+	projectEditorRailWidth: number;
+	/** Whether the Task editor's property rail is collapsed to a sliver. */
+	taskEditorRailCollapsed: boolean;
+	/** Whether the Project editor's property rail is collapsed to a sliver. */
+	projectEditorRailCollapsed: boolean;
 	// sidebarCollapsed, sidebarWidth, sidebarMinimized REMOVED — see
 	// SidebarChromeState / SidebarChromeProvider in ui/context.tsx. This was
 	// the source of the cross-pane (and cross-machine, via synced data.json)
@@ -31,12 +35,35 @@ export interface VertexFlowSettings {
 	 * rather than per-view: someone who works this way wants it everywhere.
 	 */
 	queryBarOpen: boolean;
-	/** Whether the raw-source section at the bottom of the task editor is open. */
-	editorSourceOpen: boolean;
-	/** Whether the collapsible description section (View / Project / Task) is closed. */
-	descriptionCollapsed: boolean;
-	/** Whether the Description field shows raw Source text instead of Live Preview. */
-	descriptionSourceMode: boolean;
+	/** Whether the raw-source section at the bottom of the Task editor is open. */
+	taskEditorSourceOpen: boolean;
+	/** Whether the raw-source section at the bottom of the Project editor is open. */
+	projectEditorSourceOpen: boolean;
+	/** Whether the Task editor's collapsible description section is closed. */
+	taskDescriptionCollapsed: boolean;
+	/** Whether the Project editor's collapsible description section is closed. */
+	projectDescriptionCollapsed: boolean;
+	/** Whether a Saved View's collapsible description section is closed. */
+	viewDescriptionCollapsed: boolean;
+	/** Whether a Label editor's collapsible description section is closed. */
+	labelDescriptionCollapsed: boolean;
+	/** Whether the Task editor's Description field shows raw Source instead of Live Preview. */
+	taskDescriptionSourceMode: boolean;
+	/** Whether the Project editor's Description field shows raw Source instead of Live Preview. */
+	projectDescriptionSourceMode: boolean;
+	/** Whether a Saved View's Description field shows raw Source instead of Live Preview. */
+	viewDescriptionSourceMode: boolean;
+	/** Whether a Label editor's Description field shows raw Source instead of Live Preview. */
+	labelDescriptionSourceMode: boolean;
+	/**
+	 * Whether the description field inside lightweight creation dialogs (Label,
+	 * generic named+icon) shows raw Source instead of Live Preview. Kept
+	 * separate from the per-editor description settings above — these dialogs
+	 * aren't one of the Task/Project/View/Label editor kinds, and this flag is
+	 * plugin-global the same way `queryBarOpen` is: a way of working, not a
+	 * property of whatever's being created.
+	 */
+	dialogDescriptionSourceMode: boolean;
 	/** Whether comment fields (composer + edit-in-place) show raw Source instead of Live Preview. */
 	commentSourceMode: boolean;
 	/** Collapsed state of the other task-editor sections, keyed by section id. */
@@ -72,6 +99,14 @@ export interface VertexFlowSettings {
 	 * data, so it lives here rather than in `_workspace.md`.
 	 */
 	redirectTaskNotes: boolean;
+	/**
+	 * One-time UI discovery badges the user has already dismissed by
+	 * visiting the feature, keyed by a stable feature id (e.g.
+	 * "layout-table"). Absent or false = show the badge; true = seen,
+	 * never show again. New badges are added by picking a new key here,
+	 * not by adding a new settings field.
+	 */
+	seenFeatures: Record<string, boolean>;
 	// "Who me is" is deliberately NOT here. It's per-device and per-workspace,
 	// held in the app's own localStorage (never the vault) — see
 	// `src/obsidian/me-storage.ts`. A single global value in this synced file
@@ -97,13 +132,23 @@ export const DEFAULT_SIDEBAR_CHROME: SidebarChromeState = {
 export const DEFAULT_SETTINGS: VertexFlowSettings = {
 	uiTextSize: "compact",
 	defaultWorkspaceFolder: "Vertex Flow",
-	editorRailWidth: 264,
-	editorRailCollapsed: false,
+	taskEditorRailWidth: 264,
+	projectEditorRailWidth: 264,
+	taskEditorRailCollapsed: false,
+	projectEditorRailCollapsed: false,
 	// sidebarCollapsed / sidebarWidth / sidebarMinimized REMOVED
 	queryBarOpen: false,
-	editorSourceOpen: false,
-	descriptionCollapsed: false,
-	descriptionSourceMode: false,
+	taskEditorSourceOpen: false,
+	projectEditorSourceOpen: false,
+	taskDescriptionCollapsed: false,
+	projectDescriptionCollapsed: false,
+	viewDescriptionCollapsed: false,
+	labelDescriptionCollapsed: false,
+	taskDescriptionSourceMode: false,
+	projectDescriptionSourceMode: false,
+	viewDescriptionSourceMode: false,
+	labelDescriptionSourceMode: false,
+	dialogDescriptionSourceMode: false,
 	commentSourceMode: false,
 	editorSectionsCollapsed: {},
 	projectInfoHeight: 220,
@@ -119,4 +164,5 @@ export const DEFAULT_SETTINGS: VertexFlowSettings = {
 	taskPickerHeight: 360,
 	helpSidebarWidth: 240,
 	redirectTaskNotes: true,
+	seenFeatures: {},
 };

@@ -39,6 +39,7 @@ import {
   GroupChip,
   LayoutToggle,
   SortChip,
+  StripeChip,
   SubtasksChip,
   RecurringPreviewChip,
 } from "./DisplayControls";
@@ -137,8 +138,8 @@ export function ViewControls({
   const canEditIdentity = inSavedViews && !permanentView;
   const titleEditable = canEditIdentity;
   const showDescription = !hideTitle && canEditIdentity;
-  const descCollapsed = plugin.settings.descriptionCollapsed;
-  const descSourceMode = plugin.settings.descriptionSourceMode;
+  const descCollapsed = plugin.settings.viewDescriptionCollapsed;
+  const descSourceMode = plugin.settings.viewDescriptionSourceMode;
 
   const editView = draft.edit;
 
@@ -271,7 +272,8 @@ export function ViewControls({
 					    control is hidden rather than left showing a setting that does
 					    nothing. */}
           {!(view.viewType === "list" && view.subtaskDisplay === "nested") &&
-            view.viewType !== "canvas" && (
+            view.viewType !== "canvas" &&
+            view.viewType !== "table" && (
               <>
                 <span className="vf-bar-divider" />
                 <SortChip
@@ -309,6 +311,17 @@ export function ViewControls({
             openId={filterClause.openId}
             onOpenChange={filterClause.setOpenId}
           />
+          {view.viewType === "table" && (
+            <>
+              <span className="vf-bar-divider" />
+              <StripeChip
+                view={view}
+                onChange={draft.setTableStripe}
+                openId={filterClause.openId}
+                onOpenChange={filterClause.setOpenId}
+              />
+            </>
+          )}
           {/* Canvas-only: which relationship kinds the graph draws. */}
           {view.viewType === "canvas" && (
             <>
@@ -426,11 +439,11 @@ export function ViewControls({
           <DescriptionSection
             collapsed={descCollapsed}
             onToggleCollapsed={() =>
-              writeSettings({ descriptionCollapsed: !descCollapsed })
+              writeSettings({ viewDescriptionCollapsed: !descCollapsed })
             }
             sourceMode={descSourceMode}
             onToggleSourceMode={() =>
-              writeSettings({ descriptionSourceMode: !descSourceMode })
+              writeSettings({ viewDescriptionSourceMode: !descSourceMode })
             }
             value={savedView.description ?? ""}
             editorKey={savedView.id}
