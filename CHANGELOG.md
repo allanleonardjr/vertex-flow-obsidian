@@ -5,6 +5,8 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.26 — 2026-09-16
+
 ### Added
 
 - **Every Table column is now sortable, including Type, Project, Assignee,
