@@ -2,7 +2,7 @@
 templateSchema: 1
 type: vertex-flow-workspace-template
 id: agency-client-management
-name: Agency / Client Management
+name: Agency & Client Management
 description: Run a solo shop or small agency - one Project per client, cross-cutting business labels, and dashboards for the whole book of business.
 icon: briefcase-business
 supportsExampleContent: true
