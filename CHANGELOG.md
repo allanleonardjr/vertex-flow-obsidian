@@ -5,6 +5,8 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.27 — 2026-09-17
+
 ### Fixed
 
 - **"Today" is now computed in local time, not UTC.** Calendar, Timeline,
@@ -38,6 +40,7 @@ This project uses [Semantic Versioning](https://semver.org/).
   beat the ghost's dashed one on that shared edge. Fixed by making the real
   row's own border dashed when its next sibling is a ghost, so both sides of
   the edge agree and there's nothing left for the browser to resolve.
+- **Canvas node cards now dynamically expand Task Type chips and display full-width Task IDs.** Task IDs now occupy a dedicated top row on Canvas cards, preventing long identifiers from clipping[cite: 1]. Task Type label chips dynamically expand into available row space up to the priority icon before truncating with an ellipsis[cite: 1], while due dates and assignee avatars pin cleanly to the right edge of the card.
 
 ## 1.0.26 — 2026-09-16
 
