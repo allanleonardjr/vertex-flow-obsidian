@@ -121,7 +121,7 @@ export interface CanvasViewProps {
  * with headroom for the "comfortable" UI text scale.
  */
 const NODE_WIDTH = 240;
-const NODE_HEIGHT = 100;
+const NODE_HEIGHT = 120; // was 100
 /**
  * A title needing more than 2 lines grows the card past `NODE_HEIGHT` by this
  * many extra pixels per extra line — a title beyond `MAX_TITLE_LINES` still
@@ -1893,6 +1893,8 @@ function CanvasNode({
       <div className="vf-canvas-node-row">
         <StatusDot taxonomies={taxonomies} status={task.status} />
         <span className="vf-id">{task.id}</span>
+      </div>
+      <div className="vf-canvas-node-row">
         {!off("type") && (
           <TaxonomyChip
             taxonomies={taxonomies}
@@ -1907,17 +1909,17 @@ function CanvasNode({
             id={task.priority}
           />
         )}
-      </div>
-      <div className="vf-canvas-node-row">
-        {!off("dueDate") && (
-          <DueDate task={task} statuses={taxonomies.status} />
-        )}
-        {!off("assignee") && (
-          <Assignee
-            people={snapshot.workspace.people}
-            assignee={task.assignee}
-          />
-        )}
+        <div className="vf-meta-right">
+          {!off("dueDate") && (
+            <DueDate task={task} statuses={taxonomies.status} />
+          )}
+          {!off("assignee") && (
+            <Assignee
+              people={snapshot.workspace.people}
+              assignee={task.assignee}
+            />
+          )}
+        </div>
       </div>
       {showProject && !off("project") && (
         <ProjectChip task={task} projects={snapshot.projects} />

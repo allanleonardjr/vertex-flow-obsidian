@@ -1314,7 +1314,9 @@ button.vf-nest-chevron {
 
 .vf-table-row:hover .vf-table-td .vf-icon-select-caret,
 .vf-table-td button.vf-icon-select-trigger:focus-visible .vf-icon-select-caret,
-.vf-table-td button.vf-icon-select-trigger[aria-expanded="true"] .vf-icon-select-caret {
+.vf-table-td
+  button.vf-icon-select-trigger[aria-expanded="true"]
+  .vf-icon-select-caret {
   opacity: 1;
 }
 
@@ -8679,7 +8681,7 @@ button.vf-canvas-zoom-fit {
   position: absolute;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   padding: 8px 10px;
   border: 1px solid var(--vf-border);
   border-radius: var(--vf-radius);
@@ -8807,8 +8809,28 @@ button.vf-canvas-zoom-fit {
   display: none;
 }
 
+.vf-canvas-node-row .vf-meta-right {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Ensure priority icon and right metadata never get compressed by long chips */
+.vf-canvas-node-row .vf-priority-icon,
+.vf-canvas-node-row .vf-meta-right {
+  flex-shrink: 0;
+}
+
 .vf-canvas-node .vf-chip-project {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
   max-width: 100%;
+  padding: 1px 6px;
+  border: 1px solid var(--vf-border);
+  border-radius: 4px;
+  font-size: 11px;
 }
 
 /* The top row (StatusDot, ID, Type chip, Priority icon) is a no-wrap flex
@@ -8820,15 +8842,20 @@ button.vf-canvas-zoom-fit {
    row — that reopens the "how tall can a card get" question this phase
    already answers once, cleanly, for the title. */
 .vf-canvas-node-row .vf-id {
-  max-width: 70px;
+  max-width: 180px; /* Expanded from 70px */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.85;
 }
 
 .vf-canvas-node-row .vf-label-chip {
   min-width: 0;
-  max-width: 90px;
+  max-width: none; /* Overrides max-width: 90px; */
+  flex-shrink: 1;
 }
 
 .vf-canvas-node-row .vf-label-chip-name {
@@ -8839,7 +8866,20 @@ button.vf-canvas-zoom-fit {
   min-width: 0;
 }
 
+.vf-canvas-node-row .vf-due {
+  margin-left: auto; /* Pushes due date and any following avatar to the right */
+}
+
+/* Fallback if a task has an avatar but NO due date */
+.vf-canvas-node-row .vf-due:empty + .vf-avatar,
+.vf-canvas-node-row > .vf-avatar:first-child,
+.vf-canvas-node-row > .vf-priority-icon + .vf-avatar,
+.vf-canvas-node-row > .vf-label-chip + .vf-avatar {
+  margin-left: auto;
+}
+
 .vf-canvas-node-title {
+  margin-top: 2px;
   color: var(--text-normal);
   font-size: var(--font-ui-small);
   line-height: 1.3;
@@ -8853,4 +8893,3 @@ button.vf-canvas-zoom-fit {
   -webkit-line-clamp: 6;
   -webkit-box-orient: vertical;
 }
-
