@@ -54,6 +54,13 @@ This project uses [Semantic Versioning](https://semver.org/).
   itself is now interactive. Progress stays display-only, matching every
   other view.
 
+- **Canvas's "BETA" badge in the layout picker is gone — it's stable now —
+  and Table's layout button shows a small "New" dot until you click it once.**
+  The dot clears permanently on first click, active or not, and is backed by
+  a reusable `seenFeatures` settings flag rather than a one-off, so future
+  layouts or features can reuse the same discovery indicator without another
+  settings-schema change.
+
 ### Fixed
 
 - **Picking a custom stripe, taxonomy, or label color via the color wheel or

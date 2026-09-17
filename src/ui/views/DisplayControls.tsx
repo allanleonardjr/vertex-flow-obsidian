@@ -24,6 +24,7 @@ import { layoutIcon } from "../../core/views";
 import { ColorField } from "../components/ColorField";
 import { Icon } from "../components/Icon";
 import { Popover } from "../components/Popover";
+import { usePlugin, useSettingsWriter } from "../context";
 import { RELATION_KIND_LABELS } from "./CanvasView";
 import {
   CANVAS_ARRANGE_OPTIONS,
@@ -44,6 +45,8 @@ export function LayoutToggle({
   view: SavedView;
   onChange: (next: SavedView) => void;
 }) {
+  const plugin = usePlugin();
+  const writeSettings = useSettingsWriter();
   const layouts: { value: ViewType; label: string }[] = [
     { value: "list", label: "List" },
     { value: "board", label: "Board" },
@@ -54,29 +57,39 @@ export function LayoutToggle({
   ];
   return (
     <div className="vf-layout-toggle" role="group" aria-label="Layout">
-      {layouts.map((layout) => (
-        <button
-          key={layout.value}
-          type="button"
-          className={`vf-layout-opt${view.viewType === layout.value ? " is-on" : ""}`}
-          aria-pressed={view.viewType === layout.value}
-          aria-label={layout.label}
-          title={layout.label}
-          onClick={() =>
-            view.viewType !== layout.value &&
-            onChange({ ...view, viewType: layout.value })
-          }
-        >
-          <span className="vf-bar-icon" aria-hidden>
-            <Icon id={layoutIcon(layout.value)} size={14} />
-          </span>
-          {layout.value === "canvas" && view.viewType === "canvas" && (
-            <span className="vf-canvas-beta-badge" aria-hidden>
-              BETA
+      {layouts.map((layout) => {
+        const isNew =
+          layout.value === "table" &&
+          !plugin.settings.seenFeatures["layout-table"];
+        return (
+          <button
+            key={layout.value}
+            type="button"
+            className={`vf-layout-opt${view.viewType === layout.value ? " is-on" : ""}`}
+            aria-pressed={view.viewType === layout.value}
+            aria-label={isNew ? `${layout.label}, new` : layout.label}
+            title={layout.label}
+            onClick={() => {
+              if (isNew) {
+                writeSettings({
+                  seenFeatures: {
+                    ...plugin.settings.seenFeatures,
+                    "layout-table": true,
+                  },
+                });
+              }
+              if (view.viewType !== layout.value) {
+                onChange({ ...view, viewType: layout.value });
+              }
+            }}
+          >
+            <span className="vf-bar-icon" aria-hidden>
+              <Icon id={layoutIcon(layout.value)} size={14} />
             </span>
-          )}
-        </button>
-      ))}
+            {isNew && <span className="vf-layout-new-dot" aria-hidden />}
+          </button>
+        );
+      })}
     </div>
   );
 }

@@ -4790,6 +4790,7 @@ button.vf-add-filter {
 button.vf-layout-opt {
   /* Icon-only: no label to space out from, so drop the gap and tighten the
      box to roughly the icon plus a hair each side. */
+  position: relative;
   gap: 0;
   padding: 3px 6px;
   color: var(--vf-muted);
@@ -4834,6 +4835,22 @@ button.vf-layout-opt.is-on {
   color: var(--text-accent);
   font-weight: 500;
   background: var(--background-modifier-hover);
+}
+
+/* One-time discovery indicator on a layout button whose feature hasn't
+   been visited yet (see LayoutToggle's `seenFeatures` check). Sits in
+   the button's corner rather than inline, so it reads across the whole
+   row without the button needing to be active — unlike the old Beta
+   text badge, this clears itself permanently on first click. */
+.vf-layout-new-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-accent);
+  pointer-events: none;
 }
 
 /* Sort value + its direction arrow sit flush together. */
@@ -8768,18 +8785,3 @@ button.vf-canvas-zoom-fit {
   -webkit-box-orient: vertical;
 }
 
-/* Sits inline next to the Canvas icon in the layout picker (LayoutToggle),
-   only while Canvas is the active view — never a floating overlay on the
-   graph itself, where dynamically-laid-out content could eventually cover it. */
-.vf-canvas-beta-badge {
-  margin-left: 4px;
-  padding: 1px 5px;
-  border: 1px solid var(--text-warning, orange);
-  border-radius: 8px;
-  color: var(--text-warning, orange);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  line-height: 1.4;
-  pointer-events: none;
-}

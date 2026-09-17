@@ -72,6 +72,14 @@ export interface VertexFlowSettings {
 	 * data, so it lives here rather than in `_workspace.md`.
 	 */
 	redirectTaskNotes: boolean;
+	/**
+	 * One-time UI discovery badges the user has already dismissed by
+	 * visiting the feature, keyed by a stable feature id (e.g.
+	 * "layout-table"). Absent or false = show the badge; true = seen,
+	 * never show again. New badges are added by picking a new key here,
+	 * not by adding a new settings field.
+	 */
+	seenFeatures: Record<string, boolean>;
 	// "Who me is" is deliberately NOT here. It's per-device and per-workspace,
 	// held in the app's own localStorage (never the vault) — see
 	// `src/obsidian/me-storage.ts`. A single global value in this synced file
@@ -119,4 +127,5 @@ export const DEFAULT_SETTINGS: VertexFlowSettings = {
 	taskPickerHeight: 360,
 	helpSidebarWidth: 240,
 	redirectTaskNotes: true,
+	seenFeatures: {},
 };
