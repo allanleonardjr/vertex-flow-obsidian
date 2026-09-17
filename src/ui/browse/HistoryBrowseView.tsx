@@ -161,6 +161,14 @@ function isBooleanField(field: string): boolean {
 
 /** Render a stored change value for a human. `snapshot` resolves names that
  *  have since been edited or deleted; `plugin` resolves task paths. */
+function renderValue(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean")
+    return String(value);
+  if (value == null) return "";
+  return JSON.stringify(value);
+}
+
 function changeValueText(
   field: string,
   value: unknown,
@@ -207,10 +215,10 @@ function changeValueText(
     // `statuses.<id>.name` / `labels.<id>.color` / `people.<id>.name` / …
     default: {
       const parts = field.split(".");
-      if (parts.length === 3) return String(value);
+      if (parts.length === 3) return renderValue(value);
     }
   }
-  return String(value);
+  return renderValue(value);
 }
 
 function changeText(

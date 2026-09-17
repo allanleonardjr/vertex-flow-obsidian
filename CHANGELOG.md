@@ -42,6 +42,21 @@ This project uses [Semantic Versioning](https://semver.org/).
   the edge agree and there's nothing left for the browser to resolve.
 - **Canvas node cards now dynamically expand Task Type chips and display full-width Task IDs.** Task IDs now occupy a dedicated top row on Canvas cards, preventing long identifiers from clipping[cite: 1]. Task Type label chips dynamically expand into available row space up to the priority icon before truncating with an ellipsis[cite: 1], while due dates and assignee avatars pin cleanly to the right edge of the card.
 
+### Dev
+
+- **The review-bot lint gate now covers unit tests.** `pnpm lint` runs
+  Obsidian's official `eslint-plugin-obsidianmd` recommended ruleset — the
+  same checks Obsidian's community-plugin reviewer runs — over `src/` and
+  `tests/`, gating both `typecheck` and `build`. Unit tests run under
+  Vitest in Node, not Obsidian, so they get Node globals and are exempt
+  from the plugin's "no Node built-ins on mobile" rule. The pass also
+  fixed what the ruleset surfaced: typed the shapes of test assertions and
+  mocks that reached through `any`, dropped `eslint-disable` directives for
+  a hook rule the official set doesn't register (they error there), and
+  replaced unchecked `String(unknown)` calls with a safe value renderer so
+  template frontmatter and history-change values can never stringify as
+  `[object Object]`.
+
 ## 1.0.26 — 2026-09-16
 
 ### Added

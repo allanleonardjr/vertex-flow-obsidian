@@ -25,7 +25,8 @@ export * from "./types";
 export * from "./instantiate";
 
 function markdownTemplates(): WorkspaceTemplate[] {
-	return Object.values(TEMPLATE_SOURCES).map((source: string) => {
+	const sources = Object.values(TEMPLATE_SOURCES);
+	return sources.map((source) => {
 		const parsed = parseTemplateMarkdown(source);
 		return {
 			...parsed.meta,

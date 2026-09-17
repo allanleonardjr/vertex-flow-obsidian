@@ -6,7 +6,16 @@ import { buildExport } from "../../src/core/export";
 const snapshot = sampleSnapshot();
 const context = snapshotContext(snapshot);
 
-function json(fields: string[]) {
+interface WorkspaceJson {
+	workspace: { name: string };
+	tasks: { id: string; status: string }[];
+	resolved: Record<string, Record<string, string>>;
+	meta: Record<string, unknown>;
+	descriptions?: unknown;
+	comments?: unknown;
+}
+
+function json(fields: string[]): WorkspaceJson {
 	return JSON.parse(
 		buildExport({
 			snapshot,
@@ -18,7 +27,7 @@ function json(fields: string[]) {
 			includeArchived: false,
 			pluginVersion: "9.9.9",
 		}).content,
-	);
+	) as WorkspaceJson;
 }
 
 describe("buildWorkspaceJson", () => {

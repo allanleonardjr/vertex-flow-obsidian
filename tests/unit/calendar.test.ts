@@ -187,7 +187,6 @@ describe("drag branch: moving a chip already on the grid", () => {
 	});
 
 	it("is a no-op when the target day equals the current anchor", () => {
-		const t = task({ dueDate: "2026-08-20" });
 		expect(dayNumber("2026-08-20") - dayNumber("2026-08-20")).toBe(0);
 	});
 });

@@ -214,7 +214,6 @@ export function TaskViewport({
         scrollTop: containerRef?.scrollTop ?? 0,
       });
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount/unmount-only effect that persists view selection snapshot
   }, []);
   const toggleSubtree = useCallback((path: string) => {
     setCollapsedSubtrees((prev) => {
