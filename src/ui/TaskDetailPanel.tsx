@@ -82,10 +82,10 @@ export function TaskDetailPanel({
   const [description, setDescription] = useState<string | null>(null);
   const [deletePlan, setDeletePlan] = useState<DeletionPlan | null>(null);
   const [descCollapsed, setDescCollapsed] = useState(
-    plugin.settings.descriptionCollapsed,
+    plugin.settings.taskDescriptionCollapsed,
   );
   const [descSourceMode, setDescSourceMode] = useState(
-    plugin.settings.descriptionSourceMode,
+    plugin.settings.taskDescriptionSourceMode,
   );
   const [descHeight, setDescHeight] = useState(
     plugin.settings.taskDescriptionHeight,
@@ -94,14 +94,14 @@ export function TaskDetailPanel({
   const toggleDescription = () => {
     const next = !descCollapsed;
     setDescCollapsed(next);
-    plugin.settings.descriptionCollapsed = next;
+    plugin.settings.taskDescriptionCollapsed = next;
     void plugin.saveSettings();
   };
 
   const toggleSourceMode = () => {
     const next = !descSourceMode;
     setDescSourceMode(next);
-    plugin.settings.descriptionSourceMode = next;
+    plugin.settings.taskDescriptionSourceMode = next;
     void plugin.saveSettings();
   };
 
@@ -282,7 +282,7 @@ export function TaskDetailPanel({
           </div>
         </div>
 
-        <EditorRail>
+        <EditorRail kind="task">
           <PropertyRow label="Status" field="status">
             <StatusSelect
               taxonomy={taxonomies.status}
@@ -440,7 +440,7 @@ export function TaskDetailPanel({
  */
 function RawSourceSection({ task }: { task: Task }) {
   const plugin = usePlugin();
-  const [open, setOpen] = useState(plugin.settings.editorSourceOpen);
+  const [open, setOpen] = useState(plugin.settings.taskEditorSourceOpen);
   const [raw, setRaw] = useState<string | null>(null);
 
   useEffect(() => {
@@ -458,7 +458,7 @@ function RawSourceSection({ task }: { task: Task }) {
   const toggle = () => {
     const next = !open;
     setOpen(next);
-    plugin.settings.editorSourceOpen = next;
+    plugin.settings.taskEditorSourceOpen = next;
     void plugin.saveSettings();
   };
 

@@ -401,13 +401,78 @@ export default class VertexFlowPlugin extends Plugin {
   }
 
   async loadSettings(): Promise<void> {
-    const data: unknown = await this.loadData();
-    const merged = Object.assign(
+    const raw = ((await this.loadData()) ?? {}) as Record<string, unknown>;
+
+    // One-time migration: old shared editor-chrome keys → per-editor-kind
+    // keys, so an existing install's customized rail width/collapse or
+    // description collapse/source-mode isn't silently reset to default.
+    // Each new key is only seeded when it isn't already present in the raw
+    // data — e.g. some installs' data.json already carries an orphaned
+    // `projectDescriptionCollapsed` key (unrelated leftover, predates this
+    // migration) that must be left as its existing value rather than
+    // clobbered by the old shared `descriptionCollapsed` value below.
+    const splitMigrations: Array<[string, string[]]> = [
+      ["editorRailWidth", ["taskEditorRailWidth", "projectEditorRailWidth"]],
+      [
+        "editorRailCollapsed",
+        ["taskEditorRailCollapsed", "projectEditorRailCollapsed"],
+      ],
+      [
+        "editorSourceOpen",
+        ["taskEditorSourceOpen", "projectEditorSourceOpen"],
+      ],
+      [
+        "descriptionCollapsed",
+        [
+          "taskDescriptionCollapsed",
+          "projectDescriptionCollapsed",
+          "viewDescriptionCollapsed",
+          "labelDescriptionCollapsed",
+        ],
+      ],
+      [
+        "descriptionSourceMode",
+        [
+          "taskDescriptionSourceMode",
+          "projectDescriptionSourceMode",
+          "viewDescriptionSourceMode",
+          "labelDescriptionSourceMode",
+          "dialogDescriptionSourceMode",
+        ],
+      ],
+    ];
+    for (const [oldKey, newKeys] of splitMigrations) {
+      if (oldKey in raw) {
+        for (const newKey of newKeys) {
+          if (!(newKey in raw)) raw[newKey] = raw[oldKey];
+        }
+        delete raw[oldKey];
+      }
+    }
+
+    // Dead keys from older localStorage/runtime-state migrations — never
+    // read by current code. `selectedAiModelId` is deliberately NOT in this
+    // list: it belongs to the in-progress feature/ai branch and has no
+    // corresponding VertexFlowSettings field yet, but should be left alone.
+    for (const deadKey of [
+      "mePerson",
+      "activeWorkspaceRoot",
+      "sidebarCollapsed",
+      "sidebarWidth",
+      "sidebarMinimized",
+    ]) {
+      delete raw[deadKey];
+    }
+
+    this.settings = Object.assign(
       {},
       DEFAULT_SETTINGS,
-      (data ?? {}) as Partial<VertexFlowSettings>,
+      raw as Partial<VertexFlowSettings>,
     );
-    this.settings = merged;
+    // Persist the migration/cleanup immediately so data.json is rewritten
+    // clean on the very next load, not just whenever some other setting
+    // happens to change.
+    await this.saveSettings();
   }
 
   async saveSettings(): Promise<void> {

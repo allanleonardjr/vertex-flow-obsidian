@@ -63,6 +63,20 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Collapsing or resizing the Task editor's property rail no longer affects
+  the Project editor's rail, and the same independence now holds for each
+  editor's description collapse/source-mode toggle.** Task, Project, Saved
+  View, and Label editors each had their description collapse/source-mode
+  wired to the same shared setting, and Task/Project additionally shared
+  rail width, rail collapse, and raw-source-open state — so, for example,
+  collapsing a task's description also collapsed a project's the next time
+  it was opened. Each editor kind now persists its own state. Existing
+  installs keep their current on-disk visual state on first load after
+  upgrading (a one-time migration seeds the new per-kind keys from the old
+  shared ones); a handful of long-dead settings keys left over from earlier
+  localStorage migrations (`mePerson`, `activeWorkspaceRoot`,
+  `sidebarCollapsed`, `sidebarWidth`, `sidebarMinimized`) are dropped from
+  `data.json` in the same pass.
 - **Picking a custom stripe, taxonomy, or label color via the color wheel or
   a typed hex code now reliably commits.** The color picker's custom-color
   row only ever committed from an outside-click listener; nested one level

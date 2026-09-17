@@ -138,8 +138,8 @@ export function ViewControls({
   const canEditIdentity = inSavedViews && !permanentView;
   const titleEditable = canEditIdentity;
   const showDescription = !hideTitle && canEditIdentity;
-  const descCollapsed = plugin.settings.descriptionCollapsed;
-  const descSourceMode = plugin.settings.descriptionSourceMode;
+  const descCollapsed = plugin.settings.viewDescriptionCollapsed;
+  const descSourceMode = plugin.settings.viewDescriptionSourceMode;
 
   const editView = draft.edit;
 
@@ -439,11 +439,11 @@ export function ViewControls({
           <DescriptionSection
             collapsed={descCollapsed}
             onToggleCollapsed={() =>
-              writeSettings({ descriptionCollapsed: !descCollapsed })
+              writeSettings({ viewDescriptionCollapsed: !descCollapsed })
             }
             sourceMode={descSourceMode}
             onToggleSourceMode={() =>
-              writeSettings({ descriptionSourceMode: !descSourceMode })
+              writeSettings({ viewDescriptionSourceMode: !descSourceMode })
             }
             value={savedView.description ?? ""}
             editorKey={savedView.id}
