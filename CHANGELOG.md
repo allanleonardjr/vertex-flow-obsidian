@@ -5,6 +5,17 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Fixed
+
+- **Canvas now re-fits the viewport when Arrange changes.** Auto-fit only
+  ran once, the first time layout finished after mount — so switching the
+  Arrange control (Dependency flow / Hierarchy, either direction) re-laid
+  out the graph without re-fitting the viewport, often leaving a
+  differently-shaped graph looking empty or badly cropped until you
+  manually hit Fit. Auto-fit now also fires when arrangement or direction
+  change; filter, group, and relation-visibility changes still leave
+  manual pan/zoom untouched, as before.
+
 ## 1.0.27 — 2026-09-17
 
 ### Fixed

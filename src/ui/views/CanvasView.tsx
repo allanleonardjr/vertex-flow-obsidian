@@ -271,10 +271,7 @@ export function CanvasView({
   // Stable key for the hidden-relation set — the array identity churns.
   const hiddenKinds = view.canvasHiddenRelationKinds ?? [];
   const hiddenKindKey = [...hiddenKinds].sort().join(",");
-  const hiddenKindSet = useMemo(
-    () => new Set(hiddenKinds),
-    [hiddenKindKey],
-  );
+  const hiddenKindSet = useMemo(() => new Set(hiddenKinds), [hiddenKindKey]);
 
   // Memoise on the *content* that feeds the graph — visible task paths, their
   // parent, their three relation arrays, and the box each sits in — not on
@@ -771,15 +768,28 @@ export function CanvasView({
     });
   }, [laidOut]);
 
-  // Auto-fit once, the first time layout finishes after mount — not on
-  // every subsequent re-layout (filter/group/relation-visibility changes
-  // also produce a new `laidOut`, and re-fitting then would undo any
-  // manual pan/zoom already in place).
+  // Auto-fit the first time layout finishes after mount, and again whenever
+  // the Arrange control (arrangement or direction) changes — but not on
+  // every subsequent re-layout: a filter/group/relation-visibility change
+  // also produces a new `laidOut`, and re-fitting then would undo any
+  // manual pan/zoom already in place.
   const hasFitOnLoad = useRef(false);
+  const pendingArrangeFit = useRef(false);
+
+  // Arm the re-fit the moment the Arrange control changes. The actual
+  // `fitToView()` call happens once the async ELK pass for the *new*
+  // arrangement lands, in the effect below — not here, since `laidOut`
+  // hasn't caught up to the new signature yet when this effect fires.
   useEffect(() => {
-    if (laidOut && !hasFitOnLoad.current) {
+    if (hasFitOnLoad.current) pendingArrangeFit.current = true;
+  }, [arrangement, direction]);
+
+  useEffect(() => {
+    if (!laidOut) return;
+    if (!hasFitOnLoad.current || pendingArrangeFit.current) {
       fitToView();
       hasFitOnLoad.current = true;
+      pendingArrangeFit.current = false;
     }
   }, [laidOut, fitToView]);
 
