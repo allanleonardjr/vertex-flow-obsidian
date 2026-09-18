@@ -3,7 +3,7 @@
 <p align="center">
   <img
     src="assets/images/vertex-flow-hero.png"
-    alt="Vertex Flow showing Board, List, Timeline, and Calendar task views in Obsidian"
+    alt="Vertex Flow showing all six task layouts — List, Board, Table, Timeline, Calendar, and Canvas — in Obsidian"
     width="100%"
   />
 </p>
@@ -188,8 +188,11 @@ A configurable grid of bar, line, pie, and KPI widgets, with a dashboard-wide fi
 Vertex Flow ships with a complete built-in help system available **offline in the app** — press `?` anywhere for the keyboard reference, or open **Help** in the sidebar. The source of those docs lives in this repo, so they're also readable here:
 
 - [Getting started](src/help-content/getting-started.md)
-- **Concepts** — [Workspaces](src/help-content/concepts/workspaces.md), [Projects](src/help-content/concepts/projects.md), [Tasks](src/help-content/concepts/tasks/_category.md), [Sub-tasks](src/help-content/concepts/tasks/subtasks.md), [Recurring Tasks](src/help-content/concepts/recurring-tasks.md), [Activity History](src/help-content/concepts/activity-history.md), [Export & workspace templates](src/help-content/concepts/export-and-templates.md)
-- **Views** — [List](src/help-content/views/list-view.md), [Board](src/help-content/views/board-view.md), [Calendar](src/help-content/views/calendar-view.md), [Saved Views](src/help-content/views/saved-views.md)
+- **Concepts** — [Workspaces](src/help-content/concepts/workspaces.md), [Projects](src/help-content/concepts/projects.md), [Tasks](src/help-content/concepts/tasks/_category.md), [Sub-tasks](src/help-content/concepts/tasks/subtasks.md), [Status, Priority, Type & Labels](src/help-content/concepts/taxonomy.md), [Task relations](src/help-content/concepts/relations.md), [Comments, mentions & People](src/help-content/concepts/comments-and-mentions.md), [Recurring Tasks](src/help-content/concepts/recurring-tasks.md), [Quick capture, templates & bulk actions](src/help-content/concepts/quick-capture-and-templates.md), [Activity History](src/help-content/concepts/activity-history.md), [Export & workspace templates](src/help-content/concepts/export-and-templates.md)
+- **Layouts** — [List](src/help-content/layouts/list-layout.md), [Board](src/help-content/layouts/board-layout.md), [Table](src/help-content/layouts/table-layout.md), [Timeline](src/help-content/layouts/timeline-layout.md), [Calendar](src/help-content/layouts/calendar-layout.md), [Canvas](src/help-content/layouts/canvas-layout.md)
+- **Views** — [Saved Views](src/help-content/views/saved-views.md)
+- [Dashboards](src/help-content/dashboards.md)
+- [Settings](src/help-content/settings.md)
 - [Keyboard shortcuts](src/help-content/keyboard-shortcuts.md)
 - [FAQ](src/help-content/faq.md)
 

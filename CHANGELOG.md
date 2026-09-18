@@ -26,6 +26,19 @@ This project uses [Semantic Versioning](https://semver.org/).
   Trash, Settings, and Labels. The "Multiple views" Features bullet now
   names all six layouts instead of four.
 
+- **README's Documentation section and the in-app Views overview both had
+  stale links and counts.** Three of the four links under "Views" pointed at
+  `list-view.md`/`board-view.md`/`calendar-view.md` — files that no longer
+  exist — replaced with a "Layouts" bullet linking to all six real
+  `layouts/*.md` topics, with "Views" now correctly scoped to
+  `saved-views.md` alone. The Concepts bullet was also missing four real
+  topics (Taxonomy, Relations, Comments & Mentions, Quick Capture), and
+  Dashboards/Settings weren't linked at all; all are now included.
+  Separately, the in-app `help-content/views/_category.md` overview said
+  views render through "one of the five layouts" and omitted Table entirely,
+  despite `layouts/table-layout.md` existing as a real topic — both the
+  count and the missing link are now fixed.
+
 ## 1.0.27 — 2026-09-17
 
 ### Fixed
