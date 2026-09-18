@@ -16,6 +16,16 @@ This project uses [Semantic Versioning](https://semver.org/).
   change; filter, group, and relation-visibility changes still leave
   manual pan/zoom untouched, as before.
 
+### Documentation
+
+- **README overhauled with real screenshots.** The old "Views" section
+  covered only four of the six layouts (no Table or Canvas) with
+  inconsistent light/dark screenshots. It's now a "Layouts" section with
+  all six in a consistent dark theme, plus new "Dashboards" and "The
+  Details" sections covering the dashboard grid, Help, Recurring, History,
+  Trash, Settings, and Labels. The "Multiple views" Features bullet now
+  names all six layouts instead of four.
+
 ## 1.0.27 — 2026-09-17
 
 ### Fixed
