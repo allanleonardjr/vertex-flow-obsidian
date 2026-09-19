@@ -5,6 +5,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { MotionConfig } from "motion/react";
+import { Platform } from "obsidian";
 import {
   viewById,
   useActiveWorkspace,
@@ -44,6 +45,7 @@ import { CompactNavProvider, useCompactNav } from "./compact-nav-context";
 import { CompactModeToggle } from "./CompactModeToggle";
 
 export function App() {
+  useMobileFieldScrollIntoView();
   const active = useActiveWorkspace();
 
   if (!active) return <EmptyState />;
@@ -400,3 +402,28 @@ export function personView(
  * `ProjectDetailView` renders it beneath the project header.
  */
 export { projectView } from "./project-view";
+
+/**
+ * Mobile: keep the focused input field visible when the on-screen keyboard
+ * opens. The plugin layout is a fixed-height flex column with nested
+ * `overflow-y: auto` scrollers (the feature-section panes under the editor
+ * description, the task lists, the comment threads), and iOS will not reveal an
+ * input inside those when the keyboard lifts — its auto-scroll only reaches
+ * plain document flow. Scroll the focused element into view within its own
+ * scrollable ancestors (deferred a frame so the keyboard height has settled),
+ * with `nearest` so an already-visible field is left alone.
+ */
+function useMobileFieldScrollIntoView(): void {
+  useEffect(() => {
+    if (!Platform.isMobile) return;
+    const onFocusIn = (event: FocusEvent) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (!target || !target.closest(".vertex-flow")) return;
+      window.requestAnimationFrame(() => {
+        target.scrollIntoView({ block: "nearest", inline: "nearest" });
+      });
+    };
+    document.addEventListener("focusin", onFocusIn, true);
+    return () => document.removeEventListener("focusin", onFocusIn, true);
+  }, []);
+}

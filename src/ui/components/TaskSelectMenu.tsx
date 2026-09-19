@@ -63,7 +63,11 @@ export function TaskSelectMenu({
 	const plugin = usePlugin();
 	const [open, setOpen] = useState(false);
 	const [query, setQuery] = useState("");
-	const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+	const [pos, setPos] = useState<{
+		top: number;
+		left: number;
+		maxHeight: number;
+	} | null>(null);
 	const [size, setSize] = useState({
 		w: plugin.settings.taskPickerWidth,
 		h: plugin.settings.taskPickerHeight,
@@ -106,9 +110,10 @@ export function TaskSelectMenu({
 	const moveResize = (event: ReactPointerEvent) => {
 		const s = resize.current;
 		if (!s || !pos) return;
+		const viewport = getVisibleViewport();
 		const dx = event.clientX - s.startX;
 		const h = Math.min(
-			window.innerHeight - pos.top - MARGIN,
+			viewport.height - pos.top - MARGIN,
 			Math.max(MIN_H, s.startH + (event.clientY - s.startY)),
 		);
 
@@ -117,11 +122,11 @@ export function TaskSelectMenu({
 			// edge is hit — so a picker pinned to the rail can still expand.
 			const w = Math.max(
 				MIN_W,
-				Math.min(window.innerWidth - 2 * MARGIN, s.startW + dx),
+				Math.min(viewport.width - 2 * MARGIN, s.startW + dx),
 			);
 			const left = Math.max(
 				MARGIN,
-				Math.min(s.startLeft, window.innerWidth - w - MARGIN),
+				Math.min(s.startLeft, viewport.width - w - MARGIN),
 			);
 			setSize({ w, h });
 			setPos((p) => (p ? { ...p, left } : p));
@@ -146,6 +151,9 @@ export function TaskSelectMenu({
 		void plugin.saveSettings();
 	};
 
+	const sizeRef = useRef(size);
+	sizeRef.current = size;
+
 	const place = useCallback(() => {
 		const rect = anchorRef.current?.getBoundingClientRect();
 		if (!rect) return;
@@ -158,7 +166,24 @@ export function TaskSelectMenu({
 			Math.max(MARGIN, rect.right - width),
 			viewport.width - width - MARGIN,
 		);
-		setPos({ top: rect.bottom + 4, left });
+		// The search input auto-focuses, which pops the mobile keyboard and
+		// shrinks the *visible* viewport. Measure the room below/above the
+		// trigger against that (not `window.innerHeight`, which ignores the
+		// keyboard), flip the menu to open upward when there's too little room
+		// below, and cap its height to the chosen space — otherwise the search
+		// box stays visible while the results list hides behind the keyboard.
+		const below = viewport.height - rect.bottom - 2 * MARGIN;
+		const above = rect.top - 2 * MARGIN;
+		const flip = below < MIN_H && above > below;
+		const maxHeight = flip ? above : below;
+		if (flip) {
+			// Anchor the menu's bottom to the trigger, using the height it will
+			// actually render at (the dragged size, not the full capacity).
+			const boxHeight = Math.min(sizeRef.current.h, above);
+			setPos({ top: rect.top - 4 - boxHeight, left, maxHeight });
+		} else {
+			setPos({ top: rect.bottom + 4, left, maxHeight });
+		}
 	}, [plugin]);
 
 	useLayoutEffect(() => {
@@ -210,7 +235,7 @@ export function TaskSelectMenu({
 							top: pos.top,
 							left: pos.left,
 							width: size.w,
-							height: size.h,
+							height: Math.min(size.h, pos.maxHeight),
 						}}
 						onClick={(event) => event.stopPropagation()}
 					>

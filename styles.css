@@ -179,6 +179,7 @@ button.vf-sidebar-search:hover {
   bottom: 0;
   width: 6px;
   cursor: col-resize;
+  touch-action: none;
   z-index: 5;
 }
 
@@ -4356,7 +4357,11 @@ input.vf-editable-title-input {
 
 .vf-task-editor-sections {
   flex: 1 1 auto;
-  min-height: 0;
+  /* Match TASK_SECTIONS_MIN_HEIGHT (the resize handle's floor) so the pinned
+     description height can never collapse Sub-tasks/Relations/Comments away —
+     without this, a tall drag (or the keyboard) squeezes sections to 0 and
+     every input field below the description vanishes. */
+  min-height: 160px;
   overflow-y: auto;
   padding: 4px 20px 18px;
 }
@@ -4504,7 +4509,9 @@ input.vf-editable-title-input {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
-  min-height: 0;
+  /* Match TASKS_MIN_HEIGHT (the info pane's resize floor) — same rationale
+     as `.vf-task-editor-sections`. */
+  min-height: 120px;
 }
 
 /* Label editor: the collapsible description pane over the label's task
@@ -6264,6 +6271,7 @@ button.vf-timeline-row-label:hover {
   background: var(--interactive-accent);
   opacity: 0.9;
   cursor: grab;
+  touch-action: none;
 }
 
 .vf-timeline-bar.is-open {
@@ -6294,6 +6302,7 @@ body.vf-bar-dragging .vf-timeline-bar {
   bottom: 0;
   width: 14px;
   cursor: ew-resize;
+  touch-action: none;
 }
 
 .vf-timeline-handle.is-start {
