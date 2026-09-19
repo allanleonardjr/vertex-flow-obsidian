@@ -3487,8 +3487,17 @@ button.vf-editor-rail-delete {
   background: transparent;
 }
 
+/* Obsidian's own mobile styles set a large `padding-top` on `.cm-scroller`
+   (confirmed via live inspection: 122px) to reserve room for a real note's
+   inline title/header — meaningless inside this embedded field, and it beats
+   the plain `padding: 0` below since it comes from a more specific rule.
+   `!important` is required because it's overriding Obsidian's own styling,
+   not an inline style, but this is scoped to `.vf-markdown-native
+   .cm-scroller` — exclusively our own embedded-editor host — so it can't
+   affect a real note's editor or another plugin's view. */
 .vf-markdown-native .cm-scroller {
   padding: 0;
+  padding-top: 0 !important;
 }
 
 .vf-markdown-native .cm-content {
@@ -6384,6 +6393,68 @@ body.vf-bar-dragging .vf-timeline-bar {
 .vf-resize-handle {
   z-index: 6;
   background: transparent;
+  /* Without this, a touch-drag with any horizontal component is also read
+     as a pan gesture, visibly nudging Vertex Flow's own compact-mode
+     drawers into view mid-drag. Matches the same `touch-action: none`
+     pattern already used elsewhere for other draggable/gesture-sensitive
+     elements in this codebase. */
+  touch-action: none;
+}
+
+/* Mobile: the visible divider is a thin 5-7px line — comfortable to grab
+   with a mouse, too small to reliably grab with a finger. Grow the actual
+   hit box well past the visible line, canceling the extra size back out
+   with a bigger negative margin so it takes no more room in the flex
+   layout than before (only overlapping neighbouring panes for touch
+   purposes), and draw the visible line as a thin centered pseudo-element
+   inside that bigger box — otherwise the hover/active highlight would fill
+   the whole enlarged hit area and read as a fat bar instead of a slim
+   divider. Covers every `.vf-resize-y`/`.vf-resize-x` instance at once
+   (Description/Sub-tasks, Project editor, Timeline, etc.) without touching
+   any of their individual size overrides. */
+.is-mobile .vf-resize-handle.vf-resize-y {
+  position: relative;
+  height: 24px;
+  margin: -12px 0;
+}
+
+.is-mobile .vf-resize-handle.vf-resize-x {
+  position: relative;
+  width: 24px;
+  margin: 0 -12px;
+}
+
+.is-mobile .vf-resize-handle.vf-resize-y::after,
+.is-mobile .vf-resize-handle.vf-resize-x::after {
+  content: "";
+  position: absolute;
+  background: transparent;
+}
+
+.is-mobile .vf-resize-handle.vf-resize-y::after {
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  transform: translateY(-50%);
+}
+
+.is-mobile .vf-resize-handle.vf-resize-x::after {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+}
+
+.is-mobile .vf-resize-handle:hover,
+.is-mobile .vf-resize-handle:active {
+  background: transparent;
+}
+
+.is-mobile .vf-resize-handle:hover::after,
+.is-mobile .vf-resize-handle:active::after {
+  background: var(--interactive-accent);
 }
 
 .vf-resize-x {

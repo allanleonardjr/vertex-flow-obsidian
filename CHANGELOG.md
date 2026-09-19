@@ -7,6 +7,8 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Comment and description fields on mobile no longer rendered their text far below the top of the box with a large dead-tap zone above it** — Obsidian's own mobile styles were padding the embedded editor's scroller to reserve room meant for a real note's title. **Resize handles (Description/Sub-tasks, Project editor, Timeline) no longer lose a drag to Obsidian's native swipe gesture on any diagonal movement**, and **are now much easier to grab with a finger** on mobile, without changing their appearance.
+
 - **Focusing a text field on mobile (a task title, a comment, the Create Workspace form) no longer collapsed the visible screen to just that field and a large blank gap.** Obsidian's own mobile shell was reserving keyboard-height space on `.view-content` twice — once by shrinking its height, again via a same-sized `padding-bottom` — and Vertex Flow's root inherited both. The plugin's own separate `--vf-vh`/`visualViewport` keyboard-height tracking (`useVisualViewportHeight`) is also removed as part of this fix; it's no longer needed now that the double-counted padding is corrected.
 
 - **Portaled dropdown and popover menus (property row pickers, the Parent/relations picker, the `u <key>` quick picker, and the `[[wikilink]]` autocomplete) now reposition when the mobile on-screen keyboard opens or closes**, instead of sizing themselves against the pre-keyboard viewport and appearing to float over blank space with the keyboard docked below.
