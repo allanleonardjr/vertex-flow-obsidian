@@ -84,6 +84,7 @@ import { ResizeHandle } from "./ResizeHandle";
 import { LabelChip, PersonAvatar, PriorityIcon, RelationBadge } from "./TaskBits";
 import type { TaskListGroup, TaskListInteraction } from "./TaskList";
 import { displayTitle, TaskTitle } from "./TaskTitle";
+import { getVisibleViewport, subscribeToViewportChanges } from "./viewport";
 
 type MandatoryColumn = "status" | "id" | "title";
 type Column = MandatoryColumn | TaskField;
@@ -1131,21 +1132,22 @@ function TableRelationsCell({
 		const place = () => {
 			const rect = anchorRef.current?.getBoundingClientRect();
 			if (!rect) return;
+			const viewport = getVisibleViewport();
 			setPos({
 				top: rect.bottom + 4,
-				left: Math.min(rect.left, window.innerWidth - 220),
+				left: Math.min(rect.left, viewport.width - 220),
 			});
 		};
 		place();
 		const close = () => setOpen(false);
 		const id = window.setTimeout(() => window.addEventListener("click", close));
-		window.addEventListener("resize", place);
-		window.addEventListener("scroll", place, true);
+		// Follows the mobile keyboard opening/closing (see viewport.ts) as well
+		// as window resize/scroll.
+		const unsubscribe = subscribeToViewportChanges(place);
 		return () => {
 			window.clearTimeout(id);
 			window.removeEventListener("click", close);
-			window.removeEventListener("resize", place);
-			window.removeEventListener("scroll", place, true);
+			unsubscribe();
 		};
 	}, [open]);
 

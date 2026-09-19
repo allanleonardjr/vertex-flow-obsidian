@@ -28,14 +28,23 @@
   font-size: var(--font-ui-small);
 }
 
-/* Mobile: the on-screen keyboard is an overlay that does not resize the layout
-   viewport (per the CSS spec), so this `height: 100%` root keeps extending
-   behind it, hiding the bottom and leaving a blank band above the keyboard.
-   Pin the root to the true visible height (`--vf-vh`, set from
-   `visualViewport` in App.tsx) on mobile; the value self-restores when the
-   keyboard closes. Desktop keeps the plain 100%. */
-.is-mobile .vertex-flow {
-  height: var(--vf-vh, 100%);
+/* Obsidian's mobile shell dynamically sets `padding-bottom` on
+   `.view-content` equal to the on-screen keyboard's height while it's open
+   (confirmed via live inspection: 34px at rest vs. 345px with the keyboard
+   up, matching `.view-content`'s own height shrinking by that same 345px) —
+   reserving that space a second time *inside* a box that's already sized
+   for the keyboard. `.vertex-flow` is `height: 100%` of `.view-content`'s
+   content box (measured after the parent's own padding), so it inherits
+   both reductions and ends up far shorter than the keyboard alone accounts
+   for. Cancel the redundant padding for our own view specifically.
+
+   Obsidian sets that padding as an inline style, which only a more specific
+   inline style or `!important` can override; `:has()` scopes the override
+   to the one `.view-content` hosting Vertex Flow, so a plain note or
+   another plugin's view keeps Obsidian's normal (correct, single) keyboard
+   padding untouched. */
+.is-mobile .view-content:has(.vertex-flow) {
+  padding-bottom: env(safe-area-inset-bottom, 0px) !important;
 }
 
 /*
@@ -170,6 +179,10 @@ button.vf-sidebar-search:hover {
   bottom: 0;
   width: 6px;
   cursor: col-resize;
+  /* Same fix as `.vf-canvas-zoom-slider` below — a separate drag
+     implementation from the shared `.vf-resize-handle` component, so it
+     needs the same treatment added independently. */
+  touch-action: none;
   z-index: 5;
 }
 
@@ -476,6 +489,18 @@ button.vf-nav-row-menu:hover {
      off — Obsidian panes are fluid-width, so the plugin must respond to the
      pane's own width, not the viewport. */
   container-type: inline-size;
+}
+
+/* Obsidian's native bottom action bar is a WebView overlay with no DOM
+   presence and no CSS variable or safe-area inset exposing its height, so
+   this is an estimate (confirmed on-device to cover Canvas's zoom/legend/
+   tap-connect cluster and a task's comment composer "Comment" button) —
+   tune the 50px figure on-device if it's noticeably too much or too little.
+   `.vf-main` is the shared flex-column ancestor for every view, so this one
+   rule reserves clearance uniformly rather than patching each covered
+   element individually. */
+.is-mobile .vf-main {
+  padding-bottom: calc(50px + env(safe-area-inset-bottom, 0px));
 }
 
 .vf-toolbar {
@@ -3478,6 +3503,13 @@ button.vf-editor-rail-delete {
   background: transparent;
 }
 
+/* Obsidian's own mobile styles set a large `padding-top` on `.cm-scroller`
+   (confirmed via live inspection: 122px) to reserve room for a real note's
+   inline title/header — meaningless inside this embedded field. That
+   specific override now happens in JS (`embedded-editor.ts` sets
+   `scrollDOM.style.paddingTop` directly once the editor mounts, which
+   beats the class-based rule without `!important`); this rule only
+   resets the other sides. */
 .vf-markdown-native .cm-scroller {
   padding: 0;
 }
@@ -4326,7 +4358,11 @@ input.vf-editable-title-input {
 
 .vf-task-editor-sections {
   flex: 1 1 auto;
-  min-height: 0;
+  /* Match TASK_SECTIONS_MIN_HEIGHT (the resize handle's floor) so the pinned
+     description height can never collapse Sub-tasks/Relations/Comments away —
+     without this, a tall drag (or the keyboard) squeezes sections to 0 and
+     every input field below the description vanishes. */
+  min-height: 160px;
   overflow-y: auto;
   padding: 4px 20px 18px;
 }
@@ -4474,7 +4510,9 @@ input.vf-editable-title-input {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
-  min-height: 0;
+  /* Match TASKS_MIN_HEIGHT (the info pane's resize floor) — same rationale
+     as `.vf-task-editor-sections`. */
+  min-height: 120px;
 }
 
 /* Label editor: the collapsible description pane over the label's task
@@ -4844,6 +4882,20 @@ button.vf-add-filter.is-on {
   display: inline-flex;
   align-items: center;
   gap: 1px;
+}
+
+/* The icon-only layout buttons are comfortable to click but too small to
+   reliably tap — confirmed on-device. Grow the hit box on mobile only;
+   desktop's tight, mouse-oriented sizing is untouched. */
+.is-mobile .vf-layout-toggle {
+  gap: 4px;
+}
+
+.is-mobile button.vf-layout-opt {
+  min-width: 40px;
+  min-height: 40px;
+  padding: 8px;
+  justify-content: center;
 }
 
 button.vf-layout-opt.is-on {
@@ -5849,6 +5901,8 @@ button.vf-help-topic-label.is-active {
   width: 5px;
   cursor: col-resize;
   background: transparent;
+  /* Same fix as `.vf-canvas-zoom-slider` above. */
+  touch-action: none;
 }
 
 .vf-help-resize:hover {
@@ -6234,6 +6288,7 @@ button.vf-timeline-row-label:hover {
   background: var(--interactive-accent);
   opacity: 0.9;
   cursor: grab;
+  touch-action: none;
 }
 
 .vf-timeline-bar.is-open {
@@ -6264,6 +6319,7 @@ body.vf-bar-dragging .vf-timeline-bar {
   bottom: 0;
   width: 14px;
   cursor: ew-resize;
+  touch-action: none;
 }
 
 .vf-timeline-handle.is-start {
@@ -6375,6 +6431,68 @@ body.vf-bar-dragging .vf-timeline-bar {
 .vf-resize-handle {
   z-index: 6;
   background: transparent;
+  /* Without this, a touch-drag with any horizontal component is also read
+     as a pan gesture, visibly nudging Vertex Flow's own compact-mode
+     drawers into view mid-drag. Matches the same `touch-action: none`
+     pattern already used elsewhere for other draggable/gesture-sensitive
+     elements in this codebase. */
+  touch-action: none;
+}
+
+/* Mobile: the visible divider is a thin 5-7px line — comfortable to grab
+   with a mouse, too small to reliably grab with a finger. Grow the actual
+   hit box well past the visible line, canceling the extra size back out
+   with a bigger negative margin so it takes no more room in the flex
+   layout than before (only overlapping neighbouring panes for touch
+   purposes), and draw the visible line as a thin centered pseudo-element
+   inside that bigger box — otherwise the hover/active highlight would fill
+   the whole enlarged hit area and read as a fat bar instead of a slim
+   divider. Covers every `.vf-resize-y`/`.vf-resize-x` instance at once
+   (Description/Sub-tasks, Project editor, Timeline, etc.) without touching
+   any of their individual size overrides. */
+.is-mobile .vf-resize-handle.vf-resize-y {
+  position: relative;
+  height: 24px;
+  margin: -12px 0;
+}
+
+.is-mobile .vf-resize-handle.vf-resize-x {
+  position: relative;
+  width: 24px;
+  margin: 0 -12px;
+}
+
+.is-mobile .vf-resize-handle.vf-resize-y::after,
+.is-mobile .vf-resize-handle.vf-resize-x::after {
+  content: "";
+  position: absolute;
+  background: transparent;
+}
+
+.is-mobile .vf-resize-handle.vf-resize-y::after {
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  transform: translateY(-50%);
+}
+
+.is-mobile .vf-resize-handle.vf-resize-x::after {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+}
+
+.is-mobile .vf-resize-handle:hover,
+.is-mobile .vf-resize-handle:active {
+  background: transparent;
+}
+
+.is-mobile .vf-resize-handle:hover::after,
+.is-mobile .vf-resize-handle:active::after {
+  background: var(--interactive-accent);
 }
 
 .vf-resize-x {
@@ -8595,6 +8713,10 @@ button.vf-canvas-zoom-btn:disabled:hover {
   width: 70px;
   margin: 0 2px;
   accent-color: var(--interactive-accent);
+  /* Without this, dragging the slider is also read as Obsidian's native
+     horizontal swipe gesture for revealing its side panels — same fix as
+     `.vf-resize-handle` elsewhere in this file. */
+  touch-action: none;
 }
 
 button.vf-canvas-zoom-fit {
@@ -8677,6 +8799,29 @@ button.vf-canvas-zoom-fit {
   display: flex;
   flex-shrink: 0;
   gap: 6px;
+}
+
+/* Narrow pane (phone, or a desktop pane dragged small): the bar can't grow
+   past the visible width, so let it wrap instead of overflowing off both
+   edges — worst case is the reparent message, which inlines three task
+   titles. Matches the `.vf-browse-hero` breakpoint/convention. */
+@container (max-width: 480px) {
+  .vf-canvas-tap-connect {
+    max-width: calc(100% - 24px);
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .vf-canvas-tap-connect-label,
+  .vf-canvas-tap-connect-error {
+    white-space: normal;
+    text-align: center;
+  }
+
+  .vf-canvas-tap-connect-actions {
+    flex-basis: 100%;
+    justify-content: center;
+  }
 }
 
 .vf-canvas-node {
@@ -8787,6 +8932,9 @@ button.vf-canvas-zoom-fit {
   opacity: 0;
   cursor: crosshair;
   transition: opacity 0.1s ease;
+  /* Nested inside `.vf-canvas`, which already sets `touch-action: none`, but
+     an ancestor's value isn't reliably enough in practice — same fix as
+     `.vf-canvas-zoom-slider` above, applied directly to this element too. */
   touch-action: none;
 }
 

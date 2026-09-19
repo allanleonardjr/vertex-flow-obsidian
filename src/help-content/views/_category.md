@@ -15,9 +15,9 @@ fields matter. Views come in three kinds:
 - **Saved Views and Project views** — the custom views you create and save in
   the sidebar, and a Project's own task list.
 
-Every view renders through one of the five [**layouts**](help://layouts) —
+Every view renders through one of the six [**layouts**](help://layouts) —
 [List](help://layouts-list-layout), [Board](help://layouts-board-layout),
-[Calendar](help://layouts-calendar-layout), [Timeline](help://layouts-timeline-layout),
-or [Canvas](help://layouts-canvas-layout) — which decide *how* tasks are
-painted, never *which* tasks appear. A view can be flipped between layouts from
-the view bar.
+[Table](help://layouts-table-layout), [Timeline](help://layouts-timeline-layout),
+[Calendar](help://layouts-calendar-layout), or [Canvas](help://layouts-canvas-layout)
+— which decide *how* tasks are painted, never *which* tasks appear. A view can
+be flipped between layouts from the view bar.

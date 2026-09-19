@@ -49,6 +49,7 @@ import { SEARCH_THRESHOLD } from "../components/fields";
 import { Icon } from "../components/Icon";
 import { PersonAvatar, StatusDot } from "../components/TaskBits";
 import { displayTitle } from "../components/TaskTitle";
+import { getVisibleViewport, subscribeToViewportChanges } from "../components/viewport";
 
 export type QuickPickerKind =
   | "status"
@@ -311,24 +312,25 @@ export function QuickFieldPicker({
         ),
       );
 
+    const viewport = getVisibleViewport();
     if (rect) {
       setPos({
-        top: Math.min(rect.bottom + 4, window.innerHeight - 300),
-        left: Math.min(rect.left + 24, window.innerWidth - 260),
+        top: Math.min(rect.bottom + 4, viewport.height - 300),
+        left: Math.min(rect.left + 24, viewport.width - 260),
       });
     } else {
       setPos({
-        top: window.innerHeight / 2 - 120,
-        left: window.innerWidth / 2 - 120,
+        top: viewport.height / 2 - 120,
+        left: viewport.width / 2 - 120,
       });
     }
   }, [task.path, anchorSelector]);
 
   useLayoutEffect(() => {
     place();
-    const onScroll = () => place();
-    window.addEventListener("resize", onScroll);
-    window.addEventListener("scroll", onScroll, true);
+    // Follows the mobile keyboard opening/closing (see viewport.ts) as well
+    // as window resize/scroll.
+    const unsubscribe = subscribeToViewportChanges(place);
     // Close on outside click, but never while the depth-nudge dialog is up —
     // reaching for "Move anyway" isn't leaving the picker.
     const onClick = () => {
@@ -339,8 +341,7 @@ export function QuickFieldPicker({
     );
     return () => {
       window.clearTimeout(id);
-      window.removeEventListener("resize", onScroll);
-      window.removeEventListener("scroll", onScroll, true);
+      unsubscribe();
       window.removeEventListener("click", onClick);
     };
   }, [place, onClose]);

@@ -16,7 +16,12 @@
  * every other bar control.
  */
 
-import { useState, type Dispatch, type SetStateAction } from "react";
+import {
+	useState,
+	type CSSProperties,
+	type Dispatch,
+	type SetStateAction,
+} from "react";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import { NONE } from "../../core/types";
 import type { SavedView, ViewFilters, WorkspaceSnapshot } from "../../core/types";
@@ -48,6 +53,29 @@ function withFilter(
 	if (empty) delete next[key];
 	else (next as Record<string, unknown>)[key] = value;
 	return next;
+}
+
+/**
+ * Selected-state fill for a filter chip: the value's own taxonomy color when
+ * it has one, the app's accent color (matching `.vf-you-badge`) when it
+ * doesn't. Unselected chips get no inline style at all — neutral, regardless
+ * of color — so selection is a real color-vs-no-color contrast rather than a
+ * subtle shade difference.
+ */
+function chipTint(
+	chosen: boolean,
+	color?: string | null,
+): CSSProperties | undefined {
+	if (!chosen) return undefined;
+	if (color) {
+		return { borderColor: color, color, backgroundColor: `${color}1e` };
+	}
+	return {
+		borderColor: "var(--interactive-accent)",
+		color: "var(--text-accent)",
+		backgroundColor:
+			"color-mix(in srgb, var(--interactive-accent) 15%, transparent)",
+	};
 }
 
 /** The non-filter Row 1 controls that share the bar's single open-popover state. */
@@ -331,14 +359,7 @@ function ClauseEditor({
 						key={choice.value}
 						type="button"
 						className={`vf-chip vf-chip-button${chosen ? " is-on" : ""}`}
-						style={
-							choice.color
-								? {
-										borderColor: choice.color,
-										color: chosen ? undefined : choice.color,
-									}
-								: undefined
-						}
+						style={chipTint(chosen, choice.color)}
 						onClick={() => toggle(choice.value)}
 					>
 						{choice.label}
@@ -385,11 +406,7 @@ function GroupedFilterField({
 				key={value}
 				type="button"
 				className={`vf-chip vf-chip-button${chosen ? " is-on" : ""}`}
-				style={
-					color
-						? { borderColor: color, color: chosen ? undefined : color }
-						: undefined
-				}
+				style={chipTint(chosen, color)}
 				onClick={() => onToggle(value)}
 			>
 				{label}

@@ -209,7 +209,16 @@ function ProjectEditor({
             style={
               descCollapsed
                 ? undefined
-                : { height: infoHeight, flex: "0 0 auto" }
+                : {
+                    height: infoHeight,
+                    // Same shape as the task editor's description pane: hold
+                    // the dragged height while the column has room, shrink to
+                    // make room for the task list below when the keyboard
+                    // squeezes it (`max-height` alone would cap the pane at
+                    // its content height, silently breaking drag-to-resize).
+                    flex: "0 1 auto",
+                    minHeight: INFO_MIN_HEIGHT,
+                  }
             }
           >
             <DescriptionSection

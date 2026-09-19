@@ -193,7 +193,17 @@ export function TaskDetailPanel({
             style={
               descCollapsed
                 ? undefined
-                : { height: descHeight, flex: "0 0 auto" }
+                : {
+                    height: descHeight,
+                    // Keep the dragged size as the pane's height when the column
+                    // has room, but let it yield to the sub-task/relation/comment
+                    // sections below when the keyboard (or a short pane) squeezes
+                    // it — `max-height: descHeight` alone would cap the pane at
+                    // its *content* height, which silently breaks dragging it
+                    // taller than its text.
+                    flex: "0 1 auto",
+                    minHeight: TASK_INFO_MIN_HEIGHT,
+                  }
             }
           >
             <DescriptionSection
