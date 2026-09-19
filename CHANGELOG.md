@@ -7,6 +7,15 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Selected filter chips are now visually distinct from unselected ones.**
+  Status/Priority/Type/Label/Assignee/Mentions/Project chips in the filter
+  clause editor used to look almost identical whether selected or not, and
+  chips for values with no taxonomy color (Assignee, Mentions, Project) had
+  no visible selected state at all. Unselected chips are now fully neutral;
+  selecting one fills it with a tinted background and full-strength color —
+  the value's own taxonomy color when it has one, or the app's accent color
+  (matching the "You" badge) when it doesn't.
+
 - **Canvas now re-fits the viewport when Arrange changes.** Auto-fit only
   ran once, the first time layout finished after mount — so switching the
   Arrange control (Dependency flow / Hierarchy, either direction) re-laid
