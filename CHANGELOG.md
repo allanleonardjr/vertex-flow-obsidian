@@ -39,6 +39,13 @@ This project uses [Semantic Versioning](https://semver.org/).
   despite `layouts/table-layout.md` existing as a real topic — both the
   count and the missing link are now fixed.
 
+- **The plugin description (`package.json`, `manifest.json`, and the README's
+  opening line — all three carried the identical sentence) listed "boards,
+  calendars, timelines" and never mentioned Table or Canvas.** Now reads "six
+  task layouts (list, board, table, timeline, calendar, canvas)". Also drops
+  the trailing period from the two manifest fields, resolving the marketplace
+  compliance note about `manifest.json`'s description ending in a period.
+
 ## 1.0.27 — 2026-09-17
 
 ### Fixed

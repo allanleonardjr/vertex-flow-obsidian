@@ -8,7 +8,7 @@
   />
 </p>
 
-A keyboard-first task manager stored entirely as Markdown: projects, tasks, recurring schedules, activity history logs, boards, calendars, timelines, chart dashboards, saved views, and an offline help system.
+A keyboard-first task manager stored entirely as Markdown: projects, tasks, recurring schedules, six task layouts (list, board, table, timeline, calendar, canvas), chart dashboards, saved views, activity history, and an offline help system.
 
 Vertex Flow turns your vault into a fast, high-density project management OS — no cloud, no account, no database. Every task, project, view, and dashboard is a plain Markdown note. You own the data, always, and you can edit it with any tool that reads Markdown.
 
