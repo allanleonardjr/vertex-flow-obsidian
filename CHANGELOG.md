@@ -5,6 +5,8 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.28 — 2026-09-19
+
 ### Fixed
 
 - **On mobile, the feature sections under an editor's Description pane (Sub-tasks/Relations/Comments) can no longer be squeezed to nothing anywhere — not when the pane is dragged very tall, and not when the keyboard opens.** The layout's scrollable sections had `min-height: 0`, so nothing actually enforced the floor the resize handle already computed against: dragging Description to (or near) its maximum — or the keyboard shrinking the column — collapsed the sections to zero height, making every input field below the Description unreachable. The sections now have a real minimum height matching the resize handle's floor (Task editor 160px, Project editor 120px), so a tall Description leaves a usable, scrollable band of features below it.
