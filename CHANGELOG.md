@@ -7,6 +7,8 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Focusing a text field on mobile (a task title, a comment, the Create Workspace form) no longer collapsed the visible screen to just that field and a large blank gap.** Obsidian's own mobile shell was reserving keyboard-height space on `.view-content` twice — once by shrinking its height, again via a same-sized `padding-bottom` — and Vertex Flow's root inherited both. The plugin's own separate `--vf-vh`/`visualViewport` keyboard-height tracking (`useVisualViewportHeight`) is also removed as part of this fix; it's no longer needed now that the double-counted padding is corrected.
+
 - **Portaled dropdown and popover menus (property row pickers, the Parent/relations picker, the `u <key>` quick picker, and the `[[wikilink]]` autocomplete) now reposition when the mobile on-screen keyboard opens or closes**, instead of sizing themselves against the pre-keyboard viewport and appearing to float over blank space with the keyboard docked below.
 
 - **Selected filter chips are now visually distinct from unselected ones.**

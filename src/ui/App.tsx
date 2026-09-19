@@ -5,7 +5,6 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { MotionConfig } from "motion/react";
-import { Platform } from "obsidian";
 import {
   viewById,
   useActiveWorkspace,
@@ -45,7 +44,6 @@ import { CompactNavProvider, useCompactNav } from "./compact-nav-context";
 import { CompactModeToggle } from "./CompactModeToggle";
 
 export function App() {
-  useVisualViewportHeight();
   const active = useActiveWorkspace();
 
   if (!active) return <EmptyState />;
@@ -402,40 +400,3 @@ export function personView(
  * `ProjectDetailView` renders it beneath the project header.
  */
 export { projectView } from "./project-view";
-
-/**
- * Mobile on-screen keyboard handling.
- *
- * Per the CSS spec the keyboard is an overlay — it does NOT resize the layout
- * viewport, so a `height: 100%` root keeps extending behind it, hiding the
- * bottom and leaving a blank band above the keyboard (`.vertex-flow` is
- * `height: 100%` of Obsidian's `.view-content`). The one API that reflects the
- * shrink is `window.visualViewport.height`, which drops by the keyboard height
- * when it opens. We mirror that to `--vf-vh` on `<body>`; `.is-mobile
- * .vertex-flow` uses it to pin the plugin root to the true visible height.
- *
- * Both `resize` and `scroll` fire on `visualViewport` — iOS needs the latter
- * (it pans the visual viewport and never fires `window` resize); Android fires
- * resize too. When the keyboard closes, `visualViewport.height` returns to the
- * full figure, so the variable self-restores — no extra reset logic.
- *
- * Runs on mount regardless of onboarding/workspace mode because both render
- * under the same `.vertex-flow` root. Desktop is untouched.
- */
-function useVisualViewportHeight(): void {
-  useEffect(() => {
-    if (!Platform.isMobile) return;
-    const vv = window.visualViewport;
-    if (!vv) return;
-    const set = () =>
-      document.body.style.setProperty("--vf-vh", `${vv.height}px`);
-    set();
-    vv.addEventListener("resize", set);
-    vv.addEventListener("scroll", set);
-    return () => {
-      vv.removeEventListener("resize", set);
-      vv.removeEventListener("scroll", set);
-      document.body.style.removeProperty("--vf-vh");
-    };
-  }, []);
-}

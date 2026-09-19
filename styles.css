@@ -28,14 +28,23 @@
   font-size: var(--font-ui-small);
 }
 
-/* Mobile: the on-screen keyboard is an overlay that does not resize the layout
-   viewport (per the CSS spec), so this `height: 100%` root keeps extending
-   behind it, hiding the bottom and leaving a blank band above the keyboard.
-   Pin the root to the true visible height (`--vf-vh`, set from
-   `visualViewport` in App.tsx) on mobile; the value self-restores when the
-   keyboard closes. Desktop keeps the plain 100%. */
-.is-mobile .vertex-flow {
-  height: var(--vf-vh, 100%);
+/* Obsidian's mobile shell dynamically sets `padding-bottom` on
+   `.view-content` equal to the on-screen keyboard's height while it's open
+   (confirmed via live inspection: 34px at rest vs. 345px with the keyboard
+   up, matching `.view-content`'s own height shrinking by that same 345px) —
+   reserving that space a second time *inside* a box that's already sized
+   for the keyboard. `.vertex-flow` is `height: 100%` of `.view-content`'s
+   content box (measured after the parent's own padding), so it inherits
+   both reductions and ends up far shorter than the keyboard alone accounts
+   for. Cancel the redundant padding for our own view specifically.
+
+   Obsidian sets that padding as an inline style, which only a more specific
+   inline style or `!important` can override; `:has()` scopes the override
+   to the one `.view-content` hosting Vertex Flow, so a plain note or
+   another plugin's view keeps Obsidian's normal (correct, single) keyboard
+   padding untouched. */
+.is-mobile .view-content:has(.vertex-flow) {
+  padding-bottom: env(safe-area-inset-bottom, 0px) !important;
 }
 
 /*
