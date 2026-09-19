@@ -21,7 +21,8 @@
  * sub-task stays a task-editor action.
  */
 
-import { Fragment, type ReactNode } from "react";
+import { Fragment, useId, type ReactNode } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import type { NestedRow } from "../../core/views";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { Task, TaskField, WorkspaceSnapshot } from "../../core/types";
@@ -82,6 +83,8 @@ export interface TaskListProps {
 	/** Extra content after the groups — List's drag preview portal. */
 	children?: ReactNode;
 	containerRef?: (element: HTMLDivElement | null) => void;
+	/** Suspend layout animation — set false while a drag gesture is live. */
+	animateLayout?: boolean;
 }
 
 export function TaskList({
@@ -99,7 +102,14 @@ export function TaskList({
 	className,
 	children,
 	containerRef,
+	animateLayout = true,
 }: TaskListProps) {
+	// Per-mount namespace for `layoutId` — the same task can legitimately be
+	// rendered by two separate TaskList mounts at once (e.g. a List view tab
+	// and a relations panel), and layoutId must be unique per mount or Motion
+	// tries to animate the element jumping between the two unrelated lists.
+	const listId = useId();
+
 	return (
 		<div className={`vf-list${className ? ` ${className}` : ""}`} ref={containerRef}>
 			{groups.map((group) => {
@@ -122,41 +132,47 @@ export function TaskList({
 							className={`vf-list-section${dropIndex !== null ? " is-drop-target" : ""}`}
 							data-group-key={group.key}
 						>
-							{!group.collapsed &&
-								(nested
-									? group.rows!.map((row) => (
-											<NestedListRow
-												key={`${row.ghost ? "ghost:" : ""}${row.task.path}`}
-												row={row}
-												collapsed={
-													collapsedSubtrees?.has(row.task.path) ?? false
-												}
-												onToggleSubtree={onToggleSubtree}
-												snapshot={snapshot}
-												taxonomies={taxonomies}
-												interaction={row.ghost ? undefined : interaction}
-												onOpenTask={onOpenTask}
-												rowAction={row.ghost ? undefined : rowAction}
-												hiddenFields={hiddenFields}
-											/>
-										))
-									: group.tasks.map((task, index) => (
-											<Fragment key={task.path}>
-												{dropIndex === index && (
-													<div className="vf-drop-indicator" />
-												)}
-												<TaskListRow
-													task={task}
-													groupKey={group.key}
+							<AnimatePresence initial={false}>
+								{!group.collapsed &&
+									(nested
+										? group.rows!.map((row) => (
+												<NestedListRow
+													key={`${row.ghost ? "ghost:" : ""}${row.task.path}`}
+													row={row}
+													collapsed={
+														collapsedSubtrees?.has(row.task.path) ?? false
+													}
+													onToggleSubtree={onToggleSubtree}
 													snapshot={snapshot}
 													taxonomies={taxonomies}
-													interaction={interaction}
+													interaction={row.ghost ? undefined : interaction}
 													onOpenTask={onOpenTask}
-													rowAction={rowAction}
+													rowAction={row.ghost ? undefined : rowAction}
 													hiddenFields={hiddenFields}
+													listId={listId}
+													animateLayout={animateLayout}
 												/>
-											</Fragment>
-										)))}
+											))
+										: group.tasks.map((task, index) => (
+												<Fragment key={task.path}>
+													{dropIndex === index && (
+														<div className="vf-drop-indicator" />
+													)}
+													<TaskListRow
+														task={task}
+														groupKey={group.key}
+														snapshot={snapshot}
+														taxonomies={taxonomies}
+														interaction={interaction}
+														onOpenTask={onOpenTask}
+														rowAction={rowAction}
+														hiddenFields={hiddenFields}
+														listId={listId}
+														animateLayout={animateLayout}
+													/>
+												</Fragment>
+											)))}
+							</AnimatePresence>
 
 							{!nested && dropIndex === group.tasks.length && (
 								<div className="vf-drop-indicator" />
@@ -234,6 +250,8 @@ function NestedListRow({
 	onOpenTask,
 	rowAction,
 	hiddenFields,
+	listId,
+	animateLayout,
 }: {
 	row: NestedRow;
 	collapsed: boolean;
@@ -244,6 +262,8 @@ function NestedListRow({
 	onOpenTask?: (path: string) => void;
 	rowAction?: (task: Task) => ReactNode;
 	hiddenFields?: readonly TaskField[];
+	listId: string;
+	animateLayout: boolean;
 }) {
 	const { task, depth, hasChildren } = row;
 	// A projected occurrence reuses the non-interactive ghost treatment, but
@@ -319,7 +339,17 @@ function NestedListRow({
 
 	if (rowAction) {
 		return (
-			<div className={className} data-task-path={task.path} data-nested="true">
+			<motion.div
+				className={className}
+				data-task-path={task.path}
+				data-nested="true"
+				layout={animateLayout}
+				layoutId={`${listId}:${task.path}`}
+				transition={{ duration: 0.25, ease: "easeOut" }}
+				initial={{ opacity: 0 }}
+				animate={{ opacity: 1 }}
+				exit={{ opacity: 0 }}
+			>
 				<button
 					className="vf-row-open"
 					onClick={(event) => {
@@ -330,22 +360,28 @@ function NestedListRow({
 					{content}
 				</button>
 				{rowAction(task)}
-			</div>
+			</motion.div>
 		);
 	}
 
 	return (
-		<div
+		<motion.div
 			className={className}
 			data-task-path={task.path}
 			data-nested="true"
+			layout={animateLayout}
+			layoutId={`${listId}:${task.path}`}
+			transition={{ duration: 0.25, ease: "easeOut" }}
+			initial={{ opacity: 0 }}
+			animate={{ opacity: 1 }}
+			exit={{ opacity: 0 }}
 			onClick={(event) => {
 				if (interaction?.onRowClick) interaction.onRowClick(event, task);
 				else onOpenTask?.(task.path);
 			}}
 		>
 			{content}
-		</div>
+		</motion.div>
 	);
 }
 
@@ -358,6 +394,8 @@ function TaskListRow({
 	onOpenTask,
 	rowAction,
 	hiddenFields,
+	listId,
+	animateLayout,
 }: {
 	task: Task;
 	groupKey: string;
@@ -367,6 +405,8 @@ function TaskListRow({
 	onOpenTask?: (path: string) => void;
 	rowAction?: (task: Task) => ReactNode;
 	hiddenFields?: readonly TaskField[];
+	listId: string;
+	animateLayout: boolean;
 }) {
 	// A projected (ghost) occurrence: no drag, no selection, and any activation
 	// opens the series source instead of a note that doesn't exist yet.
@@ -396,7 +436,15 @@ function TaskListRow({
 
 	if (projected) {
 		return (
-			<div className={className}>
+			<motion.div
+				className={className}
+				layout={animateLayout}
+				layoutId={`${listId}:${task.path}`}
+				transition={{ duration: 0.25, ease: "easeOut" }}
+				initial={{ opacity: 0 }}
+				animate={{ opacity: 1 }}
+				exit={{ opacity: 0 }}
+			>
 				<button
 					className="vf-row-open"
 					title="Projected occurrence — opens the repeating task"
@@ -404,7 +452,7 @@ function TaskListRow({
 				>
 					{content}
 				</button>
-			</div>
+			</motion.div>
 		);
 	}
 
@@ -413,9 +461,15 @@ function TaskListRow({
 	// The row's content becomes its own button, the action sits beside it.
 	if (rowAction) {
 		return (
-			<div
+			<motion.div
 				className={className}
 				data-task-path={task.path}
+				layout={animateLayout}
+				layoutId={`${listId}:${task.path}`}
+				transition={{ duration: 0.25, ease: "easeOut" }}
+				initial={{ opacity: 0 }}
+				animate={{ opacity: 1 }}
+				exit={{ opacity: 0 }}
 				onPointerDown={(event) =>
 					interaction?.onRowPointerDown?.(event, task, groupKey)
 				}
@@ -430,14 +484,20 @@ function TaskListRow({
 					{content}
 				</button>
 				{rowAction(task)}
-			</div>
+			</motion.div>
 		);
 	}
 
 	return (
-		<div
+		<motion.div
 			className={className}
 			data-task-path={task.path}
+			layout={animateLayout}
+			layoutId={`${listId}:${task.path}`}
+			transition={{ duration: 0.25, ease: "easeOut" }}
+			initial={{ opacity: 0 }}
+			animate={{ opacity: 1 }}
+			exit={{ opacity: 0 }}
 			onPointerDown={(event) => interaction?.onRowPointerDown?.(event, task, groupKey)}
 			onClick={(event) => {
 				if (interaction?.onRowClick) interaction.onRowClick(event, task);
@@ -445,6 +505,6 @@ function TaskListRow({
 			}}
 		>
 			{content}
-		</div>
+		</motion.div>
 	);
 }

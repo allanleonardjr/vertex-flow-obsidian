@@ -26,6 +26,7 @@ If that destination is already open, Vertex Flow switches to its existing tab ra
 | `g` `p` | Projects |
 | `g` `l` | Labels |
 | `g` `m` | People |
+| `g` `w` | Workspaces |
 | `g` `r` | Recurring |
 | `g` `e` | Activity History |
 | `g` `t` | Trash |
@@ -52,6 +53,7 @@ Press `v`, then a layout key, to change how the current view is displayed.
 | --- | --- |
 | `v` `l` | List layout |
 | `v` `b` | Board layout |
+| `v` `s` | Table layout |
 | `v` `t` | Timeline layout |
 | `v` `c` | Calendar layout |
 | `v` `d` | Canvas layout (dependency DAG) |

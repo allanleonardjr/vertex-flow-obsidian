@@ -16,6 +16,7 @@
 import { useCallback } from "react";
 import type {
 	SavedView,
+	TaskField,
 	ViewCalendarState,
 	ViewColumnState,
 	ViewTimelineState,
@@ -59,6 +60,12 @@ export interface ViewDraft {
 	setTimeline: (timeline: ViewTimelineState) => void;
 	/** Persist the calendar's visible month straight to disk, bypassing the draft. */
 	setCalendar: (calendar: ViewCalendarState) => void;
+	/** Table-only: persist column order straight to disk, bypassing the draft. */
+	setColumnOrder: (columnOrder: TaskField[]) => void;
+	/** Table-only: persist per-column pixel widths straight to disk, bypassing the draft. */
+	setColumnWidths: (columnWidths: Record<string, number>) => void;
+	/** Table-only: persist row/header stripe color straight to disk, bypassing the draft. */
+	setTableStripe: (tableStripe: string | undefined) => void;
 	/** Write the draft over the saved view. */
 	save: () => void;
 	/** Throw the draft away. */
@@ -96,6 +103,9 @@ export function useViewDraft(
 				columns,
 				timeline: view.timeline,
 				calendar: view.calendar,
+				columnOrder: view.columnOrder,
+				columnWidths: view.columnWidths,
+				tableStripe: view.tableStripe,
 			}
 		: transientColumns
 			? { ...view, columns }
@@ -130,6 +140,21 @@ export function useViewDraft(
 		[writeView, view],
 	);
 
+	const setColumnOrder = useCallback(
+		(columnOrder: TaskField[]) => writeView({ ...view, columnOrder }),
+		[writeView, view],
+	);
+
+	const setColumnWidths = useCallback(
+		(columnWidths: Record<string, number>) => writeView({ ...view, columnWidths }),
+		[writeView, view],
+	);
+
+	const setTableStripe = useCallback(
+		(tableStripe: string | undefined) => writeView({ ...view, tableStripe }),
+		[writeView, view],
+	);
+
 	const save = useCallback(() => {
 		if (!draft) return;
 		writeView({
@@ -137,6 +162,9 @@ export function useViewDraft(
 			columns: view.columns,
 			timeline: view.timeline,
 			calendar: view.calendar,
+			columnOrder: view.columnOrder,
+			columnWidths: view.columnWidths,
+			tableStripe: view.tableStripe,
 		});
 		setViewDraft(view.id, null);
 	}, [
@@ -146,6 +174,9 @@ export function useViewDraft(
 		view.columns,
 		view.timeline,
 		view.calendar,
+		view.columnOrder,
+		view.columnWidths,
+		view.tableStripe,
 		setViewDraft,
 	]);
 
@@ -161,6 +192,9 @@ export function useViewDraft(
 		setColumns,
 		setTimeline,
 		setCalendar,
+		setColumnOrder,
+		setColumnWidths,
+		setTableStripe,
 		save,
 		reset,
 	};

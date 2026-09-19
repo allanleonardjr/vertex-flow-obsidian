@@ -1304,6 +1304,58 @@ describe("parseView (per-file)", () => {
 		expect(frontmatter.query).toContain("relations:blocks");
 	});
 
+	it("round-trips tableStripe and columnOrder through serializeView/parseView unchanged", () => {
+		const { value } = parseView(
+			{
+				id: "v",
+				name: "V",
+				query: "layout:table",
+				tableStripe: "#3b82f6",
+				columnOrder: ["priority", "dueDate"],
+			},
+			{ path: "W/Views/v" },
+		);
+		expect(value.tableStripe).toBe("#3b82f6");
+		expect(value.columnOrder).toEqual(["priority", "dueDate"]);
+
+		const frontmatter = serializeView(value);
+		expect(frontmatter.tableStripe).toBe("#3b82f6");
+		expect(frontmatter.columnOrder).toEqual(["priority", "dueDate"]);
+		expect(parseView(frontmatter, { path: "W/Views/v" }).value).toEqual(value);
+	});
+
+	it("round-trips a tableSort using two of the new fields through serializeView/parseView unchanged", () => {
+		const { value } = parseView(
+			{
+				id: "v",
+				name: "V",
+				query: "layout:table table-sort:project,-assignee",
+			},
+			{ path: "W/Views/v" },
+		);
+		expect(value.tableSort).toEqual([
+			{ field: "project", direction: "asc" },
+			{ field: "assignee", direction: "desc" },
+		]);
+
+		const frontmatter = serializeView(value);
+		expect(frontmatter.query).toContain("table-sort:project,-assignee");
+		expect(parseView(frontmatter, { path: "W/Views/v" }).value).toEqual(value);
+	});
+
+	it("silently drops an unknown columnOrder field instead of erroring", () => {
+		const { value, issues } = parseView(
+			{
+				id: "v",
+				name: "V",
+				columnOrder: ["priority", "not-a-field", "dueDate"],
+			},
+			{ path: "W/Views/v" },
+		);
+		expect(value.columnOrder).toEqual(["priority", "dueDate"]);
+		expect(issues.length).toBeGreaterThan(0);
+	});
+
 	it("detectViewIdCollisions flags every file in a colliding pair", () => {
 		const a = parseView({ id: "dup" }, { path: "W/Views/a" }).value;
 		const b = parseView({ id: "dup" }, { path: "W/Views/b" }).value;

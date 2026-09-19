@@ -2,7 +2,7 @@
 templateSchema: 1
 type: vertex-flow-workspace-template
 id: academic-research
-name: Academic / Research Project
+name: Academic & Research Project
 description: Move a paper or thesis chapter from idea to submission, with lit review, drafting, and revision as Tasks underneath.
 icon: graduation-cap
 supportsExampleContent: true

@@ -5,8 +5,9 @@
  * short option list (via `Popover`) on click.
  */
 
-import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import type { BarControlId } from "./FilterControls";
+import type { FilterKey } from "./viewOptions";
 import {
   CANVAS_RELATION_KINDS,
   type CanvasArrangement,
@@ -20,8 +21,10 @@ import {
   type ViewType,
 } from "../../core/types";
 import { layoutIcon } from "../../core/views";
+import { ColorField } from "../components/ColorField";
 import { Icon } from "../components/Icon";
 import { Popover } from "../components/Popover";
+import { usePlugin, useSettingsWriter } from "../context";
 import { RELATION_KIND_LABELS } from "./CanvasView";
 import {
   CANVAS_ARRANGE_OPTIONS,
@@ -42,54 +45,73 @@ export function LayoutToggle({
   view: SavedView;
   onChange: (next: SavedView) => void;
 }) {
+  const plugin = usePlugin();
+  const writeSettings = useSettingsWriter();
   const layouts: { value: ViewType; label: string }[] = [
     { value: "list", label: "List" },
     { value: "board", label: "Board" },
+    { value: "table", label: "Table" },
     { value: "timeline", label: "Timeline" },
     { value: "calendar", label: "Calendar" },
     { value: "canvas", label: "Canvas" },
   ];
   return (
     <div className="vf-layout-toggle" role="group" aria-label="Layout">
-      {layouts.map((layout) => (
-        <button
-          key={layout.value}
-          type="button"
-          className={`vf-layout-opt${view.viewType === layout.value ? " is-on" : ""}`}
-          aria-pressed={view.viewType === layout.value}
-          aria-label={layout.label}
-          title={layout.label}
-          onClick={() =>
-            view.viewType !== layout.value &&
-            onChange({ ...view, viewType: layout.value })
-          }
-        >
-          <span className="vf-bar-icon" aria-hidden>
-            <Icon id={layoutIcon(layout.value)} size={14} />
-          </span>
-          {layout.value === "canvas" && view.viewType === "canvas" && (
-            <span className="vf-canvas-beta-badge" aria-hidden>
-              BETA
+      {layouts.map((layout) => {
+        const isNew =
+          layout.value === "table" &&
+          !plugin.settings.seenFeatures["layout-table"];
+        return (
+          <button
+            key={layout.value}
+            type="button"
+            className={`vf-layout-opt${view.viewType === layout.value ? " is-on" : ""}`}
+            aria-pressed={view.viewType === layout.value}
+            aria-label={isNew ? `${layout.label}, new` : layout.label}
+            title={layout.label}
+            onClick={() => {
+              if (isNew) {
+                writeSettings({
+                  seenFeatures: {
+                    ...plugin.settings.seenFeatures,
+                    "layout-table": true,
+                  },
+                });
+              }
+              if (view.viewType !== layout.value) {
+                onChange({ ...view, viewType: layout.value });
+              }
+            }}
+          >
+            <span className="vf-bar-icon" aria-hidden>
+              <Icon id={layoutIcon(layout.value)} size={14} />
             </span>
-          )}
-        </button>
-      ))}
+            {isNew && <span className="vf-layout-new-dot" aria-hidden />}
+          </button>
+        );
+      })}
     </div>
   );
 }
 
 function BarSelect<T extends string>({
+  id,
   label,
   value,
   options,
   onSelect,
+  openId,
+  onOpenChange,
 }: {
+  id: BarControlId;
   label: string;
   value: T;
   options: { value: T; label: string }[];
   onSelect: (value: T) => void;
+  openId: BarControlId | FilterKey | null;
+  onOpenChange: (id: BarControlId | FilterKey | null) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const open = openId === id;
   return (
     <span className="vf-control-anchor">
       <button
@@ -97,7 +119,7 @@ function BarSelect<T extends string>({
         className={`vf-bar-item${open ? " is-on" : ""}`}
         onClick={(event) => {
           event.stopPropagation();
-          setOpen((current) => !current);
+          onOpenChange(open ? null : id);
         }}
       >
         <span className="vf-bar-label">{label}</span>
@@ -107,7 +129,7 @@ function BarSelect<T extends string>({
         </span>
       </button>
       {open && (
-        <Popover align="left" onClose={() => setOpen(false)}>
+        <Popover align="left" onClose={() => onOpenChange(null)}>
           <div className="vf-option-list">
             {options.map((option) => (
               <button
@@ -116,7 +138,7 @@ function BarSelect<T extends string>({
                 className={`vf-menu-item${option.value === value ? " is-active" : ""}`}
                 onClick={() => {
                   onSelect(option.value);
-                  setOpen(false);
+                  onOpenChange(null);
                 }}
               >
                 {option.label}
@@ -132,16 +154,23 @@ function BarSelect<T extends string>({
 export function GroupChip({
   view,
   onChange,
+  openId,
+  onOpenChange,
 }: {
   view: SavedView;
   onChange: (next: SavedView) => void;
+  openId: BarControlId | FilterKey | null;
+  onOpenChange: (id: BarControlId | FilterKey | null) => void;
 }) {
   return (
     <BarSelect
+      id="group"
       label="Group"
       value={view.groupBy}
       options={GROUP_OPTIONS}
       onSelect={(groupBy: GroupByField) => onChange({ ...view, groupBy })}
+      openId={openId}
+      onOpenChange={onOpenChange}
     />
   );
 }
@@ -158,9 +187,13 @@ export function GroupChip({
 export function SubtasksChip({
   view,
   onChange,
+  openId,
+  onOpenChange,
 }: {
   view: SavedView;
   onChange: (next: SavedView) => void;
+  openId: BarControlId | FilterKey | null;
+  onOpenChange: (id: BarControlId | FilterKey | null) => void;
 }) {
   const isList = view.viewType === "list";
   const options = isList
@@ -171,12 +204,15 @@ export function SubtasksChip({
 
   return (
     <BarSelect
+      id="subtasks"
       label="Sub-tasks"
       value={value}
       options={options}
       onSelect={(subtaskDisplay: SubtaskDisplay) =>
         onChange({ ...view, subtaskDisplay })
       }
+      openId={openId}
+      onOpenChange={onOpenChange}
     />
   );
 }
@@ -189,12 +225,17 @@ export function SubtasksChip({
 export function RecurringPreviewChip({
   view,
   onChange,
+  openId,
+  onOpenChange,
 }: {
   view: SavedView;
   onChange: (next: SavedView) => void;
+  openId: BarControlId | FilterKey | null;
+  onOpenChange: (id: BarControlId | FilterKey | null) => void;
 }) {
   return (
     <BarSelect
+      id="recurring"
       label="Upcoming"
       value={view.recurringPreview ? "on" : "off"}
       options={[
@@ -204,6 +245,8 @@ export function RecurringPreviewChip({
       onSelect={(next: "on" | "off") =>
         onChange({ ...view, recurringPreview: next === "on" })
       }
+      openId={openId}
+      onOpenChange={onOpenChange}
     />
   );
 }
@@ -216,18 +259,25 @@ export function RecurringPreviewChip({
 export function EmptyColumnsChip({
   view,
   onChange,
+  openId,
+  onOpenChange,
 }: {
   view: SavedView;
   onChange: (next: SavedView) => void;
+  openId: BarControlId | FilterKey | null;
+  onOpenChange: (id: BarControlId | FilterKey | null) => void;
 }) {
   return (
     <BarSelect
+      id="emptyColumns"
       label="Empty cols"
       value={view.emptyColumnBehavior}
       options={EMPTY_COLUMN_OPTIONS}
       onSelect={(emptyColumnBehavior: EmptyColumnBehavior) =>
         onChange({ ...view, emptyColumnBehavior })
       }
+      openId={openId}
+      onOpenChange={onOpenChange}
     />
   );
 }
@@ -246,11 +296,15 @@ export function EmptyColumnsChip({
 export function FieldsControl({
   view,
   onChange,
+  openId,
+  onOpenChange,
 }: {
   view: SavedView;
   onChange: (next: SavedView) => void;
+  openId: BarControlId | FilterKey | null;
+  onOpenChange: (id: BarControlId | FilterKey | null) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const open = openId === "fields";
   const hidden = view.hiddenFields;
   // Canvas curates its field set (Phase 4) — it never even offers the other
   // five as toggleable, so the popover, the count, and the bulk actions below
@@ -275,7 +329,7 @@ export function FieldsControl({
         className={`vf-bar-item${open ? " is-on" : ""}`}
         onClick={(event) => {
           event.stopPropagation();
-          setOpen((current) => !current);
+          onOpenChange(open ? null : "fields");
         }}
       >
         <span className="vf-bar-label">Fields</span>
@@ -289,7 +343,7 @@ export function FieldsControl({
         </span>
       </button>
       {open && (
-        <Popover align="left" onClose={() => setOpen(false)}>
+        <Popover align="left" onClose={() => onOpenChange(null)}>
           <div className="vf-field-list">
             {options.map((option) => {
               const shown = !hidden.includes(option.value);
@@ -367,11 +421,15 @@ export function FieldsControl({
 export function CanvasRelationsChip({
   view,
   onChange,
+  openId,
+  onOpenChange,
 }: {
   view: SavedView;
   onChange: (next: SavedView) => void;
+  openId: BarControlId | FilterKey | null;
+  onOpenChange: (id: BarControlId | FilterKey | null) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const open = openId === "canvasRelations";
   const hidden = view.canvasHiddenRelationKinds ?? [];
 
   const toggle = (kind: CanvasRelationKind) => {
@@ -391,7 +449,7 @@ export function CanvasRelationsChip({
         className={`vf-bar-item${open ? " is-on" : ""}`}
         onClick={(event) => {
           event.stopPropagation();
-          setOpen((current) => !current);
+          onOpenChange(open ? null : "canvasRelations");
         }}
       >
         <span className="vf-bar-label">Relations</span>
@@ -405,7 +463,7 @@ export function CanvasRelationsChip({
         </span>
       </button>
       {open && (
-        <Popover align="left" onClose={() => setOpen(false)}>
+        <Popover align="left" onClose={() => onOpenChange(null)}>
           <div className="vf-field-list">
             {CANVAS_RELATION_KINDS.map((kind) => {
               const shown = !hidden.includes(kind);
@@ -442,11 +500,15 @@ export function CanvasRelationsChip({
 export function CanvasArrangeChip({
   view,
   onChange,
+  openId,
+  onOpenChange,
 }: {
   view: SavedView;
   onChange: (next: SavedView) => void;
+  openId: BarControlId | FilterKey | null;
+  onOpenChange: (id: BarControlId | FilterKey | null) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const open = openId === "canvasArrange";
   const arrangement: CanvasArrangement = view.canvasArrangement ?? "flow";
   const direction: CanvasDirection = view.canvasDirection ?? "right";
 
@@ -457,7 +519,7 @@ export function CanvasArrangeChip({
         className={`vf-bar-item${open ? " is-on" : ""}`}
         onClick={(event) => {
           event.stopPropagation();
-          setOpen((current) => !current);
+          onOpenChange(open ? null : "canvasArrange");
         }}
       >
         <span className="vf-bar-label">Arrange</span>
@@ -469,7 +531,7 @@ export function CanvasArrangeChip({
         </span>
       </button>
       {open && (
-        <Popover align="left" onClose={() => setOpen(false)}>
+        <Popover align="left" onClose={() => onOpenChange(null)}>
           <div className="vf-field-list">
             {CANVAS_ARRANGE_OPTIONS.map((option) => {
               const active =
@@ -487,7 +549,7 @@ export function CanvasArrangeChip({
                       canvasArrangement: option.value.arrangement,
                       canvasDirection: option.value.direction,
                     });
-                    setOpen(false);
+                    onOpenChange(null);
                   }}
                 >
                   <span className="vf-field-label">{option.label}</span>
@@ -504,9 +566,13 @@ export function CanvasArrangeChip({
 export function SortChip({
   view,
   onChange,
+  openId,
+  onOpenChange,
 }: {
   view: SavedView;
   onChange: (next: SavedView) => void;
+  openId: BarControlId | FilterKey | null;
+  onOpenChange: (id: BarControlId | FilterKey | null) => void;
 }) {
   const flip = () =>
     onChange({
@@ -516,10 +582,13 @@ export function SortChip({
   return (
     <span className="vf-bar-group">
       <BarSelect
+        id="sort"
         label="Sort"
         value={view.sortBy}
         options={SORT_OPTIONS}
         onSelect={(sortBy: SortField) => onChange({ ...view, sortBy })}
+        openId={openId}
+        onOpenChange={onOpenChange}
       />
       <button
         type="button"
@@ -530,6 +599,81 @@ export function SortChip({
       >
         {view.sortDirection === "asc" ? "↑" : "↓"}
       </button>
+    </span>
+  );
+}
+
+const DEFAULT_STRIPE_SWATCH = "#3b82f6";
+
+/**
+ * Table-only: row/header stripe color. Furniture (Phase 1 decision) — writes
+ * straight through via `draft.setTableStripe`, never through `editView`, so
+ * picking a color never puts the view bar into its "unsaved" state.
+ */
+export function StripeChip({
+  view,
+  onChange,
+  openId,
+  onOpenChange,
+}: {
+  view: SavedView;
+  onChange: (tableStripe: string | undefined) => void;
+  openId: BarControlId | FilterKey | null;
+  onOpenChange: (id: BarControlId | FilterKey | null) => void;
+}) {
+  const open = openId === "stripe";
+  const stripe = view.tableStripe;
+
+  return (
+    <span className="vf-control-anchor">
+      <button
+        type="button"
+        className={`vf-bar-item${open ? " is-on" : ""}`}
+        onClick={(event) => {
+          event.stopPropagation();
+          onOpenChange(open ? null : "stripe");
+        }}
+      >
+        <span className="vf-bar-label">Stripe</span>
+        <span className="vf-bar-value">
+          {stripe ? (
+            <span
+              className="vf-color-trigger-swatch"
+              aria-hidden
+              style={{ backgroundColor: stripe }}
+            />
+          ) : (
+            "None"
+          )}
+        </span>
+        <span className="vf-bar-caret" aria-hidden>
+          ⌄
+        </span>
+      </button>
+      {open && (
+        <Popover align="left" onClose={() => onOpenChange(null)}>
+          <div className="vf-field-list">
+            <button
+              type="button"
+              className={`vf-field-row${!stripe ? " is-on" : ""}`}
+              aria-pressed={!stripe}
+              onClick={() => {
+                onChange(undefined);
+                onOpenChange(null);
+              }}
+            >
+              <span className="vf-field-label">None</span>
+            </button>
+          </div>
+          <ColorField
+            value={stripe ?? DEFAULT_STRIPE_SWATCH}
+            onChange={(color) => {
+              onChange(color);
+              onOpenChange(null);
+            }}
+          />
+        </Popover>
+      )}
     </span>
   );
 }

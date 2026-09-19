@@ -123,6 +123,8 @@ export interface ParsedTask {
 	due?: ParsedDate;
 	created?: ParsedDate;
 	updated?: ParsedDate;
+	/** `completedAt` — stamped when the task is done. */
+	completed?: ParsedDate;
 	archived?: ParsedDate | boolean;
 	/** Anchors. `undefined` means the field was never declared — which is what
 	 *  makes "declared on both sides and disagreeing" distinguishable from

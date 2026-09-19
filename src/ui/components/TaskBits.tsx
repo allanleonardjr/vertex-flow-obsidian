@@ -13,9 +13,15 @@ import {
 import { Repeat } from "lucide-react";
 import { basename } from "../../core/links";
 import { Icon } from "./Icon";
-import { listValues, type WorkspaceTaxonomies } from "../../core/taxonomy";
+import {
+	isCanceled,
+	isCompleted,
+	listValues,
+	type WorkspaceTaxonomies,
+} from "../../core/taxonomy";
 import { describeRecurrence } from "../../core/recurrence";
-import type { StatusValue, Task } from "../../core/types";
+import { relationCount, type StatusValue, type Task } from "../../core/types";
+import { dueDateStatus } from "../../core/date";
 
 /** Signal glyphs from weakest to strongest — the buckets a priority maps into. */
 const SIGNAL_GLYPHS = [SignalLow, SignalMedium, SignalHigh, Signal] as const;
@@ -333,12 +339,18 @@ export function ArchivedBadge({ task }: { task: Task }) {
   );
 }
 
-export function DueDate({ task }: { task: Task }) {
-  if (!task.dueDate) return null;
+export function DueDate({
+	task,
+	statuses,
+}: {
+	task: Task;
+	statuses: WorkspaceTaxonomies["status"];
+}) {
+	if (!task.dueDate) return null;
 
-  const today = new Date().toISOString().slice(0, 10);
-  const isToday = task.dueDate === today;
-  const isOverdue = task.dueDate < today;
+	const isOpen =
+		!isCompleted(statuses, task.status) && !isCanceled(statuses, task.status);
+	const { isToday, isOverdue } = dueDateStatus(task.dueDate, isOpen);
 
   return (
     <span
@@ -421,9 +433,7 @@ export function RelationBadge({ task }: { task: Task }) {
 
   return <span className="vf-chip">{count} rel</span>; */
 
-  const count = Object.values(task.relations ?? {})
-    .flat()
-    .filter(Boolean).length;
+  const count = relationCount(task);
   if (count === 0) return null;
 
   const label = `${count} relation${count === 1 ? "" : "s"}`;

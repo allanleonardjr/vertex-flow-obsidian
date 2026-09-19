@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { sampleSnapshot } from "../../src/core/templates/instantiate";
 import { parseQuery, printQuery, queryContext } from "../../src/core/query";
+import { createTaxonomy } from "../../src/core/taxonomy";
 import {
 	applyFilters,
 	canonicalizeDefinition,
@@ -281,7 +282,7 @@ describe("canonicalisation", () => {
 			"calendarDateField", "canvasArrangement", "canvasDirection",
 			"canvasHiddenRelationKinds", "emptyColumnBehavior", "filters", "groupBy",
 			"hiddenFields", "recurringPreview", "sortBy", "sortDirection",
-			"subtaskDisplay", "viewType",
+			"subtaskDisplay", "tableSort", "viewType",
 		]);
 	});
 
@@ -558,6 +559,108 @@ describe("hide: clause", () => {
 	});
 });
 
+/* --------------------------------------------------------- table sort -- */
+
+describe("table-sort: clause", () => {
+	it("round-trips layout:table table-sort:priority,-due byte-for-byte", () => {
+		const source = "layout:table table-sort:priority,-due";
+		const parsed = parseQuery(source, ctx);
+		expect(parsed.ok).toBe(true);
+		expect(parsed.definition.viewType).toBe("table");
+		expect(parsed.definition.tableSort).toEqual([
+			{ field: "priority", direction: "asc" },
+			{ field: "dueDate", direction: "desc" },
+		]);
+		expect(printQuery(parsed.definition, ctx)).toBe(
+			`layout:table group:none sort:rank ${source.split(" ")[1]}`,
+		);
+	});
+
+	it("parses a single ascending key", () => {
+		expect(parseQuery("table-sort:priority", ctx).definition.tableSort).toEqual([
+			{ field: "priority", direction: "asc" },
+		]);
+	});
+
+	it("parses a leading - as descending", () => {
+		expect(parseQuery("table-sort:-due", ctx).definition.tableSort).toEqual([
+			{ field: "dueDate", direction: "desc" },
+		]);
+	});
+
+	it("skips a field already present, first occurrence wins", () => {
+		expect(
+			parseQuery("table-sort:priority,-priority", ctx).definition.tableSort,
+		).toEqual([{ field: "priority", direction: "asc" }]);
+	});
+
+	it("errors on an unknown field, same shape as sort:", () => {
+		const parsed = parseQuery("table-sort:vibes", ctx);
+		expect(parsed.ok).toBe(false);
+		expect(parsed.issues[0].code).toBe("unknown-value");
+	});
+
+	it("errors on table-sort: with no value", () => {
+		const parsed = parseQuery("table-sort:", ctx);
+		expect(parsed.ok).toBe(false);
+		expect(parsed.issues[0].code).toBe("empty-value");
+	});
+
+	it("warns but still parses a repeated table-sort:", () => {
+		const parsed = parseQuery("table-sort:priority table-sort:due", ctx);
+		expect(parsed.ok).toBe(true);
+		expect(parsed.issues.map((i) => i.code)).toContain("duplicate-field");
+		expect(parsed.definition.tableSort).toEqual([
+			{ field: "priority", direction: "asc" },
+			{ field: "dueDate", direction: "asc" },
+		]);
+	});
+
+	it("prints no table-sort: clause when empty", () => {
+		expect(printQuery(def(), ctx)).not.toContain("table-sort:");
+	});
+
+	it("round-trips through the generic invariant", () => {
+		expectRoundTrip(
+			def({
+				viewType: "table",
+				tableSort: [
+					{ field: "status", direction: "asc" },
+					{ field: "estimate", direction: "desc" },
+				],
+			}),
+		);
+	});
+
+	it("round-trips layout:table table-sort:type,-progress byte-for-byte", () => {
+		const source = "layout:table table-sort:type,-progress";
+		const parsed = parseQuery(source, ctx);
+		expect(parsed.ok).toBe(true);
+		expect(parsed.definition.tableSort).toEqual([
+			{ field: "taskType", direction: "asc" },
+			{ field: "progress", direction: "desc" },
+		]);
+		expect(printQuery(parsed.definition, ctx)).toBe(
+			`layout:table group:none sort:rank ${source.split(" ")[1]}`,
+		);
+	});
+
+	it("resolves each new field's alias", () => {
+		expect(parseQuery("table-sort:kind", ctx).definition.tableSort).toEqual([
+			{ field: "taskType", direction: "asc" },
+		]);
+		expect(parseQuery("table-sort:owner", ctx).definition.tableSort).toEqual([
+			{ field: "assignee", direction: "asc" },
+		]);
+		expect(parseQuery("table-sort:tag", ctx).definition.tableSort).toEqual([
+			{ field: "labels", direction: "asc" },
+		]);
+		expect(parseQuery("table-sort:rel", ctx).definition.tableSort).toEqual([
+			{ field: "relations", direction: "asc" },
+		]);
+	});
+});
+
 /* --------------------------------------------------------- name resolution -- */
 
 describe("resolution", () => {
@@ -707,6 +810,96 @@ describe("resolution", () => {
 		expect(printQuery(withFilters({ project: ["Projects/A"] }), ambiguous)).toBe(
 			"project:Projects/A group:none sort:rank",
 		);
+	});
+});
+
+/* ---------------------------------------------------- group wildcards -- */
+
+describe("group-wildcard filters (label:*/project:*)", () => {
+	// Local fixture: labels and projects that use the `/`-nesting convention,
+	// layered onto the base context. Not added to the shared sample-workspace
+	// fixture, which many other suites depend on unchanged.
+	const groupCtx: typeof ctx = {
+		...ctx,
+		taxonomies: {
+			...ctx.taxonomies,
+			label: createTaxonomy("label", [
+				{ id: "labelA", name: "LabelA", color: "#111111" },
+				{ id: "labelAB", name: "LabelA/B", color: "#222222" },
+				{ id: "labelACD", name: "LabelA/C/D", color: "#333333" },
+			]),
+		},
+		projects: [
+			...ctx.projects,
+			{ path: "Projects/Application", title: "Application" },
+			{ path: "Projects/Application-UI", title: "Application/UI" },
+			{ path: "Projects/Application-UI-Forms", title: "Application/UI/Forms" },
+		],
+	};
+
+	it("resolves a group pattern to itself, verbatim, when something matches", () => {
+		expect(
+			parseQuery("label:LabelA/*", groupCtx).definition.filters.labels,
+		).toEqual(["LabelA/*"]);
+		expect(
+			parseQuery("project:Application/*", groupCtx).definition.filters.project,
+		).toEqual(["Application/*"]);
+	});
+
+	it("still resolves a pattern with no matches, but warns", () => {
+		const label = parseQuery("label:Nothing/*", groupCtx);
+		expect(label.definition.filters.labels).toEqual(["Nothing/*"]);
+		expect(label.issues[0].code).toBe("unknown-value");
+
+		const project = parseQuery("project:Nothing/*", groupCtx);
+		expect(project.definition.filters.project).toEqual(["Nothing/*"]);
+		expect(project.issues[0].code).toBe("unknown-value");
+	});
+
+	it("round-trips a group pattern exactly", () => {
+		const labelSrc = printQuery(
+			withFilters({ labels: ["LabelA/*"] }),
+			groupCtx,
+		);
+		expect(parseQuery(labelSrc, groupCtx).definition.filters.labels).toEqual([
+			"LabelA/*",
+		]);
+
+		const projectSrc = printQuery(
+			withFilters({ project: ["Application/*"] }),
+			groupCtx,
+		);
+		expect(
+			parseQuery(projectSrc, groupCtx).definition.filters.project,
+		).toEqual(["Application/*"]);
+	});
+
+	it("leaves a bare name/title as an exact match, never a group", () => {
+		expect(
+			parseQuery("label:LabelA", groupCtx).definition.filters.labels,
+		).toEqual(["labelA"]);
+		expect(
+			parseQuery("project:Application", groupCtx).definition.filters.project,
+		).toEqual(["Projects/Application"]);
+	});
+
+	it("parses a combined OR-list of an exact value and a group pattern, in order", () => {
+		expect(
+			parseQuery("label:LabelA,LabelA/*", groupCtx).definition.filters.labels,
+		).toEqual(["labelA", "LabelA/*"]);
+		expect(
+			parseQuery("project:Application,Application/*", groupCtx).definition
+				.filters.project,
+		).toEqual(["Projects/Application", "Application/*"]);
+	});
+
+	it("gives parent: no group behaviour, even with a /*-suffixed value", () => {
+		// `parent` also routes through the entity branch, but with
+		// `resolveAs: "task"` — the group-wildcard hook only fires for "project".
+		const withoutMatch = parseQuery("parent:Something/*", groupCtx);
+		expect(withoutMatch.definition.filters.parent).toEqual(["Something/*"]);
+		expect(withoutMatch.issues[0].code).toBe("unknown-value");
+		expect(withoutMatch.issues[0].message).not.toContain("start with");
 	});
 });
 

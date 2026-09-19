@@ -28,14 +28,23 @@
   font-size: var(--font-ui-small);
 }
 
-/* Mobile: the on-screen keyboard is an overlay that does not resize the layout
-   viewport (per the CSS spec), so this `height: 100%` root keeps extending
-   behind it, hiding the bottom and leaving a blank band above the keyboard.
-   Pin the root to the true visible height (`--vf-vh`, set from
-   `visualViewport` in App.tsx) on mobile; the value self-restores when the
-   keyboard closes. Desktop keeps the plain 100%. */
-.is-mobile .vertex-flow {
-  height: var(--vf-vh, 100%);
+/* Obsidian's mobile shell dynamically sets `padding-bottom` on
+   `.view-content` equal to the on-screen keyboard's height while it's open
+   (confirmed via live inspection: 34px at rest vs. 345px with the keyboard
+   up, matching `.view-content`'s own height shrinking by that same 345px) —
+   reserving that space a second time *inside* a box that's already sized
+   for the keyboard. `.vertex-flow` is `height: 100%` of `.view-content`'s
+   content box (measured after the parent's own padding), so it inherits
+   both reductions and ends up far shorter than the keyboard alone accounts
+   for. Cancel the redundant padding for our own view specifically.
+
+   Obsidian sets that padding as an inline style, which only a more specific
+   inline style or `!important` can override; `:has()` scopes the override
+   to the one `.view-content` hosting Vertex Flow, so a plain note or
+   another plugin's view keeps Obsidian's normal (correct, single) keyboard
+   padding untouched. */
+.is-mobile .view-content:has(.vertex-flow) {
+  padding-bottom: env(safe-area-inset-bottom, 0px) !important;
 }
 
 /*
@@ -99,7 +108,7 @@ body.vf-text-comfortable {
   /* width + flex-basis are set inline from settings.sidebarWidth */
   min-width: 0;
   padding: 12px 8px;
-  overflow-y: auto;
+  overflow: hidden;
   border-right: 1px solid var(--vf-border);
   background: var(--background-secondary);
 }
@@ -107,6 +116,22 @@ body.vf-text-comfortable {
 .vf-sidebar.is-minimized {
   padding: 12px 0;
   overflow: hidden;
+}
+
+/* The scrollable middle band: pinned between the top chrome (search +
+   minimize) and the bottom region (Help / Settings / version footer). The
+   `min-height: 0` is what lets it shrink so overflow scrolls instead of
+   pushing the footer off-screen. */
+.vf-sidebar-scroll {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--background-secondary-alt, var(--background-secondary));
+  border-top: 1px solid var(--vf-border);
+  border-bottom: 1px solid var(--vf-border);
+  padding: 8px 0px;
 }
 
 /* -- Top row: the minimize / expand toggle ------------------------------- */
@@ -154,17 +179,16 @@ button.vf-sidebar-search:hover {
   bottom: 0;
   width: 6px;
   cursor: col-resize;
+  /* Same fix as `.vf-canvas-zoom-slider` below — a separate drag
+     implementation from the shared `.vf-resize-handle` component, so it
+     needs the same treatment added independently. */
+  touch-action: none;
   z-index: 5;
 }
 
 .vf-sidebar-resize:hover {
   background: var(--interactive-accent);
   opacity: 0.35;
-}
-
-/* Pushes Settings to the bottom of the sidebar, Linear-style. */
-.vf-sidebar-spacer {
-  flex: 1;
 }
 
 /* The version footer pinned to the very bottom of the sidebar. */
@@ -465,6 +489,18 @@ button.vf-nav-row-menu:hover {
      off — Obsidian panes are fluid-width, so the plugin must respond to the
      pane's own width, not the viewport. */
   container-type: inline-size;
+}
+
+/* Obsidian's native bottom action bar is a WebView overlay with no DOM
+   presence and no CSS variable or safe-area inset exposing its height, so
+   this is an estimate (confirmed on-device to cover Canvas's zoom/legend/
+   tap-connect cluster and a task's comment composer "Comment" button) —
+   tune the 50px figure on-device if it's noticeably too much or too little.
+   `.vf-main` is the shared flex-column ancestor for every view, so this one
+   rule reserves clearance uniformly rather than patching each covered
+   element individually. */
+.is-mobile .vf-main {
+  padding-bottom: calc(50px + env(safe-area-inset-bottom, 0px));
 }
 
 .vf-toolbar {
@@ -1034,6 +1070,411 @@ button.vf-nest-chevron {
   margin-bottom: 10px;
 }
 
+/* ----------------------------------------------------------------- Table -- */
+
+/*
+ * Two single-axis scroll containers, not one two-axis `.vf-table-wrap` — a
+ * shared `overflow: auto` on both axes makes Chromium/Electron fall back
+ * from an auto-hiding overlay scrollbar to a classic reserved-space one (it
+ * can't cleanly render the corner where both bars would meet).
+ *
+ * The outer container (`.vf-table-wrap`) owns vertical scroll and is the
+ * `position: sticky` reference for the header track. The inner container
+ * (`.vf-table-scroll-x`) owns horizontal scroll for the body only —
+ * `position: sticky` can't cross an `overflow-x: auto` ancestor to reach a
+ * further-out scrolling container, so the header lives in its own
+ * non-scrolling, clipped track (`.vf-table-header-track`) instead, and its
+ * horizontal position is synced to the body's `scrollLeft` by hand (see
+ * `TaskTable.tsx`'s scroll listener) rather than by native scrolling.
+ */
+.vf-table-wrap {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 40px;
+}
+
+.vf-table-header-track {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  flex: none;
+  overflow: hidden;
+  background: var(--background-primary);
+}
+
+.vf-table-scroll-x {
+  flex: none;
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.vf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-ui-smaller);
+}
+
+/*
+ * The header table's row is moved by a manual `translateX` on scroll (see
+ * `TaskTable.tsx`), not by native scrolling. With `border-collapse: collapse`
+ * (the default from `.vf-table`), collapsed borders belong to the table's
+ * layout pass rather than each cell's own paint box, and don't reliably
+ * follow a transformed row — the grid lines can stay put while the header
+ * content slides under them. `separate` with zero spacing puts each border
+ * back on its own `<th>`, so it moves with the transform; adjacent cells'
+ * borders land on the same pixel, so there is no visible doubling.
+ */
+.vf-table-header-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.vf-table-th {
+  position: relative;
+  padding: 0;
+  border-bottom: 1px solid var(--vf-border);
+  border-right: 1px solid var(--vf-border);
+  text-align: left;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.vf-table-th:last-child {
+  border-right: none;
+}
+
+.vf-table-th-inner {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.vf-table-th.is-dragging {
+  opacity: 0.4;
+}
+
+/*
+ * Decorative "this column moves" marker, absolutely positioned inside the
+ * header button's own 12px left padding so the label stays flush with the
+ * 12px content edge of `.vf-table-td` below it. `.vf-table-th` is already
+ * `position: relative` (the resize handle depends on it). The three
+ * measurements below share that 12px budget exactly (2 + 6 + 4 = 12):
+ * a small inset from the column's true left edge, so the grip doesn't read
+ * as the alignment anchor itself; a smaller-than-usual icon, to make room
+ * for that inset; and the same 4px clearance before the label as before, so
+ * shrinking the icon doesn't undo the earlier fix for that gap. Dim at rest
+ * so a row of grips doesn't shout; full strength when that header is
+ * hovered.
+ */
+.vf-table-th-grip {
+  position: absolute;
+  top: 0;
+  left: 2px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  color: var(--vf-muted);
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.vf-table-th:hover .vf-table-th-grip {
+  opacity: 1;
+}
+
+.vf-table-th button.vf-table-th-btn {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  height: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-normal);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  /* Obsidian's base `button` rule sets `justify-content: center`; without
+     this override an unsorted header centers its label, while a sorted one
+     only looks left-aligned because `.vf-table-th-sort`'s auto-margin
+     incidentally pins it there. */
+  justify-content: flex-start;
+}
+
+.vf-table-th button.vf-table-th-btn.is-active {
+  color: var(--interactive-accent);
+}
+
+.vf-table-th-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.vf-table-th-resize {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 6px;
+  height: 100%;
+}
+
+.vf-table-th-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  /* Pin the sort arrows to the header's right edge; the label gets the
+   * remaining space (and ellipsizes) via its own min-width: 0 above. */
+  margin-left: auto;
+}
+
+.vf-table-th-rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.vf-table-row {
+  border-bottom: 1px solid var(--vf-border);
+  cursor: default;
+  user-select: none;
+}
+
+.vf-table-row:hover {
+  background: var(--background-modifier-hover);
+}
+
+.vf-table-row.is-focused {
+  outline: 1px solid var(--interactive-accent);
+  outline-offset: -2px;
+}
+
+.vf-table-row.is-selected {
+  background: var(--text-selection);
+}
+
+.vf-table-row.is-archived {
+  opacity: 0.55;
+}
+
+.vf-table-wrap.has-stripe .vf-table-row:nth-child(odd) {
+  background: color-mix(in srgb, var(--vf-table-stripe) 8%, transparent);
+}
+
+.vf-table-td {
+  height: var(--vf-row-height);
+  padding: 0 12px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+
+.vf-table-td.is-dragging {
+  opacity: 0.4;
+}
+
+/* A ghost row's icon+name cells (status/priority/project/assignee) — the
+   same flex layout `button.vf-icon-select-trigger` gives the interactive
+   version, minus the button semantics a non-clickable ghost cell has no use
+   for. */
+.vf-table-cell-static {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.vf-table-td > .vf-icon-select,
+.vf-table-td > .vf-table-cell-static,
+.vf-table-td > .vf-label-editor,
+.vf-table-td > .vf-table-cell-edit-trigger,
+.vf-table-td > .vf-table-relations-cell {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.vf-table-td button.vf-icon-select-trigger {
+  height: 100%;
+  min-height: 0;
+  padding: 0 4px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+/*
+ * Table-specific un-hover: the app-wide `button.vf-icon-select-trigger:hover`
+ * fill applies everywhere (rail pickers included), so it has to be overridden
+ * here, not deleted — a light border instead of a filled background.
+ * `box-shadow: inset ... 1px` rather than `border`, so nothing shifts the
+ * element's box (and its row neighbors) when the outline appears/disappears.
+ */
+.vf-table-td button.vf-icon-select-trigger:hover {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--vf-border);
+}
+
+.vf-table-td .vf-icon-select-caret {
+  opacity: 0;
+}
+
+.vf-table-row:hover .vf-table-td .vf-icon-select-caret,
+.vf-table-td button.vf-icon-select-trigger:focus-visible .vf-icon-select-caret,
+.vf-table-td
+  button.vf-icon-select-trigger[aria-expanded="true"]
+  .vf-icon-select-caret {
+  opacity: 1;
+}
+
+.vf-table-td-status {
+  width: 1%;
+}
+
+.vf-table-td-id {
+  width: 1%;
+}
+
+.vf-table-td-open {
+  width: 1%;
+  padding: 0 4px;
+  /* Never holds text — only the icon button — so the inherited
+     text-overflow: ellipsis from .vf-table-td has nothing to truncate. At
+     narrow column widths it was still rendering its "…" glyph over the
+     button's invisible-at-rest state, showing as a stray dot. */
+  text-overflow: clip;
+}
+
+.vf-table-open-btn {
+  opacity: 0;
+}
+
+.vf-table-row:hover .vf-table-open-btn,
+.vf-table-open-btn:focus-visible {
+  opacity: 1;
+}
+
+.vf-table-cell-text {
+  color: var(--vf-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.vf-table-cell-text.is-today {
+  color: var(--text-warning, orange);
+}
+
+.vf-table-cell-text.is-overdue {
+  color: var(--text-error, red);
+}
+
+.vf-table-td button.vf-table-cell-edit-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  height: 100%;
+  padding: 0 4px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: text;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.vf-table-td button.vf-table-cell-edit-trigger:hover {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--vf-border);
+}
+
+.vf-table-cell-empty {
+  color: var(--vf-muted);
+}
+
+/*
+ * Actively-editing input: Obsidian's global input styling (gray form-field
+ * fill + border) shows through `.vf-input`'s own sizing-only rule, so pin the
+ * table cell's inputs to the table's resting background with an accent border
+ * instead of the heavy default form-field look.
+ */
+.vf-table-td input.vf-input {
+  width: 100%;
+  height: 100%;
+  padding: 0 4px;
+  border: 1px solid var(--interactive-accent);
+  border-radius: 0;
+  background: var(--background-primary);
+  box-shadow: none;
+}
+
+.vf-table-relations-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.vf-table-relations-add {
+  opacity: 0;
+}
+
+.vf-table-row:hover .vf-table-relations-add,
+.vf-table-relations-add:focus-visible {
+  opacity: 1;
+}
+
+.vf-table-relations-menu {
+  position: fixed;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 200px;
+  padding: 4px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-primary);
+  box-shadow: var(--shadow-l, 0 4px 16px rgb(0 0 0 / 20%));
+}
+
+.vf-table-group-row td {
+  padding: 8px 12px;
+  background: var(--background-secondary-alt, var(--background-secondary));
+  font-weight: 600;
+}
+
+.vf-table-group-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vf-table-empty-row td {
+  padding: 16px 12px;
+  color: var(--vf-muted);
+  text-align: center;
+}
+
 /* --- Drag preview ------------------------------------------------------- */
 
 .vf-drag-layer {
@@ -1052,6 +1493,62 @@ button.vf-nest-chevron {
   box-shadow: 0 10px 24px rgb(0 0 0 / 28%);
   transform: rotate(1.5deg);
   opacity: 0.95;
+}
+
+/* The dragged column's re-rendered cells, portaled to <body> inside
+   .vf-drag-layer, positioned at the column's real screen coordinates and
+   slid sideways only (see ColumnDragPreview's own doc comment) — not
+   rotated or drop-shadowed like the other drag previews, since this one is
+   meant to read as "still part of the table," not "picked up." */
+.vf-column-drag-preview {
+  position: absolute;
+  overflow: hidden;
+  background: var(--background-primary);
+  border: 1px solid var(--vf-border);
+  opacity: 0.92;
+}
+
+/* Caps the slab so it reads as one detached column, not just a stack of
+   unlabelled values — same left-aligned, bold treatment as the real
+   (now-untinted) header from Phase 4a/4d, plus the bottom border that
+   already separates every header from its body. */
+.vf-column-drag-preview-header {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--vf-border);
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.vf-column-drag-preview-cell {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+}
+
+/* An outline the exact size of the dragged column, framing the live slot
+   it would land in. Transparent fill, so the ghost's own content (which
+   now occupies this identical rectangle — see ColumnDragPreview's
+   `targetLeft`) still reads through; the accent border is what marks the
+   slot as the drop target, not a filled overlay competing with it.
+   Positioned directly (not nested inside .vf-drag-layer), since it must
+   NOT inherit that layer's own transform. Same accent color as
+   .vf-tab-drop-line / .vf-drop-indicator elsewhere in the app. */
+.vf-column-drop-box {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: var(--layer-notice, 60);
+  border: 2px solid var(--interactive-accent);
+  border-radius: var(--vf-radius);
+  pointer-events: none;
 }
 
 /* --- Drag count badge for multi-task drags --- */
@@ -2162,6 +2659,28 @@ button.vf-color-trigger.is-on {
   max-width: 100%;
 }
 
+button.vf-color-custom-apply {
+  flex: 0 0 auto;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-primary);
+  box-shadow: none;
+  color: var(--text-normal);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+}
+
+button.vf-color-custom-apply:hover:not(:disabled) {
+  background: var(--background-modifier-hover);
+}
+
+button.vf-color-custom-apply:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* ------------------------------------------------------------ Compact mode --
    When the whole pane (`.vf-shell`) is narrower than 520px — on a phone OR a
    desktop pane dragged very small — the persistent left sidebar gives way to a
@@ -2194,10 +2713,11 @@ button.vf-color-trigger.is-on {
     transform: translateX(0);
   }
 
-  /* Wide-only affordances (the minimize toggle and the drag-resize strip) make
-     no sense for a drawer — but the workspace-search button stays: it's the
-     only pointer-driven way into the overlay without a physical Alt key. */
-  .vf-shell .vf-sidebar-top .vf-sidebar-minimize,
+  /* Wide-only chrome (the top row's search + minimize and the drag-resize
+     strip) makes no sense inside a drawer — the toggle strip above the drawer
+     already carries the Search… button and the Navigation toggle that doubles
+     as this drawer's close. */
+  .vf-shell .vf-sidebar-top,
   .vf-shell .vf-sidebar-resize {
     display: none;
   }
@@ -2268,45 +2788,10 @@ button.vf-color-trigger.is-on {
     background: rgb(0 0 0 / 35%);
   }
 
-  /* A dedicated header row for the drawer's close button. Full-width flex row
-     so the close icon sits at the far right, clearly separated from the first
-     nav section's "+" add button below it. */
-  .vf-shell .vf-drawer-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-shrink: 0;
-    min-height: 44px;
-    padding: 0 12px;
-    border-bottom: 1px solid var(--vf-border);
-  }
-
-  .vf-shell .vf-drawer-head-title {
-    color: var(--vf-muted);
-    font-size: var(--font-ui-small);
-    font-weight: 600;
-    letter-spacing: 0.02em;
-  }
-
-  .vf-shell .vf-nav-close {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    border: none;
-    border-radius: var(--vf-radius);
-    background: transparent;
-    box-shadow: none;
-    color: var(--vf-muted);
-    cursor: pointer;
-  }
-
-  .vf-shell .vf-nav-close:hover {
-    background: var(--background-modifier-hover);
-    color: var(--text-normal);
-  }
+  /* The drawer's Navigation header row is dropped in compact too: the toggle
+     strip's Navigation button (which doubles as the close) and its Search…
+     button are the drawer's only chrome. `.vf-drawer-head` stays hidden by the
+     wide-pane `display: none` rule below. */
 
   /* The task/project properties rail becomes a right overlay drawer: always
      off-screen, slid in only while the strip's Properties button is active
@@ -3018,6 +3503,13 @@ button.vf-editor-rail-delete {
   background: transparent;
 }
 
+/* Obsidian's own mobile styles set a large `padding-top` on `.cm-scroller`
+   (confirmed via live inspection: 122px) to reserve room for a real note's
+   inline title/header — meaningless inside this embedded field. That
+   specific override now happens in JS (`embedded-editor.ts` sets
+   `scrollDOM.style.paddingTop` directly once the editor mounts, which
+   beats the class-based rule without `!important`); this rule only
+   resets the other sides. */
 .vf-markdown-native .cm-scroller {
   padding: 0;
 }
@@ -3382,6 +3874,23 @@ button.vf-chip-button.is-on {
   margin-top: 6px;
 }
 
+.vf-comment-source-head {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 4px;
+}
+
+.vf-comment-source-toggle {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 2px 5px;
+}
+
+.vf-comment-source-toggle.is-on {
+  color: var(--text-accent);
+}
+
 .vf-comments button {
   margin-top: 8px;
 }
@@ -3502,6 +4011,57 @@ button.vf-browse-card-body {
   border: none;
   background: transparent;
   box-shadow: none;
+}
+
+/* The current *workspace* reads the same in the hub as it does in the sidebar
+   (.vf-nav-row.is-current): accent text, no persistent fill. Mirrors that rule
+   — same colour and weight — but scoped to the card's title and icon; the
+   meta line below stays muted like every other card. */
+.vf-browse-card.is-current .vf-browse-title,
+.vf-browse-card.is-current .vf-browse-card-icon {
+  color: var(--text-accent);
+  font-weight: 500;
+}
+
+/* Workspace cards are two-line rows (title/meta on the first line, the
+   workspace's folder path below), so they grow past the standard 34px browse
+   row instead of clipping the extra line. */
+.vf-browse-card.is-workspace {
+  height: auto;
+  min-height: var(--vf-row-height);
+}
+
+.vf-workspace-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+}
+
+.vf-workspace-card-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+/* "Active" marker on the Workspaces hub card for the current workspace*/
+.vf-workspace-card .vf-active-badge {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 0 6px;
+  color: var(--text-accent);
+  border-radius: 999px;
+  border: 1px solid var(--text-accent);
+  background: color-mix(in srgb, var(--text-accent) 10%, transparent);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  line-height: 1.5;
+  white-space: nowrap;
 }
 
 /* Keyboard focus (j/k/arrow nav, see `useBrowseKeyboardNav`) — the same ring
@@ -3798,7 +4358,11 @@ input.vf-editable-title-input {
 
 .vf-task-editor-sections {
   flex: 1 1 auto;
-  min-height: 0;
+  /* Match TASK_SECTIONS_MIN_HEIGHT (the resize handle's floor) so the pinned
+     description height can never collapse Sub-tasks/Relations/Comments away —
+     without this, a tall drag (or the keyboard) squeezes sections to 0 and
+     every input field below the description vanishes. */
+  min-height: 160px;
   overflow-y: auto;
   padding: 4px 20px 18px;
 }
@@ -3946,7 +4510,9 @@ input.vf-editable-title-input {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
-  min-height: 0;
+  /* Match TASKS_MIN_HEIGHT (the info pane's resize floor) — same rationale
+     as `.vf-task-editor-sections`. */
+  min-height: 120px;
 }
 
 /* Label editor: the collapsible description pane over the label's task
@@ -4395,6 +4961,7 @@ button.vf-add-filter {
 button.vf-layout-opt {
   /* Icon-only: no label to space out from, so drop the gap and tighten the
      box to roughly the icon plus a hair each side. */
+  position: relative;
   gap: 0;
   padding: 3px 6px;
   color: var(--vf-muted);
@@ -4435,10 +5002,40 @@ button.vf-add-filter.is-on {
   gap: 1px;
 }
 
+/* The icon-only layout buttons are comfortable to click but too small to
+   reliably tap — confirmed on-device. Grow the hit box on mobile only;
+   desktop's tight, mouse-oriented sizing is untouched. */
+.is-mobile .vf-layout-toggle {
+  gap: 4px;
+}
+
+.is-mobile button.vf-layout-opt {
+  min-width: 40px;
+  min-height: 40px;
+  padding: 8px;
+  justify-content: center;
+}
+
 button.vf-layout-opt.is-on {
   color: var(--text-accent);
   font-weight: 500;
   background: var(--background-modifier-hover);
+}
+
+/* One-time discovery indicator on a layout button whose feature hasn't
+   been visited yet (see LayoutToggle's `seenFeatures` check). Sits in
+   the button's corner rather than inline, so it reads across the whole
+   row without the button needing to be active — unlike the old Beta
+   text badge, this clears itself permanently on first click. */
+.vf-layout-new-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-accent);
+  pointer-events: none;
 }
 
 /* Sort value + its direction arrow sit flush together. */
@@ -4948,6 +5545,10 @@ button.vf-query-fix {
   color: var(--text-normal);
 }
 
+.vf-wsearch-row-title .vf-id {
+  margin-right: 6px;
+}
+
 .vf-wsearch-row-snippet {
   overflow: hidden;
   white-space: nowrap;
@@ -5167,6 +5768,37 @@ button.vf-add-relation.is-on {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+  max-height: min(320px, 50vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* ---- Grouped (tree) filter field — Labels/Project chip editors ---- */
+
+.vf-grouped-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 220px;
+}
+
+.vf-grouped-filter-tree {
+  flex-wrap: nowrap;
+  flex-direction: column;
+  align-items: flex-start;
+  max-height: min(320px, 50vh);
+}
+
+.vf-tree-group-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.vf-tree-group-head button.vf-tree-group-row {
+  flex: 1;
+  width: auto;
 }
 
 /* ---- Fields checklist (view bar → "Fields") ---- */
@@ -5387,6 +6019,8 @@ button.vf-help-topic-label.is-active {
   width: 5px;
   cursor: col-resize;
   background: transparent;
+  /* Same fix as `.vf-canvas-zoom-slider` above. */
+  touch-action: none;
 }
 
 .vf-help-resize:hover {
@@ -5772,6 +6406,7 @@ button.vf-timeline-row-label:hover {
   background: var(--interactive-accent);
   opacity: 0.9;
   cursor: grab;
+  touch-action: none;
 }
 
 .vf-timeline-bar.is-open {
@@ -5802,6 +6437,7 @@ body.vf-bar-dragging .vf-timeline-bar {
   bottom: 0;
   width: 14px;
   cursor: ew-resize;
+  touch-action: none;
 }
 
 .vf-timeline-handle.is-start {
@@ -5913,6 +6549,68 @@ body.vf-bar-dragging .vf-timeline-bar {
 .vf-resize-handle {
   z-index: 6;
   background: transparent;
+  /* Without this, a touch-drag with any horizontal component is also read
+     as a pan gesture, visibly nudging Vertex Flow's own compact-mode
+     drawers into view mid-drag. Matches the same `touch-action: none`
+     pattern already used elsewhere for other draggable/gesture-sensitive
+     elements in this codebase. */
+  touch-action: none;
+}
+
+/* Mobile: the visible divider is a thin 5-7px line — comfortable to grab
+   with a mouse, too small to reliably grab with a finger. Grow the actual
+   hit box well past the visible line, canceling the extra size back out
+   with a bigger negative margin so it takes no more room in the flex
+   layout than before (only overlapping neighbouring panes for touch
+   purposes), and draw the visible line as a thin centered pseudo-element
+   inside that bigger box — otherwise the hover/active highlight would fill
+   the whole enlarged hit area and read as a fat bar instead of a slim
+   divider. Covers every `.vf-resize-y`/`.vf-resize-x` instance at once
+   (Description/Sub-tasks, Project editor, Timeline, etc.) without touching
+   any of their individual size overrides. */
+.is-mobile .vf-resize-handle.vf-resize-y {
+  position: relative;
+  height: 24px;
+  margin: -12px 0;
+}
+
+.is-mobile .vf-resize-handle.vf-resize-x {
+  position: relative;
+  width: 24px;
+  margin: 0 -12px;
+}
+
+.is-mobile .vf-resize-handle.vf-resize-y::after,
+.is-mobile .vf-resize-handle.vf-resize-x::after {
+  content: "";
+  position: absolute;
+  background: transparent;
+}
+
+.is-mobile .vf-resize-handle.vf-resize-y::after {
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  transform: translateY(-50%);
+}
+
+.is-mobile .vf-resize-handle.vf-resize-x::after {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+}
+
+.is-mobile .vf-resize-handle:hover,
+.is-mobile .vf-resize-handle:active {
+  background: transparent;
+}
+
+.is-mobile .vf-resize-handle:hover::after,
+.is-mobile .vf-resize-handle:active::after {
+  background: var(--interactive-accent);
 }
 
 .vf-resize-x {
@@ -7568,6 +8266,64 @@ button.vf-history-expand {
   font-style: italic;
 }
 
+/* Table's own ghost row — same dashed-hairline knob as List/Timeline above.
+   The row itself is the click target (no dedicated open-icon renders for a
+   ghost, see TaskTableRow), so Table follows List's lighter touch rather
+   than Board's whole-card opacity — but the *content* still dims the same
+   way List's `.vf-row-open` wrapper dims everything inside it. Dimming
+   targets each `.vf-table-td`, not the row, so the dashed border itself
+   stays at full contrast. */
+.vf-table-row.is-projected {
+  --vf-ghost-border: color-mix(
+    in srgb,
+    var(--interactive-accent) 55%,
+    var(--vf-border)
+  );
+  border-bottom: 1px dashed var(--vf-ghost-border);
+}
+
+/*
+ * `border-collapse: collapse` resolves a shared edge by width first, then
+ * style priority (solid beats dashed) — so a real row's plain solid
+ * `border-bottom` always wins over a ghost's dashed `border-top` on the same
+ * edge, silently erasing the dashed line wherever a ghost follows a real
+ * row. Fix it from the real row's side instead: make *its* border dashed
+ * when the next sibling is a ghost, so both sides agree and there's nothing
+ * left to resolve. The next-sibling lookup can't use `:has` (banned by
+ * stylelint), so `TaskTableRow` sets `is-before-projected` itself, from the
+ * group's next task. `--vf-ghost-border` is set on `.is-projected` elements,
+ * not on this row, and a custom property only inherits to descendants, not
+ * across siblings — so the same `color-mix(...)` is spelled out again here
+ * rather than relied on via inheritance.
+ */
+.vf-table-row.is-before-projected {
+  border-bottom: 1px dashed
+    color-mix(in srgb, var(--interactive-accent) 55%, var(--vf-border));
+}
+
+/*
+ * Still needed for a ghost's own top edge: the row above now carries the
+ * shared edge correctly (see above), but a ghost with no preceding sibling
+ * at all — the table's very first row — has nothing above it to carry that
+ * border instead.
+ */
+.vf-table-row.is-projected:first-child,
+:not(.vf-table-row.is-projected) + .vf-table-row.is-projected {
+  border-top: 1px dashed var(--vf-ghost-border);
+}
+
+.vf-table-row.is-projected {
+  cursor: pointer;
+}
+
+.vf-table-row.is-projected .vf-table-td {
+  opacity: 0.55;
+}
+
+.vf-table-row.is-projected .vf-row-title {
+  font-style: italic;
+}
+
 /* Timeline ghost bar — the striped, dashed-outline treatment the Board's
    ghost cards use, scaled down to a bar. `currentColor` is the task's status
    hue (set inline as `color`, not `background`, for a projected bar). */
@@ -8075,6 +8831,10 @@ button.vf-canvas-zoom-btn:disabled:hover {
   width: 70px;
   margin: 0 2px;
   accent-color: var(--interactive-accent);
+  /* Without this, dragging the slider is also read as Obsidian's native
+     horizontal swipe gesture for revealing its side panels — same fix as
+     `.vf-resize-handle` elsewhere in this file. */
+  touch-action: none;
 }
 
 button.vf-canvas-zoom-fit {
@@ -8159,11 +8919,34 @@ button.vf-canvas-zoom-fit {
   gap: 6px;
 }
 
+/* Narrow pane (phone, or a desktop pane dragged small): the bar can't grow
+   past the visible width, so let it wrap instead of overflowing off both
+   edges — worst case is the reparent message, which inlines three task
+   titles. Matches the `.vf-browse-hero` breakpoint/convention. */
+@container (max-width: 480px) {
+  .vf-canvas-tap-connect {
+    max-width: calc(100% - 24px);
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .vf-canvas-tap-connect-label,
+  .vf-canvas-tap-connect-error {
+    white-space: normal;
+    text-align: center;
+  }
+
+  .vf-canvas-tap-connect-actions {
+    flex-basis: 100%;
+    justify-content: center;
+  }
+}
+
 .vf-canvas-node {
   position: absolute;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   padding: 8px 10px;
   border: 1px solid var(--vf-border);
   border-radius: var(--vf-radius);
@@ -8267,6 +9050,9 @@ button.vf-canvas-zoom-fit {
   opacity: 0;
   cursor: crosshair;
   transition: opacity 0.1s ease;
+  /* Nested inside `.vf-canvas`, which already sets `touch-action: none`, but
+     an ancestor's value isn't reliably enough in practice — same fix as
+     `.vf-canvas-zoom-slider` above, applied directly to this element too. */
   touch-action: none;
 }
 
@@ -8291,8 +9077,28 @@ button.vf-canvas-zoom-fit {
   display: none;
 }
 
+.vf-canvas-node-row .vf-meta-right {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Ensure priority icon and right metadata never get compressed by long chips */
+.vf-canvas-node-row .vf-priority-icon,
+.vf-canvas-node-row .vf-meta-right {
+  flex-shrink: 0;
+}
+
 .vf-canvas-node .vf-chip-project {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
   max-width: 100%;
+  padding: 1px 6px;
+  border: 1px solid var(--vf-border);
+  border-radius: 4px;
+  font-size: 11px;
 }
 
 /* The top row (StatusDot, ID, Type chip, Priority icon) is a no-wrap flex
@@ -8304,15 +9110,20 @@ button.vf-canvas-zoom-fit {
    row — that reopens the "how tall can a card get" question this phase
    already answers once, cleanly, for the title. */
 .vf-canvas-node-row .vf-id {
-  max-width: 70px;
+  max-width: 180px; /* Expanded from 70px */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.85;
 }
 
 .vf-canvas-node-row .vf-label-chip {
   min-width: 0;
-  max-width: 90px;
+  max-width: none; /* Overrides max-width: 90px; */
+  flex-shrink: 1;
 }
 
 .vf-canvas-node-row .vf-label-chip-name {
@@ -8323,7 +9134,20 @@ button.vf-canvas-zoom-fit {
   min-width: 0;
 }
 
+.vf-canvas-node-row .vf-due {
+  margin-left: auto; /* Pushes due date and any following avatar to the right */
+}
+
+/* Fallback if a task has an avatar but NO due date */
+.vf-canvas-node-row .vf-due:empty + .vf-avatar,
+.vf-canvas-node-row > .vf-avatar:first-child,
+.vf-canvas-node-row > .vf-priority-icon + .vf-avatar,
+.vf-canvas-node-row > .vf-label-chip + .vf-avatar {
+  margin-left: auto;
+}
+
 .vf-canvas-node-title {
+  margin-top: 2px;
   color: var(--text-normal);
   font-size: var(--font-ui-small);
   line-height: 1.3;
@@ -8336,20 +9160,4 @@ button.vf-canvas-zoom-fit {
      card. The full text is always available via the native `title=` tooltip. */
   -webkit-line-clamp: 6;
   -webkit-box-orient: vertical;
-}
-
-/* Sits inline next to the Canvas icon in the layout picker (LayoutToggle),
-   only while Canvas is the active view — never a floating overlay on the
-   graph itself, where dynamically-laid-out content could eventually cover it. */
-.vf-canvas-beta-badge {
-  margin-left: 4px;
-  padding: 1px 5px;
-  border: 1px solid var(--text-warning, orange);
-  border-radius: 8px;
-  color: var(--text-warning, orange);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  line-height: 1.4;
-  pointer-events: none;
 }

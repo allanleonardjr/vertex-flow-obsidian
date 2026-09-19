@@ -516,6 +516,9 @@ export function resolveTemplateContent(
 			updatedAt: parsedTask.updated
 				? resolveDateTime(parsedTask.updated, ctx)
 				: ctx.iso(-1),
+			completedAt: parsedTask.completed
+				? resolveDateTime(parsedTask.completed, ctx)
+				: null,
 			...archived,
 			relations: {
 				blocks: (parsedTask.blocks ?? []).map((a) => resolveAnchor("blocks", a, line)),

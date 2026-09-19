@@ -400,6 +400,9 @@ export function WorkspaceSearch({ snapshot }: { snapshot: WorkspaceSnapshot }) {
                     </span>
                     <span className="vf-wsearch-row-text">
                       <span className="vf-wsearch-row-title">
+                        {!isAction && item.kind === "task" && item.taskId ? (
+                          <span className="vf-id">{item.taskId}</span>
+                        ) : null}
                         {isAction ? (
                           item.title
                         ) : (

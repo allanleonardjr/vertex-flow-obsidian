@@ -10,12 +10,9 @@ import {
 	flattenCanvasLayout,
 	mergeIsolatedIntoLayout,
 	packCanvasGrid,
-	planIsolatedGrid,
-	resolveIsolatedGrids,
 	type EdgeMeta,
 	type ElkLayoutNode,
 	type IsolatedGridBox,
-	type PlacedBox,
 } from "../../src/core/canvas/layout";
 import { task } from "./fixtures";
 

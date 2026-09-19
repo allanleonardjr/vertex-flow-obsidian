@@ -9,15 +9,24 @@
  *   mounts only when there's at least one clause to show.
  *
  * The `pending` (a clause added this session with no value yet still needs a
- * tag) and `editing` (a freshly-added clause opens its editor popover
- * immediately) state is owned by the parent via `useFilterClauseState` and
- * handed to both, so the Row 1 trigger and the Row 2 tag list stay in step.
+ * tag) and `openId` (which single popover on the whole bar is open — a
+ * filter clause's editor, or one of the non-filter Row 1 controls) state is
+ * owned by the parent via `useFilterClauseState` and handed to both, so the
+ * Row 1 trigger and the Row 2 tag list stay in step with each other and with
+ * every other bar control.
  */
 
-import { useState, type Dispatch, type SetStateAction } from "react";
+import {
+	useState,
+	type CSSProperties,
+	type Dispatch,
+	type SetStateAction,
+} from "react";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
+import { NONE } from "../../core/types";
 import type { SavedView, ViewFilters, WorkspaceSnapshot } from "../../core/types";
 import { Popover } from "../components/Popover";
+import { buildTree, TreeList } from "../components/Tree";
 import {
 	FILTER_FIELDS,
 	activeFilterKeys,
@@ -25,6 +34,7 @@ import {
 	filterChoices,
 	filterFieldLabel,
 	summarizeClause,
+	type Choice,
 	type FilterKey,
 	type ReadonlyFilterKey,
 } from "./viewOptions";
@@ -45,20 +55,60 @@ function withFilter(
 	return next;
 }
 
+/**
+ * Selected-state fill for a filter chip: the value's own taxonomy color when
+ * it has one, the app's accent color (matching `.vf-you-badge`) when it
+ * doesn't. Unselected chips get no inline style at all — neutral, regardless
+ * of color — so selection is a real color-vs-no-color contrast rather than a
+ * subtle shade difference.
+ */
+function chipTint(
+	chosen: boolean,
+	color?: string | null,
+): CSSProperties | undefined {
+	if (!chosen) return undefined;
+	if (color) {
+		return { borderColor: color, color, backgroundColor: `${color}1e` };
+	}
+	return {
+		borderColor: "var(--interactive-accent)",
+		color: "var(--text-accent)",
+		backgroundColor:
+			"color-mix(in srgb, var(--interactive-accent) 15%, transparent)",
+	};
+}
+
+/** The non-filter Row 1 controls that share the bar's single open-popover state. */
+export type BarControlId =
+	| "group"
+	| "sort"
+	| "subtasks"
+	| "recurring"
+	| "emptyColumns"
+	| "fields"
+	| "addFilter"
+	| "canvasRelations"
+	| "canvasArrange"
+	| "stripe";
+
 export interface FilterClauseControl {
 	/** Clauses added this session that don't carry a value yet. */
 	pending: FilterKey[];
 	setPending: Dispatch<SetStateAction<FilterKey[]>>;
-	/** The clause whose editor popover is open, or null. */
-	editing: FilterKey | null;
-	setEditing: Dispatch<SetStateAction<FilterKey | null>>;
+	/**
+	 * Which popover on this toolbar is open — a filter clause's editor, or
+	 * one of the non-filter bar controls (Group, Sort, Fields, etc). Exactly
+	 * one shared value so opening any popover on the bar closes any other.
+	 */
+	openId: FilterKey | BarControlId | null;
+	setOpenId: Dispatch<SetStateAction<FilterKey | BarControlId | null>>;
 }
 
-/** Owns the shared `pending`/`editing` state — call once in the parent. */
+/** Owns the shared `pending`/`openId` state — call once in the parent. */
 export function useFilterClauseState(): FilterClauseControl {
 	const [pending, setPending] = useState<FilterKey[]>([]);
-	const [editing, setEditing] = useState<FilterKey | null>(null);
-	return { pending, setPending, editing, setEditing };
+	const [openId, setOpenId] = useState<FilterKey | BarControlId | null>(null);
+	return { pending, setPending, openId, setOpenId };
 }
 
 /** The clause keys the filters row shows: those with a value, plus valueless pending ones. */
@@ -77,8 +127,8 @@ export function AddFilterTrigger({
 	view: SavedView;
 	clause: FilterClauseControl;
 }) {
-	const [adding, setAdding] = useState(false);
-	const { pending, setPending, setEditing } = clause;
+	const { pending, setPending, openId, setOpenId } = clause;
+	const adding = openId === "addFilter";
 
 	const shownKeys = shownFilterKeys(view.filters, pending);
 	const availableFields = FILTER_FIELDS.filter(
@@ -92,13 +142,13 @@ export function AddFilterTrigger({
 				className={`vf-add-filter${adding ? " is-on" : ""}`}
 				onClick={(event) => {
 					event.stopPropagation();
-					setAdding((current) => !current);
+					setOpenId((current) => (current === "addFilter" ? null : "addFilter"));
 				}}
 			>
 				+ Filter
 			</button>
 			{adding && availableFields.length > 0 && (
-				<Popover align="left" onClose={() => setAdding(false)}>
+				<Popover align="left" onClose={() => setOpenId(null)}>
 					<div className="vf-option-list">
 						{availableFields.map((field) => (
 							<button
@@ -106,9 +156,8 @@ export function AddFilterTrigger({
 								type="button"
 								className="vf-menu-item"
 								onClick={() => {
-									setAdding(false);
 									setPending((keys) => [...keys, field.key]);
-									setEditing(field.key);
+									setOpenId(field.key);
 								}}
 							>
 								{field.label}
@@ -136,7 +185,7 @@ export function FilterControls({
 }) {
 	const filters = view.filters;
 	const setFilters = (next: ViewFilters) => onChange({ ...view, filters: next });
-	const { pending, setPending, editing, setEditing } = clause;
+	const { pending, setPending, openId: editing, setOpenId: setEditing } = clause;
 
 	const shownKeys = shownFilterKeys(filters, pending);
 	const readonlyKeys = activeReadonlyFilterKeys(filters);
@@ -291,6 +340,16 @@ function ClauseEditor({
 			),
 		);
 
+	if (fieldKey === "labels" || fieldKey === "project") {
+		return (
+			<GroupedFilterField
+				choices={filterChoices(fieldKey, snapshot, taxonomies)}
+				current={current}
+				onToggle={toggle}
+			/>
+		);
+	}
+
 	return (
 		<div className="vf-chip-set">
 			{filterChoices(fieldKey, snapshot, taxonomies).map((choice) => {
@@ -300,20 +359,90 @@ function ClauseEditor({
 						key={choice.value}
 						type="button"
 						className={`vf-chip vf-chip-button${chosen ? " is-on" : ""}`}
-						style={
-							choice.color
-								? {
-										borderColor: choice.color,
-										color: chosen ? undefined : choice.color,
-									}
-								: undefined
-						}
+						style={chipTint(chosen, choice.color)}
 						onClick={() => toggle(choice.value)}
 					>
 						{choice.label}
 					</button>
 				);
 			})}
+		</div>
+	);
+}
+
+/**
+ * Shared searchable-tree editor for the `labels` and `project` filter
+ * clauses — both use `/`-nested display names for the same sidebar-style
+ * grouping (see `vault-schema.md`'s Labels/Projects group-wildcard notes).
+ * A folder node gets its own toggle chip whose value is the group-wildcard
+ * pattern `"<path>/*"`; a leaf node gets the ordinary per-choice chip.
+ */
+function GroupedFilterField({
+	choices,
+	current,
+	onToggle,
+}: {
+	choices: Choice[];
+	current: string[];
+	onToggle: (value: string) => void;
+}) {
+	const [search, setSearch] = useState("");
+	const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+
+	const noneChoice = choices.find((c) => c.value === NONE);
+	const treeChoices = choices.filter((c) => c.value !== NONE);
+
+	const needle = search.trim().toLowerCase();
+	const visibleChoices = needle
+		? treeChoices.filter((c) => c.label.toLowerCase().includes(needle))
+		: treeChoices;
+
+	const tree = buildTree(visibleChoices, (c) => c.label);
+
+	const chip = (value: string, label: string, color?: string | null) => {
+		const chosen = current.includes(value);
+		return (
+			<button
+				key={value}
+				type="button"
+				className={`vf-chip vf-chip-button${chosen ? " is-on" : ""}`}
+				style={chipTint(chosen, color)}
+				onClick={() => onToggle(value)}
+			>
+				{label}
+			</button>
+		);
+	};
+
+	return (
+		<div className="vf-grouped-filter-field">
+			<input
+				type="text"
+				className="vf-input"
+				autoFocus
+				value={search}
+				placeholder="Search…"
+				onChange={(event) => setSearch(event.target.value)}
+			/>
+			{noneChoice && (
+				<div className="vf-chip-set">{chip(noneChoice.value, noneChoice.label)}</div>
+			)}
+			<div className="vf-chip-set vf-grouped-filter-tree">
+				<TreeList
+					nodes={tree}
+					depth={0}
+					groupKeyPrefix="filter-group"
+					isCollapsed={(id) => collapsed[id] ?? needle.length === 0}
+					onToggle={(id) =>
+						setCollapsed((prev) => ({
+							...prev,
+							[id]: !(prev[id] ?? needle.length === 0),
+						}))
+					}
+					renderLeaf={(choice) => chip(choice.value, choice.label, choice.color)}
+					renderFolderExtra={(path) => chip(`${path}/*`, `${path}/*`)}
+				/>
+			</div>
 		</div>
 	);
 }

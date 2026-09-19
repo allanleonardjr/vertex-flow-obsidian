@@ -9,7 +9,6 @@
  */
 
 import {
-  Fragment,
   useEffect,
   useMemo,
   useRef,
@@ -56,6 +55,7 @@ import type {
 } from "../core/types";
 import { Icon } from "./components/Icon";
 import { LabelChip } from "./components/TaskBits";
+import { buildTree, TreeList } from "./components/Tree";
 import { DeleteWorkspaceDialog } from "./DeleteWorkspaceDialog";
 import { DeleteEntityDialog } from "./DeleteEntityDialog";
 import { LabelDialog } from "./modals/LabelDialog";
@@ -179,94 +179,82 @@ export function Sidebar({
         </button>
       </div>
 
-      <div className="vf-drawer-head">
-        <span className="vf-drawer-head-title">Navigation</span>
-        <button
-          className="vf-nav-close"
-          title="Close navigation"
-          aria-label="Close navigation"
-          onClick={() => closeDrawers()}
-        >
-          <PanelLeftClose size={16} />
-        </button>
-      </div>
-
       {!minimized && (
         <>
-          <WorkspacesSection snapshot={snapshot} />
+          <div className="vf-sidebar-scroll">
+            <WorkspacesSection snapshot={snapshot} />
 
-          {/* All Tasks + Untriaged are permanent System Views — they can't be
-              deleted and don't belong in the Views section list. Rendered as
-              bare rows (like Help/Settings), fenced off with a divider top and
-              bottom so they read as their own band between Workspaces and
-              Views. */}
-          <div className="vf-sidebar-sep" aria-hidden />
-          <div className="vf-permanent-views">
-            <PermanentViewRow
+            {/* All Tasks + Untriaged are permanent System Views — they can't be
+                deleted and don't belong in the Views section list. Rendered as
+                bare rows (like Help/Settings), fenced off with a divider top
+                and bottom so they read as their own band between Workspaces
+                and Views. */}
+            <div className="vf-sidebar-sep" aria-hidden />
+            <div className="vf-permanent-views">
+              <PermanentViewRow
+                snapshot={snapshot}
+                viewId={SYSTEM_VIEW_UNTRIAGED_ID}
+                name={SYSTEM_VIEW_UNTRIAGED_NAME}
+                fallbackIcon="inbox"
+                activeViewId={activeViewId}
+                onSelectView={onSelectView}
+              />
+              <PermanentViewRow
+                snapshot={snapshot}
+                viewId={SYSTEM_VIEW_ALL_TASKS_ID}
+                name={SYSTEM_VIEW_ALL_TASKS_NAME}
+                fallbackIcon="list"
+                activeViewId={activeViewId}
+                onSelectView={onSelectView}
+              />
+            </div>
+            <div className="vf-sidebar-sep" aria-hidden />
+
+            <ViewsSection
               snapshot={snapshot}
-              viewId={SYSTEM_VIEW_UNTRIAGED_ID}
-              name={SYSTEM_VIEW_UNTRIAGED_NAME}
-              fallbackIcon="inbox"
               activeViewId={activeViewId}
               onSelectView={onSelectView}
             />
-            <PermanentViewRow
-              snapshot={snapshot}
-              viewId={SYSTEM_VIEW_ALL_TASKS_ID}
-              name={SYSTEM_VIEW_ALL_TASKS_NAME}
-              fallbackIcon="list"
-              activeViewId={activeViewId}
-              onSelectView={onSelectView}
+
+            <DashboardsSection snapshot={snapshot} />
+
+            <ProjectsSection snapshot={snapshot} />
+
+            <LabelsSection snapshot={snapshot} />
+
+            <PeopleSection snapshot={snapshot} />
+
+            <div className="vf-sidebar-sep" aria-hidden />
+
+            <NavRow
+              icon="repeat"
+              label="Recurring"
+              active={activeId === "recurring"}
+              onClick={() => openScreen("recurring")}
+            />
+
+            <div className="vf-sidebar-sep" aria-hidden />
+
+            <NavRow
+              icon="download"
+              label="Export…"
+              onClick={() => setExporting(true)}
+            />
+
+            <NavRow
+              icon="history"
+              label="History"
+              active={activeId === "history"}
+              onClick={() => openScreen("history")}
+            />
+
+            <NavRow
+              icon="trash-2"
+              label="Trash"
+              active={activeId === "trash"}
+              onClick={() => openScreen("trash")}
             />
           </div>
-          <div className="vf-sidebar-sep" aria-hidden />
-
-          <ViewsSection
-            snapshot={snapshot}
-            activeViewId={activeViewId}
-            onSelectView={onSelectView}
-          />
-
-          <DashboardsSection snapshot={snapshot} />
-
-          <ProjectsSection snapshot={snapshot} />
-
-          <LabelsSection snapshot={snapshot} />
-
-          <PeopleSection snapshot={snapshot} />
-
-          <div className="vf-sidebar-sep" aria-hidden />
-
-          <NavRow
-            icon="repeat"
-            label="Recurring"
-            active={activeId === "recurring"}
-            onClick={() => openScreen("recurring")}
-          />
-
-          <div className="vf-sidebar-spacer" />
-
-          <div className="vf-sidebar-sep" aria-hidden />
-
-          <NavRow
-            icon="download"
-            label="Export…"
-            onClick={() => setExporting(true)}
-          />
-
-          <NavRow
-            icon="history"
-            label="History"
-            active={activeId === "history"}
-            onClick={() => openScreen("history")}
-          />
-
-          <NavRow
-            icon="trash-2"
-            label="Trash"
-            active={activeId === "trash"}
-            onClick={() => openScreen("trash")}
-          />
 
           <div className="vf-sidebar-sep" aria-hidden />
 
@@ -377,8 +365,9 @@ function Section({
   action?: ReactNode;
   /**
    * Where the title + count click leads, for sections that have a hub screen
-   * (Views/Dashboards/Projects). Absent — Labels, Workspaces — the title falls
-   * back to toggling collapse, same as the chevron.
+   * (Views/Dashboards/Projects/Labels/People/Workspaces). Absent for
+   * sections with no hub screen, the title falls back to toggling collapse,
+   * same as the chevron.
    */
   onOpenHub?: () => void;
   children: ReactNode;
@@ -624,6 +613,7 @@ function WorkspacesSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
       id="workspaces"
       title="Workspaces"
       count={workspaces.length}
+      onOpenHub={() => tabs.openScreen("workspaces")}
       action={
         <AddButton
           title="New workspace"
@@ -844,6 +834,7 @@ function ViewsSection({
 }) {
   const plugin = usePlugin();
   const { openScreen } = useTabs();
+  const { collapsed: collapsedMap, toggleSection } = useSidebarChrome();
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   // Bridge for the search overlay's "Create view" action — same "pending flag
@@ -897,6 +888,8 @@ function ViewsSection({
         nodes={tree}
         depth={0}
         groupKeyPrefix="view-group"
+        isCollapsed={(id) => collapsedMap[id] === true}
+        onToggle={toggleSection}
         renderLeaf={(view, segment, depth) => (
           <NavRow
             key={view.id}
@@ -1038,6 +1031,7 @@ type DashboardDialogState = { mode: "edit"; dashboard: DashboardConfig } | null;
 function DashboardsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   const plugin = usePlugin();
   const { activeTab, openDashboard, openScreen } = useTabs();
+  const { collapsed: collapsedMap, toggleSection } = useSidebarChrome();
   const [menuId, setMenuId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   // Bridge for the search overlay's "Create dashboard" action (see ViewsSection).
@@ -1087,6 +1081,8 @@ function DashboardsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
           nodes={tree}
           depth={0}
           groupKeyPrefix="dashboard-group"
+          isCollapsed={(id) => collapsedMap[id] === true}
+          onToggle={toggleSection}
           renderLeaf={(dashboard, segment, depth) => (
             <NavRow
               key={dashboard.id}
@@ -1206,6 +1202,7 @@ function DashboardsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   const plugin = usePlugin();
   const tabs = useTabs();
+  const { collapsed: collapsedMap, toggleSection } = useSidebarChrome();
   const [menuPath, setMenuPath] = useState<string | null>(null);
   const [editing, setEditing] = useState<Project | null>(null);
   const [creating, setCreating] = useState(false);
@@ -1251,6 +1248,8 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
           nodes={tree}
           depth={0}
           groupKeyPrefix="project-group"
+          isCollapsed={(id) => collapsedMap[id] === true}
+          onToggle={toggleSection}
           renderLeaf={(project, segment, depth) => (
             <NavRow
               key={project.path}
@@ -1383,206 +1382,12 @@ function ProjectsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   );
 }
 
-/* ------------------------------------------------------ generic tree list -- */
-
-/**
- * A node in a sidebar tree. Items whose display name contains `/` are split
- * into nested folders — one level per segment — purely for rendering; the
- * item's stored name/title stays the full path everywhere else.
- */
-export type TreeNode<T> =
-  | { kind: "leaf"; segment: string; value: T }
-  | {
-      kind: "folder";
-      segment: string;
-      /** Full path from the root, e.g. `"Application/UI"`. */
-      path: string;
-      children: TreeNode<T>[];
-    };
-
-/**
- * Alphabetical by segment, leaf before folder on a tie. This is today's
- * only sort — exported so a future manual-order feature can fall back to
- * it (e.g. "alphabetical unless a stored rank says otherwise") instead of
- * re-deriving the tie-break rule.
- */
-export function defaultTreeSort<T>(a: TreeNode<T>, b: TreeNode<T>): number {
-  const bySegment = a.segment.localeCompare(b.segment);
-  if (bySegment !== 0) return bySegment;
-  return (a.kind === "leaf" ? 0 : 1) - (b.kind === "leaf" ? 0 : 1);
-}
-
-type MutableFolder<T> = {
-  path: string;
-  folders: Map<string, MutableFolder<T>>;
-  leaves: T[];
-};
-
-/**
- * Split each item's name on `/` and walk/create folder nodes for every
- * segment but the last. Siblings at each depth are ordered by
- * `compareSiblings` (defaults to `defaultTreeSort`) — a future manual-sort
- * feature can pass a comparator that checks a stored rank first and falls
- * back to `defaultTreeSort`, without buildTree's own logic changing.
- */
-export function buildTree<T>(
-  items: T[],
-  getName: (item: T) => string,
-  options?: { compareSiblings?: (a: TreeNode<T>, b: TreeNode<T>) => number },
-): TreeNode<T>[] {
-  const compare = options?.compareSiblings ?? defaultTreeSort;
-  const root: MutableFolder<T> = { path: "", folders: new Map(), leaves: [] };
-
-  for (const item of items) {
-    const segments = getName(item)
-      .split("/")
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
-
-    if (segments.length <= 1) {
-      root.leaves.push(item);
-      continue;
-    }
-
-    let folder = root;
-    for (const segment of segments.slice(0, -1)) {
-      let next = folder.folders.get(segment);
-      if (!next) {
-        next = {
-          path: folder.path ? `${folder.path}/${segment}` : segment,
-          folders: new Map(),
-          leaves: [],
-        };
-        folder.folders.set(segment, next);
-      }
-      folder = next;
-    }
-    folder.leaves.push(item);
-  }
-
-  const convert = (folder: MutableFolder<T>): TreeNode<T>[] => {
-    const nodes: TreeNode<T>[] = [];
-    for (const [segment, child] of folder.folders) {
-      nodes.push({
-        kind: "folder",
-        segment,
-        path: child.path,
-        children: convert(child),
-      });
-    }
-    for (const value of folder.leaves) {
-      const segments = getName(value)
-        .split("/")
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0);
-      nodes.push({
-        kind: "leaf",
-        segment: segments[segments.length - 1] ?? getName(value),
-        value,
-      });
-    }
-    nodes.sort(compare);
-    return nodes;
-  };
-
-  return convert(root);
-}
-
-function TreeGroupRow({
-  segment,
-  path,
-  depth,
-  collapsed,
-  onToggle,
-}: {
-  segment: string;
-  /** Full path from the root — shown as the hover tooltip. */
-  path: string;
-  depth: number;
-  collapsed: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <button
-      className="vf-tree-group-row"
-      aria-expanded={!collapsed}
-      onClick={onToggle}
-      aria-label={path}
-      style={{ paddingLeft: 20 + depth * 14 }}
-    >
-      <span
-        className={`vf-section-chevron${collapsed ? "" : " is-open"}`}
-        aria-hidden
-      >
-        ›
-      </span>
-      {segment}
-    </button>
-  );
-}
-
-/**
- * Renders `nodes` as an indented, collapsible forest. `TreeList` owns only the
- * folder recursion and per-folder collapse state (keyed
- * `${groupKeyPrefix}:${node.path}` so each entity type has its own namespace in
- * `useSidebarChrome().collapsed`); the caller's `renderLeaf` supplies the row
- * for the leaf case, receiving the leaf value, its leaf segment, and its depth.
- */
-function TreeList<T>({
-  nodes,
-  depth,
-  groupKeyPrefix,
-  renderLeaf,
-}: {
-  nodes: TreeNode<T>[];
-  depth: number;
-  groupKeyPrefix: string;
-  renderLeaf: (value: T, segment: string, depth: number) => ReactNode;
-}) {
-  const { collapsed: collapsedMap, toggleSection } = useSidebarChrome();
-
-  return (
-    <>
-      {nodes.map((node, i) => {
-        if (node.kind === "leaf") {
-          return (
-            <Fragment key={`leaf:${i}:${node.segment}`}>
-              {renderLeaf(node.value, node.segment, depth)}
-            </Fragment>
-          );
-        }
-
-        const groupId = `${groupKeyPrefix}:${node.path}`;
-        const isCollapsed = collapsedMap[groupId] === true;
-        return (
-          <div className="vf-tree-group" key={`folder:${node.path}`}>
-            <TreeGroupRow
-              segment={node.segment}
-              path={node.path}
-              depth={depth}
-              collapsed={isCollapsed}
-              onToggle={() => toggleSection(groupId)}
-            />
-            {!isCollapsed && (
-              <TreeList
-                nodes={node.children}
-                depth={depth + 1}
-                groupKeyPrefix={groupKeyPrefix}
-                renderLeaf={renderLeaf}
-              />
-            )}
-          </div>
-        );
-      })}
-    </>
-  );
-}
-
 /* ----------------------------------------------------------------- labels -- */
 
 function LabelsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
   const plugin = usePlugin();
   const { activeTab, openLabel, openScreen } = useTabs();
+  const { collapsed: collapsedMap, toggleSection } = useSidebarChrome();
   const labels = workspaceTaxonomies(snapshot.workspace).label;
   const ordered = [...labels.values].sort((a, b) =>
     a.name.localeCompare(b.name),
@@ -1649,6 +1454,8 @@ function LabelsSection({ snapshot }: { snapshot: WorkspaceSnapshot }) {
           nodes={buildTree(ordered, (l) => l.name)}
           depth={0}
           groupKeyPrefix="label-group"
+          isCollapsed={(id) => collapsedMap[id] === true}
+          onToggle={toggleSection}
           renderLeaf={(label, segment, depth) => (
             <NavRow
               key={`label:${label.id}`}

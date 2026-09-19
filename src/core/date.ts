@@ -23,3 +23,24 @@ export function localTimeStamp(now: Date = new Date()): string {
 	const pad = (n: number) => String(n).padStart(2, "0");
 	return `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
 }
+
+export interface DueDateStatus {
+	isToday: boolean;
+	isOverdue: boolean;
+}
+
+/** Today/overdue treatment for a due date — shared by every place a due date
+ *  renders (List rows, Board cards, Calendar chips, Timeline labels, Table
+ *  cells) so the badge can't drift between them. A completed or canceled
+ *  task is never "overdue" or "due today" — that's the caller's `isOpen`. */
+export function dueDateStatus(
+	dueDate: IsoDate | null,
+	isOpen: boolean,
+	today: IsoDate = localTodayIso(),
+): DueDateStatus {
+	if (!dueDate) return { isToday: false, isOverdue: false };
+	return {
+		isToday: dueDate === today && isOpen,
+		isOverdue: dueDate < today && isOpen,
+	};
+}

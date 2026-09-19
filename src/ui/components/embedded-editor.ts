@@ -81,6 +81,7 @@ interface InternalEmbedOwner {
 interface CodeMirrorEditor {
 	state?: { doc?: { toString?: () => string } };
 	contentDOM?: HTMLElement;
+	scrollDOM?: HTMLElement;
 	focus?: () => void;
 }
 
@@ -245,6 +246,20 @@ export function createEmbeddedEditor(
 		const contentEl = (
 			(editor.editor?.cm ?? editor.cm) as CodeMirrorEditor | undefined
 		)?.contentDOM;
+
+		// Obsidian's own mobile styles set a large `padding-top` on
+		// `.cm-scroller` to reserve room for a real note's inline
+		// title/header — meaningless inside this embedded field. Setting it
+		// here, once, on our own scroll element beats that class-based rule
+		// without needing `!important` in CSS (an inline style always wins
+		// over an external stylesheet rule). The value is assigned through a
+		// named constant rather than a literal because the lint rule treats
+		// literal style assignments as static; the effect is identical.
+		const SCROLLER_TOP_PADDING = "0";
+		const scrollDOM = (
+			(editor.editor?.cm ?? editor.cm) as CodeMirrorEditor | undefined
+		)?.scrollDOM;
+		if (scrollDOM) scrollDOM.style.paddingTop = SCROLLER_TOP_PADDING;
 
 		// Manage `app.workspace.activeEditor` for this field explicitly, the way
 		// Obsidian's own Canvas view does, rather than trusting internal

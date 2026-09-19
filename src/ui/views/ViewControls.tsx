@@ -7,6 +7,7 @@
  */
 
 import { useRef, useState } from "react";
+import { Platform } from "obsidian";
 import type { EvaluatedView } from "../../core/views";
 import {
   isProjectViewId,
@@ -39,6 +40,7 @@ import {
   GroupChip,
   LayoutToggle,
   SortChip,
+  StripeChip,
   SubtasksChip,
   RecurringPreviewChip,
 } from "./DisplayControls";
@@ -94,9 +96,15 @@ export function ViewControls({
   );
   const headerRef = useRef<HTMLElement | null>(null);
   const queryOpen = plugin.settings.queryBarOpen;
+  const viewOptionsCollapsed = plugin.settings.viewOptionsCollapsed;
+  // Desktop always shows everything — there's room, and collapsing it there
+  // would just be an extra tap for no space benefit.
+  const showBarOptions = !Platform.isMobile || !viewOptionsCollapsed;
 
-  // `pending`/`editing` are shared by the Row 1 "+ Filter" trigger and the
-  // Row 2 chip list — see `FilterControls`.
+  // `openId` is shared by every popover on the bar — the Row 1 "+ Filter"
+  // trigger, the other Row 1 display controls, and the Row 2 filter tag
+  // list — so opening any one of them closes whichever other was open. See
+  // `FilterControls`.
   const filterClause = useFilterClauseState();
   // The filters row is mounted only when it has something to show: a clause
   // with a value, a query-only clause, or a just-added clause awaiting one.
@@ -135,8 +143,8 @@ export function ViewControls({
   const canEditIdentity = inSavedViews && !permanentView;
   const titleEditable = canEditIdentity;
   const showDescription = !hideTitle && canEditIdentity;
-  const descCollapsed = plugin.settings.descriptionCollapsed;
-  const descSourceMode = plugin.settings.descriptionSourceMode;
+  const descCollapsed = plugin.settings.viewDescriptionCollapsed;
+  const descSourceMode = plugin.settings.viewDescriptionSourceMode;
 
   const editView = draft.edit;
 
@@ -231,14 +239,45 @@ export function ViewControls({
 				    when Row 2 doesn't exist. */}
         <div className="vf-view-bar vf-view-bar-display">
           <LayoutToggle view={view} onChange={editView} />
+          {Platform.isMobile && (
+            <button
+              type="button"
+              className={`vf-bar-item vf-view-options-toggle${showBarOptions ? " is-on" : ""}`}
+              aria-expanded={showBarOptions}
+              title="Show or hide view options"
+              onClick={() =>
+                writeSettings({ viewOptionsCollapsed: showBarOptions })
+              }
+            >
+              <span
+                className={`vf-section-chevron${showBarOptions ? " is-open" : ""}`}
+                aria-hidden
+              >
+                ›
+              </span>
+              View options
+            </button>
+          )}
+          {showBarOptions && (
+            <>
           {/* Timeline and Calendar ignore grouping entirely (a day grid has no
 					    columns to group), so the control is hidden for both. */}
           {view.viewType !== "timeline" && view.viewType !== "calendar" && (
             <>
               <span className="vf-bar-divider" />
-              <GroupChip view={view} onChange={editView} />
+              <GroupChip
+                view={view}
+                onChange={editView}
+                openId={filterClause.openId}
+                onOpenChange={filterClause.setOpenId}
+              />
               {view.groupBy !== "none" && view.viewType === "board" && (
-                <EmptyColumnsChip view={view} onChange={editView} />
+                <EmptyColumnsChip
+                  view={view}
+                  onChange={editView}
+                  openId={filterClause.openId}
+                  onOpenChange={filterClause.setOpenId}
+                />
               )}
               {/* List and Board share one collapsed-column set, so the bulk
 							    toggle has to be reachable from both — otherwise a board
@@ -259,31 +298,73 @@ export function ViewControls({
 					    control is hidden rather than left showing a setting that does
 					    nothing. */}
           {!(view.viewType === "list" && view.subtaskDisplay === "nested") &&
-            view.viewType !== "canvas" && (
+            view.viewType !== "canvas" &&
+            view.viewType !== "table" && (
               <>
                 <span className="vf-bar-divider" />
-                <SortChip view={view} onChange={editView} />
+                <SortChip
+                  view={view}
+                  onChange={editView}
+                  openId={filterClause.openId}
+                  onOpenChange={filterClause.setOpenId}
+                />
               </>
             )}
           <span className="vf-bar-divider" />
-          <SubtasksChip view={view} onChange={editView} />
+          <SubtasksChip
+            view={view}
+            onChange={editView}
+            openId={filterClause.openId}
+            onOpenChange={filterClause.setOpenId}
+          />
           {/* Recurrence ghosts are a Calendar/Timeline date-projection feature —
 			    a relationship graph has no timeline to project onto. */}
           {view.viewType !== "canvas" && (
             <>
               <span className="vf-bar-divider" />
-              <RecurringPreviewChip view={view} onChange={editView} />
+              <RecurringPreviewChip
+                view={view}
+                onChange={editView}
+                openId={filterClause.openId}
+                onOpenChange={filterClause.setOpenId}
+              />
             </>
           )}
           <span className="vf-bar-divider" />
-          <FieldsControl view={view} onChange={editView} />
+          <FieldsControl
+            view={view}
+            onChange={editView}
+            openId={filterClause.openId}
+            onOpenChange={filterClause.setOpenId}
+          />
+          {view.viewType === "table" && (
+            <>
+              <span className="vf-bar-divider" />
+              <StripeChip
+                view={view}
+                onChange={draft.setTableStripe}
+                openId={filterClause.openId}
+                onOpenChange={filterClause.setOpenId}
+              />
+            </>
+          )}
           {/* Canvas-only: which relationship kinds the graph draws. */}
           {view.viewType === "canvas" && (
             <>
               <span className="vf-bar-divider" />
-              <CanvasRelationsChip view={view} onChange={editView} />
+              <CanvasRelationsChip
+                view={view}
+                onChange={editView}
+                openId={filterClause.openId}
+                onOpenChange={filterClause.setOpenId}
+              />
               <span className="vf-bar-divider" />
-              <CanvasArrangeChip view={view} onChange={editView} />
+              <CanvasArrangeChip
+                view={view}
+                onChange={editView}
+                openId={filterClause.openId}
+                onOpenChange={filterClause.setOpenId}
+              />
             </>
           )}
           <span className="vf-bar-divider" />
@@ -350,11 +431,13 @@ export function ViewControls({
               </button>
             </>
           )}
+            </>
+          )}
         </div>
 
         {/* Row 2 — the active filter chips. Not rendered at all when there
 				    are none, so an unfiltered view reserves no height for it. */}
-        {hasFilterRow && (
+        {showBarOptions && hasFilterRow && (
           <div className="vf-view-bar vf-view-bar-filters">
             <FilterControls
               snapshot={snapshot}
@@ -367,7 +450,7 @@ export function ViewControls({
         )}
 
         {/* Row 3 — the text query editor. */}
-        {queryOpen && (
+        {showBarOptions && queryOpen && (
           <div id="vf-query-row">
             <QueryBar snapshot={snapshot} view={view} onChange={editView} />
           </div>
@@ -384,11 +467,11 @@ export function ViewControls({
           <DescriptionSection
             collapsed={descCollapsed}
             onToggleCollapsed={() =>
-              writeSettings({ descriptionCollapsed: !descCollapsed })
+              writeSettings({ viewDescriptionCollapsed: !descCollapsed })
             }
             sourceMode={descSourceMode}
             onToggleSourceMode={() =>
-              writeSettings({ descriptionSourceMode: !descSourceMode })
+              writeSettings({ viewDescriptionSourceMode: !descSourceMode })
             }
             value={savedView.description ?? ""}
             editorKey={savedView.id}

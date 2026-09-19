@@ -6,8 +6,9 @@
  * `useDropHandler`, shared with the List view.
  */
 
-import { useMemo, useState, useCallback, type CSSProperties } from "react";
+import { useId, useMemo, useState, useCallback, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
+import { AnimatePresence, motion } from "motion/react";
 import { scopeOf, subtaskProgress } from "../../core/hierarchy";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { EvaluatedView } from "../../core/views";
@@ -87,6 +88,11 @@ export function BoardView({
   const [board, setBoard] = useState<HTMLDivElement | null>(null);
   useScrollFocusIntoView(board);
 
+  // Per-mount namespace for `layoutId` — the same task could be visible in
+  // this Board and in a relations panel or another tab at once, so layoutId
+  // must be unique per rendered instance, not per task.
+  const boardId = useId();
+
   // A blank workspace has no tasks and often no configured statuses at all.
   // Rather than an empty board body, show the same friendly empty state the
   // List/Calendar/Timeline views use.
@@ -118,6 +124,7 @@ export function BoardView({
           taxonomies={taxonomies}
           drag={drag}
           hiddenFields={shownFields}
+          boardId={boardId}
           onToggleCollapse={() =>
             onColumnsChange(toggleColumnCollapsed(view, group.key).columns)
           }
@@ -196,6 +203,7 @@ function Column({
   taxonomies,
   drag,
   hiddenFields,
+  boardId,
   onToggleCollapse,
 }: {
   group: TaskGroup;
@@ -203,6 +211,7 @@ function Column({
   taxonomies: WorkspaceTaxonomies;
   drag: TaskDragApi;
   hiddenFields?: readonly TaskField[];
+  boardId: string;
   onToggleCollapse: () => void;
 }) {
   const dropIndex = drag.dropIndexFor(group.key);
@@ -250,19 +259,22 @@ function Column({
       </header>
 
       <div className="vf-column-body">
-        {group.tasks.map((task, index) => (
-          <div key={task.path}>
-            {dropIndex === index && <div className="vf-drop-indicator" />}
-            <Card
-              task={task}
-              groupKey={group.key}
-              snapshot={snapshot}
-              taxonomies={taxonomies}
-              drag={drag}
-              hiddenFields={hiddenFields}
-            />
-          </div>
-        ))}
+        <AnimatePresence initial={false}>
+          {group.tasks.map((task, index) => (
+            <div key={task.path}>
+              {dropIndex === index && <div className="vf-drop-indicator" />}
+              <Card
+                task={task}
+                groupKey={group.key}
+                snapshot={snapshot}
+                taxonomies={taxonomies}
+                drag={drag}
+                hiddenFields={hiddenFields}
+                boardId={boardId}
+              />
+            </div>
+          ))}
+        </AnimatePresence>
         {dropIndex === group.tasks.length && (
           <div className="vf-drop-indicator" />
         )}
@@ -282,6 +294,7 @@ function Card({
   taxonomies,
   drag,
   hiddenFields,
+  boardId,
 }: {
   task: Task;
   groupKey: string;
@@ -289,6 +302,7 @@ function Card({
   taxonomies: WorkspaceTaxonomies;
   drag: TaskDragApi;
   hiddenFields?: readonly TaskField[];
+  boardId: string;
 }) {
   const selection = useSelection();
   const tabs = useTabs();
@@ -299,38 +313,60 @@ function Card({
   const focused = !projected && selection.focusedPath === task.path;
   const selected = !projected && selection.isSelected(task.path);
 
+  const className = [
+    "vf-card",
+    focused ? "is-focused" : "",
+    selected ? "is-selected" : "",
+    drag.isDragging(task.path) ? "is-dragging" : "",
+    task.archived ? "is-archived" : "",
+    projected ? "is-projected" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const onPointerDown = projected
+    ? undefined
+    : (event: React.PointerEvent) => drag.onPointerDown(event, task.path, groupKey);
+  const onClick = projected
+    ? () => tabs.openTask(task.recurringFrom ?? task.path)
+    : (event: React.MouseEvent) => openOrSelect(event, task.path, drag, selection, tabs);
+
+  const content = (
+    <CardContent
+      task={task}
+      snapshot={snapshot}
+      taxonomies={taxonomies}
+      hiddenFields={hiddenFields}
+    />
+  );
+
+  if (projected) {
+    return (
+      <article
+        className={className}
+        title="Projected occurrence — opens the repeating task"
+        onClick={onClick}
+      >
+        {content}
+      </article>
+    );
+  }
+
   return (
-    <article
-      className={[
-        "vf-card",
-        focused ? "is-focused" : "",
-        selected ? "is-selected" : "",
-        drag.isDragging(task.path) ? "is-dragging" : "",
-        task.archived ? "is-archived" : "",
-        projected ? "is-projected" : "",
-      ]
-        .filter(Boolean)
-        .join(" ")}
-      data-task-path={projected ? undefined : task.path}
-      title={projected ? "Projected occurrence — opens the repeating task" : undefined}
-      onPointerDown={
-        projected
-          ? undefined
-          : (event) => drag.onPointerDown(event, task.path, groupKey)
-      }
-      onClick={
-        projected
-          ? () => tabs.openTask(task.recurringFrom ?? task.path)
-          : (event) => openOrSelect(event, task.path, drag, selection, tabs)
-      }
+    <motion.article
+      className={className}
+      data-task-path={task.path}
+      layout={!drag.drag}
+      layoutId={`${boardId}:${task.path}`}
+      transition={{ duration: 0.25, ease: "easeOut" }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onPointerDown={onPointerDown}
+      onClick={onClick}
     >
-      <CardContent
-        task={task}
-        snapshot={snapshot}
-        taxonomies={taxonomies}
-        hiddenFields={hiddenFields}
-      />
-    </article>
+      {content}
+    </motion.article>
   );
 }
 
@@ -346,15 +382,23 @@ export function openOrSelect(
   const toggle = event.metaKey || event.ctrlKey;
   const range = event.shiftKey;
 
-  selection.select(path, { toggle, range });
   if (!toggle && !range) {
-    // If there's a multi-selection, open all selected tasks.
-    // Otherwise fall back to opening the clicked task.
-    const targets = selection.selectedPaths.length > 0
-      ? selection.selectedPaths
-      : [path];
+    // Only open the whole batch if the clicked task is already part of an
+    // existing multi-selection. Clicking a task outside the selection opens
+    // just that task and drops the old selection — matching resolveDragBatch
+    // and standard list-UI conventions (Finder/Gmail-style). Must be read
+    // before select() mutates state, since selectedPaths otherwise reflects
+    // the pre-click selection until the next render.
+    const targets =
+      selection.isSelected(path) && selection.selectedPaths.length > 1
+        ? selection.selectedPaths
+        : [path];
+    selection.select(path, { toggle, range });
     for (const p of targets) tabs.openTask(p);
+    return;
   }
+
+  selection.select(path, { toggle, range });
 }
 
 /**
@@ -468,7 +512,7 @@ function CardContent({
               />
             )}
             {showStart && <StartDate task={task} />}
-            {showDue && <DueDate task={task} />}
+            {showDue && <DueDate task={task} statuses={taxonomies.status} />}
           </div>
           {showAssignee && (
             <Assignee

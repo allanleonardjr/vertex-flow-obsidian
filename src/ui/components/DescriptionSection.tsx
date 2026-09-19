@@ -7,9 +7,11 @@
  * borderless Markdown field, so it reads like a plain note rather than a form
  * control.
  *
- * Source mode is controlled the same way and for the same reason it's
- * plugin-global: Live Preview vs. raw Source is a way of working, not a
- * property of one task (see `descriptionSourceMode` in `settings/types.ts`).
+ * Source mode is controlled the same way. Each caller (Task, Project, View,
+ * Label) persists its own collapsed/source-mode pair under a per-kind
+ * settings key (e.g. `taskDescriptionSourceMode`, `viewDescriptionCollapsed`
+ * — see `settings/types.ts`), so this state no longer bleeds across editor
+ * kinds the way it once did.
  */
 
 import { useState, type ReactNode } from "react";
@@ -122,8 +124,11 @@ function DescriptionEditor({
  * The same Markdown editor + source toggle as `DescriptionSection`, but fully
  * controlled for dialogs: nothing is written anywhere until the dialog's
  * Confirm runs, so the text lives in the caller's local state (via `onChange`)
- * instead of a debounced save. Source mode stays plugin-global the same way
- * the editing surfaces do — it's a way of working, not per-row state.
+ * instead of a debounced save. Source mode stays plugin-global via its own
+ * `dialogDescriptionSourceMode` flag — kept separate from the per-editor-kind
+ * settings above, since these lightweight creation dialogs (Label, generic
+ * named+icon) aren't one of the Task/Project/View/Label editor kinds. Like
+ * `queryBarOpen`, it's a way of working, not per-row state.
  */
 export function DescriptionDialogField({
 	value,
@@ -136,13 +141,13 @@ export function DescriptionDialogField({
 }): ReactNode {
 	const plugin = usePlugin();
 	const [sourceMode, setSourceMode] = useState(
-		plugin.settings.descriptionSourceMode,
+		plugin.settings.dialogDescriptionSourceMode,
 	);
 
 	const toggleSourceMode = () => {
 		const next = !sourceMode;
 		setSourceMode(next);
-		plugin.settings.descriptionSourceMode = next;
+		plugin.settings.dialogDescriptionSourceMode = next;
 		void plugin.saveSettings();
 	};
 

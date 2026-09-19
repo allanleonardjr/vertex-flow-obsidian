@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { sampleSnapshot } from "../../src/core/templates/instantiate";
+import { createTaxonomy } from "../../src/core/taxonomy";
 import {
 	applyFilters,
 	canonicalizeDefinition,
@@ -16,14 +17,18 @@ import {
 	isEmptyFilterSet,
 	isSystemViewId,
 	matchesFilters,
+	nextTableSort,
 	snapshotContext,
 	sortTasks,
+	sortTasksMulti,
 	setColumnsCollapsed,
 	toggleColumnCollapsed,
 	toggleColumnHidden,
+	viewContext,
 	viewDefinition,
 	visibleGroups,
 } from "../../src/core/views";
+import type { HierarchyScope } from "../../src/core/hierarchy";
 import {
 	NONE,
 	SELF,
@@ -226,6 +231,101 @@ describe("filtering", () => {
 		expect(byShortForm.map((t) => t.id)).toEqual(byPath.map((t) => t.id));
 	});
 
+	describe("group-wildcard filters (label:*/project:*)", () => {
+		// Local fixture layering `/`-nested labels and a project onto the base
+		// context — not added to the shared sample-workspace fixture.
+		const groupContext: typeof context = {
+			...context,
+			taxonomies: {
+				...context.taxonomies,
+				label: createTaxonomy("label", [
+					{ id: "labelA", name: "LabelA", color: "#111111" },
+					{ id: "labelACD", name: "LabelA/C/D", color: "#333333" },
+				]),
+			},
+			titles: new Map([
+				...(context.titles ?? []),
+				["Projects/Application" as const, "Application"],
+				["Projects/Application-UI-Forms" as const, "Application/UI/Forms"],
+			]),
+		};
+
+		it("matches a nested label at any depth under the group, not a bare sibling", () => {
+			const nested = task({ path: "A", labels: ["labelACD"] });
+			const bare = task({ path: "B", labels: ["labelA"] });
+
+			for (const pattern of ["LabelA/*", "LabelA/C/*"]) {
+				expect(
+					matchesFilters(nested, { labels: [pattern] }, groupContext),
+				).toBe(true);
+				expect(
+					matchesFilters(bare, { labels: [pattern] }, groupContext),
+				).toBe(false);
+			}
+		});
+
+		it("matches a nested project at any depth under the group, not a bare sibling", () => {
+			const nested = task({ path: "A", project: "Projects/Application-UI-Forms" });
+			const bare = task({ path: "B", project: "Projects/Application" });
+
+			for (const pattern of ["Application/*", "Application/UI/*"]) {
+				expect(
+					matchesFilters(nested, { project: [pattern] }, groupContext),
+				).toBe(true);
+				expect(
+					matchesFilters(bare, { project: [pattern] }, groupContext),
+				).toBe(false);
+			}
+		});
+
+		it("keeps NONE handling unchanged when mixed with a group pattern", () => {
+			const unlabeled = task({ path: "A", labels: [] });
+			const noProject = task({ path: "B", project: null });
+
+			expect(
+				matchesFilters(unlabeled, { labels: [NONE, "LabelA/*"] }, groupContext),
+			).toBe(true);
+			expect(
+				matchesFilters(noProject, { project: [NONE, "Application/*"] }, groupContext),
+			).toBe(true);
+
+			const labeled = task({ path: "C", labels: ["labelACD"] });
+			expect(
+				matchesFilters(labeled, { labels: [NONE] }, groupContext),
+			).toBe(false);
+		});
+
+		it("ORs an exact id/path with a group pattern in the same filter array", () => {
+			const bareLabelA = task({ path: "A", labels: ["labelA"] });
+			const nestedLabel = task({ path: "B", labels: ["labelACD"] });
+			const unrelated = task({ path: "C", labels: [] });
+
+			for (const t of [bareLabelA, nestedLabel]) {
+				expect(
+					matchesFilters(t, { labels: ["labelA", "LabelA/*"] }, groupContext),
+				).toBe(true);
+			}
+			expect(
+				matchesFilters(unrelated, { labels: ["labelA", "LabelA/*"] }, groupContext),
+			).toBe(false);
+
+			const bareProject = task({ path: "D", project: "Projects/Application" });
+			const nestedProject = task({
+				path: "E",
+				project: "Projects/Application-UI-Forms",
+			});
+			for (const t of [bareProject, nestedProject]) {
+				expect(
+					matchesFilters(
+						t,
+						{ project: ["Projects/Application", "Application/*"] },
+						groupContext,
+					),
+				).toBe(true);
+			}
+		});
+	});
+
 	it("drops sub-tasks only when subtaskDisplay is hidden", () => {
 		const hidden = evaluateView(
 			snapshot,
@@ -324,6 +424,291 @@ describe("sorting", () => {
 		const copy = [...snapshot.tasks];
 		sortTasks(snapshot.tasks, "title", "desc", context);
 		expect(snapshot.tasks).toEqual(copy);
+	});
+});
+
+describe("sorting — new Table-only fields", () => {
+	it("taskType orders by taxonomy order, unset last", () => {
+		// Task Type is an unordered taxonomy by default (no `order` on the
+		// sample workspace's values), so this builds a local taxonomy that
+		// carries explicit orders to exercise `taxonomyOrder`.
+		const typeContext: typeof context = {
+			...context,
+			taxonomies: {
+				...context.taxonomies,
+				taskType: createTaxonomy("taskType", [
+					{ id: "bug", name: "Bug", color: "#ef4444", order: 1 },
+					{ id: "feature", name: "Feature", color: "#3b82f6", order: 2 },
+				]),
+			},
+		};
+		const tasks = [
+			task({ path: "unset", taskType: null }),
+			task({ path: "feature", taskType: "feature" }),
+			task({ path: "bug", taskType: "bug" }),
+		];
+		// Only ascending is asserted here: `taskType` reuses the same
+		// `taxonomyOrder` + `nullSkewed: false` shape `status`/`priority`
+		// already use, and that shape does not keep unset values pinned last
+		// under a flipped (`desc`) direction — the same is true for
+		// `priority` today (untested there too). Out of scope for this
+		// change to alter; see the PR notes.
+		expect(
+			sortTasks(tasks, "taskType", "asc", typeContext).map((t) => t.path),
+		).toEqual(["bug", "feature", "unset"]);
+	});
+
+	it("project orders by resolved title, not path", () => {
+		// The path order is deliberately the opposite of the title order, so
+		// a test that accidentally sorted by path would fail.
+		const projectContext: typeof context = {
+			...context,
+			titles: new Map([
+				["Projects/ZPath" as const, "Alpha Project"],
+				["Projects/APath" as const, "Zulu Project"],
+			]),
+		};
+		const tasks = [
+			task({ path: "unset", project: null }),
+			task({ path: "zulu", project: "Projects/APath" }),
+			task({ path: "alpha", project: "Projects/ZPath" }),
+		];
+		expect(
+			sortTasks(tasks, "project", "asc", projectContext).map((t) => t.path),
+		).toEqual(["alpha", "zulu", "unset"]);
+		expect(
+			sortTasks(tasks, "project", "desc", projectContext).map((t) => t.path),
+		).toEqual(["zulu", "alpha", "unset"]);
+	});
+
+	it("assignee orders by person name, not id, unassigned last", () => {
+		// "zed"'s name ("Aaron") sorts before "alice"'s ("Alice") even though
+		// the id order is the reverse — proves it's comparing names.
+		const peopleContext: typeof context = {
+			...context,
+			people: [...context.people, { id: "zed", name: "Aaron" }],
+		};
+		const tasks = [
+			task({ path: "unassigned", assignee: null }),
+			task({ path: "alice", assignee: "alice" }),
+			task({ path: "zed", assignee: "zed" }),
+		];
+		expect(
+			sortTasks(tasks, "assignee", "asc", peopleContext).map((t) => t.path),
+		).toEqual(["zed", "alice", "unassigned"]);
+		expect(
+			sortTasks(tasks, "assignee", "desc", peopleContext).map((t) => t.path),
+		).toEqual(["alice", "zed", "unassigned"]);
+	});
+
+	it("labels orders by the task's first label in taxonomy order, unlabelled last", () => {
+		const labelContext: typeof context = {
+			...context,
+			taxonomies: {
+				...context.taxonomies,
+				label: createTaxonomy("label", [
+					{ id: "first", name: "First", color: "#111111", order: 1 },
+					{ id: "second", name: "Second", color: "#222222", order: 2 },
+				]),
+			},
+		};
+		const tasks = [
+			task({ path: "unlabelled", labels: [] }),
+			// This task's *first* label is the higher-order one, so it should
+			// sort as if positioned by "first", not by any label it carries.
+			task({ path: "hasFirst", labels: ["second", "first"] }),
+			task({ path: "hasSecondOnly", labels: ["second"] }),
+		];
+		expect(
+			sortTasks(tasks, "labels", "asc", labelContext).map((t) => t.path),
+		).toEqual(["hasFirst", "hasSecondOnly", "unlabelled"]);
+	});
+
+	it("progress orders by completed/total ratio, no sub-tasks sorts last", () => {
+		const parentHalf = task({ path: "parentHalf" });
+		const childHalfDone = task({
+			path: "childHalfDone",
+			parent: "parentHalf",
+			status: "done",
+		});
+		const childHalfTodo = task({
+			path: "childHalfTodo",
+			parent: "parentHalf",
+			status: "todo",
+		});
+		const parentFull = task({ path: "parentFull" });
+		const childFullDone = task({
+			path: "childFullDone",
+			parent: "parentFull",
+			status: "done",
+		});
+		const parentNone = task({ path: "parentNone" });
+
+		const scope: HierarchyScope = {
+			tasks: [
+				parentHalf,
+				childHalfDone,
+				childHalfTodo,
+				parentFull,
+				childFullDone,
+				parentNone,
+			],
+			projects: [],
+		};
+		const progressContext: typeof context = { ...context, scope };
+		const parents = [parentNone, parentHalf, parentFull];
+
+		expect(
+			sortTasks(parents, "progress", "asc", progressContext).map((t) => t.path),
+		).toEqual(["parentHalf", "parentFull", "parentNone"]);
+		expect(
+			sortTasks(parents, "progress", "desc", progressContext).map((t) => t.path),
+		).toEqual(["parentFull", "parentHalf", "parentNone"]);
+	});
+
+	it("progress treats every task as unset when the context has no scope (viewContext())", () => {
+		const bareContext = viewContext(snapshot.workspace, "alice");
+		expect(bareContext.scope).toBeUndefined();
+
+		const tasks = [
+			task({ path: "b", rank: "0|i00002:" }),
+			task({ path: "a", rank: "0|i00001:" }),
+		];
+		// No scope => every task compares as unset => falls straight through
+		// to the rank tiebreak, same as a fully-tied sort.
+		expect(
+			sortTasks(tasks, "progress", "asc", bareContext).map((t) => t.path),
+		).toEqual(["a", "b"]);
+	});
+
+	it("relations orders by count, zero is a real value (not null-skewed)", () => {
+		const zero = task({ path: "zero" });
+		const one = task({
+			path: "one",
+			relations: { blocks: ["x"], blockedBy: [], related: [], duplicateOf: null },
+		});
+		// `duplicateOf` counts too.
+		const two = task({
+			path: "two",
+			relations: { blocks: ["x"], blockedBy: [], related: [], duplicateOf: "y" },
+		});
+
+		expect(
+			sortTasks([zero, one, two], "relations", "asc", context).map((t) => t.path),
+		).toEqual(["zero", "one", "two"]);
+		// Descending puts the highest count first and zero last — proving
+		// zero isn't treated as an absence that always sorts last regardless
+		// of direction.
+		expect(
+			sortTasks([zero, one, two], "relations", "desc", context).map((t) => t.path),
+		).toEqual(["two", "one", "zero"]);
+	});
+});
+
+describe("sortTasksMulti (Table)", () => {
+	it("breaks a tied primary key with the secondary key", () => {
+		const tasks = [
+			task({ path: "a", priority: "high", dueDate: "2026-01-02" }),
+			task({ path: "b", priority: "high", dueDate: "2026-01-01" }),
+			task({ path: "c", priority: "low", dueDate: "2026-01-01" }),
+		];
+		const sorted = sortTasksMulti(
+			tasks,
+			[
+				{ field: "priority", direction: "asc" },
+				{ field: "dueDate", direction: "asc" },
+			],
+			context,
+		);
+		expect(sorted.map((t) => t.path)).toEqual(["b", "a", "c"]);
+	});
+
+	it("falls back to rank when every key is fully tied", () => {
+		const tasks = [
+			task({ path: "b", priority: "high", rank: "0|i00002:" }),
+			task({ path: "a", priority: "high", rank: "0|i00001:" }),
+		];
+		const sorted = sortTasksMulti(
+			tasks,
+			[{ field: "priority", direction: "asc" }],
+			context,
+		);
+		expect(sorted.map((t) => t.path)).toEqual(["a", "b"]);
+	});
+
+	it("applies direction per key independently", () => {
+		const tasks = [
+			task({ path: "a", priority: "high", dueDate: "2026-01-02" }),
+			task({ path: "b", priority: "high", dueDate: "2026-01-01" }),
+			task({ path: "c", priority: "low", dueDate: "2026-01-03" }),
+		];
+		const sorted = sortTasksMulti(
+			tasks,
+			[
+				{ field: "priority", direction: "asc" },
+				{ field: "dueDate", direction: "desc" },
+			],
+			context,
+		);
+		expect(sorted.map((t) => t.path)).toEqual(["a", "b", "c"]);
+	});
+});
+
+describe("nextTableSort (Table column header click cycle)", () => {
+	it("plain click on a fresh column sets it as the sole ascending key", () => {
+		expect(nextTableSort([], "priority", false)).toEqual([
+			{ field: "priority", direction: "asc" },
+		]);
+	});
+
+	it("plain click replaces the whole sort, not just adds", () => {
+		expect(
+			nextTableSort(
+				[
+					{ field: "status", direction: "asc" },
+					{ field: "priority", direction: "asc" },
+				],
+				"dueDate",
+				false,
+			),
+		).toEqual([{ field: "dueDate", direction: "asc" }]);
+	});
+
+	it("plain click on the sole active ascending key flips it to descending", () => {
+		expect(
+			nextTableSort([{ field: "priority", direction: "asc" }], "priority", false),
+		).toEqual([{ field: "priority", direction: "desc" }]);
+	});
+
+	it("a third plain click on the sole active key clears the sort", () => {
+		expect(
+			nextTableSort([{ field: "priority", direction: "desc" }], "priority", false),
+		).toEqual([]);
+	});
+
+	it("shift-click appends a new key to the end without disturbing the rest", () => {
+		expect(
+			nextTableSort([{ field: "status", direction: "asc" }], "priority", true),
+		).toEqual([
+			{ field: "status", direction: "asc" },
+			{ field: "priority", direction: "asc" },
+		]);
+	});
+
+	it("shift-click on an existing key flips its direction in place", () => {
+		expect(
+			nextTableSort(
+				[
+					{ field: "status", direction: "asc" },
+					{ field: "priority", direction: "asc" },
+				],
+				"priority",
+				true,
+			),
+		).toEqual([
+			{ field: "status", direction: "asc" },
+			{ field: "priority", direction: "desc" },
+		]);
 	});
 });
 

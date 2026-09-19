@@ -121,24 +121,24 @@ function ProjectEditor({
   const plugin = usePlugin();
   const [description, setDescription] = useState<string | null>(null);
   const [descCollapsed, setDescCollapsed] = useState(
-    plugin.settings.descriptionCollapsed,
+    plugin.settings.projectDescriptionCollapsed,
   );
   const [descSourceMode, setDescSourceMode] = useState(
-    plugin.settings.descriptionSourceMode,
+    plugin.settings.projectDescriptionSourceMode,
   );
   const [infoHeight, setInfoHeight] = useState(plugin.settings.projectInfoHeight);
 
   const toggleDescription = () => {
     const next = !descCollapsed;
     setDescCollapsed(next);
-    plugin.settings.descriptionCollapsed = next;
+    plugin.settings.projectDescriptionCollapsed = next;
     void plugin.saveSettings();
   };
 
   const toggleSourceMode = () => {
     const next = !descSourceMode;
     setDescSourceMode(next);
-    plugin.settings.descriptionSourceMode = next;
+    plugin.settings.projectDescriptionSourceMode = next;
     void plugin.saveSettings();
   };
 
@@ -209,7 +209,16 @@ function ProjectEditor({
             style={
               descCollapsed
                 ? undefined
-                : { height: infoHeight, flex: "0 0 auto" }
+                : {
+                    height: infoHeight,
+                    // Same shape as the task editor's description pane: hold
+                    // the dragged height while the column has room, shrink to
+                    // make room for the task list below when the keyboard
+                    // squeezes it (`max-height` alone would cap the pane at
+                    // its content height, silently breaking drag-to-resize).
+                    flex: "0 1 auto",
+                    minHeight: INFO_MIN_HEIGHT,
+                  }
             }
           >
             <DescriptionSection
@@ -246,7 +255,7 @@ function ProjectEditor({
           <div className="vf-project-editor-tasks">{tasks}</div>
         </div>
 
-        <EditorRail>
+        <EditorRail kind="project">
           <PropertyRow label="Status">
             <StatusSelect
               taxonomy={taxonomies.status}
@@ -340,13 +349,14 @@ const INFO_DEFAULT_HEIGHT = 220;
 
 /**
  * A read-only look at the project note exactly as it sits on disk — frontmatter
- * and body. Collapsed by default; the open state is remembered (shared with the
- * Task editor's Source section). Re-reads whenever the project changes while
- * open, so it tracks edits made above.
+ * and body. Collapsed by default; the open state is remembered per editor kind
+ * (`projectEditorSourceOpen`), independent of the Task editor's own Source
+ * section. Re-reads whenever the project changes while open, so it tracks
+ * edits made above.
  */
 function ProjectRawSourceSection({ project }: { project: Project }) {
   const plugin = usePlugin();
-  const [open, setOpen] = useState(plugin.settings.editorSourceOpen);
+  const [open, setOpen] = useState(plugin.settings.projectEditorSourceOpen);
   const [raw, setRaw] = useState<string | null>(null);
 
   useEffect(() => {
@@ -364,7 +374,7 @@ function ProjectRawSourceSection({ project }: { project: Project }) {
   const toggle = () => {
     const next = !open;
     setOpen(next);
-    plugin.settings.editorSourceOpen = next;
+    plugin.settings.projectEditorSourceOpen = next;
     void plugin.saveSettings();
   };
 

@@ -94,7 +94,6 @@ import {
   type WorkspaceSnapshot,
 } from "../../core/types";
 import { usePlugin } from "../context";
-import { ConfirmDeleteDialog } from "../components/ConfirmDeleteDialog";
 import { EmptyView } from "../components/EmptyView";
 import { Popover } from "../components/Popover";
 import {
@@ -122,7 +121,7 @@ export interface CanvasViewProps {
  * with headroom for the "comfortable" UI text scale.
  */
 const NODE_WIDTH = 240;
-const NODE_HEIGHT = 100;
+const NODE_HEIGHT = 120; // was 100
 /**
  * A title needing more than 2 lines grows the card past `NODE_HEIGHT` by this
  * many extra pixels per extra line — a title beyond `MAX_TITLE_LINES` still
@@ -272,11 +271,7 @@ export function CanvasView({
   // Stable key for the hidden-relation set — the array identity churns.
   const hiddenKinds = view.canvasHiddenRelationKinds ?? [];
   const hiddenKindKey = [...hiddenKinds].sort().join(",");
-  const hiddenKindSet = useMemo(
-    () => new Set(hiddenKinds),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- depends on hiddenKinds which change when canvas settings update
-    [hiddenKindKey],
-  );
+  const hiddenKindSet = useMemo(() => new Set(hiddenKinds), [hiddenKindKey]);
 
   // Memoise on the *content* that feeds the graph — visible task paths, their
   // parent, their three relation arrays, and the box each sits in — not on
@@ -289,7 +284,6 @@ export function CanvasView({
 
   const graph: CanvasGraph = useMemo(
     () => filterCanvasGraph(buildCanvasGraph(visibleTasks), [...hiddenKindSet]),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- depends on topologyKey which derives from visibleTasks/visibleGroups
     [topologyKey, hiddenKindKey],
   );
 
@@ -774,15 +768,28 @@ export function CanvasView({
     });
   }, [laidOut]);
 
-  // Auto-fit once, the first time layout finishes after mount — not on
-  // every subsequent re-layout (filter/group/relation-visibility changes
-  // also produce a new `laidOut`, and re-fitting then would undo any
-  // manual pan/zoom already in place).
+  // Auto-fit the first time layout finishes after mount, and again whenever
+  // the Arrange control (arrangement or direction) changes — but not on
+  // every subsequent re-layout: a filter/group/relation-visibility change
+  // also produces a new `laidOut`, and re-fitting then would undo any
+  // manual pan/zoom already in place.
   const hasFitOnLoad = useRef(false);
+  const pendingArrangeFit = useRef(false);
+
+  // Arm the re-fit the moment the Arrange control changes. The actual
+  // `fitToView()` call happens once the async ELK pass for the *new*
+  // arrangement lands, in the effect below — not here, since `laidOut`
+  // hasn't caught up to the new signature yet when this effect fires.
   useEffect(() => {
-    if (laidOut && !hasFitOnLoad.current) {
+    if (hasFitOnLoad.current) pendingArrangeFit.current = true;
+  }, [arrangement, direction]);
+
+  useEffect(() => {
+    if (!laidOut) return;
+    if (!hasFitOnLoad.current || pendingArrangeFit.current) {
       fitToView();
       hasFitOnLoad.current = true;
+      pendingArrangeFit.current = false;
     }
   }, [laidOut, fitToView]);
 
@@ -1213,7 +1220,6 @@ export function CanvasView({
   useEffect(() => {
     setConnectDrag(null);
     setTapConnect(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- depends on drawKind which toggles draw mode
   }, [drawKind]);
 
   if (evaluated.total === 0 || visibleTasks.length === 0) {
@@ -1894,6 +1900,8 @@ function CanvasNode({
       <div className="vf-canvas-node-row">
         <StatusDot taxonomies={taxonomies} status={task.status} />
         <span className="vf-id">{task.id}</span>
+      </div>
+      <div className="vf-canvas-node-row">
         {!off("type") && (
           <TaxonomyChip
             taxonomies={taxonomies}
@@ -1908,15 +1916,17 @@ function CanvasNode({
             id={task.priority}
           />
         )}
-      </div>
-      <div className="vf-canvas-node-row">
-        {!off("dueDate") && <DueDate task={task} />}
-        {!off("assignee") && (
-          <Assignee
-            people={snapshot.workspace.people}
-            assignee={task.assignee}
-          />
-        )}
+        <div className="vf-meta-right">
+          {!off("dueDate") && (
+            <DueDate task={task} statuses={taxonomies.status} />
+          )}
+          {!off("assignee") && (
+            <Assignee
+              people={snapshot.workspace.people}
+              assignee={task.assignee}
+            />
+          )}
+        </div>
       </div>
       {showProject && !off("project") && (
         <ProjectChip task={task} projects={snapshot.projects} />

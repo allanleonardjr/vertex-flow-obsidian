@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Trash2 } from "lucide-react";
+import { Code2, Eye, Trash2 } from "lucide-react";
 import { resetAutoGrow } from "./components/autoGrow";
 import {
   childTasks,
@@ -82,10 +82,10 @@ export function TaskDetailPanel({
   const [description, setDescription] = useState<string | null>(null);
   const [deletePlan, setDeletePlan] = useState<DeletionPlan | null>(null);
   const [descCollapsed, setDescCollapsed] = useState(
-    plugin.settings.descriptionCollapsed,
+    plugin.settings.taskDescriptionCollapsed,
   );
   const [descSourceMode, setDescSourceMode] = useState(
-    plugin.settings.descriptionSourceMode,
+    plugin.settings.taskDescriptionSourceMode,
   );
   const [descHeight, setDescHeight] = useState(
     plugin.settings.taskDescriptionHeight,
@@ -94,14 +94,25 @@ export function TaskDetailPanel({
   const toggleDescription = () => {
     const next = !descCollapsed;
     setDescCollapsed(next);
-    plugin.settings.descriptionCollapsed = next;
+    plugin.settings.taskDescriptionCollapsed = next;
     void plugin.saveSettings();
   };
 
   const toggleSourceMode = () => {
     const next = !descSourceMode;
     setDescSourceMode(next);
-    plugin.settings.descriptionSourceMode = next;
+    plugin.settings.taskDescriptionSourceMode = next;
+    void plugin.saveSettings();
+  };
+
+  const [commentSourceMode, setCommentSourceMode] = useState(
+    plugin.settings.commentSourceMode,
+  );
+
+  const toggleCommentSourceMode = () => {
+    const next = !commentSourceMode;
+    setCommentSourceMode(next);
+    plugin.settings.commentSourceMode = next;
     void plugin.saveSettings();
   };
 
@@ -182,7 +193,17 @@ export function TaskDetailPanel({
             style={
               descCollapsed
                 ? undefined
-                : { height: descHeight, flex: "0 0 auto" }
+                : {
+                    height: descHeight,
+                    // Keep the dragged size as the pane's height when the column
+                    // has room, but let it yield to the sub-task/relation/comment
+                    // sections below when the keyboard (or a short pane) squeezes
+                    // it — `max-height: descHeight` alone would cap the pane at
+                    // its *content* height, which silently breaks dragging it
+                    // taller than its text.
+                    flex: "0 1 auto",
+                    minHeight: TASK_INFO_MIN_HEIGHT,
+                  }
             }
           >
             <DescriptionSection
@@ -264,12 +285,14 @@ export function TaskDetailPanel({
                 snapshot={snapshot}
                 comments={comments}
                 onChanged={(next) => setComments(next)}
+                sourceMode={commentSourceMode}
+                onToggleSourceMode={toggleCommentSourceMode}
               />
             </CollapsibleSection>
           </div>
         </div>
 
-        <EditorRail>
+        <EditorRail kind="task">
           <PropertyRow label="Status" field="status">
             <StatusSelect
               taxonomy={taxonomies.status}
@@ -427,7 +450,7 @@ export function TaskDetailPanel({
  */
 function RawSourceSection({ task }: { task: Task }) {
   const plugin = usePlugin();
-  const [open, setOpen] = useState(plugin.settings.editorSourceOpen);
+  const [open, setOpen] = useState(plugin.settings.taskEditorSourceOpen);
   const [raw, setRaw] = useState<string | null>(null);
 
   useEffect(() => {
@@ -445,7 +468,7 @@ function RawSourceSection({ task }: { task: Task }) {
   const toggle = () => {
     const next = !open;
     setOpen(next);
-    plugin.settings.editorSourceOpen = next;
+    plugin.settings.taskEditorSourceOpen = next;
     void plugin.saveSettings();
   };
 
@@ -811,16 +834,43 @@ function ProjectPicker({
   );
 }
 
+function CommentSourceToggle({
+  sourceMode,
+  onToggle,
+}: {
+  sourceMode: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`vf-icon-button vf-comment-source-toggle${
+        sourceMode ? " is-on" : ""
+      }`}
+      aria-pressed={sourceMode}
+      title={sourceMode ? "Show Live Preview" : "Show raw source"}
+      aria-label={sourceMode ? "Show Live Preview" : "Show raw source"}
+      onClick={onToggle}
+    >
+      {sourceMode ? <Eye size={14} /> : <Code2 size={14} />}
+    </button>
+  );
+}
+
 function CommentList({
   task,
   snapshot,
   comments,
   onChanged,
+  sourceMode,
+  onToggleSourceMode,
 }: {
   task: Task;
   snapshot: WorkspaceSnapshot;
   comments: Comment[];
   onChanged: (comments: Comment[]) => void;
+  sourceMode: boolean;
+  onToggleSourceMode: () => void;
 }) {
   const plugin = usePlugin();
   const [draft, setDraft] = useState("");
@@ -849,6 +899,17 @@ function CommentList({
   };
 
   const deletingComment = comments.find((c) => c.id === deletingId);
+
+  const submitDraft = () => {
+    if (!draft.trim()) return;
+    void plugin.mutations
+      .addComment(task, self?.id ?? "me", draft, replyingTo?.id ?? null)
+      .then(() => {
+        setDraft("");
+        setReplyingTo(null);
+        return reload();
+      });
+  };
 
   // Clicking Reply on a comment far down the list otherwise looks like
   // nothing happened — the composer (and the "Replying to" strip) live at the
@@ -896,6 +957,13 @@ function CommentList({
           </div>
         )}
 
+        <div className="vf-comment-source-head">
+          <CommentSourceToggle
+            sourceMode={sourceMode}
+            onToggle={onToggleSourceMode}
+          />
+        </div>
+
         <CommentDraftField
           placeholder={
             self
@@ -904,27 +972,32 @@ function CommentList({
           }
           value={draft}
           onChange={setDraft}
+          onSubmit={submitDraft}
           sourcePath={withExtension(task.path)}
+          sourceMode={sourceMode}
         />
         <button
           type="button"
           className="mod-cta"
           disabled={!draft.trim()}
-          onClick={() =>
-            void plugin.mutations
-              .addComment(task, self?.id ?? "me", draft, replyingTo?.id ?? null)
-              .then(() => {
-                setDraft("");
-                setReplyingTo(null);
-                return reload();
-              })
-          }
+          onClick={submitDraft}
         >
           Comment
         </button>
       </div>
 
-      {comments.map((comment) => (
+      {comments.map((comment) => {
+        const saveEdit = () => {
+          if (!editDraft.trim()) return;
+          void plugin.mutations
+            .editComment(task, comment.id, editDraft)
+            .then(() => {
+              setEditingId(null);
+              return reload();
+            });
+        };
+
+        return (
         <article
           key={comment.id}
           id={`vf-comment-${comment.id}`}
@@ -1015,11 +1088,19 @@ function CommentList({
           </header>
           {editingId === comment.id ? (
             <>
+              <div className="vf-comment-source-head">
+                <CommentSourceToggle
+                  sourceMode={sourceMode}
+                  onToggle={onToggleSourceMode}
+                />
+              </div>
               <MarkdownField
                 className="vf-comment-edit"
                 value={editDraft}
                 onChange={setEditDraft}
+                onSubmit={saveEdit}
                 sourcePath={withExtension(task.path)}
+                forceRawSource={sourceMode}
               />
               <div className="vf-comment-edit-actions">
                 <button type="button" onClick={() => setEditingId(null)}>
@@ -1029,14 +1110,7 @@ function CommentList({
                   type="button"
                   className="mod-cta"
                   disabled={!editDraft.trim()}
-                  onClick={() =>
-                    void plugin.mutations
-                      .editComment(task, comment.id, editDraft)
-                      .then(() => {
-                        setEditingId(null);
-                        return reload();
-                      })
-                  }
+                  onClick={saveEdit}
                 >
                   Save
                 </button>
@@ -1059,7 +1133,8 @@ function CommentList({
             </div>
           )}
         </article>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -1067,21 +1142,27 @@ function CommentList({
 function CommentDraftField({
   value,
   onChange,
+  onSubmit,
   placeholder,
   sourcePath,
+  sourceMode,
 }: {
   value: string;
   onChange: (value: string) => void;
+  onSubmit?: () => void;
   placeholder: string;
   sourcePath: string;
+  sourceMode?: boolean;
 }) {
   return (
     <MarkdownField
       className="vf-comment-draft"
       value={value}
       onChange={onChange}
+      onSubmit={onSubmit}
       sourcePath={sourcePath}
       placeholder={placeholder}
+      forceRawSource={sourceMode}
     />
   );
 }

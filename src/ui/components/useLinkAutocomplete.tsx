@@ -21,6 +21,7 @@ import {
 import { createPortal } from "react-dom";
 import { usePlugin } from "../context";
 import { getCaretCoordinates } from "./caretPosition";
+import { subscribeToViewportChanges } from "./viewport";
 
 interface Suggestion {
 	/** What gets inserted between the brackets. */
@@ -96,6 +97,17 @@ export function useLinkAutocomplete(
 	useEffect(() => {
 		if (state && suggestions.length === 0) setState(null);
 	}, [state, suggestions.length]);
+
+	// The mobile keyboard opening/closing shrinks the visible viewport without
+	// moving the caret, so this popup's cached top/left goes stale unless it's
+	// recomputed against the textarea's current position.
+	useEffect(() => {
+		if (!state) return;
+		const reposition = () => {
+			if (elRef.current) sync(elRef.current);
+		};
+		return subscribeToViewportChanges(reposition);
+	}, [state, sync]);
 
 	const insert = useCallback(
 		(suggestion: Suggestion) => {

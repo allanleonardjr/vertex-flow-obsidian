@@ -8,6 +8,7 @@ import { resolveTemplateContent } from "../../src/core/templates/markdown/resolv
 import { formatTaskId } from "../../src/core/ids";
 import { joinPath } from "../../src/core/links";
 import { emptyRelations } from "../../src/core/types";
+import { makeDashboard, makeWidget } from "../../src/core/templates/helpers";
 import type {
 	RecurrenceConfig,
 	RecurrenceFrequency,
@@ -128,6 +129,47 @@ describe("serializeTemplateMarkdown round-trip", () => {
 			"pie",
 			"timeline",
 		]);
+	});
+
+	it("round-trips updatedAt/completedAt chart xFields from a live dashboard", () => {
+		const dashboards = [
+			makeDashboard("temporal", "Temporal", [
+				makeWidget(
+					"w1",
+					"line",
+					"Updates",
+					{ chartType: "line", xField: "updatedAt", bucket: "day", groupBy: null },
+					{ x: 0, y: 0, w: 2, h: 1 },
+				),
+				makeWidget(
+					"w2",
+					"timeline",
+					"Completions",
+					{
+						chartType: "timeline",
+						xField: "completedAt",
+						bucket: "week",
+						groupBy: null,
+					},
+					{ x: 2, y: 0, w: 2, h: 1 },
+				),
+			]),
+		];
+		const source = serializeTemplateMarkdown({
+			meta: { id: "x-fields", name: "X Fields" },
+			workspace: snapshot.workspace,
+			views: [],
+			dashboards,
+			projects: snapshot.projects,
+			queryContext: queryContext(snapshot),
+		});
+		const content = resolveTemplateContent(parseTemplateMarkdown(source), ctx());
+		const dash = content.dashboards!.find((d) => d.name === "Temporal")!;
+		expect(
+			dash.widgets.map(
+				(w) => (w.fieldMapping as { xField?: string }).xField,
+			),
+		).toEqual(["updatedAt", "completedAt"]);
 	});
 
 	it("carries the workspace's Projects (structure, not populatable material)", () => {
@@ -253,6 +295,7 @@ describe("serializeTemplateMarkdown round-trip", () => {
 			dueDate: "2026-09-15",
 			createdAt: "2026-08-20T09:00:00.000Z",
 			updatedAt: "2026-08-25T14:00:00.000Z",
+			completedAt: "2026-08-24T10:00:00.000Z",
 			recurrence: recurrence({ freq: "weekly" }),
 			relations: {
 				blocks: [parent.path],
@@ -306,6 +349,14 @@ describe("serializeTemplateMarkdown round-trip", () => {
 		expect(childParsed.estimate).toBe(3);
 		expect(childParsed.labels).toEqual([label.name]);
 		expect(childParsed.start?.kind).toBe("absolute");
+		expect(childParsed.created).toEqual({
+			kind: "absolute",
+			iso: "2026-08-20T09:00:00.000Z",
+		});
+		expect(childParsed.completed).toEqual({
+			kind: "absolute",
+			iso: "2026-08-24T10:00:00.000Z",
+		});
 		expect(childParsed.blocks).toEqual(["FIX-0102"]);
 		expect(childParsed.related).toEqual(["FIX-0102"]);
 		expect(childParsed.duplicateOf).toBe("FIX-0102");
@@ -338,6 +389,8 @@ describe("serializeTemplateMarkdown round-trip", () => {
 		expect(childResolved.estimate).toBe(3);
 		expect(childResolved.startDate).toBe("2026-09-01");
 		expect(childResolved.dueDate).toBe("2026-09-15");
+		expect(childResolved.createdAt).toBe("2026-08-20T09:00:00.000Z");
+		expect(childResolved.completedAt).toBe("2026-08-24T10:00:00.000Z");
 		expect(childResolved.recurrence?.freq).toBe("weekly");
 		expect(childResolved.relations.blocks).toEqual([parentResolved.path]);
 		expect(childResolved.relations.related).toEqual([parentResolved.path]);

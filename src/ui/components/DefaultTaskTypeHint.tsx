@@ -19,6 +19,7 @@ import {
 import { createPortal } from "react-dom";
 import { CircleHelp } from "lucide-react";
 import { useTabs } from "../tabs-context";
+import { getVisibleViewport, subscribeToViewportChanges } from "./viewport";
 
 /** The `id` on `TaskDefaultsSection`'s `<section>` — the scroll anchor. */
 export const TASK_DEFAULTS_ANCHOR = "vf-settings-task-defaults";
@@ -36,9 +37,10 @@ export function DefaultTaskTypeHint() {
 	const place = useCallback(() => {
 		const rect = btnRef.current?.getBoundingClientRect();
 		if (!rect) return;
+		const viewport = getVisibleViewport();
 		const left = Math.min(
 			Math.max(MARGIN, rect.left),
-			window.innerWidth - PANEL_WIDTH - MARGIN,
+			viewport.width - PANEL_WIDTH - MARGIN,
 		);
 		setPos({ top: rect.bottom + 6, left });
 	}, []);
@@ -46,17 +48,16 @@ export function DefaultTaskTypeHint() {
 	useLayoutEffect(() => {
 		if (!open) return;
 		place();
-		// Follow the anchor rather than close — the editor rail scrolls.
-		window.addEventListener("resize", place);
-		window.addEventListener("scroll", place, true);
+		// Follow the anchor rather than close — the editor rail scrolls. Also
+		// follows the mobile keyboard opening/closing (see viewport.ts).
+		const unsubscribe = subscribeToViewportChanges(place);
 		const onOutside = () => setOpen(false);
 		const id = window.setTimeout(() =>
 			window.addEventListener("click", onOutside),
 		);
 		return () => {
 			window.clearTimeout(id);
-			window.removeEventListener("resize", place);
-			window.removeEventListener("scroll", place, true);
+			unsubscribe();
 			window.removeEventListener("click", onOutside);
 		};
 	}, [open, place]);

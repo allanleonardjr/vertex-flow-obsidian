@@ -97,6 +97,36 @@ describe("searchWorkspace", () => {
 		expect(hit.snippet).toBe("lexorank again in the body");
 	});
 
+	it("surfaces a task matched on its formatted ID", () => {
+		const t = task({
+			id: "PRD-0104",
+			title: "Totally unrelated title",
+			path: "WS/Tasks/PRD-0104",
+		});
+		const snap = snapshot({ tasks: [t] });
+
+		const [hit] = searchWorkspace(snap, fakeIndex({}), "PRD-0104");
+
+		expect(hit.kind).toBe("task");
+		expect(hit.id).toBe("WS/Tasks/PRD-0104");
+		expect(hit.taskId).toBe("PRD-0104");
+		expect(hit.titleMatches).toBeNull();
+	});
+
+	it("matches a task on a partial ID prefix", () => {
+		const t = task({
+			id: "PRD-0104",
+			title: "Totally unrelated title",
+			path: "WS/Tasks/PRD-0104",
+		});
+		const snap = snapshot({ tasks: [t] });
+
+		const [hit] = searchWorkspace(snap, fakeIndex({}), "PRD");
+
+		expect(hit.kind).toBe("task");
+		expect(hit.taskId).toBe("PRD-0104");
+	});
+
 	it("never returns archived tasks or projects", () => {
 		const snap = snapshot({
 			tasks: [

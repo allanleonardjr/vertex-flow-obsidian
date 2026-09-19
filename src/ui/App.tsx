@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { MotionConfig } from "motion/react";
 import { Platform } from "obsidian";
 import {
   viewById,
@@ -12,8 +13,7 @@ import {
   type ActiveWorkspace,
 } from "./context";
 import { workspaceTaxonomies } from "../core/taxonomy";
-import { projectViewId } from "../core/views/defaults";
-import type { Project, SavedView, WorkspaceSnapshot } from "../core/types";
+import type { SavedView, WorkspaceSnapshot } from "../core/types";
 import { EmptyState } from "./EmptyState";
 import { EmptyTabsPane } from "./EmptyTabsPane";
 import { ProjectDetailView } from "./ProjectDetailView";
@@ -22,6 +22,7 @@ import { PersonDetailView } from "./PersonDetailView";
 import { TemplateGallery } from "./TemplateGallery";
 import { SelectionProvider, useSelection } from "./selection";
 import { ProjectsBrowseView } from "./browse/ProjectsBrowseView";
+import { WorkspacesBrowseView } from "./browse/WorkspacesBrowseView";
 import { ViewsBrowseView } from "./browse/ViewsBrowseView";
 import { LabelsBrowseView } from "./browse/LabelsBrowseView";
 import { PeopleBrowseView } from "./browse/PeopleBrowseView";
@@ -46,28 +47,30 @@ import { CompactNavProvider, useCompactNav } from "./compact-nav-context";
 import { CompactModeToggle } from "./CompactModeToggle";
 
 export function App() {
-  useVisualViewportHeight();
+  useMobileFieldScrollIntoView();
   const active = useActiveWorkspace();
 
   if (!active) return <EmptyState />;
 
   return (
-    <SelectionProvider>
-      <TabsProvider>
-        {/* Remounting on workspace switch resets focus and selection. Tabs
-            live *above* this boundary on purpose — `openTask` on a
-            cross-workspace link switches the active workspace and then opens
-            the tab, so wiping the strip on every switch would throw that tab
-            away. The prune effects below do the workspace-scoped cleanup
-            instead. `CompactNavProvider` sits above `Workspace` so the drawer
-            state is shared by the sidebar, the toggle strip, and the property
-            rail regardless of which pane is in front — and is remounted (fresh,
-            closed) whenever the whole workspace remounts. */}
-        <CompactNavProvider>
-          <Workspace key={active.snapshot.workspace.root} active={active} />
-        </CompactNavProvider>
-      </TabsProvider>
-    </SelectionProvider>
+    <MotionConfig reducedMotion="user">
+      <SelectionProvider>
+        <TabsProvider>
+          {/* Remounting on workspace switch resets focus and selection. Tabs
+              live *above* this boundary on purpose — `openTask` on a
+              cross-workspace link switches the active workspace and then opens
+              the tab, so wiping the strip on every switch would throw that tab
+              away. The prune effects below do the workspace-scoped cleanup
+              instead. `CompactNavProvider` sits above `Workspace` so the drawer
+              state is shared by the sidebar, the toggle strip, and the property
+              rail regardless of which pane is in front — and is remounted (fresh,
+              closed) whenever the whole workspace remounts. */}
+          <CompactNavProvider>
+            <Workspace key={active.snapshot.workspace.root} active={active} />
+          </CompactNavProvider>
+        </TabsProvider>
+      </SelectionProvider>
+    </MotionConfig>
   );
 }
 
@@ -281,6 +284,8 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
           <LabelsBrowseView snapshot={snapshot} containerRef={container} />
         ) : activeTab.kind === "people" ? (
           <PeopleBrowseView snapshot={snapshot} containerRef={container} />
+        ) : activeTab.kind === "workspaces" ? (
+          <WorkspacesBrowseView containerRef={container} />
         ) : activeTab.kind === "person" ? (
           <PersonDetailView
             personId={activeTab.personId}
@@ -371,6 +376,7 @@ export function labelView(
     subtaskDisplay: "flat",
     calendarDateField: "dueDate",
     recurringPreview: false,
+    tableSort: [],
   };
 }
 
@@ -396,6 +402,7 @@ export function personView(
     subtaskDisplay: "flat",
     calendarDateField: "dueDate",
     recurringPreview: false,
+    tableSort: [],
   };
 }
 
@@ -404,62 +411,29 @@ export function personView(
  * sub-tasks nested under their parent. Same shape as `labelView`;
  * `ProjectDetailView` renders it beneath the project header.
  */
-export function projectView(project: Project): SavedView {
-  const definition = project.view;
-  return {
-    type: "vertex-flow-view",
-    path: "",
-    id: projectViewId(project.path),
-    name: project.title,
-    viewType: definition?.viewType ?? "list",
-    // The project filter is always forced, regardless of what's stored — a
-    // safety net against a stale or missing value (e.g. after a rename).
-    filters: { ...(definition?.filters ?? {}), project: [project.path] },
-    groupBy: definition?.groupBy ?? "status",
-    sortBy: definition?.sortBy ?? "rank",
-    sortDirection: definition?.sortDirection ?? "asc",
-    columns: definition?.columns ?? { collapsed: [], hidden: [] },
-    emptyColumnBehavior: definition?.emptyColumnBehavior ?? "show-normal",
-    hiddenFields: definition?.hiddenFields ?? [],
-    subtaskDisplay: definition?.subtaskDisplay ?? "nested",
-    calendarDateField: definition?.calendarDateField ?? "dueDate",
-    recurringPreview: definition?.recurringPreview ?? false,
-  };
-}
+export { projectView } from "./project-view";
 
 /**
- * Mobile on-screen keyboard handling.
- *
- * Per the CSS spec the keyboard is an overlay — it does NOT resize the layout
- * viewport, so a `height: 100%` root keeps extending behind it, hiding the
- * bottom and leaving a blank band above the keyboard (`.vertex-flow` is
- * `height: 100%` of Obsidian's `.view-content`). The one API that reflects the
- * shrink is `window.visualViewport.height`, which drops by the keyboard height
- * when it opens. We mirror that to `--vf-vh` on `<body>`; `.is-mobile
- * .vertex-flow` uses it to pin the plugin root to the true visible height.
- *
- * Both `resize` and `scroll` fire on `visualViewport` — iOS needs the latter
- * (it pans the visual viewport and never fires `window` resize); Android fires
- * resize too. When the keyboard closes, `visualViewport.height` returns to the
- * full figure, so the variable self-restores — no extra reset logic.
- *
- * Runs on mount regardless of onboarding/workspace mode because both render
- * under the same `.vertex-flow` root. Desktop is untouched.
+ * Mobile: keep the focused input field visible when the on-screen keyboard
+ * opens. The plugin layout is a fixed-height flex column with nested
+ * `overflow-y: auto` scrollers (the feature-section panes under the editor
+ * description, the task lists, the comment threads), and iOS will not reveal an
+ * input inside those when the keyboard lifts — its auto-scroll only reaches
+ * plain document flow. Scroll the focused element into view within its own
+ * scrollable ancestors (deferred a frame so the keyboard height has settled),
+ * with `nearest` so an already-visible field is left alone.
  */
-function useVisualViewportHeight(): void {
+function useMobileFieldScrollIntoView(): void {
   useEffect(() => {
     if (!Platform.isMobile) return;
-    const vv = window.visualViewport;
-    if (!vv) return;
-    const set = () =>
-      document.body.style.setProperty("--vf-vh", `${vv.height}px`);
-    set();
-    vv.addEventListener("resize", set);
-    vv.addEventListener("scroll", set);
-    return () => {
-      vv.removeEventListener("resize", set);
-      vv.removeEventListener("scroll", set);
-      document.body.style.removeProperty("--vf-vh");
+    const onFocusIn = (event: FocusEvent) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (!target || !target.closest(".vertex-flow")) return;
+      window.requestAnimationFrame(() => {
+        target.scrollIntoView({ block: "nearest", inline: "nearest" });
+      });
     };
+    document.addEventListener("focusin", onFocusIn, true);
+    return () => document.removeEventListener("focusin", onFocusIn, true);
   }, []);
 }

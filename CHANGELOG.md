@@ -7,301 +7,155 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- **AI Chat (experimental) — a zero-install, in-browser assistant over your
-  active workspace.** Reachable from the sidebar's new AI Chat row. Models
-  run entirely client-side via WebLLM/WebGPU — no API keys, no external
-  server, and nothing about your vault ever leaves the device. Choose from
-  three models in a new "AI Chat (experimental)" section in Workspace
-  Settings (Fast, Balanced, or Most capable — each shows its real VRAM/context
-  requirements and installs, shows progress, and clears independently, so
-  several can be cached at once even though only one is ever active);
-  switching models activates the new one immediately (instant if already
-  cached) and starts a fresh conversation, since a different model has no
-  memory of the old one's history. Models are cached in the browser (never
-  written into your vault) and survive Obsidian restarts without
-  re-downloading. Chat history persists while its tab stays open — including
-  across switching to other tabs and back — and resets once the tab closes;
-  nothing is ever written to disk. Every message sends a small, fixed-cost
-  facts layer (task/project counts, your configured Status/Priority/Task
-  Type/Label taxonomy, and People roster — rebuilt fresh every time, so a
-  rename shows up on the very next question) plus conversation history; when
-  a question needs specific tasks, the assistant queries them on demand
-  through the same filtering engine that powers Saved Views, so accuracy
-  doesn't degrade as a workspace grows. A Stop button appears mid-response to
-  interrupt generation immediately. Requires a WebGPU-capable browser; the
-  feature explains itself and stays inert (no console errors) where that's
-  unavailable, including on mobile.
+- **AI Chat (experimental) — a zero-install, in-browser assistant over your active workspace.** Reachable from the sidebar's new AI Chat row. Models run entirely client-side via WebLLM/WebGPU — no API keys, no external server, and nothing about your vault ever leaves the device. Choose from three models in a new "AI Chat (experimental)" section in Workspace Settings (Fast, Balanced, or Most capable — each shows its real VRAM/context requirements and installs, shows progress, and clears independently, so several can be cached at once even though only one is ever active); switching models activates the new one immediately (instant if already cached) and starts a fresh conversation, since a different model has no memory of the old one's history. Models are cached in the browser (never written into your vault) and survive Obsidian restarts without re-downloading. Chat history persists while its tab stays open — including across switching to other tabs and back — and resets once the tab closes; nothing is ever written to disk. Every message sends a small, fixed-cost facts layer (task/project counts, your configured Status/Priority/Task Type/Label taxonomy, and People roster — rebuilt fresh every time, so a rename shows up on the very next question) plus conversation history; when a question needs specific tasks, the assistant queries them on demand through the same filtering engine that powers Saved Views, so accuracy doesn't degrade as a workspace grows. A Stop button appears mid-response to interrupt generation immediately. Requires a WebGPU-capable browser; the feature explains itself and stays inert (no console errors) where that's unavailable, including on mobile.
+
+## 1.0.28 — 2026-09-19
 
 ### Fixed
 
-- Canvas: the "replace existing parent" confirmation no longer silently
-  fails to respond to clicks. It was rendered as a portal to the document
-  body, which lost hit-testing to the canvas underneath it — almost
-  certainly a stacking-context interaction with Canvas's pervasive use of
-  CSS `transform` for panning, zooming, and node positioning. Replaced
-  with an in-canvas, bottom-anchored dialog matching the existing
-  tap-to-connect popup's pattern, which doesn't have this problem.
-- Canvas: hovering a node before starting a connection showed the wrong
-  color (pink, the "this will become a target" preview) even though the
-  very first interaction always creates a source, never a target. Hovering
-  with nothing armed now previews as the source color (purple); the
-  target preview only appears once a source is already armed via
-  tap-to-connect.
-- Canvas: drag-to-connect now shows the same purple source / pink target
-  colors as tap-to-connect for the equivalent roles, instead of the
-  drag's own source going unstyled and its target using a separate static
-  ring.
+- **On mobile, the feature sections under an editor's Description pane (Sub-tasks/Relations/Comments) can no longer be squeezed to nothing anywhere — not when the pane is dragged very tall, and not when the keyboard opens.** The layout's scrollable sections had `min-height: 0`, so nothing actually enforced the floor the resize handle already computed against: dragging Description to (or near) its maximum — or the keyboard shrinking the column — collapsed the sections to zero height, making every input field below the Description unreachable. The sections now have a real minimum height matching the resize handle's floor (Task editor 160px, Project editor 120px), so a tall Description leaves a usable, scrollable band of features below it.
+- **On mobile, dragging the sidebar's width edge, a Timeline bar, or a Timeline bar's start/end resize handle no longer swipes the whole page sideways.** Those three drag surfaces were the last interactive elements without `touch-action: none`; the browser was claiming the gesture for Obsidian's native swipe (showing its own app chrome) on the first horizontal movement. They now claim the gesture themselves like every other resize/drag handle in the plugin, so the drag goes to the resize instead of the page.
+- **On mobile, focusing a field inside a task/comment panes' own scroller keeps the focused field visible when the keyboard opens.** iOS only auto-scrolls plain document flow into view, not inputs nested inside the plugin's fixed-height `overflow-y: auto` panes — the focused field could end up out of sight while the keyboard was up. A delegated `focusin` handler now scrolls the focused element into view (nearest, deferred a frame) wherever it lives.
+- **On mobile, focusing a Sub-task/Relation/Comment field in the task or project editor no longer appears to make it vanish behind the Description pane.** The Description/info pane's fixed, never-shrink height was claiming the entire squeezed column once the keyboard opened, leaving nothing for the sections below it. It now yields to those sections when the column is squeezed — **while still holding its dragged size whenever there's room**, so dragging it taller than its text (an empty pane, a one-line description) works again instead of silently capping the visible height at the content's own height.
+- **The task picker's result list no longer hides behind the mobile on-screen keyboard.** Opening a Parent/Sub-task/relation picker auto-focuses its search box, which pops the keyboard and shrinks the visible viewport. The menu measured itself against the pre-keyboard viewport and only ever clamped its width, so on a phone the search box stayed visible while the *results below it* were covered by the keyboard. The menu now measures the room below/above its trigger against the keyboard-shrunk viewport, flips to open upward when there's more room that way, and caps its height to what's actually visible.
+- **Canvas's tap-to-connect and "move under a new parent" confirmation bar now wraps on narrow panes** instead of overflowing off both edges of the screen with its Cancel/Connect (or Cancel/Move) buttons pushed out of reach.
+- **The view bar's secondary controls (Group, Sort, Sub-tasks, Fields, filters, the query editor, and more) now collapse behind a "View options" toggle on mobile**, cut down from five or more stacked rows to two by default — the layout switcher stays always visible. **Layout-switcher buttons are also easier to tap on mobile now.**
+- **Comment and description fields on mobile no longer rendered their text far below the top of the box with a large dead-tap zone above it** — Obsidian's own mobile styles were padding the embedded editor's scroller to reserve room meant for a real note's title. **Resize handles (Description/Sub-tasks, Project editor, Timeline) no longer lose a drag to Obsidian's native swipe gesture on any diagonal movement**, and **are now much easier to grab with a finger** on mobile, without changing their appearance.
+- **Dragging Canvas's zoom slider, the sidebar's resize handle, the Help pane's resize handle, or Canvas's drag-to-connect handle on mobile no longer triggered Obsidian's native side-panel swipe gesture.**
+- **Dragging Canvas's pan surface, its zoom slider, or a resize handle on mobile no longer triggered Obsidian's own swipe-to-reveal-sidebar gesture.** This is Obsidian's own JS-level gesture detection, independent of the browser's native touch handling, so it needed its own targeted fix rather than the earlier `touch-action` CSS (which remains, for the separate, real problem it solves).
+- **Focusing a text field on mobile (a task title, a comment, the Create Workspace form) no longer collapsed the visible screen to just that field and a large blank gap.** Obsidian's own mobile shell was reserving keyboard-height space on `.view-content` twice — once by shrinking its height, again via a same-sized `padding-bottom` — and Vertex Flow's root inherited both. The plugin's own separate `--vf-vh`/`visualViewport` keyboard-height tracking (`useVisualViewportHeight`) is also removed as part of this fix; it's no longer needed now that the double-counted padding is corrected.
+- **Portaled dropdown and popover menus (property row pickers, the Parent/relations picker, the `u <key>` quick picker, and the `[[wikilink]]` autocomplete) now reposition when the mobile on-screen keyboard opens or closes**, instead of sizing themselves against the pre-keyboard viewport and appearing to float over blank space with the keyboard docked below.
+- **Selected filter chips are now visually distinct from unselected ones.** Status/Priority/Type/Label/Assignee/Mentions/Project chips in the filter clause editor used to look almost identical whether selected or not, and chips for values with no taxonomy color (Assignee, Mentions, Project) had no visible selected state at all. Unselected chips are now fully neutral; selecting one fills it with a tinted background and full-strength color — the value's own taxonomy color when it has one, or the app's accent color (matching the "You" badge) when it doesn't.
+- **Canvas now re-fits the viewport when Arrange changes.** Auto-fit only ran once, the first time layout finished after mount — so switching the Arrange control (Dependency flow / Hierarchy, either direction) re-laid out the graph without re-fitting the viewport, often leaving a differently-shaped graph looking empty or badly cropped until you manually hit Fit. Auto-fit now also fires when arrangement or direction change; filter, group, and relation-visibility changes still leave manual pan/zoom untouched, as before.
+
+### Documentation
+
+- **README overhauled with real screenshots.** The old "Views" section covered only four of the six layouts (no Table or Canvas) with inconsistent light/dark screenshots. It's now a "Layouts" section with all six in a consistent dark theme, plus new "Dashboards" and "The Details" sections covering the dashboard grid, Help, Recurring, History, Trash, Settings, and Labels. The "Multiple views" Features bullet now names all six layouts instead of four.
+- **README's Documentation section and the in-app Views overview both had stale links and counts.** Three of the four links under "Views" pointed at `list-view.md`/`board-view.md`/`calendar-view.md` — files that no longer exist — replaced with a "Layouts" bullet linking to all six real `layouts/*.md` topics, with "Views" now correctly scoped to `saved-views.md` alone. The Concepts bullet was also missing four real topics (Taxonomy, Relations, Comments & Mentions, Quick Capture), and Dashboards/Settings weren't linked at all; all are now included. Separately, the in-app `help-content/views/_category.md` overview said views render through "one of the five layouts" and omitted Table entirely, despite `layouts/table-layout.md` existing as a real topic — both the count and the missing link are now fixed.
+- **The plugin description (`package.json`, `manifest.json`, and the README's opening line — all three carried the identical sentence) listed "boards, calendars, timelines" and never mentioned Table or Canvas.** Now reads "six task layouts (list, board, table, timeline, calendar, canvas)". Also drops the trailing period from the two manifest fields, resolving the marketplace compliance note about `manifest.json`'s description ending in a period.
+
+### Dev
+
+- **CHANGELOG.md reformatted for consistency and easier diffing.** Every entry is now a single, unwrapped full-width line instead of a mix of hard-wrapped and single-line bullets, and blank lines between entries within the same section (Fixed, Added, Changed, etc.) are removed. No content changes — wording and structure of each entry are unchanged.
+
+## 1.0.27 — 2026-09-17
+
+### Fixed
+
+- **"Today" is now computed in local time, not UTC.** Calendar, Timeline, and the due-date badge on List rows, Board cards, and Table cells all used `new Date().toISOString()`, which reads the UTC calendar date — for anyone west of UTC, that rolls over to the next day several hours before local midnight. Late in the evening this made Calendar highlight tomorrow as "today" and flagged tasks due today as overdue. All four call sites now use the existing `localTodayIso()` helper from `core/date.ts` (already used correctly by the recurring-tasks screen). Also consolidated the duplicated due-date today/overdue calculation in `TaskBits.tsx` and `TaskTable.tsx` into one shared `dueDateStatus()` helper so List, Board, Calendar, Timeline, and Table can no longer drift from each other.
+- **Table now treats a recurring-preview (ghost) occurrence the same way List already does.** Previously Table rendered a projected occurrence as a fully interactive row — editable cells, an open-task button pointing at a note that doesn't exist, and a Relations "+" that could try to link a fake task. A ghost row is now entirely inert except for one thing: clicking anywhere on the row opens the real recurring task it was projected from. It carries no `data-task-path` and never joins selection or drag. Every cell falls back to a plain, read-only rendering of its value (status dot, priority glyph, chips, dates, avatar, the bare `RelationBadge` with no quick-add) instead of its picker/editor, the whole row's content dims to 55% opacity, and the title renders in italics — matching List's existing ghost treatment. The dashed purple outline around a run of ghost rows could also silently vanish wherever a ghost sat next to a real row: `border-collapse` resolves a shared edge by picking the row with the higher-priority border style, and a real row's plain solid divider always beat the ghost's dashed one on that shared edge. Fixed by making the real row's own border dashed when its next sibling is a ghost, so both sides of the edge agree and there's nothing left for the browser to resolve.
+- **Canvas node cards now dynamically expand Task Type chips and display full-width Task IDs.** Task IDs now occupy a dedicated top row on Canvas cards, preventing long identifiers from clipping[cite: 1]. Task Type label chips dynamically expand into available row space up to the priority icon before truncating with an ellipsis[cite: 1], while due dates and assignee avatars pin cleanly to the right edge of the card.
+
+### Dev
+
+- **The review-bot lint gate now covers unit tests.** `pnpm lint` runs Obsidian's official `eslint-plugin-obsidianmd` recommended ruleset — the same checks Obsidian's community-plugin reviewer runs — over `src/` and `tests/`, gating both `typecheck` and `build`. Unit tests run under Vitest in Node, not Obsidian, so they get Node globals and are exempt from the plugin's "no Node built-ins on mobile" rule. The pass also fixed what the ruleset surfaced: typed the shapes of test assertions and mocks that reached through `any`, dropped `eslint-disable` directives for a hook rule the official set doesn't register (they error there), and replaced unchecked `String(unknown)` calls with a safe value renderer so template frontmatter and history-change values can never stringify as `[object Object]`.
+
+## 1.0.26 — 2026-09-16
+
+### Added
+
+- **Every Table column is now sortable, including Type, Project, Assignee, Labels, Progress, and Relations.** These six join the existing Status, Title, ID, Priority, Estimate, Start date, and Due date as full column headers with click / shift-click / clear cycling. Type, Project, Assignee, and Labels are also now selectable in the List/Board Sort dropdown and the `sort:`/`table-sort:` query tokens (`sort:type`, `sort:project`, `sort:owner`, `sort:tag`, and more — see the Saved Views help page); Progress and Relations stay reachable through Table headers and the query bar only, matching how they're presented everywhere else. Relations' new sort counts the same way the Relations badge always has (including "duplicate of"), so the two can't disagree.
+- **Dragging a Table column to reorder it now shuffles the other columns out of the way in real time, not just at drop, alongside a live ghost preview of the dragged column itself.** The ghost shows that column's header label on top, then its actual cells (the real chips, avatars, and status dots, not placeholder text) below, framed by a purple outline box. Rather than tracking the raw pointer, the ghost and its outline snap to the exact slot the column would land in if dropped right now — moving toward wherever the drag is headed as it crosses each column boundary, always agreeing with the live shuffle instead of drifting ahead of or behind it. It stays pinned to the column's real vertical position rather than following the cursor's Y, closer to how a spreadsheet handles a column drag than the "lifted card" language List/Board rows and browser tabs use elsewhere. The source column (header and every visible body cell) dims while its preview is up.
+- **`v` `s` switches the current view to the Table layout**, alongside the existing `v` `l`/`b`/`t`/`c`/`d` shortcuts. A new Table layout page in the in-app Help pane documents columns, sorting, in-place editing, the row stripe, and how it all saves with the view.
+- **New Table layout for Saved Views.** A spreadsheet-style grid — one row per task, one column per field — joins List/Board/Timeline/Calendar/Canvas as a selectable `viewType`. Columns are sortable by clicking a header (shift-click adds a secondary/tertiary sort key; a third click on the sole active key clears it back to manual rank order), drag-to-reorder via a grip handle, and resize via a trailing drag handle with no max-width cap. Rows can carry an optional stripe color, set from the view bar's new Stripe chip. Every field cell is directly editable in place: Title, Estimate, Start date, and Due date swap to an inline input on click (commits on blur/Enter, Escape reverts with no write); Status, Priority, Type, Assignee, Project, and Labels open the exact same dropdown the task editor's rail uses for that field; Relations keeps its read-only badge and gains a "+" to add a Blocks/Blocked-by/Related link through the same cycle-guarded flow the task editor offers. A dedicated open-task button (revealed on row hover) replaces click-anywhere-to-open, since the row itself is now interactive. Progress stays display-only, matching every other view.
+- **Canvas's "BETA" badge in the layout picker is gone — it's stable now — and Table's layout button shows a small "New" dot until you click it once.** The dot clears permanently on first click, active or not, and is backed by a reusable `seenFeatures` settings flag rather than a one-off, so future layouts or features can reuse the same discovery indicator without another settings-schema change.
+
+### Fixed
+
+- **Collapsing or resizing the Task editor's property rail no longer affects the Project editor's rail, and the same independence now holds for each editor's description collapse/source-mode toggle.** Task, Project, Saved View, and Label editors each had their description collapse/source-mode wired to the same shared setting, and Task/Project additionally shared rail width, rail collapse, and raw-source-open state — so, for example, collapsing a task's description also collapsed a project's the next time it was opened. Each editor kind now persists its own state. Existing installs keep their current on-disk visual state on first load after upgrading (a one-time migration seeds the new per-kind keys from the old shared ones); a handful of long-dead settings keys left over from earlier localStorage migrations (`mePerson`, `activeWorkspaceRoot`, `sidebarCollapsed`, `sidebarWidth`, `sidebarMinimized`) are dropped from `data.json` in the same pass.
+- **Picking a custom stripe, taxonomy, or label color via the color wheel or a typed hex code now reliably commits.** The color picker's custom-color row only ever committed from an outside-click listener; nested one level deeper inside the Table view bar's Stripe popover, that listener never fired, so only pressing Enter in the hex box actually saved a custom stripe color — dragging the wheel or typing without Enter silently lost it. The same latent fragility existed in the taxonomy and label color editors, just harder to hit. A new **Apply** button next to the hex field commits explicitly everywhere `ColorField` is used; presets still apply immediately on click, unchanged.
+- **Sorting a Table column, clearing a filter, or editing a dashboard widget's filter no longer flashes a `→ N tasks` line above the query bar and shifts everything below it.** The count was (re)computed against the view/filters prop directly, which can change one render before the query bar's own text buffer catches up to it — comparing against the same "last agreed" value the text-resync logic already tracks removes the one-frame false mismatch that caused the flash.
+- **Editing a Table cell more than once no longer silently stops saving.** Re-entering the same Title/Estimate/Start date/Due date cell after a first commit used to keep the typed text in memory but never write it to disk again, and Enter stopped closing the field — the edit-session guard in the cell editor only reset when the row mounted, so every commit after the first became a permanent no-op. Each new edit session now starts fresh: the saved value is re-seeded and the double-commit guard is cleared, so repeated in-place edits all persist and Escape still reverts.
+
+### Changed
+
+- **Table headers show their column names with sort arrows pinned to the right, and ID is now sortable.** The Status column previously rendered as a bare sort glyph with no label; every sortable header now displays its text with the direction indicator sitting against the column's right edge, appearing once the column is sorted. The ID column joins the sortable set with the same click / shift-click cycle as the others.
+- **Table cells keep a light touch on hover and while editing.** Opening a Status/Priority/Type/Assignee/Project/Labels dropdown or starting a Title/Estimate/date edit no longer fills the cell with a gray background — hover draws a thin border outline instead of a filled tint, and the inline inputs render on the table's own background with an accent-colored border rather than Obsidian's default form-field fill.
+- **Table's sticky header is now a solid, untinted pane, and it no longer drifts from its columns while scrolling.** The header background used to pick up the row stripe color and show body rows scrolling through it underneath; it's now always opaque and stripe-free (striping stays a body-rows-only effect). Scrolling the table sideways used to leave the header's column borders visually behind for a moment — they now track the header text and background in lockstep. Header labels are left-aligned at rest instead of only once a column is actively sorted, body cell text lines up at the same edge, and the reorder-column grip sits with a small, consistent gap from both the column edge and the label instead of crowding either one.
+
+## 1.0.25 — 2026-09-13
+
+### Added
+
+- **Labels and Projects can now be filtered by their `/`-nested group, not just an exact match.** `LabelA`/`Application`-style names have always rendered as nested, collapsible folders in the sidebar; that grouping is now searchable too. `label:LabelA/*` or `project:Application/*` in the text query bar matches everything under that group at any depth, live — no re-save needed when something new is added under it later. Bare `label:LabelA`/`project:Application` are unchanged: an exact match on that one label/project. The Labels and Project filter chip popovers now show the same searchable, collapsible tree as the sidebar, with a selectable chip per folder (the group) alongside the per-item chips.
+- **Dashboards can now edit their filter as a text query, matching Saved Views.** A "Query" toggle in the dashboard filter bar reveals a text row (e.g. `status:backlog,in-progress project:obsidian`) two-way synced with the chip bar — useful once a filter grows past the chip bar's "+N" chip. Shares the same open/closed setting as the List/Board/Calendar/Timeline query toggle.
+- **List and Board rows/cards now animate into place instead of snapping.** A task moving between groups or columns — from a status change, a drag, a bulk edit, or the `u s` shortcut — slides smoothly to its new spot, and the other rows/cards that shift to make room animate too. Tasks that are created, deleted, archived, or filtered in/out fade in or out rather than popping. Dragging is unaffected — layout animation is suspended for the duration of any drag gesture so drop-target detection stays exactly as accurate as before. Respects the OS-level "reduce motion" setting.
+- **Comment fields gain Cmd/Ctrl+Enter to submit and a Live Preview/Source toggle.** Cmd+Enter (macOS) / Ctrl+Enter (Windows/Linux) posts a new comment or saves an edit, in both the native embedded editor and the plain-textarea fallback — plain Enter still inserts a newline, and the `[[` link-suggestion popup still wins over the modifier combo while it's open. A small toggle button, top-right of the composer and any open edit-in-place field, switches both between Live Preview and raw Source, mirroring the Description field's own toggle; the choice is a single shared setting that persists across reopening the task.
+
+### Fixed
+
+- **A task due today no longer shows today's-date styling once it's completed or canceled.** The `is-overdue` fix in 1.0.24 gated overdue styling on the task still having an open status, but the "due today" styling on the same badge didn't get the same guard. Both now share one open-status check.
+- **A Project's canvas view no longer forgets its arrangement, direction, or hidden relation kinds right after saving.** Picking "Tree" (or a direction, or hiding a relation kind) on a Project's embedded canvas view was already persisted to the project note's frontmatter correctly, but the rebuild that reconstructs the rendered view straight after save dropped those three fields and silently fell back to the defaults — looking like the save hadn't taken. The rebuild now carries them through like every other canvas view setting.
+- Removed unused `ConfirmDeleteDialog` import from `CanvasView`.
+
+## 1.0.24 — 2026-09-13
+
+### Changed
+
+- **Closing a tab returns you to the tab you were last looking at, not whichever one slid into its spot.** Tab close now follows the same most-recently-viewed order a browser uses: closing the active tab reactivates the surviving tab you most recently had in front, falling back to today's "select the neighbour to the right" behavior only when the closed tab (or a tab you never actually switched to) has no viewing history to fall back on.
+- **The sidebar nav now scrolls independently of its chrome.** The top row (search + minimize) and the bottom band (Help, Settings, and the version footer) stay pinned in place while the sections between them — Workspaces, Views, Dashboards, Projects, Labels, People, Recurring, and the Export/History/Trash rows — scroll normally. The nav sits in a recessed well (a slightly different background with hairline borders top and bottom), so the scrollable region reads as a sunken panel at a glance — no ambiguity about whether more rows are hidden until you scroll.
+- **Compact panes drop the nav drawer's header chrome.** The drawer's "Navigation" title, its close icon, and the search/minimize row no longer render in compact mode — the toggle strip above the drawer already carries those (its Navigation button doubles as the drawer close, and its Search… button opens workspace search). The drawer now opens straight into the Workspaces section, gaining back the space its header used.
+
+### Fixed
+
+- **Completed and canceled tasks no longer render as overdue.** A due date in the past only picks up the `is-overdue` styling while the task still has an open status — once it lands in a Completed- or Canceled-category status, the passed date renders as a plain date instead of sounding an alarm the team has already resolved. Today's-date styling is unaffected.
+- **Plain-clicking a task outside a multi-selection now opens that task, not the old selection.** In List and Board views, clicking an unselected task while others were multi-selected used to re-open the stale selection instead — a state-timing bug in `openOrSelect` that read the selection before it had updated. It now decides which tasks to open from the selection as it stood before the click, so opening the whole batch still works when you click a task that's already part of it.
+
+## 1.0.23 — 2026-09-12
+
+### Added
+
+- **Workspaces hub (`g w`) — every workspace in the vault on one screen.** A new hub, reachable from the sidebar's Workspaces section title and the `g w` chord, lists every live workspace as a two-line card — icon, name, ID prefix, task/project counts, and the workspace's folder path — instead of only the active one. The card for the current workspace carries an ACTIVE chip and picks up the same accent styling as its sidebar row; clicking a card switches to that workspace and opens its All Tasks view. Each card's menu mirrors the sidebar's workspace menu (Edit, Settings, Export Tasks…, Export as Template…, Move to Trash), and a cross-workspace Export… click now survives the workspace switch that opens the dialog.
+- **Per-workspace accent colour in the hub's hero charts.** The two fixed charts above the list (tasks and projects per workspace) colour each bar with the workspace's canonical accent — the same deterministic, root-hash-derived colour used for the sidebar dots and tab accents — so the bars spread across the palette instead of clustering on the first white/gray shades, and each workspace reads the same colour everywhere.
+
+### Fixed
+
+- **Workspace template export/import rejected dashboards using an `updatedAt` or `completedAt` chart xField.** The `Export as Template…` snapshot's markdown was validated against a stale, hand-copied list of temporal fields (`dueDate`, `startDate`, `createdAt` only) in the template parser, so any live Line/Timeline widget plotted on Updated or Completed would export fine but re-import would skip the template. The parser now shares `DASHBOARD_TEMPORAL_FIELDS` with the rest of the app, so the two validators can't drift apart again.
+- **`completedAt` was dropped when a workspace was exported as a template.** Task field lines carried `created` / `updated` but never the completion stamp added in 1.0.20, so a Completed-axis chart re-imported with no data. A task that carries a `completedAt` now rides a `completed:` token on its field line (same "At"-dropping spelling as `created` / `updated`) and is re-stamped on import.
+
+## 1.0.22 — 2026-09-12
+
+### Fixed
+
+- Workspace search (Alt/Option+K): task results are now matched on the task's formatted ID (e.g. "PRD-0104") as well as title and description, and the ID is shown as a muted chip before the title in the results list — previously a query like "PRD-0104" or "PRD" wouldn't surface the task at all.
+- Canvas: the "replace existing parent" confirmation no longer silently fails to respond to clicks. It was rendered as a portal to the document body, which lost hit-testing to the canvas underneath it — almost certainly a stacking-context interaction with Canvas's pervasive use of CSS `transform` for panning, zooming, and node positioning. Replaced with an in-canvas, bottom-anchored dialog matching the existing tap-to-connect popup's pattern, which doesn't have this problem.
+- Canvas: hovering a node before starting a connection showed the wrong color (pink, the "this will become a target" preview) even though the very first interaction always creates a source, never a target. Hovering with nothing armed now previews as the source color (purple); the target preview only appears once a source is already armed via tap-to-connect.
+- Canvas: drag-to-connect now shows the same purple source / pink target colors as tap-to-connect for the equivalent roles, instead of the drag's own source going unstyled and its target using a separate static ring.
+- Filter bar: the Labels filter dropdown no longer grows unbounded when a workspace has many labels. The chip list now caps its own height and scrolls internally instead of pushing the popover past the viewport, which previously hijacked the mouse wheel and scrolled the whole task list instead of the dropdown.
+- View bar: opening one control's popover (Group, Sort, Sub-tasks, Upcoming, Empty cols, Fields, Relations, Arrange, + Filter, or a filter tag's editor) now closes any other popover already open on the bar, instead of letting them all stack on top of each other. Each control used to own its own independent open/closed state; they now share one value, the same pattern the filter tag list already used for itself.
 
 ## 1.0.21 — 2026-09-11
-- **Canvas layout (`v` `d`) — a relationship graph.** Any Saved View
-  can now render as a Canvas: the view's filtered tasks are laid out by `elkjs`
-  as nodes. Set **Group by** to Status, Priority, Type, Assignee or Project and
-  each group (including its "None") becomes a labelled box — hidden groups drop
-  out, exactly as on the Board; Label and no grouping render flat. `blocks` /
-  `blockedBy` dependencies draw as solid arrows and `parent` → child hierarchy
-  as thin arrowless connectors — both feed the layered ranking and may cross
-  boxes; `related` links draw dashed between nodes. Cards show status, ID, type,
-  priority, due date, assignee and (outside project grouping) project; the
-  **Fields** popover narrows itself to just those five on Canvas — Labels,
-  Estimate, Start date, Progress and Relations aren't offered there since
-  toggling them would do nothing — and the new **Relations** control
-  toggles each line style off —
-  hiding a dependency or hierarchy edge also removes it from the layout ranking;
-  Sort, Collapse-all and Upcoming are hidden for Canvas. Pan and wheel-zoom, a
-  static legend keys the three line styles (dimmed when toggled off), and edge
-  colours are three themeable CSS variables. Group boxes always tight-wrap their
-  own nodes regardless of `elkjs`'s reported compound size. A bottom-left
-  zoom widget adds −/+ buttons, a percentage readout, and a **Fit to view**
-  button; clicking a card opens its task (the same way Board's cards do); and
-  hovering a card dims every unconnected card and edge, across dependency,
-  hierarchy and related links alike. The "BETA" marker moved off the graph
-  surface into a small badge next to Canvas in the layout picker.
-- **Canvas can now draw and delete relations, not just display them.** A small
-  handle appears on a card on hover — drag it to another card to create the
-  relation kind currently selected by the top-left **Connect** control, off by
-  default (nothing draws until you pick Blocks / Parent of / Related; the
-  handle itself doesn't render while it's off). The drop target is
-  highlighted, and turns red when completing it would be refused. Self-loops
-  and already-existing links are silently no-ops; a dependency or hierarchy
-  cycle is refused outright with a clear message before anything is written;
-  giving a task that already has a different parent a new one asks for
-  confirmation first. Click an edge to select it (a visible highlight), then
-  Delete/Backspace to remove it — no confirmation, the same as re-drawing it
-  would undo the removal. A new zoom slider joins the −/+ buttons, anchored to
-  the viewport centre. New
-  `Mutations.addDependency`/`removeDependency`/`addRelated`/`removeRelated`
-  write both sides of a link at once and revert the first write if the second
-  fails; cycle detection (`wouldCreateDependencyCycle`/
-  `wouldCreateHierarchyCycle`) is checked against the whole workspace, not
-  just what Canvas currently has filtered into view.
-- **Canvas arrange modes: flow/tree, left-to-right/top-to-bottom.** The
-  **Arrange** chip sits in the view bar between **Relations** and **+ Filter**
-  whenever Canvas is the active layout. It offers four options — Dependency
-  flow (left to right), Dependency flow (top to bottom), Hierarchy (left to
-  right) and Hierarchy (top to bottom) — exposed as `canvas-layout:` and
-  `canvas-direction:` clauses in the text query. **Flow** ranks all dependency
-  and parent→child edges together through ELK's `layered` algorithm; **tree**
-  ranks only parent→child edges via `mrtree` and draws dependency edges as
-  overlays between final node centres after layout, the same way related links
-  are drawn. Left-to-right / top-to-bottom maps to the internal ELK `RIGHT` /
-  `DOWN` axis (the labels never surface). With no visible hierarchy edge, tree
-  silently falls back to flow and a subtle hint explains why.
-- **Canvas hover highlight.** Hovering a card now gives every card it's
-  directly connected to (via Blocks, Parent-of or Related, regardless of
-  which kinds are currently toggled off) a visible border, on top of the
-  existing dimming of everything unconnected — so at a glance it's clear
-  *which* of the still-bright cards a hover is actually calling out.
-  Suppressed during a connect-drag, same as the dimming it complements.
-- **`relations:` query clause.** The Canvas **Relations** control's hidden-kind
-  state now round-trips through the text query bar too, the same way
-  **Arrange** already does via `canvas-layout:`/`canvas-direction:`. Typing
-  `relations:blocks,parent` hides dependency and hierarchy edges; aliases
-  (`dependency`, `subtask`, `related`, …) resolve to the same canonical
-  kinds. The clause is Canvas-only and only appears when something's
-  actually hidden — switching to another layout or clearing the toggle drops
-  it from the printed query rather than leaving a no-op clause behind.
-- **Canvas tap-to-connect.** With a draw kind active (Blocks / Parent of /
-  Related), tapping a card arms it as the source of a new connection instead
-  of opening the task — a pulsing border marks the armed card, and hovering a
-  card while a draw kind is on shows the same pulse as a hint that a tap will
-  arm it (dim-on-hover is suppressed while a draw kind is selected, since the
-  two states would fight). Tapping a second card completes the connection,
-  with a screen-anchored confirm bar at the bottom showing the pending pair
-  and offering **Cancel** / **Connect**; it refuses an invalid link (self,
-  cycle) with the same message drag-to-connect uses. Re-tapping the armed
-  card or pressing Escape cancels, tapping a third card re-targets in place,
-  and switching the draw kind clears any in-progress gesture. This
-  complements the drag handle rather than replacing it — touch users get a
-  reliable path where a continuous drag from a tiny corner handle is
-  impractical.
-- **Canvas two-finger pinch zoom (touch).** Two fingers on the canvas
-  background pinch-zoom, anchored on the moving midpoint between them (the
-  same clamping and keep-under-point anchoring as wheel-zoom), and the canvas
-  reverts to a normal single-finger pan when one finger lifts — with no jump,
-  since the pan resumes from the remaining finger's live position. A third
-  finger is ignored. A pinch that starts on a card or control keeps that
-  element's own behaviour instead.
-- **Canvas grid-packs isolated cards beside the connected block.** A canvas
-  where only *some* visible tasks are connected previously lined every
-  unconnected card into one long default strip alongside the connected block
-  — a single dependency pair anywhere made the fully-edgeless shortcut
-  inapplicable, so mixed workspaces got the worst of both. Cards are now
-  partitioned per scope (the flat root, and each group box independently)
-  against the exact edge set the current arrangement ranks: only connected
-  cards go to the ELK layout engine, while isolated ones are packed into a
-  compact left-to-right, top-to-bottom grid instead — in the view's existing
-  sort order, never re-sorted. "Isolated" is judged the same way ELK's
-  ranking sees it, so a task linked only via `related` (which never feeds the
-  ranking in either flow or tree) and a `blocks`-only task while in tree mode
-  both grid-pack. The grid appends below the connected block for
-  left-to-right arrangements and to its right for top-to-bottom ones; a fully
-  edgeless scope simply has a zero-sized block, so it's the same logic with
-  no separate path. Group boxes tight-fit to include their isolated grid too,
-  and `fitToView` / the SVG viewBox account for the grid's extra extent.
-  Column count comes from the available width — the canvas's own panes at the
-  root, each group's own connected-block width inside it — never a hardcoded
-  number.
-- **Canvas connect: one visual language for both input methods.** Drawing a
-  relation and tapping one out now read identically, because they *are* the
-  same states: whatever the connection's source is, it pulses purple, and
-  whatever a valid target is, it pulses pink — whether it was picked by the
-  drag handle or by tap. The drag handle previously gave its source no visual
-  treatment at all and marked a valid drop target with a separate static blue
-  ring; both now reuse tap-to-connect's own purple/pink pulses (slightly
-  thicker, at 4px, so the state reads at a glance). A card hovered while a
-  connect mode is on gets a *static* pink preview of the target state — the
-  target colour, but no animation — until it's actually set as a target, at
-  which point the pulse starts; a card that already holds a role keeps its own
-  colour. The explore-mode hover highlight (`is-hover-connected` yellow) is
-  suppressed while a connect mode is selected, since it fought with the
-  connect states for the same border; and an invalid drop keeps the one
-  deliberately static, red, non-pulsing state so an error never reads as
-  "waiting".
-- **Canvas covered in the bundled Help pane.** A new **Canvas layout** topic in
-  the Help pane's Layouts section walks the whole feature end to end — the
-  Arrange chip (dependency flow vs. hierarchy, left-to-right / top-to-bottom,
-  and the silent flow fallback), grouped boxes, the three edge styles and the
-  Relations toggle, pan/zoom, creating relations by drag *and* by tap, editing
-  relations (Delete / Reverse), grid-packing of isolated cards, and how
-  arrangement/direction/relations settings travel with a Saved View. The
-  layout topics also now list in the same order the layout picker does — List,
-  Board, Timeline, Calendar, Canvas.
+
+### Added
+- **Canvas layout (`v` `d`) — a relationship graph.** Any Saved View can now render as a Canvas: the view's filtered tasks are laid out by `elkjs` as nodes. Set **Group by** to Status, Priority, Type, Assignee or Project and each group (including its "None") becomes a labelled box — hidden groups drop out, exactly as on the Board; Label and no grouping render flat. `blocks` / `blockedBy` dependencies draw as solid arrows and `parent` → child hierarchy as thin arrowless connectors — both feed the layered ranking and may cross boxes; `related` links draw dashed between nodes. Cards show status, ID, type, priority, due date, assignee and (outside project grouping) project; the **Fields** popover narrows itself to just those five on Canvas — Labels, Estimate, Start date, Progress and Relations aren't offered there since toggling them would do nothing — and the new **Relations** control toggles each line style off — hiding a dependency or hierarchy edge also removes it from the layout ranking; Sort, Collapse-all and Upcoming are hidden for Canvas. Pan and wheel-zoom, a static legend keys the three line styles (dimmed when toggled off), and edge colours are three themeable CSS variables. Group boxes always tight-wrap their own nodes regardless of `elkjs`'s reported compound size. A bottom-left zoom widget adds −/+ buttons, a percentage readout, and a **Fit to view** button; clicking a card opens its task (the same way Board's cards do); and hovering a card dims every unconnected card and edge, across dependency, hierarchy and related links alike. The "BETA" marker moved off the graph surface into a small badge next to Canvas in the layout picker.
+- **Canvas can now draw and delete relations, not just display them.** A small handle appears on a card on hover — drag it to another card to create the relation kind currently selected by the top-left **Connect** control, off by default (nothing draws until you pick Blocks / Parent of / Related; the handle itself doesn't render while it's off). The drop target is highlighted, and turns red when completing it would be refused. Self-loops and already-existing links are silently no-ops; a dependency or hierarchy cycle is refused outright with a clear message before anything is written; giving a task that already has a different parent a new one asks for confirmation first. Click an edge to select it (a visible highlight), then Delete/Backspace to remove it — no confirmation, the same as re-drawing it would undo the removal. A new zoom slider joins the −/+ buttons, anchored to the viewport centre. New `Mutations.addDependency`/`removeDependency`/`addRelated`/`removeRelated` write both sides of a link at once and revert the first write if the second fails; cycle detection (`wouldCreateDependencyCycle`/ `wouldCreateHierarchyCycle`) is checked against the whole workspace, not just what Canvas currently has filtered into view.
+- **Canvas arrange modes: flow/tree, left-to-right/top-to-bottom.** The **Arrange** chip sits in the view bar between **Relations** and **+ Filter** whenever Canvas is the active layout. It offers four options — Dependency flow (left to right), Dependency flow (top to bottom), Hierarchy (left to right) and Hierarchy (top to bottom) — exposed as `canvas-layout:` and `canvas-direction:` clauses in the text query. **Flow** ranks all dependency and parent→child edges together through ELK's `layered` algorithm; **tree** ranks only parent→child edges via `mrtree` and draws dependency edges as overlays between final node centres after layout, the same way related links are drawn. Left-to-right / top-to-bottom maps to the internal ELK `RIGHT` / `DOWN` axis (the labels never surface). With no visible hierarchy edge, tree silently falls back to flow and a subtle hint explains why.
+- **Canvas hover highlight.** Hovering a card now gives every card it's directly connected to (via Blocks, Parent-of or Related, regardless of which kinds are currently toggled off) a visible border, on top of the existing dimming of everything unconnected — so at a glance it's clear *which* of the still-bright cards a hover is actually calling out. Suppressed during a connect-drag, same as the dimming it complements.
+- **`relations:` query clause.** The Canvas **Relations** control's hidden-kind state now round-trips through the text query bar too, the same way **Arrange** already does via `canvas-layout:`/`canvas-direction:`. Typing `relations:blocks,parent` hides dependency and hierarchy edges; aliases (`dependency`, `subtask`, `related`, …) resolve to the same canonical kinds. The clause is Canvas-only and only appears when something's actually hidden — switching to another layout or clearing the toggle drops it from the printed query rather than leaving a no-op clause behind.
+- **Canvas tap-to-connect.** With a draw kind active (Blocks / Parent of / Related), tapping a card arms it as the source of a new connection instead of opening the task — a pulsing border marks the armed card, and hovering a card while a draw kind is on shows the same pulse as a hint that a tap will arm it (dim-on-hover is suppressed while a draw kind is selected, since the two states would fight). Tapping a second card completes the connection, with a screen-anchored confirm bar at the bottom showing the pending pair and offering **Cancel** / **Connect**; it refuses an invalid link (self, cycle) with the same message drag-to-connect uses. Re-tapping the armed card or pressing Escape cancels, tapping a third card re-targets in place, and switching the draw kind clears any in-progress gesture. This complements the drag handle rather than replacing it — touch users get a reliable path where a continuous drag from a tiny corner handle is impractical.
+- **Canvas two-finger pinch zoom (touch).** Two fingers on the canvas background pinch-zoom, anchored on the moving midpoint between them (the same clamping and keep-under-point anchoring as wheel-zoom), and the canvas reverts to a normal single-finger pan when one finger lifts — with no jump, since the pan resumes from the remaining finger's live position. A third finger is ignored. A pinch that starts on a card or control keeps that element's own behaviour instead.
+- **Canvas grid-packs isolated cards beside the connected block.** A canvas where only *some* visible tasks are connected previously lined every unconnected card into one long default strip alongside the connected block — a single dependency pair anywhere made the fully-edgeless shortcut inapplicable, so mixed workspaces got the worst of both. Cards are now partitioned per scope (the flat root, and each group box independently) against the exact edge set the current arrangement ranks: only connected cards go to the ELK layout engine, while isolated ones are packed into a compact left-to-right, top-to-bottom grid instead — in the view's existing sort order, never re-sorted. "Isolated" is judged the same way ELK's ranking sees it, so a task linked only via `related` (which never feeds the ranking in either flow or tree) and a `blocks`-only task while in tree mode both grid-pack. The grid appends below the connected block for left-to-right arrangements and to its right for top-to-bottom ones; a fully edgeless scope simply has a zero-sized block, so it's the same logic with no separate path. Group boxes tight-fit to include their isolated grid too, and `fitToView` / the SVG viewBox account for the grid's extra extent. Column count comes from the available width — the canvas's own panes at the root, each group's own connected-block width inside it — never a hardcoded number.
+- **Canvas connect: one visual language for both input methods.** Drawing a relation and tapping one out now read identically, because they *are* the same states: whatever the connection's source is, it pulses purple, and whatever a valid target is, it pulses pink — whether it was picked by the drag handle or by tap. The drag handle previously gave its source no visual treatment at all and marked a valid drop target with a separate static blue ring; both now reuse tap-to-connect's own purple/pink pulses (slightly thicker, at 4px, so the state reads at a glance). A card hovered while a connect mode is on gets a *static* pink preview of the target state — the target colour, but no animation — until it's actually set as a target, at which point the pulse starts; a card that already holds a role keeps its own colour. The explore-mode hover highlight (`is-hover-connected` yellow) is suppressed while a connect mode is selected, since it fought with the connect states for the same border; and an invalid drop keeps the one deliberately static, red, non-pulsing state so an error never reads as "waiting".
+- **Canvas covered in the bundled Help pane.** A new **Canvas layout** topic in the Help pane's Layouts section walks the whole feature end to end — the Arrange chip (dependency flow vs. hierarchy, left-to-right / top-to-bottom, and the silent flow fallback), grouped boxes, the three edge styles and the Relations toggle, pan/zoom, creating relations by drag *and* by tap, editing relations (Delete / Reverse), grid-packing of isolated cards, and how arrangement/direction/relations settings travel with a Saved View. The layout topics also now list in the same order the layout picker does — List, Board, Timeline, Calendar, Canvas.
 
 ### Fixed
-- **Grouped Canvas no longer stacks cards on top of each other.** Grid-packing
-  appended each group's isolated cards *after* the ELK pass, anchored to the
-  group's connected-block box — a fully-isolated group had nothing to anchor
-  to (ELK had just left an empty 0×0 compound), and a partially-isolated
-  group's appended grid stretched its box into whichever sibling ELK had
-  placed below it, so cards overlapped across groups whenever **Group by**
-  was on. Each group's isolated grid is now sized *inside* ELK as a
-  placeholder leaf before layout runs: ELK reserves the exact space, sizes the
-  compound around it, and pushes sibling group boxes clear, then the reserved
-  rect is swapped for the real grid-packed cards after layout. Grouped and
-  flat layout share one reserve-then-fill path; the flat root keeps its
-  "grid below/right of the block" placement, and regression tests exercise
-  the real ELK pipeline for both the fully-isolated and partially-isolated
-  cases.
-- **Clicking a Canvas edge now actually selects it.** The background-pan
-  handler was capturing the pointer before the edge's own click handler got a
-  chance to fire, so selecting an edge (and then deleting it) was never
-  reachable. Also: hovering a card no longer dims other cards/edges while a
-  connect-drag is in progress — the two highlight states were fighting for the
-  same nodes.
-- **Cramped/collapsed edges inside a small Canvas group.** A group's own
-  internal `elkjs` layout pass wasn't inheriting the root's node/layer
-  spacing, so relations inside a small group (e.g. `group:status` with just a
-  couple of tasks) rendered as tight, near-illegible stubs instead of clean
-  lines. Every group now sets the same spacing options the root does.
-- **Canvas relation clarity.** Hierarchy (`Parent of`, renamed from
-  `Sub-task of` — the label now matches the drag direction) lines get their
-  own colour (`--color-blue`) instead of sharing a near-identical grey with
-  Related, and now show a small square at the parent end so the direction
-  reads without following the arrow-vs-no-arrow convention alone. Selecting
-  any edge highlights it in `--color-orange` instead of
-  `--interactive-accent`, which is Depends-on's own base colour — a selected
-  Parent-of or Related edge no longer briefly looks like a dependency.
-- **Edge popup: Delete or Reverse.** Selecting a Canvas edge now also opens a
-  small popup near the click with **Delete** and, for Blocks/Parent-of edges,
-  **Reverse** — a second, discoverable way to act alongside the existing
-  click-then-Backspace path, which still works unchanged. Reversing a Blocks
-  edge re-checks for cycles in the new direction (it can't recreate the one
-  it just broke, but a different one could exist through other edges) and
-  refuses the same way creating one does; reversing a Parent-of edge goes
-  through the same "move under a different parent?" confirmation as creating
-  one, if the task about to become a child already has a parent of its own.
-  Related has no direction, so it gets Delete only. Both actions call the
-  same `Mutations` methods the drag-to-connect/Backspace paths already use —
-  no new mutation capability.
-- **Canvas edges inside a group started behind the cards.** `elkjs` reports
-  the sections of an edge whose endpoints are both inside the same compound
-  box as *relative to that box*, while hoisting the edge onto the root's edge
-  list — flattening it against the root origin drew the line a bit over a
-  third of the node height up inside the source card, so it was hidden behind
-  it and only showed through a hover-dimmed card. Each edge is now translated
-  by its `container`'s absolute origin instead, so Blocks and Parent-of lines
-  connect exactly from card edge to card edge.
-- **Canvas showed stale task data.** Cards rendered — and delete/reverse/
-  connect read — task objects frozen inside the graph at layout time, so a
-  title or status edit stayed stale until the next full ELK pass happened to
-  run. The graph now reads the live workspace snapshot for both rendering and
-  mutation handlers, and the layout effect only re-runs when the placement
-  topology or canvas arrangement/direction actually changes — editing a title
-  repaints the card in place without requesting a re-layout. (A slow stale
-  ELK resolution can no longer overwrite a fresher pass either — only the most
-  recent layout request may commit.)
-- **Overlay dependency edges in tree mode ran through the target card.** The
-  straight `blocks`/`blockedBy` lines (and their arrowheads) were drawn
-  centre-to-centre, ending at the target node's centre and vanishing behind
-  the card. They're now snapped with `core/canvas/layout`'s
-  `canvasEdgeLinePath` helper — which intersects the centre-to-centre ray
-  with each card's boundary for both endpoints and pulls the target end back
-  ~7px so the arrowhead stays fully outside the card. Related edges are
-  unchanged (still centre-to-centre, dashed, arrowless).
-- **Canvas cards clipped titles past 2 lines.** A card's fixed height meant a
-  longer title just got cut short by `-webkit-line-clamp: 2`, with no signal
-  a title was hiding text beyond the native `title=` tooltip. Cards now grow
-  past the base height for titles that wrap to more than 2 lines (measured
-  per layout pass against the real rendered font and line-height, capped at 6
-  lines, beyond which the old clamp-and-tooltip behavior still applies) — and
-  the top row's ID and Type chip, which could previously overflow the card
-  and get cut mid-character, now truncate in place with an ellipsis instead.
-- **`Type` field rendered on Timeline/Calendar despite being scoped out.**
-  `unsupportedFor` on `FIELD_OPTIONS` only ever hid a field from the Fields
-  popover, not from what actually rendered — so `Type` (documented as
-  Board/List/Canvas-only) still showed in Timeline's row-label column and
-  Calendar's Unscheduled tray regardless. A new `layoutHiddenFields()` folds
-  `unsupportedFor` into the render path itself, and `Type` now carries
-  `unsupportedFor: ["timeline", "calendar"]`, so the popover and the render
-  can no longer drift apart for any field.
-- **Obsidian code checker warnings.** `HELP_TOPICS` typed as `any` in
-  environments without the gitignored, build-generated `help-generated.ts` on
-  disk, cascading `no-unsafe-*` warnings into every call site that touches it
-  (`InlineHelpIcon`, `HelpView`, `ShortcutsHelpDialog`); a checked-in
-  `help-generated.d.ts` ambient declaration now gives `HELP_TOPICS` a real
-  type regardless. `CanvasView`'s three off-screen measurement probes
-  (`titleMeasureCanvas`, and the span/div used to resolve title font metrics
-  and max width) now use Obsidian's `createEl`/`createSpan`/`createDiv`
-  helpers instead of `document.createElement`, per `obsidianmd/prefer-create-el`.
-- **`pnpm test` failed on a fresh checkout.** `src/core/help.ts` re-exports
-  `HELP_TOPICS` from the gitignored, build-generated `help-generated.ts`,
-  which nothing produced before `vitest` ran — `test` had no dependency on
-  `build:help`. Added a `pretest` script (and `pretest:watch` for
-  `test:watch`) that regenerates it first.
-
+- **Grouped Canvas no longer stacks cards on top of each other.** Grid-packing appended each group's isolated cards *after* the ELK pass, anchored to the group's connected-block box — a fully-isolated group had nothing to anchor to (ELK had just left an empty 0×0 compound), and a partially-isolated group's appended grid stretched its box into whichever sibling ELK had placed below it, so cards overlapped across groups whenever **Group by** was on. Each group's isolated grid is now sized *inside* ELK as a placeholder leaf before layout runs: ELK reserves the exact space, sizes the compound around it, and pushes sibling group boxes clear, then the reserved rect is swapped for the real grid-packed cards after layout. Grouped and flat layout share one reserve-then-fill path; the flat root keeps its "grid below/right of the block" placement, and regression tests exercise the real ELK pipeline for both the fully-isolated and partially-isolated cases.
+- **Clicking a Canvas edge now actually selects it.** The background-pan handler was capturing the pointer before the edge's own click handler got a chance to fire, so selecting an edge (and then deleting it) was never reachable. Also: hovering a card no longer dims other cards/edges while a connect-drag is in progress — the two highlight states were fighting for the same nodes.
+- **Cramped/collapsed edges inside a small Canvas group.** A group's own internal `elkjs` layout pass wasn't inheriting the root's node/layer spacing, so relations inside a small group (e.g. `group:status` with just a couple of tasks) rendered as tight, near-illegible stubs instead of clean lines. Every group now sets the same spacing options the root does.
+- **Canvas relation clarity.** Hierarchy (`Parent of`, renamed from `Sub-task of` — the label now matches the drag direction) lines get their own colour (`--color-blue`) instead of sharing a near-identical grey with Related, and now show a small square at the parent end so the direction reads without following the arrow-vs-no-arrow convention alone. Selecting any edge highlights it in `--color-orange` instead of `--interactive-accent`, which is Depends-on's own base colour — a selected Parent-of or Related edge no longer briefly looks like a dependency.
+- **Edge popup: Delete or Reverse.** Selecting a Canvas edge now also opens a small popup near the click with **Delete** and, for Blocks/Parent-of edges, **Reverse** — a second, discoverable way to act alongside the existing click-then-Backspace path, which still works unchanged. Reversing a Blocks edge re-checks for cycles in the new direction (it can't recreate the one it just broke, but a different one could exist through other edges) and refuses the same way creating one does; reversing a Parent-of edge goes through the same "move under a different parent?" confirmation as creating one, if the task about to become a child already has a parent of its own. Related has no direction, so it gets Delete only. Both actions call the same `Mutations` methods the drag-to-connect/Backspace paths already use — no new mutation capability.
+- **Canvas edges inside a group started behind the cards.** `elkjs` reports the sections of an edge whose endpoints are both inside the same compound box as *relative to that box*, while hoisting the edge onto the root's edge list — flattening it against the root origin drew the line a bit over a third of the node height up inside the source card, so it was hidden behind it and only showed through a hover-dimmed card. Each edge is now translated by its `container`'s absolute origin instead, so Blocks and Parent-of lines connect exactly from card edge to card edge.
+- **Canvas showed stale task data.** Cards rendered — and delete/reverse/ connect read — task objects frozen inside the graph at layout time, so a title or status edit stayed stale until the next full ELK pass happened to run. The graph now reads the live workspace snapshot for both rendering and mutation handlers, and the layout effect only re-runs when the placement topology or canvas arrangement/direction actually changes — editing a title repaints the card in place without requesting a re-layout. (A slow stale ELK resolution can no longer overwrite a fresher pass either — only the most recent layout request may commit.)
+- **Overlay dependency edges in tree mode ran through the target card.** The straight `blocks`/`blockedBy` lines (and their arrowheads) were drawn centre-to-centre, ending at the target node's centre and vanishing behind the card. They're now snapped with `core/canvas/layout`'s `canvasEdgeLinePath` helper — which intersects the centre-to-centre ray with each card's boundary for both endpoints and pulls the target end back ~7px so the arrowhead stays fully outside the card. Related edges are unchanged (still centre-to-centre, dashed, arrowless).
+- **Canvas cards clipped titles past 2 lines.** A card's fixed height meant a longer title just got cut short by `-webkit-line-clamp: 2`, with no signal a title was hiding text beyond the native `title=` tooltip. Cards now grow past the base height for titles that wrap to more than 2 lines (measured per layout pass against the real rendered font and line-height, capped at 6 lines, beyond which the old clamp-and-tooltip behavior still applies) — and the top row's ID and Type chip, which could previously overflow the card and get cut mid-character, now truncate in place with an ellipsis instead.
+- **`Type` field rendered on Timeline/Calendar despite being scoped out.** `unsupportedFor` on `FIELD_OPTIONS` only ever hid a field from the Fields popover, not from what actually rendered — so `Type` (documented as Board/List/Canvas-only) still showed in Timeline's row-label column and Calendar's Unscheduled tray regardless. A new `layoutHiddenFields()` folds `unsupportedFor` into the render path itself, and `Type` now carries `unsupportedFor: ["timeline", "calendar"]`, so the popover and the render can no longer drift apart for any field.
+- **Obsidian code checker warnings.** `HELP_TOPICS` typed as `any` in environments without the gitignored, build-generated `help-generated.ts` on disk, cascading `no-unsafe-*` warnings into every call site that touches it (`InlineHelpIcon`, `HelpView`, `ShortcutsHelpDialog`); a checked-in `help-generated.d.ts` ambient declaration now gives `HELP_TOPICS` a real type regardless. `CanvasView`'s three off-screen measurement probes (`titleMeasureCanvas`, and the span/div used to resolve title font metrics and max width) now use Obsidian's `createEl`/`createSpan`/`createDiv` helpers instead of `document.createElement`, per `obsidianmd/prefer-create-el`.
+- **`pnpm test` failed on a fresh checkout.** `src/core/help.ts` re-exports `HELP_TOPICS` from the gitignored, build-generated `help-generated.ts`, which nothing produced before `vitest` ran — `test` had no dependency on `build:help`. Added a `pretest` script (and `pretest:watch` for `test:watch`) that regenerates it first.
 
 ## 1.0.20 — 2026-09-10
 
 ### Added
-- **`completedAt` tracking.** Every task now records when it last crossed into a
-  Done-category status — auto-stamped when the status changes, cleared if the
-  task is reopened, and overwritten on re-completion. It shows as a **Completed**
-  row in the task detail panel, is offered as an **Updated** / **Completed**
-  time-axis option on Line and Timeline dashboard widgets (alongside Due / Start
-  / Created), and can be included as a column in CSV and JSON exports. A one-time
-  migration backfills `completedAt` (from `updatedAt`) for tasks that were
-  already Done before this shipped. The iCal export is unchanged — `VEVENT` has
-  no standard completion property.
+- **`completedAt` tracking.** Every task now records when it last crossed into a Done-category status — auto-stamped when the status changes, cleared if the task is reopened, and overwritten on re-completion. It shows as a **Completed** row in the task detail panel, is offered as an **Updated** / **Completed** time-axis option on Line and Timeline dashboard widgets (alongside Due / Start / Created), and can be included as a column in CSV and JSON exports. A one-time migration backfills `completedAt` (from `updatedAt`) for tasks that were already Done before this shipped. The iCal export is unchanged — `VEVENT` has no standard completion property.
 
 ## 1.0.19 — 2026-09-10
 
@@ -309,91 +163,33 @@ This project uses [Semantic Versioning](https://semver.org/).
 - Added search icon and name in the compact mode toggle.
 
 ### Fixed
-- **Cross-workspace "Export Tasks…" / "Export as Template…" from the sidebar
-  now works on the first click.** Choosing either item on a non-active
-  workspace's row switched workspaces (remounting the sidebar and discarding
-  the just-set dialog state), so nothing happened until a second click. The
-  target now rides on a plugin-instance flag consumed by a bridge effect after
-  the remount, matching the existing `pendingExport` pattern.
-- **`g…` / `c…` prefix-chord shortcuts fired in every open pane.** With two or
-  more Vertex Flow panes open side by side, a chord like `c t` ("New task") ran
-  once per open pane instead of only in the focused one. Each pane's
-  `PrefixEngine` binds a `window` capture listener; it now ignores keydown
-  events that didn't originate inside its own pane container.
+- **Cross-workspace "Export Tasks…" / "Export as Template…" from the sidebar now works on the first click.** Choosing either item on a non-active workspace's row switched workspaces (remounting the sidebar and discarding the just-set dialog state), so nothing happened until a second click. The target now rides on a plugin-instance flag consumed by a bridge effect after the remount, matching the existing `pendingExport` pattern.
+- **`g…` / `c…` prefix-chord shortcuts fired in every open pane.** With two or more Vertex Flow panes open side by side, a chord like `c t` ("New task") ran once per open pane instead of only in the focused one. Each pane's `PrefixEngine` binds a `window` capture listener; it now ignores keydown events that didn't originate inside its own pane container.
 - When editing a comment, the [Cancle] and [Save] buttons weren't vertically aligned.
 - Inconsitent padding for meta information on Person Detail View.
-- **Canvas layout (`v` `d`) — a read-only relationship graph.** Any Saved View
-  can now render as a Canvas: the view's filtered tasks are laid out by `elkjs`
-  as nodes. Set **Group by** to Status, Priority, Type, Assignee or Project and
-  each group (including its "None") becomes a labelled box — hidden groups drop
-  out, exactly as on the Board; Label and no grouping render flat. `blocks` /
-  `blockedBy` dependencies draw as solid arrows and `parent` → child hierarchy
-  as thin arrowless connectors — both feed the layered ranking and may cross
-  boxes; `related` links draw dashed between nodes. The **Fields** control hides
-  node badges; Sort, Collapse-all and Upcoming are hidden for Canvas. Pan and
-  wheel-zoom, a static legend keys the three line styles, and edge colours are
-  three themeable CSS variables. Nothing is ever written back.
+- **Canvas layout (`v` `d`) — a read-only relationship graph.** Any Saved View can now render as a Canvas: the view's filtered tasks are laid out by `elkjs` as nodes. Set **Group by** to Status, Priority, Type, Assignee or Project and each group (including its "None") becomes a labelled box — hidden groups drop out, exactly as on the Board; Label and no grouping render flat. `blocks` / `blockedBy` dependencies draw as solid arrows and `parent` → child hierarchy as thin arrowless connectors — both feed the layered ranking and may cross boxes; `related` links draw dashed between nodes. The **Fields** control hides node badges; Sort, Collapse-all and Upcoming are hidden for Canvas. Pan and wheel-zoom, a static legend keys the three line styles, and edge colours are three themeable CSS variables. Nothing is ever written back.
 
 ## 1.0.18 — 2026-09-10
 
 ### Added
-- **Wraparound focus navigation.** `j`/`k` and the arrow keys now wrap at the
-  ends of a column — pressing `j` on the last row jumps to the first, and `k` on
-  the first jumps to the last. Wrapping stays within the current column; `h`/`l`
-  column movement is unchanged and still clamps.
-- **`Shift+j` / `Shift+k` jump to group boundaries.** `Shift+j` moves to the
-  bottom of the current group, then the bottom of the next group (wrapping);
-  `Shift+k` mirrors it to group tops. On a List it walks the real sub-groups; on
-  a Board each column is a group, so it doubles as "jump to the next/previous
-  column, landing at its bottom/top."
-  - **Option/Alt+K workspace search ("Search workspace…").** A Raycast/Linear-style
-  overlay opened with `Alt`/`Option`+`K`, the new sidebar search icon, or the
-  **"Search workspace…"** command. It fuzzy-matches the active workspace's
-  Tasks, Projects, Views, Dashboards, Labels and People in one list — matching
-  titles, task descriptions / project bodies, view-dashboard-label descriptions
-  and person aliases — capped per kind to stay compact and grouped under
-  headers that pin to the top of the list while scrolling. `↑`/`↓` (or
-  `Alt`/`Option`+`j`/`k`) move the selection and keep it scrolled into view,
-  `Enter` opens, `Esc` closes.
-- **Create-actions inside the search overlay.** Create Task, Project, View,
-  Dashboard, Label and Person rows sit under the results and open the same
-  dialogs the sidebar's `+` buttons use — Create Person closes the last gap so
-  People joins the other five.
-- **Sidebar search button.** A search icon in the sidebar's top row opens the
-  overlay in one click, and stays available in the compact drawer where there's
-  no physical Alt key to press.
+- **Wraparound focus navigation.** `j`/`k` and the arrow keys now wrap at the ends of a column — pressing `j` on the last row jumps to the first, and `k` on the first jumps to the last. Wrapping stays within the current column; `h`/`l` column movement is unchanged and still clamps.
+- **`Shift+j` / `Shift+k` jump to group boundaries.** `Shift+j` moves to the bottom of the current group, then the bottom of the next group (wrapping); `Shift+k` mirrors it to group tops. On a List it walks the real sub-groups; on a Board each column is a group, so it doubles as "jump to the next/previous column, landing at its bottom/top."
+  - **Option/Alt+K workspace search ("Search workspace…").** A Raycast/Linear-style overlay opened with `Alt`/`Option`+`K`, the new sidebar search icon, or the **"Search workspace…"** command. It fuzzy-matches the active workspace's Tasks, Projects, Views, Dashboards, Labels and People in one list — matching titles, task descriptions / project bodies, view-dashboard-label descriptions and person aliases — capped per kind to stay compact and grouped under headers that pin to the top of the list while scrolling. `↑`/`↓` (or `Alt`/`Option`+`j`/`k`) move the selection and keep it scrolled into view, `Enter` opens, `Esc` closes.
+- **Create-actions inside the search overlay.** Create Task, Project, View, Dashboard, Label and Person rows sit under the results and open the same dialogs the sidebar's `+` buttons use — Create Person closes the last gap so People joins the other five.
+- **Sidebar search button.** A search icon in the sidebar's top row opens the overlay in one click, and stays available in the compact drawer where there's no physical Alt key to press.
 - **Draft keyboard shortcuts for Views and Dashboards.** Save or discard in-memory edits without reaching for the toolbar across Views, Dashboards, Projects, and System views:
   - `Option`/`Alt` + `S`: Save draft changes[cite: 1, 3]
   - `Option`/`Alt` + `Shift` + `S`: Open "Save view/dashboard as…" dialog[cite: 1, 3]
-  - `Option`/`Alt` + `R`: Discard unsaved edits and revert to saved state[cite: 1, 3]
-  Uses physical key codes (`event.code`) to prevent macOS `Option` key character mutations (`ß`, `®`) from breaking bindings[cite: 1].
+  - `Option`/`Alt` + `R`: Discard unsaved edits and revert to saved state[cite: 1, 3] Uses physical key codes (`event.code`) to prevent macOS `Option` key character mutations (`ß`, `®`) from breaking bindings[cite: 1].
 - **Link to full documentation in shortcut reference modal.** The `?` keyboard shortcuts overlay now includes an "Open full documentation" link at the bottom-left, taking you straight to the Help pane's shortcut topic[cite: 1, 3].
 
 ### Changed
-- **The index caches searchable prose instead of re-reading notes.** Each pass
-  that resolves task `@mentions` now also caches the task's `## Description` and
-  each project's body in the same mtime-gated read — one body read feeds both bits
-  of derived data, so searching descriptions never touches disk per keystroke.
-- **Help terminology: List, Board, Timeline, and Calendar are now "layouts."**
-  The help tree gained a dedicated **Layouts** section for the four rendering
-  modes, the **Views** section now covers the view entity itself (System views
-  such as All Tasks and Untriaged, hub views, Saved Views and Project views),
-  and **Dashboards** is its own top-level topic. Help pages can now cross-link
-  between topics (`help://` links jump within the Help pane instead of opening
-  in the vault).
+- **The index caches searchable prose instead of re-reading notes.** Each pass that resolves task `@mentions` now also caches the task's `## Description` and each project's body in the same mtime-gated read — one body read feeds both bits of derived data, so searching descriptions never touches disk per keystroke.
+- **Help terminology: List, Board, Timeline, and Calendar are now "layouts."** The help tree gained a dedicated **Layouts** section for the four rendering modes, the **Views** section now covers the view entity itself (System views such as All Tasks and Untriaged, hub views, Saved Views and Project views), and **Dashboards** is its own top-level topic. Help pages can now cross-link between topics (`help://` links jump within the Help pane instead of opening in the vault).
 
 ### Fixed
-- **`u` `<key>` picker no longer jumps to the top-left corner in a single-task
-  tab.** When a task is opened in its own tab, the quick-field picker (`u p`,
-  `u s`, …) now anchors just below the matching property row in the rail
-  instead of pinning to `(0, 0)`. `place()` also skips any zero-sized anchor and
-  falls back to screen-center as defense in depth.
-- **The search overlay's pinned section labels no longer let rows show through.**
-    With a translucent theme the sticky group titles' `--background-primary` fill
-    carries alpha, so results sliding beneath, and the app behind the overlay,
-    could faintly peek through. The labels now composite a blur over their
-    background plus a hairline divider, so passing rows read as the header's own
-    surface instead of bleeding text.
+- **`u` `<key>` picker no longer jumps to the top-left corner in a single-task tab.** When a task is opened in its own tab, the quick-field picker (`u p`, `u s`, …) now anchors just below the matching property row in the rail instead of pinning to `(0, 0)`. `place()` also skips any zero-sized anchor and falls back to screen-center as defense in depth.
+- **The search overlay's pinned section labels no longer let rows show through.** With a translucent theme the sticky group titles' `--background-primary` fill carries alpha, so results sliding beneath, and the app behind the overlay, could faintly peek through. The labels now composite a blur over their background plus a hairline divider, so passing rows read as the header's own surface instead of bleeding text.
 
 ## 1.0.17 — 2026-09-09
 
@@ -403,295 +199,81 @@ This project uses [Semantic Versioning](https://semver.org/).
 ## 1.0.16 — 2026-09-09
 
 ### Added
-- **Export tasks by label or person.** The Export dialog's Scope selector now
-  also offers **Labels** and **People** alongside Views, Projects and the whole
-  workspace — each resolving to the tasks carrying that label or assigned to
-  that person.
-- **"Export Tasks…" on more sidebar menus.** The row menus for **Untriaged**,
-  **All Tasks**, every **Label** and every **Person** now have an
-  "Export Tasks…" item that opens the dialog locked to that scope (Views,
-  Projects and Workspace already had it).
-- **Both Export dialog screens preview the exact file path.** A "The following
-  file will be created:" callout shows the full destination, pinned when the
-  dialog opens so it always matches what Export writes.
-- **Separate "Include descriptions" and "Include comments" toggles** when a
-  workspace template carries tasks — descriptions default on, comments default
-  off (they more often hold private back-and-forth).
-- **Drag a multi-selection as one batch.** In List and Board, dragging a task
-  that's part of the current selection now moves the whole selection together,
-  keeping its relative order and landing as a contiguous block. It's recorded
-  as a single move in history.
-- **The drag preview shows the batch.** When more than one task is dragged, the
-  floating preview carries a `+N` count badge and up to two fanned-out card /
-  row outlines behind it, so it reads as a stack rather than a single item.
-- **Escape cancels an in-progress drag.** Pressing Escape after a drag lifts,
-  but before the mouse is released, drops the gesture with no move — the tasks
-  stay put and the selection is untouched. A completed drop is unaffected.
-- **`u` `n` renames a task.** In List/Board it opens a compact rename input over
-  the focused row (single-task only, even with several selected); in an open
-  task tab it focuses the title field already on screen. In an open task,
-  **`u` `i`** jumps to the description editor (expanding it first if collapsed)
-  and **`u` `c`** jumps to the new-comment box.
-- **Keyboard navigation on the Browse hubs.** `j` / `k` / `↑` / `↓` move focus
-  between cards on the Projects, Labels, People, Dashboards and Views screens
-  (wrapping at either end); `Enter` / `Space` opens the focused card. The
-  keyboard-focused card shows a visible focus ring.
-- **"Close tabs to the left"** in the tab right-click menu, mirroring the
-  existing "Close tabs to the right" (disabled on the leftmost tab).
-- **`v` `l` / `b` / `t` / `c` switches the current view's layout** (List /
-  Board / Timeline / Calendar) — a two-key chord in the same shape as the
-  `u`-chord, going through the same draft-edit path as the toolbar's layout
-  toggle. Works in the embedded task lists on Project/Person/Label screens too.
+- **Export tasks by label or person.** The Export dialog's Scope selector now also offers **Labels** and **People** alongside Views, Projects and the whole workspace — each resolving to the tasks carrying that label or assigned to that person.
+- **"Export Tasks…" on more sidebar menus.** The row menus for **Untriaged**, **All Tasks**, every **Label** and every **Person** now have an "Export Tasks…" item that opens the dialog locked to that scope (Views, Projects and Workspace already had it).
+- **Both Export dialog screens preview the exact file path.** A "The following file will be created:" callout shows the full destination, pinned when the dialog opens so it always matches what Export writes.
+- **Separate "Include descriptions" and "Include comments" toggles** when a workspace template carries tasks — descriptions default on, comments default off (they more often hold private back-and-forth).
+- **Drag a multi-selection as one batch.** In List and Board, dragging a task that's part of the current selection now moves the whole selection together, keeping its relative order and landing as a contiguous block. It's recorded as a single move in history.
+- **The drag preview shows the batch.** When more than one task is dragged, the floating preview carries a `+N` count badge and up to two fanned-out card / row outlines behind it, so it reads as a stack rather than a single item.
+- **Escape cancels an in-progress drag.** Pressing Escape after a drag lifts, but before the mouse is released, drops the gesture with no move — the tasks stay put and the selection is untouched. A completed drop is unaffected.
+- **`u` `n` renames a task.** In List/Board it opens a compact rename input over the focused row (single-task only, even with several selected); in an open task tab it focuses the title field already on screen. In an open task, **`u` `i`** jumps to the description editor (expanding it first if collapsed) and **`u` `c`** jumps to the new-comment box.
+- **Keyboard navigation on the Browse hubs.** `j` / `k` / `↑` / `↓` move focus between cards on the Projects, Labels, People, Dashboards and Views screens (wrapping at either end); `Enter` / `Space` opens the focused card. The keyboard-focused card shows a visible focus ring.
+- **"Close tabs to the left"** in the tab right-click menu, mirroring the existing "Close tabs to the right" (disabled on the leftmost tab).
+- **`v` `l` / `b` / `t` / `c` switches the current view's layout** (List / Board / Timeline / Calendar) — a two-key chord in the same shape as the `u`-chord, going through the same draft-edit path as the toolbar's layout toggle. Works in the embedded task lists on Project/Person/Label screens too.
 
 ### Changed
-- **New export filename format**, shared by task exports and template exports:
-  `vertex-flow-export-<date>-<time>-<workspace>-<kind>-<name>.<ext>`. The
-  date-and-time pair keeps every export's name unique on its own, and template
-  files no longer use the old `vertex-flow-template-<id>.md` pattern. Files
-  already in a vault are not renamed.
-- The Export dialog's Scope and entity pickers, and its mode toggle, now use
-  the same dropdown and segmented-control styling as the rest of the app.
-- The Export dialog is titled "Export Tasks" or "Export Workspace" to match the
-  selected mode, and the workspace menu's "Export Tasks…" opens straight to the
-  task-export form.
-- In the task-export form the Format picker is a segmented control, the Fields
-  list is collapsed by default, and the Export button reads "Export N task(s)".
-- The task-export form shows a summary ("This exports N tasks." / "Captures N
-  fields."), the Fields header reads "Fields N of M", and a forced scope
-  renders as read-only text — its kind plus icon / colour dot / avatar and
-  name — with no border.
-- For an iCalendar export the Fields list gains a read-only "Mandatory data"
-  group (UID, title, status, dates, created/updated) that's always written, and
-  the Fields count includes it.
-- The workspace-template form now includes tasks by default, moves its summary
-  below the options, shows a task-count-and-size line in the footer, and
-  labels its button "Export template with tasks" / "…without tasks" and its
-  summary "This exports your workspace with data." / "…configuration." to match
-  the toggle. When tasks are excluded the summary says "starting point, not a
-  backup"; when included it names whether descriptions and comments ride along.
-- View and Project sidebar menus put "Export Tasks…" between dividers, matching
-  the Label and Person menus.
-- **`Option`/`Alt` + `Shift` + `W` now closes every *other* tab, keeping the
-  active one** (matching the tab menu's "Close other tabs"), instead of closing
-  the whole strip. Use the tab right-click menu's "Close all tabs" for that.
+- **New export filename format**, shared by task exports and template exports: `vertex-flow-export-<date>-<time>-<workspace>-<kind>-<name>.<ext>`. The date-and-time pair keeps every export's name unique on its own, and template files no longer use the old `vertex-flow-template-<id>.md` pattern. Files already in a vault are not renamed.
+- The Export dialog's Scope and entity pickers, and its mode toggle, now use the same dropdown and segmented-control styling as the rest of the app.
+- The Export dialog is titled "Export Tasks" or "Export Workspace" to match the selected mode, and the workspace menu's "Export Tasks…" opens straight to the task-export form.
+- In the task-export form the Format picker is a segmented control, the Fields list is collapsed by default, and the Export button reads "Export N task(s)".
+- The task-export form shows a summary ("This exports N tasks." / "Captures N fields."), the Fields header reads "Fields N of M", and a forced scope renders as read-only text — its kind plus icon / colour dot / avatar and name — with no border.
+- For an iCalendar export the Fields list gains a read-only "Mandatory data" group (UID, title, status, dates, created/updated) that's always written, and the Fields count includes it.
+- The workspace-template form now includes tasks by default, moves its summary below the options, shows a task-count-and-size line in the footer, and labels its button "Export template with tasks" / "…without tasks" and its summary "This exports your workspace with data." / "…configuration." to match the toggle. When tasks are excluded the summary says "starting point, not a backup"; when included it names whether descriptions and comments ride along.
+- View and Project sidebar menus put "Export Tasks…" between dividers, matching the Label and Person menus.
+- **`Option`/`Alt` + `Shift` + `W` now closes every *other* tab, keeping the active one** (matching the tab menu's "Close other tabs"), instead of closing the whole strip. Use the tab right-click menu's "Close all tabs" for that.
 
 ### Fixed
-- **The keyboard-focused item now shows a consistent ring everywhere.** The
-  `j`/`k` focus indicator was a 2px left sliver on List rows, a faint border
-  tint on Board cards, and text-colour only on Timeline row labels; it's now a
-  1px accent outline around the whole item across List, Timeline, and the
-  Browse hub cards, with Board cards keeping a thicker 2px ring. The outline is
-  its own paint layer, so a focused-and-selected item shows both the focus ring
-  and the selection highlight at once; Board card selection now uses the same
-  background tint as List rows.
+- **The keyboard-focused item now shows a consistent ring everywhere.** The `j`/`k` focus indicator was a 2px left sliver on List rows, a faint border tint on Board cards, and text-colour only on Timeline row labels; it's now a 1px accent outline around the whole item across List, Timeline, and the Browse hub cards, with Board cards keeping a thicker 2px ring. The outline is its own paint layer, so a focused-and-selected item shows both the focus ring and the selection highlight at once; Board card selection now uses the same background tint as List rows.
 - **Keyboard navigation dies after a `u`-chord picker closes.** After pressing `u` + a field key (e.g. `u p` for priority), picking an option and pressing **Enter** (or **Escape**), keyboard navigation in the task list (`j`/`k`, arrow keys, `Enter` to open, `x` to toggle selection) stopped responding until the user clicked a task row again. Focus was lost when the `QuickFieldPicker` portal unmounted, falling back to `document.body` instead of refocusing the `vf-shell` container that shortcuts bind to.
 
 ## 1.0.15 — 2026-09-09
 
 ### Added
-- **Export your tasks to CSV, JSON or iCalendar.** Pick a scope — the current
-  view, a saved view, a project, or the whole workspace — choose which CSV/JSON
-  fields to include, and decide whether archived tasks come along. Exports land
-  as real vault files under `<workspace>/Exports/`, named
-  `vertex-flow-export-<workspace>-<scope>-<date>.<ext>` so they stay
-  recognizable once they're moved or synced elsewhere.
-- **Reach export from anywhere.** Export is available from the Sidebar's
-  "Export…" row, an "Export…" command in the Command Palette, a button on the
-  view toolbar (scoped to that view), and right-click row/card menus on
-  **Workspaces**, **Views** and **Projects** — each opening the dialog already
-  locked to what you clicked.
-- **Export a workspace as a template.** "Export Workspace as Template" captures
-  the workspace's taxonomy, views, dashboards, people roster and **Projects**
-  as a portable markdown template file — no tasks. Each Project rides in the
-  file's frontmatter like a saved view: title, icon, description,
-  status/priority/owner/labels, and dates (archived projects are dropped).
-  Choose the destination folder from a picker or by typing (default
-  `Vertex Flow Templates/`, the folder the New Workspace gallery discovers; the
-  legacy `Templates/` folder is still discovered too, and a hint warns when a
-  template is saved somewhere the gallery won't see).
-- **Result view instead of a toast.** After an export, the dialog shows the
-  resulting file's path with actions to **Reveal in Finder / File Manager** or
-  **Open in Obsidian** — useful for `.csv`/`.json`/`.ics` files, which
-  Obsidian's own file list hides unless "Detect all file extensions" is on.
-- **iCalendar keeps sync metadata.** Every `VEVENT` now carries `CREATED`,
-  `LAST-MODIFIED` and `SEQUENCE` stamps derived from the task's created/updated
-  dates, so re-importing a calendar doesn't churn or lose change history.
-- **Your templates are clearly your own.** In the New Workspace gallery,
-  vault-authored templates (from your vault's `Vertex Flow Templates/`, plus
-  legacy `Templates/`) are set apart from the built-ins: a "From your Vault"
-  section badge, a subtle accent border on the cards, a "Your template" pill on
-  each card, and the on-disk location — "Located: `Vertex Flow
-  Templates/<file>.md`" — shown below the settings on the card.
-  The card previews exactly what the template will create: every card — built-in
-  or exported — shows the template's taxonomy plus the **Default view**,
-  **Views** and **Dashboards** (named pills, each with the icon that view or
-  dashboard will show), **Projects** (each with its icon), and **People** rows
-  in the same order as the workspace sidebar. Views, dashboards, the people
-  register and Projects are structure and always come with the workspace;
-  Tasks are the only example material behind the "Populate with example
-  content" toggle, which is ticked by default for any built-in whose card
-  previews Projects and appears on your own templates whenever the export
-  carried tasks. The
-  whole footer (Created, Located, "Use this template →") pins to the bottom of
-  every card so the action link aligns across the grid.
-- **Exported templates now carry their timestamp.** "Export Workspace as
-  Template" stamps each exported template file with a `createdAt` timestamp in
-  its frontmatter, and the New Workspace gallery shows it as a "Created:"
-  date-time line on the card, directly above the "Located:" line. Templates
-  exported before this change — or written by hand — simply skip the Created
-  line.
-- **Include tasks in an exported template.** "Export Workspace as Template"
-  gains an "Include tasks in the template file" checkbox (off by default) that
-  carries the workspace's tasks into the template's body with their
-  descriptions and comments. Recurrence is written as a compact shorthand
-  (`weekly`, `every 2 weeks`, "… when completed"); rules the shorthand can't
-  express are left out rather than flattened. The existing "Include archived"
-  toggle now covers archived Projects *and* Tasks together so cross-links stay
-  resolvable — links to anything still excluded are dropped instead of left
-  dangling.
-- **Your exported templates can seed tasks too.** A template that carries tasks
-  gains the gallery's "Populate with example content" toggle, so a new
-  workspace created from it starts with your tasks as lightweight copies, like
-  the built-in templates' sample tasks.
-- **Export entry points say what they export.** The right-click menus on
-  **Workspaces**, **Views** and **Projects** now read "Export Tasks…" and
-  "Export as Template…" instead of the ambiguous "Export…" / "Export Workspace
-  as Template…", so a menu makes clear it's exporting data, not launching the
-  template builder.
-
-- **Task editor shows Created and Updated.** The property rail now has read-only
-  "Created" and "Updated" rows — Created as a full date-time, Updated as a
-  relative time ("3 hours ago") with the exact timestamp on hover.
-- **Sidebar footer shows the plugin version.** The sidebar now pins a muted,
-  centered footer to its bottom edge reading `v1.0.14 by JR Leonard`, linking
-  the name to a profile. The footer hides in the collapsed/minimized state
-  (`is-minimized`) like the rest of the sidebar chrome.
+- **Export your tasks to CSV, JSON or iCalendar.** Pick a scope — the current view, a saved view, a project, or the whole workspace — choose which CSV/JSON fields to include, and decide whether archived tasks come along. Exports land as real vault files under `<workspace>/Exports/`, named `vertex-flow-export-<workspace>-<scope>-<date>.<ext>` so they stay recognizable once they're moved or synced elsewhere.
+- **Reach export from anywhere.** Export is available from the Sidebar's "Export…" row, an "Export…" command in the Command Palette, a button on the view toolbar (scoped to that view), and right-click row/card menus on **Workspaces**, **Views** and **Projects** — each opening the dialog already locked to what you clicked.
+- **Export a workspace as a template.** "Export Workspace as Template" captures the workspace's taxonomy, views, dashboards, people roster and **Projects** as a portable markdown template file — no tasks. Each Project rides in the file's frontmatter like a saved view: title, icon, description, status/priority/owner/labels, and dates (archived projects are dropped). Choose the destination folder from a picker or by typing (default `Vertex Flow Templates/`, the folder the New Workspace gallery discovers; the legacy `Templates/` folder is still discovered too, and a hint warns when a template is saved somewhere the gallery won't see).
+- **Result view instead of a toast.** After an export, the dialog shows the resulting file's path with actions to **Reveal in Finder / File Manager** or **Open in Obsidian** — useful for `.csv`/`.json`/`.ics` files, which Obsidian's own file list hides unless "Detect all file extensions" is on.
+- **iCalendar keeps sync metadata.** Every `VEVENT` now carries `CREATED`, `LAST-MODIFIED` and `SEQUENCE` stamps derived from the task's created/updated dates, so re-importing a calendar doesn't churn or lose change history.
+- **Your templates are clearly your own.** In the New Workspace gallery, vault-authored templates (from your vault's `Vertex Flow Templates/`, plus legacy `Templates/`) are set apart from the built-ins: a "From your Vault" section badge, a subtle accent border on the cards, a "Your template" pill on each card, and the on-disk location — "Located: `Vertex Flow Templates/<file>.md`" — shown below the settings on the card. The card previews exactly what the template will create: every card — built-in or exported — shows the template's taxonomy plus the **Default view**, **Views** and **Dashboards** (named pills, each with the icon that view or dashboard will show), **Projects** (each with its icon), and **People** rows in the same order as the workspace sidebar. Views, dashboards, the people register and Projects are structure and always come with the workspace; Tasks are the only example material behind the "Populate with example content" toggle, which is ticked by default for any built-in whose card previews Projects and appears on your own templates whenever the export carried tasks. The whole footer (Created, Located, "Use this template →") pins to the bottom of every card so the action link aligns across the grid.
+- **Exported templates now carry their timestamp.** "Export Workspace as Template" stamps each exported template file with a `createdAt` timestamp in its frontmatter, and the New Workspace gallery shows it as a "Created:" date-time line on the card, directly above the "Located:" line. Templates exported before this change — or written by hand — simply skip the Created line.
+- **Include tasks in an exported template.** "Export Workspace as Template" gains an "Include tasks in the template file" checkbox (off by default) that carries the workspace's tasks into the template's body with their descriptions and comments. Recurrence is written as a compact shorthand (`weekly`, `every 2 weeks`, "… when completed"); rules the shorthand can't express are left out rather than flattened. The existing "Include archived" toggle now covers archived Projects *and* Tasks together so cross-links stay resolvable — links to anything still excluded are dropped instead of left dangling.
+- **Your exported templates can seed tasks too.** A template that carries tasks gains the gallery's "Populate with example content" toggle, so a new workspace created from it starts with your tasks as lightweight copies, like the built-in templates' sample tasks.
+- **Export entry points say what they export.** The right-click menus on **Workspaces**, **Views** and **Projects** now read "Export Tasks…" and "Export as Template…" instead of the ambiguous "Export…" / "Export Workspace as Template…", so a menu makes clear it's exporting data, not launching the template builder.
+- **Task editor shows Created and Updated.** The property rail now has read-only "Created" and "Updated" rows — Created as a full date-time, Updated as a relative time ("3 hours ago") with the exact timestamp on hover.
+- **Sidebar footer shows the plugin version.** The sidebar now pins a muted, centered footer to its bottom edge reading `v1.0.14 by JR Leonard`, linking the name to a profile. The footer hides in the collapsed/minimized state (`is-minimized`) like the rest of the sidebar chrome.
 
 ### Changed
-- **The `u`+key quick field pickers can be filtered by typing.** Every
-  menu-style picker opened by the `u` chord (status, priority, type, label,
-  assignee, parent, project) now shows a search box above its option list —
-  type to narrow the rows, arrow keys and `Enter` work on the filtered list.
-  The Labels picker's search box doubles as its create field: type a name with
-  no exact match and a "Create …" row appears to create and attach it, so the
-  separate "Create label…" input is gone. The task editor rail's own pickers
-  now always show their search box too.
-- **Entity `type:` frontmatter is now `vertex-flow-`-prefixed.** Task, Project,
-  Workspace, View and Dashboard notes carry `type: vertex-flow-task`,
-  `vertex-flow-project`, and so on, matching the convention exported and
-  template files already use. Notes with the old bare values (`task`,
-  `project`, …) still load unchanged, and a background pass quietly rewrites
-  them to the new value the next time the vault is indexed — nothing you need
-  to do, and nothing changes in the app.
-- **Template frontmatter `kind` is now `type`.** The workspace-template grammar
-  uses `type: vertex-flow-workspace-template` (and `-snapshot`) instead of
-  `kind: template`/`kind: snapshot`. Old `kind` frontmatter still loads. Files
-  exported as templates get a `vertex-flow-template-` filename prefix while
-  their frontmatter `id` stays unprefixed.
-- **Saved Views and Dashboards store their filter as one query string.** A
-  view note now keeps its whole definition — filters, layout, grouping, sort,
-  hidden fields, sub-task mode — in a single `query:` line (the same syntax the
-  Query Bar shows), and a dashboard note keeps its filter in a `filter:` line,
-  instead of a block of separate `viewType:`/`filters:`/`groupBy:`/… keys. A
-  Project's embedded view block moves the same way. Old-format notes still load,
-  and a background pass rewrites each one the next time the vault is indexed —
-  nothing you need to do, and nothing changes in the app.
-- **Format migrations show up in Activity History.** When the indexer converts
-  old-format notes (the storage split, the view/dashboard query cutover, or
-  recurrence date-mode backfill), it records one `[system]` entry per note kind
-  in the History feed so there's a trail of what was touched.
-- **iCalendar only lets you toggle the description.** For ICS export, the
-  dialog's field list now offers a single **Description** toggle; everything
-  else a calendar event needs (identity, status, dates, sync stamps) is emitted
-  unconditionally. An empty field selection is a valid calendar export.
-- **Export dialog layout.** **Format** and **Scope** (and the View/Project
-  sub-selects) now sit above the scrollable body so they're always visible,
-  while the task count + estimated size settle into a footer with the action
-  buttons.
-- **Export field picker uses ★-style rows instead of checkboxes.** Each field —
-  and **Include archived tasks** — is now a clickable menu row with a leading
-  ✓ for the active state, matching the picker rows used elsewhere in the app
-  (assignee, labels) rather than the browser-native checkbox.
-- **"Include archived tasks" grouped under an Options box*.** The archived-task
-  toggle now lives in its own bordered group beside the **Fields** group,
-  rather than floating alone in the body.
+- **The `u`+key quick field pickers can be filtered by typing.** Every menu-style picker opened by the `u` chord (status, priority, type, label, assignee, parent, project) now shows a search box above its option list — type to narrow the rows, arrow keys and `Enter` work on the filtered list. The Labels picker's search box doubles as its create field: type a name with no exact match and a "Create …" row appears to create and attach it, so the separate "Create label…" input is gone. The task editor rail's own pickers now always show their search box too.
+- **Entity `type:` frontmatter is now `vertex-flow-`-prefixed.** Task, Project, Workspace, View and Dashboard notes carry `type: vertex-flow-task`, `vertex-flow-project`, and so on, matching the convention exported and template files already use. Notes with the old bare values (`task`, `project`, …) still load unchanged, and a background pass quietly rewrites them to the new value the next time the vault is indexed — nothing you need to do, and nothing changes in the app.
+- **Template frontmatter `kind` is now `type`.** The workspace-template grammar uses `type: vertex-flow-workspace-template` (and `-snapshot`) instead of `kind: template`/`kind: snapshot`. Old `kind` frontmatter still loads. Files exported as templates get a `vertex-flow-template-` filename prefix while their frontmatter `id` stays unprefixed.
+- **Saved Views and Dashboards store their filter as one query string.** A view note now keeps its whole definition — filters, layout, grouping, sort, hidden fields, sub-task mode — in a single `query:` line (the same syntax the Query Bar shows), and a dashboard note keeps its filter in a `filter:` line, instead of a block of separate `viewType:`/`filters:`/`groupBy:`/… keys. A Project's embedded view block moves the same way. Old-format notes still load, and a background pass rewrites each one the next time the vault is indexed — nothing you need to do, and nothing changes in the app.
+- **Format migrations show up in Activity History.** When the indexer converts old-format notes (the storage split, the view/dashboard query cutover, or recurrence date-mode backfill), it records one `[system]` entry per note kind in the History feed so there's a trail of what was touched.
+- **iCalendar only lets you toggle the description.** For ICS export, the dialog's field list now offers a single **Description** toggle; everything else a calendar event needs (identity, status, dates, sync stamps) is emitted unconditionally. An empty field selection is a valid calendar export.
+- **Export dialog layout.** **Format** and **Scope** (and the View/Project sub-selects) now sit above the scrollable body so they're always visible, while the task count + estimated size settle into a footer with the action buttons.
+- **Export field picker uses ★-style rows instead of checkboxes.** Each field — and **Include archived tasks** — is now a clickable menu row with a leading ✓ for the active state, matching the picker rows used elsewhere in the app (assignee, labels) rather than the browser-native checkbox.
+- **"Include archived tasks" grouped under an Options box*.** The archived-task toggle now lives in its own bordered group beside the **Fields** group, rather than floating alone in the body.
 
 ### Fixed
-- **Exported workspace templates no longer drop their views and dashboards.**
-  Creating a workspace from an "Export Workspace as Template" file used to come
-  out without any of the saved views or dashboards the template carried — the
-  gallery's always-off "Populate with example content" toggle silently gated
-  them away. A template that opts out of example content (an exported workspace
-  ships no tasks or projects, only configuration) now applies everything it
-  returns regardless of the toggle.
-- **iCalendar all-day event end dates.** All-day events now emit
-  `DTEND;VALUE=DATE` one day after the task's due date (exclusive end), matching
-  how calendars like Google Calendar store all-day events — previously the end
-  date came out a day early.
-- **Tall dialogs scroll their body.** The dialog's header and footer stay
-  pinned while only the content area scrolls, instead of the whole dialog
-  overflowing the window. Applies across the editor's dialogs (Replace
-  value/person, Person, Label, Widget config, Shortcuts, Export, and more).
-- **The description textarea fills its row.** The task-editor description field
-  now spans the full width of the field column instead of hugging the icon
-  column.
+- **Exported workspace templates no longer drop their views and dashboards.** Creating a workspace from an "Export Workspace as Template" file used to come out without any of the saved views or dashboards the template carried — the gallery's always-off "Populate with example content" toggle silently gated them away. A template that opts out of example content (an exported workspace ships no tasks or projects, only configuration) now applies everything it returns regardless of the toggle.
+- **iCalendar all-day event end dates.** All-day events now emit `DTEND;VALUE=DATE` one day after the task's due date (exclusive end), matching how calendars like Google Calendar store all-day events — previously the end date came out a day early.
+- **Tall dialogs scroll their body.** The dialog's header and footer stay pinned while only the content area scrolls, instead of the whole dialog overflowing the window. Applies across the editor's dialogs (Replace value/person, Person, Label, Widget config, Shortcuts, Export, and more).
+- **The description textarea fills its row.** The task-editor description field now spans the full width of the field column instead of hugging the icon column.
 
 ## 1.0.14 — 2026-09-08
 
 ### Added
-- **Workspace setting: default task type for new tasks.** A new "Task creation"
-  section in workspace settings sets the Task Type every newly created task
-  starts with (or "None" — a fully valid steady state, unlike status). The
-  picker renders types as the same bordered pills List/Board rows and the task
-  editor use. When no default is set, a help icon sits right after "Type" in
-  the task editor's property rail; clicking it explains the setting and links
-  straight to it. A stale/unknown id in `_workspace.md` clears itself to None on
-  load rather than forcing a pick, and changing the setting shows up in Activity
-  History like any other config field.
-- **Workspace setting: where new tasks land.** "New tasks go to" chooses whether
-  a brand-new task is ranked at the **top** of its siblings (the existing
-  behavior, and the default — so nothing changes for existing workspaces) or the
-  **bottom**. Applies to tasks created at the top level or under a parent, and
-  to an orphaned recurring successor's fallback placement. Bulk content creation
-  and template seeding are unaffected.
-- **Reopen your last workspace on relaunch.** The plugin now remembers which
-  workspace this device last had active and reopens it on load, falling back to
-  the first workspace if it no longer exists. Stored per-device in the app's own
-  storage, never in the vault — a shared or synced vault won't carry one
-  machine's pointer onto every other machine.
-- **On-close recurrence can now set Start/Due dates.** Status-triggered
-  ("on close") repeats previously always spawned with no dates at all. Each
-  of Start Date and Due Date can now independently be set to None (unchanged
-  default for new rules going forward is Immediately), Immediately (today),
-  or Shifted (preserves the source task's date range, anchored to the day it
-  spawns — the same math on-date recurrence already uses). Existing on-close
-  series are migrated to Immediately for both fields automatically. The
-  configured date modes (including which date a "Shifted" field is anchored
-  to) now show up in the Repeat row's one-line summary on the task and in the
-  Activity History entry recorded when a repeat is set up or changed, not
-  just in the Repeat editor.
+- **Workspace setting: default task type for new tasks.** A new "Task creation" section in workspace settings sets the Task Type every newly created task starts with (or "None" — a fully valid steady state, unlike status). The picker renders types as the same bordered pills List/Board rows and the task editor use. When no default is set, a help icon sits right after "Type" in the task editor's property rail; clicking it explains the setting and links straight to it. A stale/unknown id in `_workspace.md` clears itself to None on load rather than forcing a pick, and changing the setting shows up in Activity History like any other config field.
+- **Workspace setting: where new tasks land.** "New tasks go to" chooses whether a brand-new task is ranked at the **top** of its siblings (the existing behavior, and the default — so nothing changes for existing workspaces) or the **bottom**. Applies to tasks created at the top level or under a parent, and to an orphaned recurring successor's fallback placement. Bulk content creation and template seeding are unaffected.
+- **Reopen your last workspace on relaunch.** The plugin now remembers which workspace this device last had active and reopens it on load, falling back to the first workspace if it no longer exists. Stored per-device in the app's own storage, never in the vault — a shared or synced vault won't carry one machine's pointer onto every other machine.
+- **On-close recurrence can now set Start/Due dates.** Status-triggered ("on close") repeats previously always spawned with no dates at all. Each of Start Date and Due Date can now independently be set to None (unchanged default for new rules going forward is Immediately), Immediately (today), or Shifted (preserves the source task's date range, anchored to the day it spawns — the same math on-date recurrence already uses). Existing on-close series are migrated to Immediately for both fields automatically. The configured date modes (including which date a "Shifted" field is anchored to) now show up in the Repeat row's one-line summary on the task and in the Activity History entry recorded when a repeat is set up or changed, not just in the Repeat editor.
 - Comments are now selectable.
-- **Edit comments.** A pencil icon on each comment switches it into an inline
-  editable field with explicit Save/Cancel — no auto-save, and no restriction
-  on whose comment can be edited, matching the existing unrestricted delete.
-  An edited comment shows "· edited" next to its date, and the change is
-  recorded in Activity History as "edited a comment on."
-- **Reply to a specific comment.** A reply icon opens a dismissible "Replying
-  to {author}: ..." strip above the comment composer; posting attaches a
-  reference to that comment. Comments stay a flat, unthreaded list — a reply
-  shows a small "↳ replying to {author}" line above it, clickable to jump to
-  the original, or "↳ replying to a deleted comment" if it's since been
-  removed. Replies get their own Activity History action ("replied to a
-  comment on"), distinct from a plain comment.
-- Added a copy icon to each comment, copying its raw Markdown source to the
-  clipboard.
-- Comment actions (reply, copy, edit, delete) now use consistent icons —
-  including the same Trash icon used elsewhere for deletion — and sit
-  grouped together on the right of each comment.
+- **Edit comments.** A pencil icon on each comment switches it into an inline editable field with explicit Save/Cancel — no auto-save, and no restriction on whose comment can be edited, matching the existing unrestricted delete. An edited comment shows "· edited" next to its date, and the change is recorded in Activity History as "edited a comment on."
+- **Reply to a specific comment.** A reply icon opens a dismissible "Replying to {author}: ..." strip above the comment composer; posting attaches a reference to that comment. Comments stay a flat, unthreaded list — a reply shows a small "↳ replying to {author}" line above it, clickable to jump to the original, or "↳ replying to a deleted comment" if it's since been removed. Replies get their own Activity History action ("replied to a comment on"), distinct from a plain comment.
+- Added a copy icon to each comment, copying its raw Markdown source to the clipboard.
+- Comment actions (reply, copy, edit, delete) now use consistent icons — including the same Trash icon used elsewhere for deletion — and sit grouped together on the right of each comment.
 
 ### Changed
 -   Added padding to the task editor's title field, and title fields of Views, Dashboards and Projects.
-
 
 ## 1.0.13 — 2026-09-07
 
@@ -707,13 +289,12 @@ This project uses [Semantic Versioning](https://semver.org/).
 -   Added the ability to press [Esc] button to clear all selections.
 
 ### Changed
--   Updated the docs to reflect correct sidebar order. 
+-   Updated the docs to reflect correct sidebar order.
 -   **Task Type now shows on List rows, not just Board cards.** The "Type" field toggle previously did nothing in a List view; it now renders the Task Type as a bordered, bold pill in the row's trailing meta cluster (just before Priority), and toggling "Type" off in a Saved View hides it from both Board cards and List rows. Labels are unchanged — still plain tinted pills.
 
 ### Fixed
 -   Collapsing a group in the List view works again — a 1.0.11 regression had left it dead on the Project detail view and the label / person views. Project task lists now persist group collapse to the Project note's `view:` block; label and person views keep it for the session.
 -   **Board card labels no longer overflow the card.** `.vf-labels` had no `flex-wrap`, so a task with several labels laid them out in one unbroken row whose minimum width could exceed the fixed column width, spilling past the card edge with nothing clipping the overflow. Labels on Board cards now wrap onto additional lines; List row label rendering (single-line, clipped) is unchanged.
-
 
 ## 1.0.11 — 2026-09-07
 
@@ -778,7 +359,6 @@ This project uses [Semantic Versioning](https://semver.org/).
 - **`self` / `me` filters now resolve in views.** The view context wasn't being given the current identity, so "Assigned to Me" / "Mentions Me" (and any `assignee:me` / `mentions:me` query) matched nothing in List, Board, Calendar, Timeline, the project/label/person detail views, and dashboards. Creating a task from an "Assigned to Me" view now also seeds the assignee. All of it repaints live when you change "me".
 - The comment composer resolves "me" against the **task's own workspace** roster, not `plugin.activeWorkspace()` (the last-touched pane, which can be a different workspace than the task being commented on), and updates without reopening the editor.
 - The People settings "Me" radio now sticks on the first click and the UI reflects it immediately (was a stale non-reactive read plus a mount-only debounce); typing in a person's name field no longer writes the workspace file on every keystroke.
-
 - Task notes created from a workspace template no longer lose their description. They previously got a bare `## Description` heading, which the editor's description parser doesn't recognize — so freshly onboarded tasks showed an empty description even though the raw markdown was sitting in the file. Template ingestion now wraps the description in the same `PLUGIN_DESCRIPTION_START`/`PLUGIN_DESCRIPTION_END` block that notes created in-app (new-task dialog, description editor) use, keeps an author's sub-headings intact, and still appends the comments block beneath it.
 - Activity history no longer skips whole classes of events: creating a workspace with history on records a `workspace.create` entry, and renaming a Saved View or Dashboard (or swapping its icon or description) now logs a `view.update`/`dashboard.update` instead of staying silent. Two writer bugs were also fixed — a seeded log now bumps the store revision so an open Activity History hub repaints, and a burst of entries written on top of an existing month's file keeps a correct, non-colliding sequence number instead of restarting or duplicating.
 

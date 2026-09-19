@@ -117,7 +117,6 @@ export function QueryBar({
 		cancelCommit();
 		lastAgreed.current = canonicalizeDefinition(incoming);
 		setText(desired);
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- adopt effect derives from the view, not from deps
 	}, [view, qctx]);
 
 	/* -- commit: text → view (debounced; Enter and blur flush) -------------- */
@@ -132,7 +131,6 @@ export function QueryBar({
 			commit(parsed.definition);
 		}, COMMIT_DELAY_MS);
 		return cancelCommit;
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- commit effect keys off the parse result; parse() is the pipeline
 	}, [parsed, composing]);
 
 	useEffect(() => () => cancelCommit(), []);
@@ -185,10 +183,16 @@ export function QueryBar({
 
 	const matchCount = useMemo(() => {
 		if (!parsed.ok) return null;
-		if (definitionsEqual(parsed.definition, viewDefinition(view))) return null;
+		// Compare against `lastAgreed`, not a value re-derived from `view` on
+		// the spot — matching `flush()`/the commit effect above. `view` can
+		// change one render before the adopt effect resyncs `text` to it (it's
+		// a passive effect, so it runs after paint); comparing straight
+		// against `view` would show a spurious diff — and this count — for
+		// that one frame on every external view change, sort clicks included.
+		if (definitionsEqual(parsed.definition, lastAgreed.current)) return null;
 		return applyFilters(snapshot.tasks, parsed.definition.filters, viewCtx)
 			.length;
-	}, [parsed, view, snapshot.tasks, viewCtx]);
+	}, [parsed, snapshot.tasks, viewCtx]);
 
 	return (
 		<div className="vf-query-row">

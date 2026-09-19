@@ -143,7 +143,6 @@ export function HelpView() {
       setExpanded((current) => new Set(current).add(topic.id));
     }
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- deep-link targets are consumed once when supplied
   }, [pendingHelpTarget]);
 
   /**
@@ -191,7 +190,6 @@ export function HelpView() {
 
     return () => observer.disconnect();
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- anchors scroll via MutationObserver once consumed
   }, [pendingAnchor, selectedId]);
 
   const width = clamp(plugin.settings.helpSidebarWidth, MIN_WIDTH, MAX_WIDTH);

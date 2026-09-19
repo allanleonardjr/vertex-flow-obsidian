@@ -266,6 +266,12 @@ export function printQuery(
 	parts.push(
 		`sort:${canonical.sortDirection === "desc" ? "-" : ""}${SORT_VALUES[canonical.sortBy].token}`,
 	);
+	if (canonical.tableSort.length > 0) {
+		const tokens = canonical.tableSort.map(
+			(key) => `${key.direction === "desc" ? "-" : ""}${SORT_VALUES[key.field].token}`,
+		);
+		parts.push(`table-sort:${tokens.join(",")}`);
+	}
 	// Canvas arrangement/direction are printed only when the layout is Canvas
 	// AND the value differs from the default. Unlike `date:`/`subtasks:` they
 	// configure nothing any other layout renders, so a clause a non-canvas view

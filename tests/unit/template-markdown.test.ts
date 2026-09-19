@@ -561,3 +561,39 @@ describe("template markdown — repeat", () => {
 		expect(error.line).toBeGreaterThan(0);
 	});
 });
+
+describe("template markdown — dashboard xFields and task completed token", () => {
+	/** A template with an updatedAt + completedAt chart pair and one done task. */
+	function withTrends() {
+		return template(
+			HEADER +
+				"\n" +
+				[
+					"statuses: [Done (completed), To Do (unstarted)]",
+					"dashboards:",
+					"  - name: Trends",
+					"    rows:",
+					"      - - {type: line, title: Updates, xField: updatedAt, bucket: day}",
+					"        - {type: timeline, title: Completions, xField: completedAt, bucket: week}",
+				].join("\n"),
+			`\n# Projects\n\n# Tasks\n\n## Shipped thing {#FIX-0101}\ncreated: 2026-09-01T00:00:00.000Z | completed: 2026-09-03T00:00:00.000Z\n`,
+		);
+	}
+
+	it("accepts updatedAt and completedAt as chart xFields", () => {
+		const parsed = parseTemplateMarkdown(withTrends());
+		const widgets = parsed.dashboards[0].rows.flat();
+		expect(widgets.map((w) => w.xField)).toEqual(["updatedAt", "completedAt"]);
+		// And it resolves onto a real workspace rather than being skipped.
+		expect(() => resolveTemplateContent(parsed, context())).not.toThrow();
+	});
+
+	it("reads a task's completedAt from the `completed:` field line token", () => {
+		const { tasks } = resolveTemplateContent(
+			parseTemplateMarkdown(withTrends()),
+			context(),
+		);
+		const task = tasks.find((t) => t.title === "Shipped thing")!;
+		expect(task.completedAt).toBe("2026-09-03T00:00:00.000Z");
+	});
+});

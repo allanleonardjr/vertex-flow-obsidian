@@ -25,6 +25,7 @@ import { PREVIEW_OFFSET_PX } from "./views/useTaskDrag";
 
 const BROWSE_ICON: Record<BrowseKind, string> = {
 	projects: "▣",
+	workspaces: "▧",
 	settings: "⚙",
 	help: "?",
 	"new-workspace": "＋",
@@ -40,6 +41,7 @@ const BROWSE_ICON: Record<BrowseKind, string> = {
 
 const BROWSE_LABEL: Record<BrowseKind, string> = {
 	projects: "Projects",
+	workspaces: "Workspaces",
 	settings: "Settings",
 	help: "Help",
 	"new-workspace": "New workspace",

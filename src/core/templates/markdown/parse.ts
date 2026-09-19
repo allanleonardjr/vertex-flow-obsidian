@@ -32,9 +32,9 @@ import {
 import { COLOR_PALETTE } from "../../color";
 import {
 	STATUS_CATEGORIES,
-	type DashboardGroupingField,
+	DASHBOARD_GROUPING_FIELDS,
+	DASHBOARD_TEMPORAL_FIELDS,
 	type DashboardMetric,
-	type DashboardTemporalField,
 	type DashboardTimeBucket,
 	type GroupByField,
 	type LabelValue,
@@ -386,6 +386,14 @@ function optionalString(
 	return value.trim() || undefined;
 }
 
+function renderValue(value: unknown): string {
+	if (typeof value === "string") return value;
+	if (typeof value === "number" || typeof value === "boolean")
+		return String(value);
+	if (value == null) return "";
+	return JSON.stringify(value);
+}
+
 function optionalBoolean(
 	data: Record<string, unknown>,
 	key: string,
@@ -437,11 +445,18 @@ const SORT_FIELDS: readonly SortField[] = [
 	"priority",
 	"status",
 	"title",
+	"id",
 	"dueDate",
 	"startDate",
 	"estimate",
 	"createdAt",
 	"updatedAt",
+	"taskType",
+	"project",
+	"assignee",
+	"labels",
+	"progress",
+	"relations",
 ];
 
 /** The view/dashboard shorthand accepts the query language's friendlier
@@ -520,19 +535,6 @@ function parseViews(raw: unknown): ParsedView[] {
 /* ---------------------------------------------------------- dashboards ---- */
 
 const CHART_TYPES = ["bar", "pie", "line", "timeline", "kpi"] as const;
-const GROUPING_FIELDS: readonly DashboardGroupingField[] = [
-	"status",
-	"priority",
-	"taskType",
-	"label",
-	"assignee",
-	"project",
-];
-const TEMPORAL_FIELDS: readonly DashboardTemporalField[] = [
-	"dueDate",
-	"startDate",
-	"createdAt",
-];
 const TIME_BUCKETS: readonly DashboardTimeBucket[] = ["day", "week", "month"];
 const METRICS: readonly DashboardMetric[] = ["count", "estimateSum", "estimateAvg"];
 
@@ -547,17 +549,27 @@ function parseWidget(raw: unknown, where: string): ParsedWidget {
 	if (!chartType) fail(`${where} is missing "type"`);
 	const title = requireString(data, "title");
 
-	const groupBy = enumOr(data.groupBy, GROUPING_FIELDS, "groupBy", line);
+	const groupBy = enumOr(
+		data.groupBy,
+		DASHBOARD_GROUPING_FIELDS,
+		"groupBy",
+		line,
+	);
 	const widget: ParsedWidget = { chartType, title, line };
 
 	if (chartType === "bar" || chartType === "pie") {
 		if (!groupBy) fail(`${where} ("${title}") — a ${chartType} chart needs "groupBy"`);
 		widget.groupBy = groupBy;
 	} else if (chartType === "line" || chartType === "timeline") {
-		const xField = enumOr(data.xField, TEMPORAL_FIELDS, "xField", line);
+		const xField = enumOr(
+			data.xField,
+			DASHBOARD_TEMPORAL_FIELDS,
+			"xField",
+			line,
+		);
 		if (!xField) {
 			fail(
-				`${where} ("${title}") — a ${chartType} chart needs "xField" (one of ${TEMPORAL_FIELDS.join(", ")})`,
+				`${where} ("${title}") — a ${chartType} chart needs "xField" (one of ${DASHBOARD_TEMPORAL_FIELDS.join(", ")})`,
 			);
 		}
 		widget.xField = xField;
@@ -577,9 +589,14 @@ function parseWidget(raw: unknown, where: string): ParsedWidget {
 				fail(`${where} ("${title}") — "scope" must be {field: ..., value: ...}`);
 			}
 			const scopeData = scope as Record<string, unknown>;
-			const field = enumOr(scopeData.field, GROUPING_FIELDS, "scope.field", line);
+			const field = enumOr(
+					scopeData.field,
+					DASHBOARD_GROUPING_FIELDS,
+					"scope.field",
+					line,
+				);
 			if (!field) fail(`${where} ("${title}") — "scope" needs a "field"`);
-			widget.scope = { field, value: String(scopeData.value ?? "").trim() };
+			widget.scope = { field, value: renderValue(scopeData.value ?? "").trim() };
 			if (!widget.scope.value) {
 				fail(`${where} ("${title}") — "scope" needs a "value"`);
 			}
@@ -743,6 +760,7 @@ const TASK_FIELDS = new Set([
 	"due",
 	"created",
 	"updated",
+	"completed",
 	"archived",
 	"repeat",
 	"blocks",
@@ -1109,6 +1127,9 @@ function applyFields(
 			case "updated":
 				node.updated = parseDateToken(value, line);
 				break;
+			case "completed":
+				task.completed = parseDateToken(value, line);
+				break;
 			case "archived":
 				node.archived = readArchived(value, line);
 				break;
@@ -1279,7 +1300,10 @@ export function parseTemplateMarkdown(source: string): ParsedTemplate {
 	}
 	const schema = Number(data.templateSchema);
 	if (!Number.isInteger(schema)) {
-		fail(`"templateSchema" must be an integer, got "${data.templateSchema}"`, 2);
+		fail(
+			`"templateSchema" must be an integer, got "${renderValue(data.templateSchema)}"`,
+			2,
+		);
 	}
 	if (schema > TEMPLATE_SCHEMA_VERSION) {
 		fail(
@@ -1311,7 +1335,7 @@ export function parseTemplateMarkdown(source: string): ParsedTemplate {
 		fail(
 			normalizedKind === "snapshot"
 				? `"type: vertex-flow-workspace-snapshot" is not yet supported — only "type: vertex-flow-workspace-template" can be loaded`
-				: `Unknown "${kindField}: ${String(rawKind)}" — only "type: vertex-flow-workspace-template" is supported`,
+				: `Unknown "${kindField}: ${renderValue(rawKind)}" — only "type: vertex-flow-workspace-template" is supported`,
 			3,
 		);
 	}
