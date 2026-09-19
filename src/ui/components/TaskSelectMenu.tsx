@@ -26,6 +26,7 @@ import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { Task, WorkspaceSnapshot } from "../../core/types";
 import { usePlugin } from "../context";
 import { TaskRowContent } from "./TaskRow";
+import { getVisibleViewport, subscribeToViewportChanges } from "./viewport";
 
 export interface TaskSelectExtraOption {
 	value: string;
@@ -148,13 +149,14 @@ export function TaskSelectMenu({
 	const place = useCallback(() => {
 		const rect = anchorRef.current?.getBoundingClientRect();
 		if (!rect) return;
+		const viewport = getVisibleViewport();
 		const width = Math.min(
 			plugin.settings.taskPickerWidth,
-			window.innerWidth - 2 * MARGIN,
+			viewport.width - 2 * MARGIN,
 		);
 		const left = Math.min(
 			Math.max(MARGIN, rect.right - width),
-			window.innerWidth - width - MARGIN,
+			viewport.width - width - MARGIN,
 		);
 		setPos({ top: rect.bottom + 4, left });
 	}, [plugin]);
@@ -162,15 +164,14 @@ export function TaskSelectMenu({
 	useLayoutEffect(() => {
 		if (!open) return;
 		place();
-		// Follow the anchor rather than close — the editor rail scrolls.
-		window.addEventListener("resize", place);
-		window.addEventListener("scroll", place, true);
+		// Follow the anchor rather than close — the editor rail scrolls. Also
+		// follows the mobile keyboard opening/closing (see viewport.ts).
+		const unsubscribe = subscribeToViewportChanges(place);
 		const onClick = () => close();
 		const id = window.setTimeout(() => window.addEventListener("click", onClick));
 		return () => {
 			window.clearTimeout(id);
-			window.removeEventListener("resize", place);
-			window.removeEventListener("scroll", place, true);
+			unsubscribe();
 			window.removeEventListener("click", onClick);
 		};
 	}, [open, place, close]);

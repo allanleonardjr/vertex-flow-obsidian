@@ -7,6 +7,8 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Portaled dropdown and popover menus (property row pickers, the Parent/relations picker, the `u <key>` quick picker, and the `[[wikilink]]` autocomplete) now reposition when the mobile on-screen keyboard opens or closes**, instead of sizing themselves against the pre-keyboard viewport and appearing to float over blank space with the keyboard docked below.
+
 - **Selected filter chips are now visually distinct from unselected ones.**
   Status/Priority/Type/Label/Assignee/Mentions/Project chips in the filter
   clause editor used to look almost identical whether selected or not, and

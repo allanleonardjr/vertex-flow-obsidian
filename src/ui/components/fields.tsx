@@ -21,6 +21,7 @@ import { createPortal } from "react-dom";
 import { listValues, type Taxonomy } from "../../core/taxonomy";
 import type { Person, TaxonomyValue } from "../../core/types";
 import { LabelChip, PersonAvatar, PriorityIcon } from "./TaskBits";
+import { getVisibleViewport, subscribeToViewportChanges } from "./viewport";
 
 export function PropertyRow({
   label,
@@ -167,21 +168,22 @@ export function SelectMenu({
   const place = useCallback(() => {
     const rect = anchorRef.current?.getBoundingClientRect();
     if (!rect) return;
+    const viewport = getVisibleViewport();
     const width = Math.min(
       Math.max(rect.width, 220),
-      window.innerWidth - 2 * MARGIN,
+      viewport.width - 2 * MARGIN,
     );
     const left = Math.min(
       Math.max(MARGIN, rect.left),
-      window.innerWidth - width - MARGIN,
+      viewport.width - width - MARGIN,
     );
-    const below = window.innerHeight - rect.bottom - MARGIN - 4;
+    const below = viewport.height - rect.bottom - MARGIN - 4;
     const above = rect.top - MARGIN - 4;
     // Drop down unless there's too little room and more of it overhead.
     setPlacement(
       below < MIN_MENU_HEIGHT && above > below
         ? {
-            bottom: window.innerHeight - rect.top + 4,
+            bottom: viewport.height - rect.top + 4,
             left,
             width,
             maxHeight: above,
@@ -193,17 +195,16 @@ export function SelectMenu({
   useLayoutEffect(() => {
     if (!open) return;
     place();
-    // Follow the anchor rather than close — the editor rail scrolls.
-    window.addEventListener("resize", place);
-    window.addEventListener("scroll", place, true);
+    // Follow the anchor rather than close — the editor rail scrolls. Also
+    // follows the mobile keyboard opening/closing (see viewport.ts).
+    const unsubscribe = subscribeToViewportChanges(place);
     const onClick = () => close();
     const id = window.setTimeout(() =>
       window.addEventListener("click", onClick),
     );
     return () => {
       window.clearTimeout(id);
-      window.removeEventListener("resize", place);
-      window.removeEventListener("scroll", place, true);
+      unsubscribe();
       window.removeEventListener("click", onClick);
     };
   }, [open, place, close]);
