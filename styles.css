@@ -179,6 +179,9 @@ button.vf-sidebar-search:hover {
   bottom: 0;
   width: 6px;
   cursor: col-resize;
+  /* Same fix as `.vf-canvas-zoom-slider` below — a separate drag
+     implementation from the shared `.vf-resize-handle` component, so it
+     needs the same treatment added independently. */
   touch-action: none;
   z-index: 5;
 }
@@ -5900,6 +5903,8 @@ button.vf-help-topic-label.is-active {
   width: 5px;
   cursor: col-resize;
   background: transparent;
+  /* Same fix as `.vf-canvas-zoom-slider` above. */
+  touch-action: none;
 }
 
 .vf-help-resize:hover {
@@ -8710,6 +8715,10 @@ button.vf-canvas-zoom-btn:disabled:hover {
   width: 70px;
   margin: 0 2px;
   accent-color: var(--interactive-accent);
+  /* Without this, dragging the slider is also read as Obsidian's native
+     horizontal swipe gesture for revealing its side panels — same fix as
+     `.vf-resize-handle` elsewhere in this file. */
+  touch-action: none;
 }
 
 button.vf-canvas-zoom-fit {
@@ -8925,6 +8934,9 @@ button.vf-canvas-zoom-fit {
   opacity: 0;
   cursor: crosshair;
   transition: opacity 0.1s ease;
+  /* Nested inside `.vf-canvas`, which already sets `touch-action: none`, but
+     an ancestor's value isn't reliably enough in practice — same fix as
+     `.vf-canvas-zoom-slider` above, applied directly to this element too. */
   touch-action: none;
 }
 
