@@ -4883,6 +4883,20 @@ button.vf-add-filter.is-on {
   gap: 1px;
 }
 
+/* The icon-only layout buttons are comfortable to click but too small to
+   reliably tap — confirmed on-device. Grow the hit box on mobile only;
+   desktop's tight, mouse-oriented sizing is untouched. */
+.is-mobile .vf-layout-toggle {
+  gap: 4px;
+}
+
+.is-mobile button.vf-layout-opt {
+  min-width: 40px;
+  min-height: 40px;
+  padding: 8px;
+  justify-content: center;
+}
+
 button.vf-layout-opt.is-on {
   color: var(--text-accent);
   font-weight: 500;

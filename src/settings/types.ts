@@ -35,6 +35,12 @@ export interface VertexFlowSettings {
 	 * rather than per-view: someone who works this way wants it everywhere.
 	 */
 	queryBarOpen: boolean;
+	/**
+	 * Whether the view bar's secondary controls (Group, Sort, Sub-tasks,
+	 * Fields, filters, the query editor, etc.) are collapsed behind a "View
+	 * options" toggle. Mobile-only — desktop always shows everything.
+	 */
+	viewOptionsCollapsed: boolean;
 	/** Whether the raw-source section at the bottom of the Task editor is open. */
 	taskEditorSourceOpen: boolean;
 	/** Whether the raw-source section at the bottom of the Project editor is open. */
@@ -138,6 +144,7 @@ export const DEFAULT_SETTINGS: VertexFlowSettings = {
 	projectEditorRailCollapsed: false,
 	// sidebarCollapsed / sidebarWidth / sidebarMinimized REMOVED
 	queryBarOpen: false,
+	viewOptionsCollapsed: true,
 	taskEditorSourceOpen: false,
 	projectEditorSourceOpen: false,
 	taskDescriptionCollapsed: false,

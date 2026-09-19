@@ -7,6 +7,7 @@
  */
 
 import { useRef, useState } from "react";
+import { Platform } from "obsidian";
 import type { EvaluatedView } from "../../core/views";
 import {
   isProjectViewId,
@@ -95,6 +96,10 @@ export function ViewControls({
   );
   const headerRef = useRef<HTMLElement | null>(null);
   const queryOpen = plugin.settings.queryBarOpen;
+  const viewOptionsCollapsed = plugin.settings.viewOptionsCollapsed;
+  // Desktop always shows everything — there's room, and collapsing it there
+  // would just be an extra tap for no space benefit.
+  const showBarOptions = !Platform.isMobile || !viewOptionsCollapsed;
 
   // `openId` is shared by every popover on the bar — the Row 1 "+ Filter"
   // trigger, the other Row 1 display controls, and the Row 2 filter tag
@@ -234,6 +239,27 @@ export function ViewControls({
 				    when Row 2 doesn't exist. */}
         <div className="vf-view-bar vf-view-bar-display">
           <LayoutToggle view={view} onChange={editView} />
+          {Platform.isMobile && (
+            <button
+              type="button"
+              className={`vf-bar-item vf-view-options-toggle${showBarOptions ? " is-on" : ""}`}
+              aria-expanded={showBarOptions}
+              title="Show or hide view options"
+              onClick={() =>
+                writeSettings({ viewOptionsCollapsed: showBarOptions })
+              }
+            >
+              <span
+                className={`vf-section-chevron${showBarOptions ? " is-open" : ""}`}
+                aria-hidden
+              >
+                ›
+              </span>
+              View options
+            </button>
+          )}
+          {showBarOptions && (
+            <>
           {/* Timeline and Calendar ignore grouping entirely (a day grid has no
 					    columns to group), so the control is hidden for both. */}
           {view.viewType !== "timeline" && view.viewType !== "calendar" && (
@@ -405,11 +431,13 @@ export function ViewControls({
               </button>
             </>
           )}
+            </>
+          )}
         </div>
 
         {/* Row 2 — the active filter chips. Not rendered at all when there
 				    are none, so an unfiltered view reserves no height for it. */}
-        {hasFilterRow && (
+        {showBarOptions && hasFilterRow && (
           <div className="vf-view-bar vf-view-bar-filters">
             <FilterControls
               snapshot={snapshot}
@@ -422,7 +450,7 @@ export function ViewControls({
         )}
 
         {/* Row 3 — the text query editor. */}
-        {queryOpen && (
+        {showBarOptions && queryOpen && (
           <div id="vf-query-row">
             <QueryBar snapshot={snapshot} view={view} onChange={editView} />
           </div>
