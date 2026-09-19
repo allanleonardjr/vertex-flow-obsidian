@@ -487,6 +487,18 @@ button.vf-nav-row-menu:hover {
   container-type: inline-size;
 }
 
+/* Obsidian's native bottom action bar is a WebView overlay with no DOM
+   presence and no CSS variable or safe-area inset exposing its height, so
+   this is an estimate (confirmed on-device to cover Canvas's zoom/legend/
+   tap-connect cluster and a task's comment composer "Comment" button) —
+   tune the 50px figure on-device if it's noticeably too much or too little.
+   `.vf-main` is the shared flex-column ancestor for every view, so this one
+   rule reserves clearance uniformly rather than patching each covered
+   element individually. */
+.is-mobile .vf-main {
+  padding-bottom: calc(50px + env(safe-area-inset-bottom, 0px));
+}
+
 .vf-toolbar {
   display: flex;
   align-items: center;
