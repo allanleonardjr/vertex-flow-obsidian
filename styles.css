@@ -8759,6 +8759,29 @@ button.vf-canvas-zoom-fit {
   gap: 6px;
 }
 
+/* Narrow pane (phone, or a desktop pane dragged small): the bar can't grow
+   past the visible width, so let it wrap instead of overflowing off both
+   edges — worst case is the reparent message, which inlines three task
+   titles. Matches the `.vf-browse-hero` breakpoint/convention. */
+@container (max-width: 480px) {
+  .vf-canvas-tap-connect {
+    max-width: calc(100% - 24px);
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .vf-canvas-tap-connect-label,
+  .vf-canvas-tap-connect-error {
+    white-space: normal;
+    text-align: center;
+  }
+
+  .vf-canvas-tap-connect-actions {
+    flex-basis: 100%;
+    justify-content: center;
+  }
+}
+
 .vf-canvas-node {
   position: absolute;
   display: flex;
