@@ -193,7 +193,7 @@ export function TaskDetailPanel({
             style={
               descCollapsed
                 ? undefined
-                : { height: descHeight, flex: "0 0 auto" }
+                : { maxHeight: descHeight, flex: "0 1 auto" }
             }
           >
             <DescriptionSection

@@ -209,7 +209,7 @@ function ProjectEditor({
             style={
               descCollapsed
                 ? undefined
-                : { height: infoHeight, flex: "0 0 auto" }
+                : { maxHeight: infoHeight, flex: "0 1 auto" }
             }
           >
             <DescriptionSection

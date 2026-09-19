@@ -7,6 +7,8 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **On mobile, focusing a Sub-task/Relation/Comment field in the task or project editor no longer appeared to make it vanish behind the Description pane.** The Description/info pane's fixed, never-shrink height was claiming the entire squeezed column once the keyboard opened, leaving nothing for the sections below it; it now shrinks to make room while still respecting its dragged size as a ceiling.
+
 - **Canvas's tap-to-connect and "move under a new parent" confirmation bar now wraps on narrow panes** instead of overflowing off both edges of the screen with its Cancel/Connect (or Cancel/Move) buttons pushed out of reach.
 
 - **Comment and description fields on mobile no longer rendered their text far below the top of the box with a large dead-tap zone above it** — Obsidian's own mobile styles were padding the embedded editor's scroller to reserve room meant for a real note's title. **Resize handles (Description/Sub-tasks, Project editor, Timeline) no longer lose a drag to Obsidian's native swipe gesture on any diagonal movement**, and **are now much easier to grab with a finger** on mobile, without changing their appearance.
