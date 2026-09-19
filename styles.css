@@ -3505,15 +3505,13 @@ button.vf-editor-rail-delete {
 
 /* Obsidian's own mobile styles set a large `padding-top` on `.cm-scroller`
    (confirmed via live inspection: 122px) to reserve room for a real note's
-   inline title/header — meaningless inside this embedded field, and it beats
-   the plain `padding: 0` below since it comes from a more specific rule.
-   `!important` is required because it's overriding Obsidian's own styling,
-   not an inline style, but this is scoped to `.vf-markdown-native
-   .cm-scroller` — exclusively our own embedded-editor host — so it can't
-   affect a real note's editor or another plugin's view. */
+   inline title/header — meaningless inside this embedded field. That
+   specific override now happens in JS (`embedded-editor.ts` sets
+   `scrollDOM.style.paddingTop` directly once the editor mounts, which
+   beats the class-based rule without `!important`); this rule only
+   resets the other sides. */
 .vf-markdown-native .cm-scroller {
   padding: 0;
-  padding-top: 0 !important;
 }
 
 .vf-markdown-native .cm-content {
