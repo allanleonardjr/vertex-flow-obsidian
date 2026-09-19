@@ -27,6 +27,7 @@ import { recurrenceNodesInChain } from "./core/recurrence";
 import { isTaskNoteType } from "./core/entity-type";
 import { migrateEntityTypes } from "./obsidian/migrate-entity-type";
 import { migrateCompletedAt } from "./obsidian/migrate-completed-at";
+import { installSwipeGuard } from "./obsidian/swipe-guard";
 import { VertexFlowSettingTab } from "./settings/SettingTab";
 import {
   DEFAULT_SETTINGS,
@@ -126,6 +127,8 @@ export default class VertexFlowPlugin extends Plugin {
     });
 
     this.registerCommands();
+
+    installSwipeGuard(this.app, this);
 
     // The metadata cache isn't populated until layout is ready; indexing
     // before then would read an empty vault.

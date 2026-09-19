@@ -8,27 +8,18 @@ This project uses [Semantic Versioning](https://semver.org/).
 ### Fixed
 
 - **On mobile, the feature sections under an editor's Description pane (Sub-tasks/Relations/Comments) can no longer be squeezed to nothing anywhere — not when the pane is dragged very tall, and not when the keyboard opens.** The layout's scrollable sections had `min-height: 0`, so nothing actually enforced the floor the resize handle already computed against: dragging Description to (or near) its maximum — or the keyboard shrinking the column — collapsed the sections to zero height, making every input field below the Description unreachable. The sections now have a real minimum height matching the resize handle's floor (Task editor 160px, Project editor 120px), so a tall Description leaves a usable, scrollable band of features below it.
-
 - **On mobile, dragging the sidebar's width edge, a Timeline bar, or a Timeline bar's start/end resize handle no longer swipes the whole page sideways.** Those three drag surfaces were the last interactive elements without `touch-action: none`; the browser was claiming the gesture for Obsidian's native swipe (showing its own app chrome) on the first horizontal movement. They now claim the gesture themselves like every other resize/drag handle in the plugin, so the drag goes to the resize instead of the page.
-
 - **On mobile, focusing a field inside a task/comment panes' own scroller keeps the focused field visible when the keyboard opens.** iOS only auto-scrolls plain document flow into view, not inputs nested inside the plugin's fixed-height `overflow-y: auto` panes — the focused field could end up out of sight while the keyboard was up. A delegated `focusin` handler now scrolls the focused element into view (nearest, deferred a frame) wherever it lives.
-
 - **On mobile, focusing a Sub-task/Relation/Comment field in the task or project editor no longer appears to make it vanish behind the Description pane.** The Description/info pane's fixed, never-shrink height was claiming the entire squeezed column once the keyboard opened, leaving nothing for the sections below it. It now yields to those sections when the column is squeezed — **while still holding its dragged size whenever there's room**, so dragging it taller than its text (an empty pane, a one-line description) works again instead of silently capping the visible height at the content's own height.
-
 - **The task picker's result list no longer hides behind the mobile on-screen keyboard.** Opening a Parent/Sub-task/relation picker auto-focuses its search box, which pops the keyboard and shrinks the visible viewport. The menu measured itself against the pre-keyboard viewport and only ever clamped its width, so on a phone the search box stayed visible while the *results below it* were covered by the keyboard. The menu now measures the room below/above its trigger against the keyboard-shrunk viewport, flips to open upward when there's more room that way, and caps its height to what's actually visible.
-
 - **Canvas's tap-to-connect and "move under a new parent" confirmation bar now wraps on narrow panes** instead of overflowing off both edges of the screen with its Cancel/Connect (or Cancel/Move) buttons pushed out of reach.
-
 - **The view bar's secondary controls (Group, Sort, Sub-tasks, Fields, filters, the query editor, and more) now collapse behind a "View options" toggle on mobile**, cut down from five or more stacked rows to two by default — the layout switcher stays always visible. **Layout-switcher buttons are also easier to tap on mobile now.**
-
 - **Comment and description fields on mobile no longer rendered their text far below the top of the box with a large dead-tap zone above it** — Obsidian's own mobile styles were padding the embedded editor's scroller to reserve room meant for a real note's title. **Resize handles (Description/Sub-tasks, Project editor, Timeline) no longer lose a drag to Obsidian's native swipe gesture on any diagonal movement**, and **are now much easier to grab with a finger** on mobile, without changing their appearance.
-
 - **Dragging Canvas's zoom slider, the sidebar's resize handle, the Help pane's resize handle, or Canvas's drag-to-connect handle on mobile no longer triggered Obsidian's native side-panel swipe gesture.**
 
+- **Dragging Canvas's pan surface, its zoom slider, or a resize handle on mobile no longer triggered Obsidian's own swipe-to-reveal-sidebar gesture.** This is Obsidian's own JS-level gesture detection, independent of the browser's native touch handling, so it needed its own targeted fix rather than the earlier `touch-action` CSS (which remains, for the separate, real problem it solves).
 - **Focusing a text field on mobile (a task title, a comment, the Create Workspace form) no longer collapsed the visible screen to just that field and a large blank gap.** Obsidian's own mobile shell was reserving keyboard-height space on `.view-content` twice — once by shrinking its height, again via a same-sized `padding-bottom` — and Vertex Flow's root inherited both. The plugin's own separate `--vf-vh`/`visualViewport` keyboard-height tracking (`useVisualViewportHeight`) is also removed as part of this fix; it's no longer needed now that the double-counted padding is corrected.
-
 - **Portaled dropdown and popover menus (property row pickers, the Parent/relations picker, the `u <key>` quick picker, and the `[[wikilink]]` autocomplete) now reposition when the mobile on-screen keyboard opens or closes**, instead of sizing themselves against the pre-keyboard viewport and appearing to float over blank space with the keyboard docked below.
-
 - **Selected filter chips are now visually distinct from unselected ones.**
   Status/Priority/Type/Label/Assignee/Mentions/Project chips in the filter
   clause editor used to look almost identical whether selected or not, and
@@ -37,7 +28,6 @@ This project uses [Semantic Versioning](https://semver.org/).
   selecting one fills it with a tinted background and full-strength color —
   the value's own taxonomy color when it has one, or the app's accent color
   (matching the "You" badge) when it doesn't.
-
 - **Canvas now re-fits the viewport when Arrange changes.** Auto-fit only
   ran once, the first time layout finished after mount — so switching the
   Arrange control (Dependency flow / Hierarchy, either direction) re-laid
