@@ -27,7 +27,7 @@ import {
 	type ViewFilters,
 	type WorkspaceSnapshot,
 } from "../types";
-import { flattenTasks, isOverdueTask, summarizeTasks } from "./snapshot";
+import { estimateTokens, flattenTasks, isOverdueTask, summarizeTasks } from "./snapshot";
 
 export interface TaskQueryAction {
 	action: "searchTasks" | "countTasks";
@@ -117,6 +117,25 @@ export function looksLikeJsonAttempt(response: string): boolean {
 	} catch {
 		return false;
 	}
+}
+
+/**
+ * The broadest of the three checks, and deliberately doesn't require
+ * `JSON.parse` to succeed at all — `looksLikeJsonAttempt` still needs the
+ * response to parse as valid JSON, but a garbled or concatenated attempt
+ * (e.g. two action objects run together — `{"action":"countTasks",...}>{"action":"searchTasks",...}`,
+ * not valid JSON as a whole string) fails that too and falls through to being
+ * shown raw. This only asks whether the response *looks like* it was reaching
+ * for structured output at all: starts with `{`, or contains the literal
+ * substring `"action"` anywhere. Ordinary prose essentially never does
+ * either, so this stays safe against false positives while catching
+ * well-formed, malformed, and garbled/concatenated attempts alike — anything
+ * this catches should route to the same corrective retry/fallback as a
+ * parseable-but-invalid attempt, never straight to the user.
+ */
+export function looksLikeAttemptedAction(response: string): boolean {
+	const trimmed = response.trim();
+	return trimmed.startsWith("{") || trimmed.includes('"action"');
 }
 
 /**
@@ -238,7 +257,13 @@ function resolveFilterValues(
 	};
 }
 
-/** Rows returned for a `searchTasks` action beyond this are summarized as a count instead. */
+/**
+ * Hard ceiling on `searchTasks` rows regardless of how much budget is
+ * available — a sane sanity bound (nobody needs literally thousands of rows
+ * formatted into one message) that the adaptive check in `executeQueryAction`
+ * below then narrows further, never widens, to fit whatever budget it's
+ * actually given.
+ */
 const MAX_QUERY_RESULT_ROWS = 100;
 
 export interface QueryActionResult {
@@ -252,14 +277,48 @@ export interface QueryActionResult {
 	 * the text sent to the model stays exactly what it already was.
 	 */
 	tasks?: Task[];
+	/**
+	 * How many tasks matched in total, before any truncation — only set for
+	 * `searchTasks`. Paired with `query` below so a caller can re-run the same
+	 * match set later with a larger row count ("Load more" in the rendered
+	 * task list) without asking the model again; `tasks.length` alone can't
+	 * tell you whether there's more to load.
+	 */
+	totalMatches?: number;
+	/**
+	 * The resolved `ViewFilters` (display names already turned into real
+	 * ids/paths) plus the `overdue` post-filter flag behind this result —
+	 * everything needed to call `applyFilters` again with a larger row count
+	 * and reproduce the exact same match set, client-side, no model call
+	 * involved. Metadata about how the answer was produced, not user-facing
+	 * content — never sent back to the model on a later turn.
+	 */
+	query?: { filters: ViewFilters; overdue: boolean };
 }
 
-/** Runs a validated query action against the real filtering engine and formats the result for the model to read. */
+/**
+ * Runs a validated query action against the real filtering engine and
+ * formats the result for the model to read.
+ *
+ * `availableTokens` bounds how much of the matched `searchTasks` result
+ * actually gets formatted: an unfiltered query against a large workspace can
+ * produce a flat-capped row count whose formatted text alone blows a smaller
+ * model's context window, well before the conversation itself gets anywhere
+ * near long — the same class of failure the old full-snapshot design had,
+ * fixed the same way (progressively halving the row count until the
+ * formatted text fits, same technique, applied to a query result instead of
+ * the whole snapshot). Defaults to unlimited so every existing caller
+ * (including the full test suite) keeps today's flat-cap-only behavior
+ * unless it explicitly opts into a real budget — `AiChatView.tsx`'s `runTurn`
+ * is the one caller that does, passing the same remaining-budget figure the
+ * context-usage meter computes.
+ */
 export function executeQueryAction(
 	action: TaskQueryAction,
 	snapshot: WorkspaceSnapshot,
 	context: ViewContext,
 	today: IsoDate = new Date().toISOString().slice(0, 10),
+	availableTokens: number = Number.POSITIVE_INFINITY,
 ): QueryActionResult {
 	const resolved = resolveFilterValues(action.filters, snapshot, context);
 	let matched = applyFilters(snapshot.tasks, resolved, context);
@@ -268,19 +327,47 @@ export function executeQueryAction(
 	// doc comment) — applied as an additional AND'd predicate on top of
 	// whatever `applyFilters` already matched, consistent with how every other
 	// filter field combines.
-	if (action.filters.overdue) {
+	const overdue = Boolean(action.filters.overdue);
+	if (overdue) {
 		matched = matched.filter((task) => isOverdueTask(task, context.taxonomies.status, today));
 	}
 
+	// `countTasks` is inherently bounded — a plain sentence naming a number,
+	// never per-row content — so it needs no budget check of its own; the
+	// adaptive truncation below is `searchTasks`-only by construction.
 	if (action.action === "countTasks") {
 		return { text: `${matched.length} task(s) matched.` };
 	}
 
-	const capped = matched.slice(0, MAX_QUERY_RESULT_ROWS);
-	const summaries = summarizeTasks(capped, snapshot, context.taxonomies);
-	const note =
-		matched.length > MAX_QUERY_RESULT_ROWS
-			? `\n(showing the first ${MAX_QUERY_RESULT_ROWS} of ${matched.length} matches)`
-			: "";
-	return { text: `${flattenTasks(summaries)}${note}`, tasks: capped };
+	const totalMatches = matched.length;
+	const query = { filters: resolved, overdue };
+
+	if (totalMatches === 0) {
+		return { text: flattenTasks([]), tasks: [], totalMatches, query };
+	}
+
+	// Halve the row count until the formatted text fits the budget, or there's
+	// only one row left to show — always show at least one matching task
+	// rather than none, even in the pathological case of a budget too small
+	// for even that; the note below still makes clear the list is partial.
+	let rowCount = Math.min(totalMatches, MAX_QUERY_RESULT_ROWS);
+	let capped: Task[];
+	let formatted: string;
+	// The truncation note itself costs a few tokens too — checked together with
+	// the formatted table on every iteration (not the table alone), or a
+	// borderline case could still land a hair over `availableTokens` once the
+	// note is appended.
+	let note = "";
+	for (;;) {
+		capped = matched.slice(0, rowCount);
+		formatted = flattenTasks(summarizeTasks(capped, snapshot, context.taxonomies));
+		note =
+			rowCount < totalMatches
+				? `\n(showing ${rowCount} of ${totalMatches} matching tasks — add a filter to narrow this down)`
+				: "";
+		if (estimateTokens(formatted + note) <= availableTokens || rowCount <= 1) break;
+		rowCount = Math.max(1, Math.floor(rowCount / 2));
+	}
+
+	return { text: `${formatted}${note}`, tasks: capped, totalMatches, query };
 }

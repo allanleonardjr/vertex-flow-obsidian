@@ -1,20 +1,34 @@
 import { describe, expect, it } from "vitest";
 import {
+	buildDashboardsSection,
 	buildFactsSection,
 	buildPeopleRoster,
 	buildTaxonomyLegend,
+	buildViewsSection,
 	flattenTasks,
 	isOverdueTask,
 	summarizeTasks,
 } from "../../src/core/ai/snapshot";
 import { createTaxonomy, DEFAULT_STATUSES, workspaceTaxonomies } from "../../src/core/taxonomy";
-import type { WorkspaceSnapshot } from "../../src/core/types";
+import type { DashboardWidget, WorkspaceSnapshot } from "../../src/core/types";
+import { defaultViews, newView } from "../../src/core/views/defaults";
 import { project, task } from "./fixtures";
 import { sampleSnapshot } from "../../src/core/templates/instantiate";
 
 function withEntities(tasks: WorkspaceSnapshot["tasks"], projects: WorkspaceSnapshot["projects"]) {
 	const base = sampleSnapshot();
 	return { ...base, tasks, projects };
+}
+
+function widget(id: string): DashboardWidget {
+	return {
+		id,
+		chartType: "kpi",
+		title: "W",
+		titleIsCustom: false,
+		fieldMapping: { chartType: "kpi", metric: "count", scope: null },
+		layout: { x: 0, y: 0, w: 6, h: 4 },
+	};
 }
 
 describe("isOverdueTask", () => {
@@ -148,6 +162,67 @@ describe("buildFactsSection", () => {
 		expect(facts).toContain("Today's date: 2026-03-14");
 		expect(facts).toContain("Statuses (in order):");
 		expect(facts).toContain("People:");
+	});
+
+	it("counts user views separately from the two permanent system views, with layouts and names", () => {
+		const snapshot: WorkspaceSnapshot = {
+			...sampleSnapshot(),
+			views: [
+				...defaultViews(),
+				newView("board-1", "Launch Board", "board"),
+				newView("cal-1", "Roadmap", "calendar"),
+				newView("list-1", "Shopping", "list"),
+			],
+		};
+		const taxonomies = workspaceTaxonomies(snapshot.workspace);
+		const facts = buildFactsSection(snapshot, taxonomies, "2026-01-01");
+
+		expect(facts).toContain("Views: 3 user views (plus 2 permanent: All Tasks, Untriaged)");
+		expect(facts).toContain("View layouts: 1 board, 1 calendar, 1 list");
+		expect(facts).toContain("View names: Launch Board, Roadmap, Shopping");
+	});
+
+	it("reports each dashboard's name and its widget (chart) count", () => {
+		const snapshot: WorkspaceSnapshot = {
+			...sampleSnapshot(),
+			dashboards: [
+				{
+					type: "vertex-flow-dashboard",
+					path: "W/Dashboards/d1",
+					id: "d1",
+					name: "Launch Metrics",
+					widgets: [widget("w1"), widget("w2"), widget("w3")],
+					filters: {},
+				},
+				{
+					type: "vertex-flow-dashboard",
+					path: "W/Dashboards/d2",
+					id: "d2",
+					name: "Velocity",
+					widgets: [],
+					filters: {},
+				},
+			],
+		};
+		const taxonomies = workspaceTaxonomies(snapshot.workspace);
+		const facts = buildFactsSection(snapshot, taxonomies, "2026-01-01");
+
+		expect(facts).toContain("Dashboards: 2");
+		expect(facts).toContain("Dashboard names: Launch Metrics (3 charts), Velocity (0 charts)");
+	});
+});
+
+describe("buildViewsSection", () => {
+	it("says 'none' for layouts and omits names when only system views exist", () => {
+		expect(buildViewsSection(defaultViews())).toBe(
+			"Views: 0 user views (plus 2 permanent: All Tasks, Untriaged)\nView layouts: none",
+		);
+	});
+});
+
+describe("buildDashboardsSection", () => {
+	it("omits the names line when there are no dashboards", () => {
+		expect(buildDashboardsSection([])).toBe("Dashboards: 0");
 	});
 });
 

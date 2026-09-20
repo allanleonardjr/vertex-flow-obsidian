@@ -18,7 +18,12 @@
 
 import { getValue, isCanceled, isCompleted, listValues, type Taxonomy } from "../taxonomy/engine";
 import type { WorkspaceTaxonomies } from "../taxonomy";
-import type { IsoDate, Person, Project, Task, WorkspaceSnapshot } from "../types";
+import type { DashboardConfig, IsoDate, Person, Project, SavedView, Task, WorkspaceSnapshot } from "../types";
+import {
+	isSystemViewId,
+	SYSTEM_VIEW_ALL_TASKS_NAME,
+	SYSTEM_VIEW_UNTRIAGED_NAME,
+} from "../views/defaults";
 
 export interface AiTaskSummary {
 	id: string;
@@ -178,12 +183,48 @@ export function buildPeopleRoster(people: Person[]): string {
 }
 
 /**
+ * Saved Views and Dashboards are workspace *configuration* (like the taxonomy
+ * legend and people roster above), so their names are listed in full — the
+ * same bounded-by-config class, never task-adjacent data. The two permanent
+ * System Views ("All Tasks", "Untriaged") are called out separately rather
+ * than lumped into the count, mirroring the rest of the app (`ViewsBrowseView`,
+ * `ExportDialog`): the count is views the user actually made.
+ */
+export function buildViewsSection(views: SavedView[]): string {
+	const userViews = views.filter((view) => !isSystemViewId(view.id));
+
+	const byLayout = new Map<string, number>();
+	for (const view of userViews) {
+		byLayout.set(view.viewType, (byLayout.get(view.viewType) ?? 0) + 1);
+	}
+	const layoutCounts = [...byLayout.entries()]
+		.sort(([a], [b]) => a.localeCompare(b))
+		.map(([layout, count]) => `${count} ${layout}`)
+		.join(", ");
+
+	const names = userViews.map((view) => view.name).join(", ");
+	return [
+		`Views: ${userViews.length} user views (plus 2 permanent: ${SYSTEM_VIEW_ALL_TASKS_NAME}, ${SYSTEM_VIEW_UNTRIAGED_NAME})`,
+		`View layouts: ${layoutCounts || "none"}`,
+		...((names && [`View names: ${names}`]) ?? []),
+	].join("\n");
+}
+
+/** Dashboards are named exactly like views; the widget count tells the model how big each one is. */
+export function buildDashboardsSection(dashboards: DashboardConfig[]): string {
+	const names = dashboards
+		.map((dashboard) => `${dashboard.name} (${dashboard.widgets.length} chart${dashboard.widgets.length === 1 ? "" : "s"})`)
+		.join(", ");
+	return [`Dashboards: ${dashboards.length}`, ...((names && [`Dashboard names: ${names}`]) ?? [])].join("\n");
+}
+
+/**
  * The fixed-cost layer sent on every message, regardless of workspace size.
  * Counts are cheap `.length`/`.filter().length` reads off the real arrays —
  * never derived from a possibly-truncated list, which is what made "how many
- * tasks do I have?" answerable wrong before. The legend and roster are
- * bounded by how many taxonomy values and people this workspace has
- * configured, not by how many tasks exist.
+ * tasks do I have?" answerable wrong before. The legend, roster, and
+ * view/dashboard sections are bounded by how much this workspace has
+ * *configured*, not by how many tasks exist.
  *
  * Invariant: this function's output must never need truncation. Don't be
  * tempted to list every project's name here — that scales with task-adjacent
@@ -207,6 +248,8 @@ export function buildFactsSection(
 
 	return [
 		counts,
+		buildViewsSection(snapshot.views),
+		buildDashboardsSection(snapshot.dashboards),
 		buildTaxonomyLegend(taxonomies),
 		buildPeopleRoster(snapshot.workspace.people),
 	].join("\n");

@@ -4710,11 +4710,11 @@ input.vf-editable-title-input {
   flex: 1;
   flex-direction: column;
   gap: 6px;
-  padding: 8px 20px;
+  padding: 20px;
   overflow-y: auto;
   width: 100%;
   max-width: 1024px;
-  margin: 0 auto;
+  margin: 20px auto;
 }
 
 /* One row per message: the bubble, then its always-visible Copy/Retry/Edit
@@ -4737,6 +4737,7 @@ input.vf-editable-title-input {
 }
 
 .vf-chat-bubble {
+  max-width: 100%;
   padding: 5px 10px;
   border-radius: 10px;
   font-size: var(--font-ui-small);
@@ -4784,6 +4785,29 @@ input.vf-editable-title-input {
   border: 1px solid var(--vf-border);
   border-radius: var(--vf-radius);
   overflow: hidden;
+}
+
+/* "Load more" under a truncated `searchTasks` list — a pure client-side
+   re-run of the same stored filters at a larger row count (see
+   `loadMoreTasks` in `AiChatView.tsx`), never a model call, so no loading
+   state beyond the synchronous re-render. Plain text, not a boxed button —
+   reads as a quiet continuation of the list above it, not a primary action. */
+.vf-chat-load-more {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 4px 2px;
+  border: none;
+  background: transparent;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  text-align: left;
+  cursor: pointer;
+}
+
+.vf-chat-load-more:hover {
+  color: var(--text-normal);
+  text-decoration: underline;
 }
 
 .vf-chat-bubble-assistant {
@@ -4878,6 +4902,133 @@ input.vf-editable-title-input {
   color: var(--text-normal);
   font-size: var(--font-ui-small);
   font-family: inherit;
+}
+
+/* Model switcher footer below the chat input — right-aligned so it reads as a
+   quiet status control rather than a first-class input, same centered
+   max-width as the input row it sits under. */
+.vf-chat-model-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+  width: 100%;
+  max-width: 1024px;
+  margin: 0 auto;
+  padding: 0 20px 12px;
+  box-sizing: border-box;
+}
+
+.vf-chat-model-label {
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+/* Obsidian's base theme strips the native dropdown arrow (its own `appearance`
+   reset) without adding a replacement back, so this control read as a plain
+   text box rather than a select — `appearance: none` here is explicit
+   (guarantees no conflicting native arrow can render alongside the SVG one
+   below) and the chevron is drawn back in via `background-image`. That's a
+   static-colored SVG, not `var(--vf-muted)` itself — a data-URI background
+   image is painted in an isolated context and can't reference a CSS custom
+   property — chosen to read as the same neutral muted grey in both themes. */
+.vf-chat-model-row .vf-select {
+  width: auto;
+  min-width: 150px;
+  background-color: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%239a9a9a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='4,6 8,10 12,6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 11px;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid var(--vf-border);
+  color: var(--vf-muted);
+  padding: 2px 24px 2px 6px;
+  border-radius: var(--vf-radius);
+  cursor: pointer;
+}
+
+.vf-chat-model-row .vf-select:hover {
+  color: var(--text-normal);
+  border-color: var(--interactive-accent);
+}
+
+/* Live, always-visible estimate of how much of the selected model's context
+   window this conversation is using (see `contextUsage` in `AiChatView.tsx`)
+   — `margin-right: auto` holds it at the row's left edge while the model
+   label/select stay pinned right, same row. Reuses the `.vf-ai-progress`
+   bar pattern (Settings' download meter, the loading-state bar) rather than
+   a new visual for the same "progress toward a limit" idea. */
+.vf-chat-context-meter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: auto;
+  min-width: 0;
+}
+
+.vf-chat-context-meter .vf-ai-progress {
+  width: 60px;
+  flex: none;
+}
+
+.vf-chat-context-meter-label {
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  white-space: nowrap;
+}
+
+/* Neutral/muted below 80% (the bar's own default fill color), shifting to a
+   warning color at 80%+ and to the error color at 90%+ (the same threshold
+   `.vf-chat-context-warning` below appears at) — climbing urgency, not just
+   a binary "fine" vs. "not fine". */
+.vf-chat-context-meter.is-warning .vf-ai-progress-fill {
+  background: var(--color-orange);
+}
+
+.vf-chat-context-meter.is-critical .vf-ai-progress-fill {
+  background: var(--text-error);
+}
+
+.vf-chat-context-meter.is-critical .vf-chat-context-meter-label {
+  color: var(--text-error);
+}
+
+/* The proactive near-ceiling note — a lighter-weight warning shown *before*
+   `CONTEXT_OVERFLOW_MESSAGE` would ever fire, not a replacement for it.
+   Never blocks sending; purely informational. */
+.vf-chat-context-warning {
+  width: 100%;
+  max-width: 1024px;
+  margin: 0 auto;
+  padding: 0 20px 6px;
+  box-sizing: border-box;
+  color: var(--color-orange);
+  font-size: var(--font-ui-smaller);
+}
+
+/* Mid-conversation model-switch status — in-progress ("Switching to…", with
+   the shared `.vf-chat-thinking` dots for the same "still working" language
+   used elsewhere) and the brief post-switch confirmation/error note that
+   replaces it once the switch settles. Sits in the same slot/width as
+   `.vf-chat-context-warning` above it. */
+.vf-chat-switch-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  max-width: 1024px;
+  margin: 0 auto;
+  padding: 0 20px 6px;
+  box-sizing: border-box;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.vf-chat-switch-status.is-error {
+  color: var(--text-error);
 }
 
 .vf-taxonomy-table {

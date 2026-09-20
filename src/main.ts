@@ -24,10 +24,6 @@ import {
   configureLastWorkspaceStorage,
   getLastWorkspaceRoot,
 } from "./obsidian/last-workspace-storage";
-import {
-  configureAiChatTabStorage,
-  wasAiChatTabOpen,
-} from "./obsidian/ai-chat-tab-storage";
 import { recurrenceNodesInChain } from "./core/recurrence";
 import { isTaskNoteType } from "./core/entity-type";
 import { migrateEntityTypes } from "./obsidian/migrate-entity-type";
@@ -97,7 +93,6 @@ export default class VertexFlowPlugin extends Plugin {
     const appId = (this.app as unknown as { appId?: string }).appId;
     configureMeStorage(appId);
     configureLastWorkspaceStorage(appId);
-    configureAiChatTabStorage(appId);
     // Reopen the workspace this device last had active. A stale value (the
     // workspace was deleted/renamed) is harmless — `activeWorkspace()` and
     // `useActiveWorkspace()` both fall back to the first workspace.
@@ -177,27 +172,6 @@ export default class VertexFlowPlugin extends Plugin {
         }),
       );
       void this.index.rebuild().then(() => this.registerTaskRedirect());
-
-      // Background warm: if AI Chat was open on this device last time
-      // Obsidian closed and the selected model is already cached, quietly
-      // activate it in the worker now — so opening AI Chat later finds it
-      // already active via the same-model fast path in `AiChatView` instead
-      // of paying the load cost on top of a cold-Obsidian-launch. Never
-      // triggers a download: a model that isn't cached stays untouched until
-      // the user opens AI Chat and installs it themselves. Best-effort and
-      // entirely invisible — no Notice, no tab opens, failures are just
-      // logged.
-      if (wasAiChatTabOpen() && AiEngineService.supportsWebGPU()) {
-        const modelId = this.settings.selectedAiModelId;
-        void this.aiEngine
-          .isInstalled(modelId)
-          .then((installed) => {
-            if (installed) return this.aiEngine.install(modelId);
-          })
-          .catch((error: unknown) => {
-            console.error("Vertex Flow: background AI model warm failed", error);
-          });
-      }
     });
   }
 

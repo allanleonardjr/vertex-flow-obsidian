@@ -22,6 +22,7 @@ import {
 	type InitProgressCallback,
 	type WebWorkerMLCEngine,
 } from "@mlc-ai/web-llm";
+import { estimateTokens } from "../core/ai/snapshot";
 
 export interface AiModelOption {
 	id: string;
@@ -46,6 +47,19 @@ export const AI_MODEL_OPTIONS: AiModelOption[] = [
 ];
 
 export const DEFAULT_AI_MODEL_ID = AI_MODEL_OPTIONS[0].id;
+
+/**
+ * `chat()`'s `max_tokens` sizing — an explicit cap on the *completion*,
+ * separate from (and never a substitute for) the adaptive truncation on the
+ * *prompt* side (`query-action.ts`'s `executeQueryAction`). `estimateTokens`
+ * is a heuristic (chars/4), not an exact tokenizer, so these are deliberately
+ * round, conservative numbers rather than a computed exact boundary.
+ */
+const COMPLETION_TOKEN_SAFETY_MARGIN = 64;
+/** Always leave room for at least a short reply — e.g. a "this conversation is too long" style answer — even against a prompt that's nearly filled the window. */
+const MIN_COMPLETION_TOKENS = 64;
+/** No ordinary chat reply needs more than this; caps `max_tokens` even when the raw remaining budget would technically allow more. */
+const MAX_COMPLETION_TOKENS = 1024;
 
 /** VRAM/context for a model id, read live from the package's own config — never hand-copied, so it can't drift from what's actually installed. */
 export function aiModelInfo(modelId: string): { vramMB: number | null; contextWindow: number | null } {
@@ -180,7 +194,19 @@ export class AiEngineService {
 		this.engine?.interruptGenerate();
 	}
 
-	/** Streams the assistant's reply token-by-token, returning the full text once done. Uses whichever model `install()` most recently activated. */
+	/**
+	 * Streams the assistant's reply token-by-token, returning the full text
+	 * once done. Uses whichever model `install()` most recently activated.
+	 *
+	 * Always passes an explicit `max_tokens`: left unset, WebLLM defaults it
+	 * to `Infinity` internally, an unbounded completion-length reservation
+	 * that can combine with an otherwise well-under-budget prompt to exceed
+	 * the model's real context window. Sized from `estimateTokens()` over the
+	 * prompt against `aiModelInfo`'s `contextWindow` for whichever model is
+	 * currently loaded, clamped to a sane min (room for at least a short
+	 * reply) and max (no normal reply needs more, however large the raw
+	 * remaining budget is) — see the constants above `chat()`'s definition.
+	 */
 	async chat(
 		messages: AiChatMessage[],
 		onToken: (token: string) => void,
@@ -189,9 +215,27 @@ export class AiEngineService {
 			throw new Error("AI model is not loaded — call install() first.");
 		}
 
+		const contextWindow = this.loadedModelId
+			? aiModelInfo(this.loadedModelId).contextWindow
+			: null;
+		const promptTokens = messages.reduce(
+			(sum, message) => sum + estimateTokens(message.content),
+			0,
+		);
+		const maxTokens = contextWindow
+			? Math.min(
+					MAX_COMPLETION_TOKENS,
+					Math.max(
+						MIN_COMPLETION_TOKENS,
+						contextWindow - promptTokens - COMPLETION_TOKEN_SAFETY_MARGIN,
+					),
+				)
+			: MAX_COMPLETION_TOKENS;
+
 		const stream = await this.engine.chat.completions.create({
 			messages: messages as ChatCompletionMessageParam[],
 			stream: true,
+			max_tokens: maxTokens,
 		});
 
 		let full = "";

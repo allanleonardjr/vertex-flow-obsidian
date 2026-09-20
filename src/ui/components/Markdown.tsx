@@ -45,13 +45,33 @@ export function MarkdownContent({
 		};
 	}, []);
 
+	// `MarkdownRenderer.render` resolves once Obsidian's pipeline has finished
+	// writing into `el`. Firing one untracked render per update leaves an older,
+	// slower render free to resolve *after* a newer one has already emptied and
+	// repopulated the container — appending its stale DOM into a node a newer
+	// render had moved past, duplicating content. Renders are serialized instead:
+	// each effect run queues its `empty()` + `render()` behind the previous run's
+	// promise, and the `cancelled` flag (cleared in cleanup the moment a newer run
+	// supersedes this one) makes a superseded step skip entirely rather than write
+	// into an element a newer render already touched.
+	const renderChainRef = useRef<Promise<void>>(Promise.resolve());
 	useEffect(() => {
 		const el = containerRef.current;
 		const component = componentRef.current;
 		if (!el || !component) return;
 
-		el.empty();
-		void MarkdownRenderer.render(plugin.app, text, el, sourcePath, component);
+		let cancelled = false;
+		const run = { text, sourcePath };
+		renderChainRef.current = renderChainRef.current
+			.then(() => {
+				if (cancelled) return;
+				el.empty();
+				return MarkdownRenderer.render(plugin.app, run.text, el, run.sourcePath, component);
+			})
+			.catch(() => {});
+		return () => {
+			cancelled = true;
+		};
 	}, [plugin, text, sourcePath]);
 
 	// `markdown-rendered` is applied here explicitly rather than assumed from

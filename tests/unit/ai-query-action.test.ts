@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
 	executeQueryAction,
+	looksLikeAttemptedAction,
 	looksLikeJsonAttempt,
 	looksLikeQueryAction,
 	parseQueryAction,
 } from "../../src/core/ai/query-action";
+import { estimateTokens } from "../../src/core/ai/snapshot";
 import { snapshotContext } from "../../src/core/views/context";
 import type { WorkspaceSnapshot } from "../../src/core/types";
 import { project, task } from "./fixtures";
@@ -130,6 +132,41 @@ describe("looksLikeJsonAttempt", () => {
 	});
 });
 
+describe("looksLikeAttemptedAction", () => {
+	it("is true for a structurally valid action (a superset of the other two checks)", () => {
+		expect(looksLikeAttemptedAction('{"action":"searchTasks","filters":{}}')).toBe(true);
+	});
+
+	it("is true for two concatenated action objects that fail JSON.parse entirely — the reported bug", () => {
+		const garbled =
+			'{"action": "countTasks", "filters": {}}>{"action": "searchTasks", "filters": {"status": ["Todo"]}}';
+		// Sanity-check the premise: this really doesn't parse as JSON.
+		expect(() => {
+			JSON.parse(garbled);
+		}).toThrow();
+		expect(looksLikeJsonAttempt(garbled)).toBe(false);
+		expect(looksLikeAttemptedAction(garbled)).toBe(true);
+	});
+
+	it("is true for any response starting with '{', valid JSON or not", () => {
+		expect(looksLikeAttemptedAction("{this isn't even JSON")).toBe(true);
+	});
+
+	it('is true for a response containing the literal substring "action" anywhere, even mid-prose', () => {
+		expect(looksLikeAttemptedAction('Sure, here: "action": "countTasks" ...')).toBe(true);
+	});
+
+	it("is false for ordinary prose that neither starts with '{' nor mentions \"action\"", () => {
+		expect(looksLikeAttemptedAction("There are 3 statuses in this workspace.")).toBe(false);
+		expect(looksLikeAttemptedAction("Sure! Let me help with that.")).toBe(false);
+	});
+
+	it("is false for empty or whitespace-only text", () => {
+		expect(looksLikeAttemptedAction("")).toBe(false);
+		expect(looksLikeAttemptedAction("   \n  ")).toBe(false);
+	});
+});
+
 describe("executeQueryAction", () => {
 	it("countTasks returns a plain count, never full rows", () => {
 		const tasks = [
@@ -231,8 +268,9 @@ describe("executeQueryAction", () => {
 			context,
 		);
 
-		expect(result.text).toContain("showing the first 100 of 150 matches");
+		expect(result.text).toContain("showing 100 of 150 matching tasks");
 		expect(result.tasks).toHaveLength(100);
+		expect(result.totalMatches).toBe(150);
 	});
 
 	it("returns the real matched Task objects alongside the text for searchTasks", () => {
@@ -348,5 +386,105 @@ describe("executeQueryAction", () => {
 		);
 
 		expect(result.text).toBe("1 task(s) matched.");
+	});
+
+	it("halves the row count until the formatted text fits a tight availableTokens budget", () => {
+		const tasks = Array.from({ length: 40 }, (_, i) =>
+			task({ id: `TSK-${i}`, path: `W/Tasks/TSK-${i}`, status: "todo" }),
+		);
+		const snapshot = withEntities(tasks, []);
+		const context = snapshotContext(snapshot);
+
+		// Big enough for a handful of rows, nowhere near enough for all 40.
+		const unlimited = executeQueryAction(
+			{ action: "searchTasks", filters: { status: ["Todo"] } },
+			snapshot,
+			context,
+		);
+		const fullCost = estimateTokens(unlimited.text);
+		const tightBudget = Math.round(fullCost / 8);
+
+		const result = executeQueryAction(
+			{ action: "searchTasks", filters: { status: ["Todo"] } },
+			snapshot,
+			context,
+			undefined,
+			tightBudget,
+		);
+
+		expect(result.tasks!.length).toBeGreaterThan(0);
+		expect(result.tasks!.length).toBeLessThan(40);
+		expect(estimateTokens(result.text)).toBeLessThanOrEqual(tightBudget);
+		expect(result.text).toContain("add a filter to narrow this down");
+		expect(result.totalMatches).toBe(40);
+	});
+
+	it("always shows at least one row even when the budget can't fit it", () => {
+		const tasks = [
+			task({ id: "TSK-1", path: "W/Tasks/TSK-1", status: "todo" }),
+			task({ id: "TSK-2", path: "W/Tasks/TSK-2", status: "todo" }),
+		];
+		const snapshot = withEntities(tasks, []);
+		const context = snapshotContext(snapshot);
+
+		const result = executeQueryAction(
+			{ action: "searchTasks", filters: { status: ["Todo"] } },
+			snapshot,
+			context,
+			undefined,
+			1,
+		);
+
+		expect(result.tasks).toHaveLength(1);
+	});
+
+	it("doesn't truncate a small result that already fits comfortably", () => {
+		const tasks = [
+			task({ id: "TSK-1", path: "W/Tasks/TSK-1", status: "todo" }),
+			task({ id: "TSK-2", path: "W/Tasks/TSK-2", status: "todo" }),
+		];
+		const snapshot = withEntities(tasks, []);
+		const context = snapshotContext(snapshot);
+
+		const result = executeQueryAction(
+			{ action: "searchTasks", filters: { status: ["Todo"] } },
+			snapshot,
+			context,
+			undefined,
+			10_000,
+		);
+
+		expect(result.tasks).toHaveLength(2);
+		expect(result.text).not.toContain("narrow this down");
+	});
+
+	it("returns the resolved filters and overdue flag alongside the result, for re-running the query later", () => {
+		const t = task({ id: "TSK-1", path: "W/Tasks/TSK-1", status: "todo", dueDate: "2020-01-01" });
+		const snapshot = withEntities([t], []);
+		const context = snapshotContext(snapshot);
+
+		const result = executeQueryAction(
+			{ action: "searchTasks", filters: { status: ["Todo"], overdue: true } },
+			snapshot,
+			context,
+			"2026-01-01",
+		);
+
+		expect(result.query).toEqual({ filters: { status: ["todo"] }, overdue: true });
+	});
+
+	it("countTasks never returns query metadata — nothing to paginate", () => {
+		const t = task({ id: "TSK-1", path: "W/Tasks/TSK-1", status: "todo" });
+		const snapshot = withEntities([t], []);
+		const context = snapshotContext(snapshot);
+
+		const result = executeQueryAction(
+			{ action: "countTasks", filters: { status: ["todo"] } },
+			snapshot,
+			context,
+		);
+
+		expect(result.query).toBeUndefined();
+		expect(result.totalMatches).toBeUndefined();
 	});
 });
