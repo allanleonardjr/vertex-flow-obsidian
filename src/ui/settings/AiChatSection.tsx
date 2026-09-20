@@ -14,8 +14,14 @@ import {
 	aiModelInfo,
 	type AiEngineState,
 } from "../../ai/AiEngineService";
+import {
+	generateMcpToken,
+	setMcpToken,
+} from "../../obsidian/mcp-token";
+import { Platform } from "obsidian";
 import { ConfirmDeleteDialog } from "../components/ConfirmDeleteDialog";
 import { usePlugin, useSettingsWriter } from "../context";
+import { Notice } from "obsidian";
 
 function formatBytes(bytes: number): string {
 	if (bytes < 1024) return `${bytes} B`;
@@ -199,6 +205,36 @@ export function AiChatSection() {
 					{formatBytes(storage.quota)}
 				</p>
 			)}
+			<section className="vf-settings-section" id="vf-settings-mcp">
+				<h3>MCP server</h3>
+				<p className="vf-settings-description">
+					Read-only local endpoint for AI clients (LM Studio, etc.). Desktop only — hidden on mobile.
+				</p>
+				{!Platform.isMobile && (
+					<div>
+						<label>
+							<input
+								type="checkbox"
+								checked={plugin.settings.mcpServerEnabled}
+								onChange={(e) => {
+									void writeSettings({ mcpServerEnabled: e.target.checked });
+									if (e.target.checked) {
+										setMcpToken(generateMcpToken());
+										new Notice("New mcp token generated. Reconnect your AI client.");
+									}
+								}}
+							/> Enable MCP server
+						</label>
+						{plugin.settings.mcpServerEnabled && (
+							<div>
+								<span>Port: <b>{plugin.settings.mcpServerPort}</b> (default 27124)</span>
+								<br />
+								The server is running at <code>http://127.0.0.1:{plugin.settings.mcpServerPort}/mcp</code>
+							</div>
+						)}
+					</div>
+				)}
+			</section>
 		</section>
 	);
 }
