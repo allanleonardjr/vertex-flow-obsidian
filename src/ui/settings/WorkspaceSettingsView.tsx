@@ -5,10 +5,11 @@
  * the content area shows.
  */
 
-import { useEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { workspaceTaxonomies } from "../../core/taxonomy";
 import type { WorkspaceSnapshot } from "../../core/types";
 import { useTabs } from "../tabs-context";
+import { AiChatSection } from "./AiChatSection";
 import { ArchivingSection } from "./ArchivingSection";
 import { GeneralSection } from "./GeneralSection";
 import { HistorySection } from "./HistorySection";
@@ -18,19 +19,38 @@ import { TaxonomySection } from "./TaxonomySection";
 
 export function WorkspaceSettingsView({ snapshot }: { snapshot: WorkspaceSnapshot }) {
 	const taxonomies = workspaceTaxonomies(snapshot.workspace);
-	const { pendingScreenAnchor, clearPendingScreenAnchor } = useTabs();
+	const { pendingScreenAnchor, clearPendingScreenAnchor, getSettingsScrollTop, setSettingsScrollTop } =
+		useTabs();
 	const bodyRef = useRef<HTMLDivElement | null>(null);
 
-	// A deep-link into a specific section (e.g. the sidebar "me" banner → People).
-	// Consumed once; a manual scroll afterwards isn't disturbed.
-	useEffect(() => {
-		if (!pendingScreenAnchor) return;
-		const target = bodyRef.current?.querySelector<HTMLElement>(
-			`#${CSS.escape(pendingScreenAnchor)}`,
-		);
-		target?.scrollIntoView({ block: "start", behavior: "auto" });
-		clearPendingScreenAnchor();
-	}, [pendingScreenAnchor, clearPendingScreenAnchor]);
+	// Restore where the user left off on remount (this screen fully unmounts on
+	// tab switch — see `App.tsx`'s tab-kind ternary). A pending deep-link anchor
+	// (e.g. the sidebar "me" banner → People) takes priority and is consumed
+	// once; a manual scroll afterwards isn't disturbed. Runs before paint so
+	// neither path shows a visible scroll jump.
+	useLayoutEffect(() => {
+		if (pendingScreenAnchor) {
+			const target = bodyRef.current?.querySelector<HTMLElement>(
+				`#${CSS.escape(pendingScreenAnchor)}`,
+			);
+			target?.scrollIntoView({ block: "start", behavior: "auto" });
+			clearPendingScreenAnchor();
+			return;
+		}
+		if (bodyRef.current) bodyRef.current.scrollTop = getSettingsScrollTop();
+	}, [pendingScreenAnchor, clearPendingScreenAnchor, getSettingsScrollTop]);
+
+	// Keep the scroll position current for the next remount. Lightly throttled
+	// via rAF — this fires on every scroll tick, and only needs to be roughly
+	// current, not per-pixel-exact.
+	const scrollRafRef = useRef<number | null>(null);
+	const handleScroll = () => {
+		if (scrollRafRef.current != null) return;
+		scrollRafRef.current = window.requestAnimationFrame(() => {
+			scrollRafRef.current = null;
+			if (bodyRef.current) setSettingsScrollTop(bodyRef.current.scrollTop);
+		});
+	};
 
 	return (
 		<div className="vf-settings">
@@ -40,7 +60,7 @@ export function WorkspaceSettingsView({ snapshot }: { snapshot: WorkspaceSnapsho
 				</div>
 			</header>
 
-			<div className="vf-settings-body" ref={bodyRef}>
+			<div className="vf-settings-body" ref={bodyRef} onScroll={handleScroll}>
 				<GeneralSection snapshot={snapshot} />
 
 				<TaxonomySection
@@ -74,6 +94,7 @@ export function WorkspaceSettingsView({ snapshot }: { snapshot: WorkspaceSnapsho
 
 				<PeopleSection snapshot={snapshot} id="vf-settings-people" />
 				<ArchivingSection snapshot={snapshot} />
+				<AiChatSection />
 				<HistorySection snapshot={snapshot} />
 			</div>
 		</div>

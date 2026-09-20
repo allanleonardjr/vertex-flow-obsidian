@@ -48,7 +48,8 @@ export type BrowseKind =
     | "labels"
     | "people"
     | "history"
-    | "recurring";
+    | "recurring"
+    | "ai-chat";
 
 export type Tab =
 	| { id: BrowseKind; kind: BrowseKind }
@@ -180,6 +181,7 @@ export function tabAccentRoot(
 		case "settings":
 		case "history":
 		case "recurring":
+		case "ai-chat":
 			return activeRoot;
 		case "help":
 		case "new-workspace":
@@ -341,6 +343,14 @@ export interface TabsApi {
 	 */
 	getViewColumns: (viewId: string) => ViewColumnState | null;
 	setViewColumns: (viewId: string, columns: ViewColumnState | null) => void;
+
+	/**
+	 * The Settings screen's scroll position, kept across its unmount/remount on
+	 * tab switch — same memory-only lifetime as `selectionSnapshots`, but a bare
+	 * number since Settings is a singleton tab (no per-tab-id keying needed).
+	 */
+	getSettingsScrollTop: () => number;
+	setSettingsScrollTop: (value: number) => void;
 }
 
 const TabsCtx = createContext<TabsApi | null>(null);
@@ -441,6 +451,22 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 		},
 		[],
 	);
+
+	// The Settings screen's scroll position. A ref mirror for reads (so the
+	// scroll listener's throttling doesn't need to be a dependency anywhere)
+	// plus `useState` so `useTabs()` consumers re-render when it changes —
+	// same split as the draft/selection stores above.
+	const [settingsScrollTop, setSettingsScrollTopState] = useState(0);
+	const settingsScrollTopRef = useRef(settingsScrollTop);
+	settingsScrollTopRef.current = settingsScrollTop;
+
+	const getSettingsScrollTop = useCallback(
+		() => settingsScrollTopRef.current,
+		[],
+	);
+	const setSettingsScrollTop = useCallback((value: number) => {
+		setSettingsScrollTopState(value);
+	}, []);
 
 	// Group collapse/hide for note-less synthesised views (label / person).
 	// Memory-only, same lifetime as selection snapshots.
@@ -1080,6 +1106,8 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			setSelectionSnapshot,
 			getViewColumns,
 			setViewColumns: setViewColumnsFor,
+			getSettingsScrollTop,
+			setSettingsScrollTop,
 		}),
 		[
 			// The draft maps and selection snapshots are in here (not just the
@@ -1129,6 +1157,8 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			setDashboardDraft,
 			getViewColumns,
 			setViewColumnsFor,
+			getSettingsScrollTop,
+			setSettingsScrollTop,
 		],
 	);
 
