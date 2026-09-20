@@ -98,7 +98,16 @@ export function AiChatView({
 	// this component even in another split pane) — activates whatever model is
 	// now selected, loading it fresh on next open exactly as if this were a
 	// brand-new mount.
+	//
+	// Skip the async cache/worker round trip entirely when the selected model
+	// is already the one loaded in the worker (the common case of switching
+	// away to another tab and back without changing models) — otherwise every
+	// remount re-hides the intact message history behind a "Loading…" flash.
 	useEffect(() => {
+		if (plugin.aiEngine.activeModelId === selectedModelId) {
+			setEngineState("installed");
+			return;
+		}
 		let cancelled = false;
 		setEngineState("checking");
 		void plugin.aiEngine.getState(selectedModelId).then(async (state) => {
