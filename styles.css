@@ -4682,26 +4682,58 @@ input.vf-editable-title-input {
   overflow-y: auto;
 }
 
-.vf-chat-bubble {
+/* One row per message: the bubble, then its always-visible Copy/Retry/Edit
+   actions — grouped so both align together (end for the user, start for the
+   assistant) instead of the bubble alone. */
+.vf-chat-message {
+  display: flex;
+  flex-direction: column;
   max-width: 70%;
+}
+
+.vf-chat-message-user {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.vf-chat-message-assistant {
+  align-self: flex-start;
+  align-items: flex-start;
+}
+
+.vf-chat-bubble {
   padding: 8px 12px;
   border-radius: 10px;
   font-size: var(--font-ui-small);
   line-height: 1.5;
-  white-space: pre-wrap;
   user-select: text;
 }
 
+/* Content renders through `MarkdownContent` now (real block elements), not
+   preformatted text — trim the rendered tree's own top/bottom margins so the
+   bubble's padding is the only spacing, same convention as `.vf-comment-body`. */
+.vf-chat-bubble :is(.markdown-rendered) > :first-child {
+  margin-top: 0;
+}
+
+.vf-chat-bubble :is(.markdown-rendered) > :last-child {
+  margin-bottom: 0;
+}
+
 .vf-chat-bubble-user {
-  align-self: flex-end;
   background: var(--interactive-accent);
   color: var(--text-on-accent);
 }
 
 .vf-chat-bubble-assistant {
-  align-self: flex-start;
   background: var(--background-secondary);
   color: var(--text-normal);
+}
+
+.vf-chat-actions {
+  display: flex;
+  gap: 2px;
+  margin-top: 2px;
 }
 
 .vf-chat-input-row {

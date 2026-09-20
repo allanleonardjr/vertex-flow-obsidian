@@ -24,6 +24,13 @@ import { usePlugin } from "../context";
 import { useTabs } from "../tabs-context";
 
 export interface AiChatBubble {
+	/**
+	 * A `crypto.randomUUID()` generated when the message is pushed — stable
+	 * React list identity for Copy/Retry/Edit, nothing more. Never needs to
+	 * match the app's persisted-entity id scheme, since chat messages are
+	 * session-only and never written to disk.
+	 */
+	id: string;
 	role: "user" | "assistant";
 	content: string;
 }

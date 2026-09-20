@@ -24,11 +24,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { buildFactsSection } from "../../core/ai/snapshot";
+import { matchHelpTopic } from "../../core/ai/help-retrieval";
 import {
 	executeQueryAction,
 	looksLikeQueryAction,
 	parseQueryAction,
 } from "../../core/ai/query-action";
+import { HELP_TOPICS } from "../../core/help";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { ViewContext } from "../../core/views";
 import type { WorkspaceSnapshot } from "../../core/types";
@@ -40,9 +42,22 @@ import {
 	type AiEngineState,
 } from "../../ai/AiEngineService";
 import { EmptyView } from "../components/EmptyView";
+import { Icon } from "../components/Icon";
+import { MarkdownContent } from "../components/Markdown";
 import { usePlugin } from "../context";
 import { useTabs } from "../tabs-context";
-import { useAiChatSession } from "./ai-chat-session";
+import { type AiChatBubble, useAiChatSession } from "./ai-chat-session";
+
+/**
+ * A pseudo vault path for `MarkdownContent`'s `sourcePath` — there's no real
+ * note behind a chat bubble, but a relative link/embed still needs something
+ * to resolve against, the same role `HELP_SOURCE_PATH` plays for the Help pane
+ * (see `HelpView.tsx`/`ShortcutsHelpDialog.tsx`).
+ */
+const AI_CHAT_SOURCE_PATH = "Vertex Flow AI Chat.md";
+
+/** How long the Copy button shows its confirmation checkmark. */
+const COPY_CONFIRM_MS = 1500;
 
 const INSTRUCTIONS = `You are an assistant embedded in the Vertex Flow task manager (an Obsidian plugin).
 
@@ -57,12 +72,53 @@ or, for anything about overdue work — never express "overdue" via the text fil
 
 Recognized filter keys: status, priority, taskType, labels, assignee, project, parent, mentions (all arrays of this workspace's display names), text (substring match — NOT for concepts like "overdue"), archived ("included" or "only"), openOnly, unscheduled, recurring, overdue (booleans). Use display names exactly as given in the facts section — never invent a field name. Omit filters you don't need; an empty/omitted filter matches everything. Only ever emit ONE such object, and nothing besides it, when you need data — no other text before or after it.
 
-If a question is answerable from the facts section alone (totals, what statuses/priorities/task types/people exist), or needs no workspace data at all, just answer directly in plain language — never emit a JSON action for those.`;
+If a question is answerable from the facts section alone (totals, what statuses/priorities/task types/people exist), or needs no workspace data at all, just answer directly in plain language — never emit a JSON action for those.
+
+When a "## How Vertex Flow works" section is present below, it's real documentation for this exact app — answer questions about app behavior/features from it directly rather than guessing, and don't mix it up with the workspace's own data.`;
 
 interface RunTurnDeps {
 	snapshot: WorkspaceSnapshot;
 	taxonomies: WorkspaceTaxonomies;
 	context: ViewContext;
+}
+
+/**
+ * Coalesces rapid updates (a streaming assistant message can append a token
+ * every few milliseconds) down to at most one per animation frame, so
+ * `MarkdownContent`'s full re-render (it clears and rebuilds the DOM via
+ * Obsidian's `MarkdownRenderer` on every text change) doesn't run on every
+ * single token. Always settles to the exact latest value — the last update
+ * schedules one more frame, so nothing is ever left stale once streaming
+ * stops.
+ */
+function useThrottledText(text: string): string {
+	const [display, setDisplay] = useState(text);
+	const latestRef = useRef(text);
+	latestRef.current = text;
+	const frameRef = useRef<number | null>(null);
+
+	useEffect(() => {
+		if (frameRef.current != null) return;
+		frameRef.current = window.requestAnimationFrame(() => {
+			frameRef.current = null;
+			setDisplay(latestRef.current);
+		});
+	}, [text]);
+
+	useEffect(
+		() => () => {
+			if (frameRef.current != null) window.cancelAnimationFrame(frameRef.current);
+		},
+		[],
+	);
+
+	return display;
+}
+
+/** One mounted instance per message, so `useThrottledText`'s hook call is stable regardless of how many messages are in the list. */
+function AiChatBubbleContent({ text }: { text: string }) {
+	const display = useThrottledText(text);
+	return <MarkdownContent text={display} sourcePath={AI_CHAT_SOURCE_PATH} />;
 }
 
 export function AiChatView({
@@ -82,7 +138,9 @@ export function AiChatView({
 	const { messages, setMessages, justSwitchedModel } = useAiChatSession();
 	const [input, setInput] = useState("");
 	const [sending, setSending] = useState(false);
+	const [copiedId, setCopiedId] = useState<string | null>(null);
 	const bodyRef = useRef<HTMLDivElement | null>(null);
+	const inputRef = useRef<HTMLTextAreaElement | null>(null);
 	// Checked (not React state) after every `chat()` call settles — Stop needs
 	// to flip this synchronously with the click, well before any state update
 	// from that call's own `.then`/`.finally` would land.
@@ -164,8 +222,24 @@ export function AiChatView({
 
 	const runTurn = async (history: AiChatMessage[], deps: RunTurnDeps) => {
 		const facts = buildFactsSection(deps.snapshot, deps.taxonomies);
+
+		// Retrieval over the bundled Help docs, independent of the workspace
+		// facts/data layer above — at most one topic, kept as its own clearly
+		// labeled section so either can be reasoned about (or omitted) on its
+		// own. Matched against the latest user message only, not the whole
+		// history. WebLLM only accepts a single system message and requires it
+		// at index 0 (throws `SystemMessageOrderError` otherwise), so this has
+		// to be folded into the one system message rather than added as its own —
+		// unlike the facts section, it's genuinely optional, so it's only
+		// appended when there's a match.
+		const latestUserMessage = [...history].reverse().find((message) => message.role === "user");
+		const helpTopic = latestUserMessage ? matchHelpTopic(latestUserMessage.content, HELP_TOPICS) : null;
+		const helpSection = helpTopic
+			? `\n\n## How Vertex Flow works: ${helpTopic.title}\n${helpTopic.content ?? ""}`
+			: "";
+
 		const baseRequest: AiChatMessage[] = [
-			{ role: "system", content: `${INSTRUCTIONS}\n\n## Facts\n${facts}` },
+			{ role: "system", content: `${INSTRUCTIONS}\n\n## Facts\n${facts}${helpSection}` },
 			...history,
 		];
 
@@ -228,14 +302,10 @@ export function AiChatView({
 		setLastAssistant(firstResponse);
 	};
 
-	const send = () => {
-		const text = input.trim();
-		if (!text || sending) return;
-
+	/** Shared by `send()` and `retry()`: appends the fresh assistant placeholder, flips `sending`, and runs the turn. `history` should already end with the user message the response is for. */
+	const beginTurn = (history: AiChatBubble[]) => {
 		stoppedRef.current = false;
-		const history = [...messages, { role: "user" as const, content: text }];
-		setMessages([...history, { role: "assistant", content: "" }]);
-		setInput("");
+		setMessages([...history, { id: crypto.randomUUID(), role: "assistant", content: "" }]);
 		setSending(true);
 
 		void runTurn(history, { snapshot, taxonomies, context })
@@ -245,6 +315,46 @@ export function AiChatView({
 				setLastAssistant("Something went wrong generating a response.");
 			})
 			.finally(() => setSending(false));
+	};
+
+	const send = () => {
+		const text = input.trim();
+		if (!text || sending) return;
+
+		const history = [...messages, { id: crypto.randomUUID(), role: "user" as const, content: text }];
+		setInput("");
+		beginTurn(history);
+	};
+
+	/** Drops the last assistant message and asks the same preceding question again — no duplicate user message. */
+	const retry = () => {
+		if (sending) return;
+		const lastAssistantIndex = messages.reduce(
+			(found, message, index) => (message.role === "assistant" ? index : found),
+			-1,
+		);
+		if (lastAssistantIndex === -1) return;
+		beginTurn(messages.slice(0, lastAssistantIndex));
+	};
+
+	/** Drops this user message and everything after it, loading its exact text back into the input for review/resend — never auto-resubmitted. */
+	const editMessage = (index: number) => {
+		if (sending) return;
+		const target = messages[index];
+		if (!target || target.role !== "user") return;
+		setMessages(messages.slice(0, index));
+		setInput(target.content);
+		inputRef.current?.focus();
+	};
+
+	const copyMessage = (message: AiChatBubble) => {
+		void navigator.clipboard.writeText(message.content).then(() => {
+			setCopiedId(message.id);
+			window.setTimeout(
+				() => setCopiedId((current) => (current === message.id ? null : current)),
+				COPY_CONFIRM_MS,
+			);
+		});
 	};
 
 	const stop = () => {
@@ -288,6 +398,13 @@ export function AiChatView({
 		);
 	}
 
+	// Retry only ever shows on this one — the single most recent assistant
+	// message, never an earlier one.
+	const lastAssistantIndex = messages.reduce(
+		(found, message, index) => (message.role === "assistant" ? index : found),
+		-1,
+	);
+
 	return (
 		<div className="vf-settings">
 			<header className="vf-toolbar">
@@ -305,8 +422,51 @@ export function AiChatView({
 					</p>
 				) : (
 					messages.map((message, index) => (
-						<div key={index} className={`vf-chat-bubble vf-chat-bubble-${message.role}`}>
-							{message.content || (sending && index === messages.length - 1 ? "…" : "")}
+						<div key={message.id} className={`vf-chat-message vf-chat-message-${message.role}`}>
+							<div className={`vf-chat-bubble vf-chat-bubble-${message.role}`}>
+								{message.content ? (
+									<AiChatBubbleContent text={message.content} />
+								) : (
+									sending && index === messages.length - 1 ? "…" : ""
+								)}
+							</div>
+							<div className="vf-chat-actions">
+								{message.role === "assistant" && (
+									<button
+										type="button"
+										className="vf-icon-button"
+										title="Copy"
+										aria-label="Copy message"
+										disabled={sending}
+										onClick={() => copyMessage(message)}
+									>
+										<Icon id={copiedId === message.id ? "check" : "copy"} size={13} />
+									</button>
+								)}
+								{message.role === "assistant" && index === lastAssistantIndex && !sending && (
+									<button
+										type="button"
+										className="vf-icon-button"
+										title="Retry"
+										aria-label="Retry this response"
+										onClick={retry}
+									>
+										<Icon id="rotate-ccw" size={13} />
+									</button>
+								)}
+								{message.role === "user" && (
+									<button
+										type="button"
+										className="vf-icon-button"
+										title="Edit"
+										aria-label="Edit message"
+										disabled={sending}
+										onClick={() => editMessage(index)}
+									>
+										<Icon id="pencil" size={13} />
+									</button>
+								)}
+							</div>
 						</div>
 					))
 				)}
@@ -314,6 +474,7 @@ export function AiChatView({
 
 			<div className="vf-chat-input-row">
 				<textarea
+					ref={inputRef}
 					className="vf-chat-input"
 					value={input}
 					placeholder="Ask about this workspace…"
