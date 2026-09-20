@@ -180,7 +180,7 @@ export function parseQueryAction(response: string): TaskQueryAction | null {
 
 	return {
 		action: parsed.action,
-		filters: parsed.filters as Partial<ViewFilters> & { overdue?: boolean },
+		filters: parsed.filters,
 	};
 }
 

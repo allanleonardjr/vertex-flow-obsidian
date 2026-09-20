@@ -108,6 +108,16 @@ export interface VertexFlowSettings {
    */
   redirectTaskNotes: boolean;
   /**
+   * Whether the local Model Context Protocol server is running. An opt-in
+   * bridge for local AI clients (LM Studio / LM Link) to read the vault over
+   * `http://127.0.0.1:<mcpServerPort>/mcp`. Desktop-only (Obsidian Mobile has
+   * no second process to talk to), read-only, and the shared-secret bearer
+   * token never lives in synced `data.json` — see `src/obsidian/mcp-token.ts`.
+   */
+  mcpServerEnabled: boolean;
+  /** TCP port the MCP server binds. Only `127.0.0.1` is ever bound. */
+  mcpServerPort: number;
+  /**
    * Which AI Chat model is active — a device/install setting like the rest of
    * this file, not workspace data, since exactly one model is ever loaded in
    * the worker regardless of which workspace is open. Several other models
@@ -183,6 +193,8 @@ export const DEFAULT_SETTINGS: VertexFlowSettings = {
   taskPickerHeight: 360,
   helpSidebarWidth: 240,
   redirectTaskNotes: true,
+  mcpServerEnabled: false,
+  mcpServerPort: 27124,
   selectedAiModelId: DEFAULT_AI_MODEL_ID,
   seenFeatures: {},
 };

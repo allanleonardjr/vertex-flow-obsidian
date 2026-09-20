@@ -18,7 +18,6 @@ import {
 	hasModelInCache,
 	prebuiltAppConfig,
 	type AppConfig,
-	type ChatCompletionMessageParam,
 	type InitProgressCallback,
 	type WebWorkerMLCEngine,
 } from "@mlc-ai/web-llm";
@@ -233,7 +232,7 @@ export class AiEngineService {
 			: MAX_COMPLETION_TOKENS;
 
 		const stream = await this.engine.chat.completions.create({
-			messages: messages as ChatCompletionMessageParam[],
+			messages,
 			stream: true,
 			max_tokens: maxTokens,
 		});

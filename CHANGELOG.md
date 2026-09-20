@@ -16,9 +16,36 @@ This project uses [Semantic Versioning](https://semver.org/).
 - **Switching models from the in-chat selector no longer takes over the whole screen.** Your conversation stays fully visible and scrollable the entire time; a small inline "Switching to…" status appears near the input (with a live progress line for a genuine download) instead, followed by a brief confirmation once it lands — or a clear inline error if it fails, rather than a silent full-screen bounce back to an install prompt. Only a completely fresh tab's very first automatic model check still shows the full-screen loading experience.
 - **A live usage meter now shows roughly how much of the selected model's context window your conversation is using**, next to the model selector — muted while there's plenty of room, shifting to a warning color as it climbs, with a plain-language note once you're close to the ceiling suggesting a new conversation or a larger-context model. It's an estimate, labeled as one, not an exact token count.
 
+- **MCP layer for local LLM clients** — a read-only Streamable HTTP server
+  (`127.0.0.1:27124` by default, toggleable, desktop-only) exposes 16 JSON
+  tools letting a local LLM (e.g. LM Studio) query vault workspaces,
+  projects, tasks, views, dashboards, labels, and people; read single entities;
+  search with the same query syntax as the view bar; and read the built-in Help
+  docs. All results carry `obsidian://vertex-flow…` deep links that open the
+  exact task, view, dashboard, or Help topic inside Obsidian. The server stores
+  only a per-device token in localStorage and never writes to the vault or
+  synced settings.
+
+- **Deep-link support** (`obsidian://vertex-flow…`) — four action types
+  (`open-note`, `open-view`, `help`, `query`) decoded via `intentFromParams`
+  and consumed as pending flags that the React tree picks up once a pane mounts:
+  `open-note` → task tab or native editor, `open-view` → synthesesed Saved View
+  (or dashboard when the id names one), `help` → Help topic screen, `query` →
+  ephemeral query tab parsed from the query string against a workspace snapshot.
+
+- **Help doc topic "AI integration (MCP)"** — a new bundled Help topic
+  (`mcp-llm-integration`) explaining what the MCP server is, how to enable it,
+  the `mcpServers` config for LM Studio (`http://127.0.0.1:27124/mcp` +
+  `Authorization: Bearer <token>`), how to check it's running (`/health`), and
+  security notes (localhost-only, token-gated, read-only tools).
+
 ### Fixed
 
-- **Workspace Settings no longer loses your scroll position when you switch to another tab and back.** The screen fully unmounts on tab switch like every other tab; its scroll position is now kept in memory across that unmount and restored on return, unless a deep-link (e.g. an inline help icon) is opening it to a specific section, which still takes priority.
+- **Pending-intent consumption** — `pendingOpenViewRoot` now routes
+  `open-view` deep links naming a dashboard to a dashboard tab and switches the
+  active workspace accordingly; `pendingQuery` parses the query string and lands
+  on a synthesised query tab; `pendingHelpTopic` forwards into `openHelp` so
+  the Help screen lands on the requested topic.
 - **Interrupting an AI Chat response mid-generation could show garbled or raw JSON text appended with `[stopped]`.** The internal buffer used to decide whether a response was a data query is never shown to you now — stopping before anything genuinely visible has streamed always reads exactly "Stopped before responding." Clicking Stop also now shows immediate feedback ("Stopping…", disabled) rather than appearing unresponsive while the underlying generation winds down. The JSON safety net was also too narrow, in two ways now fixed: it required output to be shaped like a recognized search/count action, so plain off-schema JSON (e.g. `{"labels": ["Community/Discord"]}`) slipped through as raw text with working Copy/Retry on it — and even garbled or concatenated JSON that doesn't parse at all (two run-together action attempts) skipped the check entirely, since it only ever ran on output that successfully parsed. Any response that even looks like an attempted structured output now gets the same corrective retry, falling back to a plain "I wasn't able to answer that" message if it still doesn't produce a real answer.
 - **Chat bubble spacing was inconsistent between messages** — a still-generating response's "thinking" dots no longer show the bubble's background at all (only real content gets the bubble), and paragraph spacing inside a bubble is now reliably tight and consistent regardless of message length or shape (a short reply vs. one with several paragraphs, or a paragraph followed by a rendered task list). The root cause: the spacing rule depended on a CSS class Obsidian's renderer doesn't actually add in this context, silently doing nothing — it's applied directly now.
 - **An unfiltered or broad `searchTasks` question (e.g. "show me all tasks") against a large workspace could exceed the selected model's context window outright**, especially on the smallest model. The matched-task list formatted into the request now adaptively shrinks to fit the model's actual remaining budget (same technique as the earlier full-snapshot fix, applied here instead), rather than a fixed row count with no awareness of what the current model can actually hold. Every AI Chat model call also now caps its own response length explicitly rather than leaving it unbounded, closing off a related way a well-under-budget question could still overflow.

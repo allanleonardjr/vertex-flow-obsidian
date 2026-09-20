@@ -16,6 +16,8 @@
 
 import {
 	App,
+	Notice,
+	Platform,
 	PluginSettingTab,
 	type SettingDefinitionItem,
 } from "obsidian";
@@ -23,12 +25,19 @@ import type VertexFlowPlugin from "../main";
 import type { UiTextSize } from "./types";
 import { applyUiTextSize } from "./ui-text-size";
 import { getMePrefill, setMePrefill } from "../obsidian/me-storage";
+import {
+	generateMcpToken,
+	getMcpToken,
+	setMcpToken,
+} from "../obsidian/mcp-token";
 
 /** The control keys must line up with `getControlValue`/`setControlValue`. */
 const UI_TEXT_SIZE_KEY = "uiTextSize";
 const REDIRECT_TASK_NOTES_KEY = "redirectTaskNotes";
 const ME_PREFILL_NAME_KEY = "mePrefillName";
 const ME_PREFILL_ALIASES_KEY = "mePrefillAliases";
+const MCP_ENABLED_KEY = "mcpServerEnabled";
+const MCP_PORT_KEY = "mcpServerPort";
 
 export class VertexFlowSettingTab extends PluginSettingTab {
 	constructor(
@@ -84,6 +93,69 @@ export class VertexFlowSettingTab extends PluginSettingTab {
 					placeholder: "e.g. alex, ar",
 				},
 			},
+			{
+				name: "Local AI bridge",
+				desc: "Serve read-only access to your workspaces and help docs over " +
+					"a local Model Context Protocol endpoint for AI clients on this " +
+					"computer (LM Studio, or LM Studio's phone app via its \"Locally\" " +
+					"link). Everything stays on this device — nothing is sent to any " +
+					"server. Desktop only.",
+				control: { type: "toggle", key: MCP_ENABLED_KEY },
+				visible: () => !Platform.isMobile,
+			},
+			{
+				name: "Port",
+				desc: "The MCP endpoint is always bound to 127.0.0.1 — only apps on " +
+					"this computer can reach it. Change this to move the endpoint away " +
+					"from the default.",
+				control: {
+					type: "number",
+					key: MCP_PORT_KEY,
+					min: 1,
+					max: 65535,
+					step: 1,
+				},
+				visible: () =>
+					!Platform.isMobile && this.plugin.settings.mcpServerEnabled,
+			},
+			{
+				name: "Access token",
+				desc: "Clients must send this as a Bearer token on every request. " +
+					"It is stored on this device only — never in your synced vault or " +
+					"settings. Regenerate it to revoke every connected client.",
+				visible: () =>
+					!Platform.isMobile && this.plugin.settings.mcpServerEnabled,
+				render: (setting) => {
+					const token = getMcpToken();
+					const row = setting.settingEl.createDiv({
+						cls: "vf-settings-mcp-row",
+					});
+					row.createEl("code", { text: token ?? "(no token yet — generated on demand)" });
+					const controls = row.createDiv({ cls: "vf-settings-mcp-actions" });
+					const copy = controls.createEl("button", {
+						text: "Copy token",
+						cls: "mod-cta",
+					});
+					copy.addEventListener("click", () => {
+						const current = getMcpToken();
+						if (!current) {
+							new Notice("Generate a token before copying.");
+							return;
+						}
+						void navigator.clipboard.writeText(current);
+						new Notice("Mcp token copied to clipboard.");
+					});
+					const regenerate = controls.createEl("button", {
+						text: "Regenerate",
+					});
+					regenerate.addEventListener("click", () => {
+						setMcpToken(generateMcpToken());
+						new Notice("New mcp token generated. Reconnect your AI client.");
+						this.update();
+					});
+					return () => row.remove();
+				},
+			},
 		];
 	}
 
@@ -91,6 +163,8 @@ export class VertexFlowSettingTab extends PluginSettingTab {
 		if (key === UI_TEXT_SIZE_KEY) return this.plugin.settings.uiTextSize;
 		if (key === REDIRECT_TASK_NOTES_KEY)
 			return this.plugin.settings.redirectTaskNotes;
+		if (key === MCP_ENABLED_KEY) return this.plugin.settings.mcpServerEnabled;
+		if (key === MCP_PORT_KEY) return this.plugin.settings.mcpServerPort;
 		if (key === ME_PREFILL_NAME_KEY) return getMePrefill()?.name ?? "";
 		if (key === ME_PREFILL_ALIASES_KEY)
 			return (getMePrefill()?.aliases ?? []).join(", ");
@@ -130,6 +204,15 @@ export class VertexFlowSettingTab extends PluginSettingTab {
 			}
 		} else if (key === REDIRECT_TASK_NOTES_KEY) {
 			this.plugin.settings.redirectTaskNotes = Boolean(value);
+		} else if (key === MCP_ENABLED_KEY) {
+			this.plugin.settings.mcpServerEnabled = Boolean(value);
+			void this.plugin.refreshMcpServer();
+		} else if (key === MCP_PORT_KEY) {
+			const port = Number(value);
+			if (Number.isInteger(port) && port >= 1 && port <= 65535) {
+				this.plugin.settings.mcpServerPort = port;
+				void this.plugin.refreshMcpServer();
+			}
 		}
 		await this.plugin.saveSettings();
 	}

@@ -392,6 +392,14 @@ export function tabContent(
 			</span>
 		);
 		label = project.title;
+	} else if (tab.kind === "query") {
+		ownerName = plugin.index.get(tab.root)?.workspace.name;
+		icon = (
+			<span className="vf-tab-icon">
+				<Icon id="search" fallback="search" size={13} />
+			</span>
+		);
+		label = `${tab.name} - Query`;
 	} else {
 		icon = <span className="vf-view-icon">{BROWSE_ICON[tab.kind]}</span>;
 		label =

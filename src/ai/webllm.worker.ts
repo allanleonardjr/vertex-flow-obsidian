@@ -22,10 +22,17 @@ function isTransient(status: number): boolean {
 }
 
 function delay(ms: number): Promise<void> {
-	return new Promise((resolve) => setTimeout(resolve, ms));
+	return new Promise((resolve) => self.setTimeout(resolve, ms));
 }
 
 const nativeFetch = self.fetch.bind(self);
+
+/** Best-effort human-readable URL for retry logging, never `[object Object]`. */
+function targetDescription(input: RequestInfo | URL): string {
+	if (input instanceof URL) return input.href;
+	if (typeof input === "string") return input;
+	return input.url;
+}
 
 self.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
 	let lastError: unknown;
@@ -37,16 +44,16 @@ self.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Respo
 			// retrying it just delays a failure that won't resolve itself.
 			if (response.ok || !isTransient(response.status)) return response;
 
-			lastError = new Error(`HTTP ${response.status} for ${String(input)}`);
+			lastError = new Error(`HTTP ${response.status} for ${targetDescription(input)}`);
 			console.warn(
-				`Vertex Flow: retrying ${String(input)} after HTTP ${response.status} (attempt ${attempt}/${MAX_FETCH_ATTEMPTS})`,
+				`Vertex Flow: retrying ${targetDescription(input)} after HTTP ${response.status} (attempt ${attempt}/${MAX_FETCH_ATTEMPTS})`,
 			);
 		} catch (error) {
 			// An aborted request was cancelled deliberately — never retry it.
 			if (init?.signal?.aborted) throw error;
 			lastError = error;
 			console.warn(
-				`Vertex Flow: retrying ${String(input)} after network error (attempt ${attempt}/${MAX_FETCH_ATTEMPTS})`,
+				`Vertex Flow: retrying ${targetDescription(input)} after network error (attempt ${attempt}/${MAX_FETCH_ATTEMPTS})`,
 				error,
 			);
 		}

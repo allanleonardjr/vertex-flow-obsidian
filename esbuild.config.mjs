@@ -59,7 +59,9 @@ const context = await esbuild.context({
 		"@lezer/common",
 		"@lezer/highlight",
 		"@lezer/lr",
-		...builtinModules,
+		// Plain names plus `node:`-prefixed — the MCP server imports them the
+		// prefixed way (`node:http`), and esbuild matches against the string.
+		...builtinModules.flatMap((m) => [m, `node:${m}`]),
 	],
 	format: "cjs",
 	target: "es2020",

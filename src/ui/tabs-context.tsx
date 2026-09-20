@@ -23,10 +23,15 @@ import {
 } from "react";
 import type VertexFlowPlugin from "../main";
 import { SYSTEM_VIEW_ALL_TASKS_ID, isSystemViewId } from "../core/views";
+import { queryContext } from "../core/query";
+import { parseQuery } from "../core/query/parse";
+import { getMePersonId } from "../obsidian/me-storage";
+import { Notice } from "obsidian";
 import type {
 	DashboardConfig,
 	SavedView,
 	ViewColumnState,
+	ViewDefinition,
 } from "../core/types";
 import { useActiveWorkspace, usePlugin, useSetActiveWorkspace } from "./context";
 import {
@@ -71,7 +76,20 @@ export type Tab =
 	/** One person: a detail header above their assigned tasks. Closable. */
 	| { id: string; kind: "person"; personId: string }
 	/** One project: a detail header above its tasks (synthesised view). Closable. */
-	| { id: string; kind: "project"; path: string };
+	| { id: string; kind: "project"; path: string }
+	/**
+	 * An ephemeral query from a deep link (`obsidian://vertex-flow?query=…`),
+	 * already parsed into a `ViewDefinition` against `root`'s snapshot. It
+	 * renders as a synthesised, never-persisted view exactly like a label tab,
+	 * and re-sends the same query only re-focuses it. Closable.
+	 */
+	| {
+			id: string;
+			kind: "query";
+			root: string;
+			name: string;
+			definition: ViewDefinition;
+	  };
 
 function taskTabId(path: string): string {
 	// Paths always contain a slash (they're vault-relative), so this can never
@@ -90,6 +108,11 @@ function viewTabId(viewId: string, root?: string): string {
 
 function labelTabId(labelId: string): string {
 	return `label:${labelId}`;
+}
+
+/** Keyed by workspace + query text, so the same query deep-linked twice just re-focuses. */
+function queryTabId(root: string, name: string): string {
+	return `query:${root}:${name}`;
 }
 
 function personTabId(personId: string): string {
@@ -144,6 +167,8 @@ export function tabWorkspaceRoot(
 				plugin.index.snapshotWithPerson(tab.personId)?.workspace.root ??
 				null
 			);
+		case "query":
+			return tab.root;
 		default:
 			return null;
 	}
@@ -171,6 +196,7 @@ export function tabAccentRoot(
 		case "dashboard":
 		case "label":
 		case "person":
+		case "query":
 			return tabWorkspaceRoot(plugin, tab);
 		case "projects":
 		case "dashboards":
@@ -233,6 +259,12 @@ export interface TabsApi {
 	 * omitted, it binds to the active one. User views ignore `root`.
 	 */
 	openView: (viewId: string, root?: string) => void;
+	/**
+	 * Open (or reveal) an ephemeral query tab: a synthesised, never-persisted
+	 * view already parsed against `root`'s snapshot (from a deep link). Reuses
+	 * the tab when the same root + query text is already open.
+	 */
+	openQuery: (root: string, definition: ViewDefinition, name: string) => void;
 	/** Open (or reveal) a label's tasks as its own transient tab. */
 	openLabel: (labelId: string) => void;
 	/** Open (or reveal) a person's detail screen as its own transient tab. */
@@ -713,6 +745,30 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 		[mayLeaveActive],
 	);
 
+	const openQuery = useCallback(
+		(root: string, definition: ViewDefinition, name: string) => {
+			void (async () => {
+				const id = queryTabId(root, name);
+				if (!(await mayLeaveActive("navigate", id))) return;
+				// Bound to a specific workspace (the query was parsed against its
+				// snapshot), so opening one outside the active workspace switches.
+				if (root !== activeWorkspaceRootRef.current) {
+					setActiveWorkspace(root);
+				}
+				setTabs((current) =>
+					current.some((tab) => tab.id === id)
+						? current
+						: [
+								...current,
+								{ id, kind: "query", root, name, definition },
+							],
+				);
+				setActiveId(id);
+			})();
+		},
+		[mayLeaveActive, setActiveWorkspace],
+	);
+
 	const openProject = useCallback(
 		(path: string) => {
 			void (async () => {
@@ -1030,14 +1086,76 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 		if (!activeWorkspaceRoot) return;
 		const pending = plugin.pendingOpenView;
 		if (pending) {
+			const targetRoot = plugin.pendingOpenViewRoot ?? null;
 			plugin.pendingOpenView = null;
-			void openView(pending, activeWorkspaceRoot);
+			plugin.pendingOpenViewRoot = null;
+			// A deep-linked `open-view` may name a dashboard (`vaultUri`s on
+			// dashboard rows do); land it on a dashboard tab instead of a dead
+			// view tab, switching to its owning workspace so it actually renders.
+			const dashOwner = plugin.index.snapshotWithDashboard(pending);
+			if (dashOwner) {
+				if (dashOwner.workspace.root !== activeWorkspaceRoot) {
+					setActiveWorkspace(dashOwner.workspace.root);
+				}
+				void openDashboard(pending);
+				return;
+			}
+			// `pendingOpenViewRoot` names a foreign workspace when the deep link
+			// carried one (or one resolved from the view's vault) — switch so the
+			// content pane resolves against the right snapshot, same as `openTask`.
+			const root = targetRoot ?? activeWorkspaceRoot;
+			if (root !== activeWorkspaceRoot) {
+				setActiveWorkspace(root);
+			}
+			void openView(pending, root);
 			return;
 		}
-		if (tabCountRef.current === 0) {
+		// A deep-linked query is itself the landing tab — don't stack All Tasks on
+		// top of it when the strip is otherwise empty.
+		if (tabCountRef.current === 0 && !plugin.pendingQuery) {
 			void openView(SYSTEM_VIEW_ALL_TASKS_ID, activeWorkspaceRoot);
 		}
-	}, [plugin, activeWorkspaceRoot, openView]);
+	}, [plugin, activeWorkspaceRoot, openView, openDashboard, setActiveWorkspace]);
+
+	// Consume a deep-linked query (`obsidian://vertex-flow?query=…`) once: parse
+	// it against the target (or active) snapshot, land on the synthesised query
+	// tab, and in the active-workspace case cross-check the root switch.
+	useEffect(() => {
+		const pending = plugin.pendingQuery;
+		if (!pending) return;
+		plugin.pendingQuery = null;
+		const root = pending.root ?? activeWorkspaceRoot;
+		if (!root) {
+			new Notice("Vertex Flow: no workspace to run that query in.");
+			return;
+		}
+		const snapshot = plugin.index.get(root);
+		if (!snapshot) {
+			new Notice(`Vertex Flow: no workspace at "${root}".`);
+			return;
+		}
+		const parsed = parseQuery(
+			pending.source,
+			queryContext(snapshot, getMePersonId(root)),
+		);
+		if (!parsed.ok) {
+			const issue = parsed.issues.find((i) => i.severity === "error");
+			new Notice(
+				issue ? issue.message : "Vertex Flow: that query didn't parse.",
+			);
+			return;
+		}
+		void openQuery(root, parsed.definition, pending.source);
+	}, [plugin, activeWorkspaceRoot, openQuery]);
+
+	// Consume a deep-linked Help topic (`obsidian://vertex-flow?help=…`) once:
+	// forwarded into the same per-pane landing mechanism `openHelp` itself uses.
+	useEffect(() => {
+		const target = plugin.pendingHelpTopic;
+		if (!target) return;
+		plugin.pendingHelpTopic = null;
+		void openHelp(target.topicId, target.anchor ?? undefined);
+	}, [plugin, openHelp]);
 
 	// Record every activation into the MRU stack (most recent first), for `close`
 	// to consult. Runs on every activeId change, however it was set — activate,
@@ -1076,7 +1194,8 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			clearPendingHelpTarget,
 			pendingScreenAnchor,
 			clearPendingScreenAnchor,
-			openView,
+openView,
+			openQuery,
 			openLabel,
 			openPerson,
 			openDashboard,
@@ -1130,6 +1249,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			pendingScreenAnchor,
 			clearPendingScreenAnchor,
 			openView,
+			openQuery,
 			openLabel,
 			openPerson,
 			openDashboard,
@@ -1155,6 +1275,8 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			setViewDraft,
 			getDashboardDraft,
 			setDashboardDraft,
+			getSelectionSnapshot,
+			setSelectionSnapshot,
 			getViewColumns,
 			setViewColumnsFor,
 			getSettingsScrollTop,

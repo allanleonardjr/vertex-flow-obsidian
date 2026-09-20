@@ -8,7 +8,7 @@
  * plugin-private scheme.
  */
 
-import { normalizePath, Notice, Plugin, WorkspaceLeaf } from "obsidian";
+import { normalizePath, Notice, Platform, Plugin, WorkspaceLeaf } from "obsidian";
 import { AiEngineService } from "./ai/AiEngineService";
 import { VaultIndex } from "./obsidian/index-store";
 import { Mutations } from "./obsidian/mutations";
@@ -20,6 +20,17 @@ import {
   getMePersonId,
   setMePersonId,
 } from "./obsidian/me-storage";
+import {
+  configureMcpTokenStorage,
+  generateMcpToken,
+  getMcpToken,
+  setMcpToken,
+} from "./obsidian/mcp-token";
+import { McpServerService } from "./mcp/server";
+import {
+  intentFromParams,
+  type VaultUriIntent,
+} from "./core/mcp/uris";
 import {
   configureLastWorkspaceStorage,
   getLastWorkspaceRoot,
@@ -47,6 +58,11 @@ export default class VertexFlowPlugin extends Plugin {
   aiEngine!: AiEngineService;
   /** Blob URL backing the AI worker script — revoked on unload. */
   private aiWorkerBlobUrl: string | null = null;
+
+  /** The local MCP server, when enabled and running. See `refreshMcpServer`. */
+  private mcpService: McpServerService | null = null;
+  /** Port the current `mcpService` bound, to detect a settings change. */
+  private mcpBoundPort: number | null = null;
 
   /** One-shot: the React tree opens the AI Chat tab when it sees this. Mirrors `pendingExport`. */
   pendingOpenAiChat = false;
@@ -93,6 +109,7 @@ export default class VertexFlowPlugin extends Plugin {
     const appId = (this.app as unknown as { appId?: string }).appId;
     configureMeStorage(appId);
     configureLastWorkspaceStorage(appId);
+    configureMcpTokenStorage(appId);
     // Reopen the workspace this device last had active. A stale value (the
     // workspace was deleted/renamed) is harmless — `activeWorkspace()` and
     // `useActiveWorkspace()` both fall back to the first workspace.
@@ -151,6 +168,18 @@ export default class VertexFlowPlugin extends Plugin {
 
     installSwipeGuard(this.app, this);
 
+    // Deep links (`obsidian://vertex-flow…`) from MCP `vaultUri` rows. Each
+    // intent lands as its own pending flag, the same bridge `requestEdit` /
+    // workspace creation use to reach into the React tree once it mounts.
+    this.registerObsidianProtocolHandler("vertex-flow", (params) => {
+      const intent = intentFromParams(params);
+      if (!intent) {
+        new Notice("Vertex Flow: unrecognised deep link.");
+        return;
+      }
+      void this.handleDeepLink(intent);
+    });
+
     // The metadata cache isn't populated until layout is ready; indexing
     // before then would read an empty vault.
     this.app.workspace.onLayoutReady(() => {
@@ -173,6 +202,11 @@ export default class VertexFlowPlugin extends Plugin {
       );
       void this.index.rebuild().then(() => this.registerTaskRedirect());
     });
+
+    // Boot the read-only local MCP server if the user left it on. Runs after
+    // `index` exists but is independent of layout/index readiness — the
+    // server answers empty while the first rebuild still in flight.
+    this.register(async () => void this.refreshMcpServer());
   }
 
   override onunload(): void {
@@ -180,6 +214,68 @@ export default class VertexFlowPlugin extends Plugin {
     // global state we add is the text-size body class.
     clearUiTextSize();
     if (this.aiWorkerBlobUrl) URL.revokeObjectURL(this.aiWorkerBlobUrl);
+    void this.mcpService?.stop();
+  }
+
+  /**
+   * Bring the local MCP server up/down to match settings. Called on load and
+   * from the Settings tab whenever the toggle or port changes. A token is
+   * auto-generated the first time the server starts, so the endpoint always
+   * has a secret before any client appears.
+   */
+  async refreshMcpServer(): Promise<void> {
+    const enabled = this.settings.mcpServerEnabled && !Platform.isMobile;
+
+    if (!enabled) {
+      if (this.mcpService) await this.mcpService.stop();
+      this.mcpService = null;
+      this.mcpBoundPort = null;
+      return;
+    }
+
+    if (
+      this.mcpService?.running &&
+      this.mcpBoundPort !== this.settings.mcpServerPort
+    ) {
+      await this.mcpService.stop();
+      this.mcpService = null;
+      this.mcpBoundPort = null;
+    }
+
+    if (this.mcpService) return;
+
+    this.mcpService = new McpServerService({
+      getPort: () => this.settings.mcpServerPort,
+      getToken: () => getMcpToken(),
+      ensureToken: () => {
+        let token = getMcpToken();
+        if (!token) {
+          token = generateMcpToken();
+          setMcpToken(token);
+        }
+        return token;
+      },
+      tools: {
+        index: this.index,
+        io: this.io,
+        version: this.manifest.version,
+        me: (root) => getMePersonId(root),
+      },
+    });
+    try {
+      await this.mcpService.start();
+      this.mcpBoundPort = this.settings.mcpServerPort;
+      new Notice(
+        `Vertex Flow's local AI server is on 127.0.0.1:${this.settings.mcpServerPort}/mcp`,
+      );
+    } catch (err) {
+      console.error("[vertex-flow:mcp] start failed", err);
+      this.mcpService = null;
+      this.mcpBoundPort = null;
+      new Notice(
+        `Vertex Flow couldn't start its local server on port ${this.settings.mcpServerPort} — is something else using it?`,
+      );
+    }
   }
 
   private registerCommands(): void {
@@ -208,7 +304,7 @@ export default class VertexFlowPlugin extends Plugin {
 
     this.addCommand({
       id: "open-ai-chat",
-      name: "Open AI Chat",
+      name: "Open AI chat",
       callback: () => {
         this.pendingOpenAiChat = true;
         void this.activateView().then(() => this.index.touch());
@@ -335,6 +431,27 @@ export default class VertexFlowPlugin extends Plugin {
   pendingOpenView: string | null = null;
 
   /**
+   * The workspace a deep-linked `open-view` should land in, when the link
+   * names one. Consumed alongside `pendingOpenView` by `TabsProvider`, which
+   * switches the active workspace to match.
+   */
+  pendingOpenViewRoot: string | null = null;
+
+  /**
+   * A deep-linked query (`obsidian://vertex-flow?query=…`): the raw query text
+   * and the workspace it was parsed against, if the link named one. Consumed
+   * once by `TabsProvider`, which parses it and opens an ephemeral query tab.
+   */
+  pendingQuery: { source: string; root?: string } | null = null;
+
+  /**
+   * A deep-linked Help topic (`obsidian://vertex-flow?help=…`). Consumed once
+   * by `TabsProvider`, which forwards it into `openHelp` so the Help screen
+   * lands on the topic (and optional heading slug).
+   */
+  pendingHelpTopic: { topicId: string; anchor?: string } | null = null;
+
+  /**
    * Set by the "Export…" command; consumed by Sidebar's bridge effect to open
    * the Export dialog. Mirrors pendingEditPath/pendingOpenView.
    */
@@ -380,6 +497,57 @@ export default class VertexFlowPlugin extends Plugin {
     this.pendingEditPath = path;
     await this.activateView();
     this.index.touch();
+  }
+
+  /**
+   * Route a decoded `obsidian://vertex-flow…` intent to the matching pending
+   * flag(s). Pane-side consumers (TabsProvider) pick each up once the React
+   * tree mounts — the plugin side never touches the React tree directly.
+   */
+  private async handleDeepLink(intent: VaultUriIntent): Promise<void> {
+    switch (intent.action) {
+      case "open-note": {
+        if (intent.target === "native") {
+          await this.app.workspace.openLinkText(intent.path, "");
+          return;
+        }
+        // `vf` opens in the task tab when the path is a task; anything else
+        // (workspace/project/person notes) falls back to the native editor.
+        if (this.index.taskAt(intent.path.replace(/\.md$/, ""))) {
+          await this.requestEdit(intent.path);
+        } else {
+          await this.app.workspace.openLinkText(intent.path, "");
+        }
+        return;
+      }
+      case "open-view": {
+        const root =
+          intent.root ??
+          this.index.snapshotWithView(intent.viewId)?.workspace.root ??
+          this.index.snapshotWithDashboard(intent.viewId)?.workspace.root ??
+          null;
+        this.pendingOpenView = intent.viewId;
+        this.pendingOpenViewRoot = root;
+        await this.activateView();
+        this.index.touch();
+        return;
+      }
+      case "help":
+        this.pendingHelpTopic = {
+          topicId: intent.topicId,
+          anchor: intent.anchor,
+        };
+        await this.activateView();
+        return;
+      case "query":
+        this.pendingQuery = {
+          source: intent.source,
+          ...(intent.root ? { root: intent.root } : {}),
+        };
+        await this.activateView();
+        this.index.touch();
+        return;
+    }
   }
 
   /**

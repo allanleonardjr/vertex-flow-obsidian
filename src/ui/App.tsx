@@ -13,7 +13,12 @@ import {
   type ActiveWorkspace,
 } from "./context";
 import { workspaceTaxonomies } from "../core/taxonomy";
-import type { SavedView, WorkspaceSnapshot } from "../core/types";
+import type {
+	DashboardConfig,
+	SavedView,
+	ViewDefinition,
+	WorkspaceSnapshot,
+} from "../core/types";
 import { EmptyState } from "./EmptyState";
 import { EmptyTabsPane } from "./EmptyTabsPane";
 import { ProjectDetailView } from "./ProjectDetailView";
@@ -97,14 +102,23 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
 
   // The view a TaskViewport renders. A view tab renders its own Saved View; a
   // label tab renders a synthesised, never-persisted view filtered to that
-  // label.
+  // label, and a deep-linked query tab renders its parsed definition the same
+  // way.
   const activeLabelId = activeTab?.kind === "label" ? activeTab.labelId : null;
   const viewportView: SavedView | null =
     activeTab?.kind === "view"
       ? viewById(snapshot, activeTab.viewId)
-      : activeLabelId
-        ? labelView(snapshot, activeLabelId)
-        : null;
+      : activeTab?.kind === "query"
+        ? queryView(activeTab.definition, activeTab.name)
+        : activeLabelId
+          ? labelView(snapshot, activeLabelId)
+          : null;
+
+  // A view tab can't find a Saved View but its id names a dashboard — a
+  // `open-view` deep link aimed at a dashboard `vaultUri`. Render the dashboard
+  // so the link lands instead of an empty pane.
+  const viewportDashboard = (viewId: string): DashboardConfig | null =>
+    snapshot.dashboards.find((d) => d.id === viewId) ?? null;
 
   // Opening a Saved View: every view — All Tasks and Untriaged included — gets
   // its own tab, and System Views bind to this workspace (so A's All Tasks and
@@ -333,6 +347,17 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
             taxonomies={active.taxonomies}
             tabs={tabs}
           />
+        ) : activeTab.kind === "view" && !viewportView ? (
+          viewportDashboard(activeTab.viewId) ? (
+            <DashboardView
+              key={activeTab.viewId}
+              dashboardId={activeTab.viewId}
+              snapshot={snapshot}
+              context={active.context}
+            />
+          ) : (
+            <EmptyTabsPane />
+          )
         ) : viewportView ? (
           <TaskViewport
             snapshot={snapshot}
@@ -340,7 +365,9 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
             taxonomies={active.taxonomies}
             context={active.context}
             containerRef={container}
-            active={activeTab.kind === "view" || activeTab.kind === "label"}
+            active={
+              activeTab.kind === "view" || activeTab.kind === "query"
+            }
             onSelectView={selectView}
           />
         ) : (
@@ -350,6 +377,21 @@ function Workspace({ active }: { active: ActiveWorkspace }) {
     </div>
     </AiChatSessionProvider>
   );
+}
+
+/** A synthesised, never-persisted view from a deep-linked query definition. */
+export function queryView(
+  definition: ViewDefinition,
+  name: string,
+): SavedView {
+  return {
+    type: "vertex-flow-view",
+    path: "",
+    id: `query:${name}`,
+    name,
+    columns: { collapsed: [], hidden: [] },
+    ...definition,
+  };
 }
 
 /** A synthesised, never-persisted view showing only tasks carrying `labelId`. */

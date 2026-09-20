@@ -65,8 +65,8 @@ describe("summarizeTasks", () => {
 		const taxonomies = workspaceTaxonomies(snapshot.workspace);
 		const [, childSummary] = summarizeTasks([parent, child], snapshot, taxonomies);
 
-		expect(childSummary!.project).toBe("Launch");
-		expect(childSummary!.parent).toBe("Parent");
+		expect(childSummary.project).toBe("Launch");
+		expect(childSummary.parent).toBe("Parent");
 	});
 
 	it("resolves taskType and assignee to their configured/display names, and carries estimate/startDate", () => {
@@ -83,10 +83,10 @@ describe("summarizeTasks", () => {
 		const taxonomies = workspaceTaxonomies(snapshot.workspace);
 		const [summary] = summarizeTasks([t], snapshot, taxonomies);
 
-		expect(summary!.taskType).toBe("Bug");
-		expect(summary!.assignee).toBe("Alice");
-		expect(summary!.estimate).toBe(5);
-		expect(summary!.startDate).toBe("2026-01-01");
+		expect(summary.taskType).toBe("Bug");
+		expect(summary.assignee).toBe("Alice");
+		expect(summary.estimate).toBe(5);
+		expect(summary.startDate).toBe("2026-01-01");
 	});
 
 	it("falls back to null for an assignee/taskType id that isn't in the workspace", () => {
@@ -96,8 +96,8 @@ describe("summarizeTasks", () => {
 		const taxonomies = workspaceTaxonomies(snapshot.workspace);
 		const [summary] = summarizeTasks([t], snapshot, taxonomies);
 
-		expect(summary!.taskType).toBeNull();
-		expect(summary!.assignee).toBeNull();
+		expect(summary.taskType).toBeNull();
+		expect(summary.assignee).toBeNull();
 	});
 });
 
@@ -125,7 +125,7 @@ describe("flattenTasks", () => {
 		const text = flattenTasks(summarizeTasks([t], snapshot, taxonomies));
 
 		expect(text).toContain("A / B");
-		expect(text.split("\n")[1]!.split(" | ")).toHaveLength(12);
+		expect(text.split("\n")[1].split(" | ")).toHaveLength(12);
 	});
 });
 
@@ -244,7 +244,7 @@ describe("buildTaxonomyLegend", () => {
 		const renamed = {
 			...snapshot.workspace,
 			statuses: snapshot.workspace.statuses.map((s) =>
-				s.id === snapshot.workspace.statuses[0]!.id ? { ...s, name: "Renamed Status" } : s,
+				s.id === snapshot.workspace.statuses[0].id ? { ...s, name: "Renamed Status" } : s,
 			),
 		};
 		const legend = buildTaxonomyLegend(workspaceTaxonomies(renamed));
