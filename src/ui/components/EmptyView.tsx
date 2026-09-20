@@ -18,6 +18,7 @@ export function EmptyView({
   note,
   onNewTask,
   action,
+  className,
 }: {
   icon?: string;
   iconFallback: string;
@@ -26,9 +27,11 @@ export function EmptyView({
   onNewTask?: () => void;
   /** An extra call-to-action, rendered as a button like "New task". */
   action?: { label: string; onClick: () => void };
+  /** Extra class on the root, for a caller that needs to scope CSS (e.g. an animation) to its own usage without touching every other empty state. */
+  className?: string;
 }) {
   return (
-    <div className="vf-app-background vf-view-empty">
+    <div className={`vf-app-background vf-view-empty${className ? ` ${className}` : ""}`}>
       <span className="vf-view-empty-icon" aria-hidden>
         <Icon id={icon} fallback={iconFallback} size={33} />
       </span>

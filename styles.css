@@ -2127,6 +2127,38 @@ button.vf-swatch.is-on {
   margin-top: 4px;
 }
 
+/* AI Chat's model-loading empty state — a gentle pulse on the icon so it
+   reads as actively working through the multi-second gaps between WebLLM's
+   own per-shard progress ticks (not continuous), rather than looking frozen.
+   Scoped to this one usage via `EmptyView`'s `className` — every other empty
+   state in the app keeps its plain, static icon. */
+.vf-ai-chat-loading .vf-view-empty-icon {
+  animation: vf-ai-chat-loading-pulse 1.6s ease-in-out infinite;
+}
+
+/* The reused `.vf-ai-progress` bar (Settings' download meter) has no fixed
+   width of its own — `.vf-ai-progress-wrap`'s flex layout normally supplies
+   that, but this usage skips the wrap div (no label needed here, the text is
+   already `EmptyView`'s own note). Give it a sensible fixed width here
+   instead of letting it stretch to match the note text's own width. */
+.vf-ai-chat-loading .vf-ai-progress {
+  width: 240px;
+  max-width: 100%;
+  margin: 8px auto 0;
+}
+
+@keyframes vf-ai-chat-loading-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+}
+
 /* --- Template gallery (workspace creation, §13) --------------------------- */
 
 .vf-empty-scroll {
@@ -4713,14 +4745,23 @@ input.vf-editable-title-input {
 }
 
 /* Content renders through `MarkdownContent` now (real block elements), not
-   preformatted text — trim the rendered tree's own top/bottom margins so the
-   bubble's padding is the only spacing, same convention as `.vf-comment-body`. */
-.vf-chat-bubble :is(.markdown-rendered) > :first-child {
+   preformatted text. Resetting only the first/last child's own margin (the
+   `.vf-comment-body` convention) leaves every *interior* block's own default
+   margin untouched — Obsidian's own heading/list/code-block margins are much
+   larger than a one-line plain-text reply's single paragraph ever shows, so a
+   multi-block assistant response reads as visibly more "padded" than a short
+   user message even though `.vf-chat-bubble`'s own padding is identical for
+   both. Zeroing every child's margin and reintroducing a single, fixed
+   inter-block gap removes that content-shape-dependent difference entirely —
+   the bubble's own padding is the only vertical spacing that varies with role
+   now, and it doesn't, because both share the one rule above. */
+.vf-chat-bubble :is(.markdown-rendered) > * {
   margin-top: 0;
+  margin-bottom: 0;
 }
 
-.vf-chat-bubble :is(.markdown-rendered) > :last-child {
-  margin-bottom: 0;
+.vf-chat-bubble :is(.markdown-rendered) > * + * {
+  margin-top: 0.5em;
 }
 
 .vf-chat-bubble-user {
@@ -4731,9 +4772,13 @@ input.vf-editable-title-input {
 /* A `searchTasks` result rendered as a real, clickable task list below the
    model's prose — same boxed, non-scrolling treatment as `.vf-list-embedded`
    (Sub-tasks/Relations), which reads right nested inside a bubble rather than
-   `.vf-list`'s own unbounded-scroll default. */
+   `.vf-list`'s own unbounded-scroll default. `margin-top` matches
+   `.vf-chat-bubble`'s own padding exactly (5px) — the prose-above-list gap is
+   this margin alone (the prose's own bottom margin is reset to 0 above), and
+   the list-to-bubble-bottom gap is that same padding value, so top and bottom
+   read symmetric. */
 .vf-chat-task-list {
-  margin-top: 6px;
+  margin-top: 5px;
   flex: none;
   padding-bottom: 0;
   border: 1px solid var(--vf-border);

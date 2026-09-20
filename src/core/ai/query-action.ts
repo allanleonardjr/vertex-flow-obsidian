@@ -99,6 +99,27 @@ export function looksLikeQueryAction(response: string): boolean {
 }
 
 /**
+ * Looser still than `looksLikeQueryAction`: does this response contain a
+ * `{...}` substring that's valid JSON and a plain object, regardless of what
+ * keys it has? A model can emit JSON that isn't even shaped like an attempted
+ * `searchTasks`/`countTasks` call at all (e.g. `{"labels": ["Community/Discord"]}`,
+ * naming neither action) — `looksLikeQueryAction`'s own `action` check misses
+ * that entirely, so it falls through to being shown as raw text. This is the
+ * catch-all: any JSON-shaped output that isn't valid prose should go through
+ * the corrective retry, never straight to the user.
+ */
+export function looksLikeJsonAttempt(response: string): boolean {
+	const candidate = extractJsonCandidate(response.trim());
+	if (!candidate) return false;
+
+	try {
+		return isPlainObject(JSON.parse(candidate));
+	} catch {
+		return false;
+	}
+}
+
+/**
  * Structural validation only: is this JSON, does `action` name one of the two
  * known actions, and does `filters` hold only recognized `ViewFilters` keys
  * with the right JS type for each (array keys must be string arrays; boolean

@@ -54,7 +54,16 @@ export function MarkdownContent({
 		void MarkdownRenderer.render(plugin.app, text, el, sourcePath, component);
 	}, [plugin, text, sourcePath]);
 
-	return <div className={className} ref={containerRef} />;
+	// `markdown-rendered` is applied here explicitly rather than assumed from
+	// Obsidian's own renderer — `MarkdownRenderer.render()` renders directly
+	// into `el` (this div) without adding that class itself in this usage
+	// (confirmed via live-rendered HTML: `<div><p>...</p></div>`, no such class
+	// anywhere in the tree). Every caller that trims this content's own
+	// top/bottom margins via `:is(.markdown-rendered) > …` (chat bubbles, the
+	// Help pane, comment bodies, the description preview) was silently a
+	// no-op without this — the class simply never existed on the node the
+	// selector was written to match.
+	return <div className={`markdown-rendered${className ? ` ${className}` : ""}`} ref={containerRef} />;
 }
 
 /**

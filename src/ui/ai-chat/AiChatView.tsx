@@ -25,9 +25,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { buildFactsSection } from "../../core/ai/snapshot";
 import { matchHelpTopic } from "../../core/ai/help-retrieval";
+import { resolveTaskIdFragments, type TaskIdFragmentMatch } from "../../core/ai/resolve-task-ids";
 import {
 	executeQueryAction,
-	looksLikeQueryAction,
+	looksLikeJsonAttempt,
 	parseQueryAction,
 } from "../../core/ai/query-action";
 import { HELP_TOPICS } from "../../core/help";
@@ -61,9 +62,9 @@ const AI_CHAT_SOURCE_PATH = "Vertex Flow AI Chat.md";
 const COPY_CONFIRM_MS = 1500;
 
 /**
- * Shown instead of raw JSON when a second-call response still looks like a
- * query action — see the `looksLikeQueryAction` check after `streamVisible`
- * in `runTurn`. The second call has no structural guarantee of producing
+ * Shown instead of raw JSON when a second-call response still looks like JSON
+ * (a query action or not — see the `looksLikeJsonAttempt` check after
+ * `streamVisible` in `runTurn`). The second call has no structural guarantee of producing
  * final prose (unlike the buffered-and-checked first call), so this is the
  * deterministic backstop rather than a further model call.
  */
@@ -85,6 +86,27 @@ Recognized filter keys: status, priority, taskType, labels, assignee, project, p
 If a question is answerable from the facts section alone (totals, what statuses/priorities/task types/people exist), or needs no workspace data at all, just answer directly in plain language — never emit a JSON action for those. This includes self-referential questions about you, the assistant — "what can you do?", "help", "who are you?", "what is this?" — always answer those directly, in plain language, describing your own capabilities; a JSON action can never answer a question about yourself.
 
 When a "## How Vertex Flow works" section is present below, it's real documentation for this exact app — answer questions about app behavior/features from it directly rather than guessing, and don't mix it up with the workspace's own data.`;
+
+/**
+ * Formats resolved bare task-ID number fragments (see `resolve-task-ids.ts`)
+ * into the same single system message as the facts/help sections — never a
+ * second message object, the exact mistake that caused `SystemMessageOrderError`
+ * for the help-topic injection earlier. Rebuilt fresh per turn from the
+ * current message only, so a resolution never lingers past the turn it was
+ * found in.
+ */
+function formatTaskIdResolutionNote(fragmentMatches: TaskIdFragmentMatch[]): string {
+	if (fragmentMatches.length === 0) return "";
+	const lines = fragmentMatches.map(({ fragment, matches }) => {
+		if (matches.length === 1) {
+			const match = matches[0];
+			return `"${fragment}" in the user's message refers to ${match.id} ("${match.title}").`;
+		}
+		const candidates = matches.map((match) => `${match.id} ("${match.title}")`).join(", ");
+		return `"${fragment}" in the user's message could refer to more than one task: ${candidates}. Ask the user which one they mean rather than guessing.`;
+	});
+	return `\n\n## Task ID reference\n${lines.join("\n")}`;
+}
 
 interface RunTurnDeps {
 	snapshot: WorkspaceSnapshot;
@@ -198,6 +220,13 @@ export function AiChatView({
 	const supported = AiEngineService.supportsWebGPU();
 
 	const [engineState, setEngineState] = useState<AiEngineState | "checking">("checking");
+	// Real shard-loading progress for the "checking" state below — mirrors
+	// `AiModelRow` in Settings' `{ pct, text }` shape exactly, same progress
+	// callback `install()` already supports. `null` before the first progress
+	// event fires (the brief `getState()` cache-check window, or a reactivation
+	// fast enough that few/no events arrive) — the render falls back to a
+	// generic message for that gap.
+	const [loadingProgress, setLoadingProgress] = useState<{ pct: number; text: string } | null>(null);
 	const { messages, setMessages, justSwitchedModel } = useAiChatSession();
 	const [input, setInput] = useState("");
 	const [sending, setSending] = useState(false);
@@ -236,14 +265,21 @@ export function AiChatView({
 		}
 		let cancelled = false;
 		setEngineState("checking");
+		// Stale progress from a previous model/mount must never linger into this
+		// one's loading state.
+		setLoadingProgress(null);
 		void plugin.aiEngine.getState(selectedModelId).then(async (state) => {
 			if (cancelled) return;
 			if (state !== "installed") {
 				setEngineState(state);
 				return;
 			}
-			// Cached model: this just loads/activates it in the worker, no download.
-			const loaded = await plugin.aiEngine.install(selectedModelId);
+			// Cached model: this just loads/activates it in the worker, no
+			// download — but genuinely reports progress while loading shards from
+			// cache into GPU memory, not only during a fresh download.
+			const loaded = await plugin.aiEngine.install(selectedModelId, (report) => {
+				if (!cancelled) setLoadingProgress({ pct: Math.round(report.progress * 100), text: report.text });
+			});
 			if (!cancelled) setEngineState(loaded);
 		});
 		return () => {
@@ -287,7 +323,7 @@ export function AiChatView({
 	/**
 	 * Always streams live into the visible bubble — only ever called for a
 	 * response the user should watch appear. Returns the full streamed text so
-	 * callers can run a post-hoc check on it (see the `looksLikeQueryAction`
+	 * callers can run a post-hoc check on it (see the `looksLikeJsonAttempt`
 	 * safety net in `runTurn`) — the bubble's own state updates asynchronously
 	 * via `appendToLastAssistant`, so this tracks the same text locally rather
 	 * than reading it back out of `messages`.
@@ -332,8 +368,17 @@ export function AiChatView({
 			? `\n\n## How Vertex Flow works: ${helpTopic.title}\n${helpTopic.content ?? ""}`
 			: "";
 
+		// A small local model isn't reliable at matching a bare number ("task
+		// 40") against padded/unpadded IDs buried in the facts table — resolved
+		// deterministically here instead, same principle as query-action's
+		// filter-value resolution. Same single-system-message constraint as the
+		// help section above.
+		const idSection = formatTaskIdResolutionNote(
+			latestUserMessage ? resolveTaskIdFragments(latestUserMessage.content, deps.snapshot.tasks) : [],
+		);
+
 		const baseRequest: AiChatMessage[] = [
-			{ role: "system", content: `${INSTRUCTIONS}\n\n## Facts\n${facts}${helpSection}` },
+			{ role: "system", content: `${INSTRUCTIONS}\n\n## Facts\n${facts}${helpSection}${idSection}` },
 			...history,
 		];
 
@@ -376,11 +421,13 @@ export function AiChatView({
 			// The second call has no structural check on it the way the first
 			// call's buffered response does (`parseQueryAction` runs before
 			// anything is shown) — this is the deterministic backstop for the
-			// rare case it still emits a query action instead of prose. The JSON
-			// will have flashed on screen briefly as it streamed in; that's an
-			// accepted tradeoff against buffering every second call and losing
-			// live streaming for the common, correct case.
-			if (!stoppedRef.current && looksLikeQueryAction(secondResponse)) {
+			// rare case it still emits JSON instead of prose (a valid-shaped
+			// action, or off-schema JSON like `{"labels": [...]}` naming neither
+			// action — `looksLikeJsonAttempt` catches both). The JSON will have
+			// flashed on screen briefly as it streamed in; that's an accepted
+			// tradeoff against buffering every second call and losing live
+			// streaming for the common, correct case.
+			if (!stoppedRef.current && looksLikeJsonAttempt(secondResponse)) {
 				setLastAssistant(QUERY_ACTION_FALLBACK);
 			} else if (queryResult.tasks && queryResult.tasks.length > 0) {
 				// `searchTasks` only — `countTasks` never sets `tasks` (nothing to
@@ -393,10 +440,14 @@ export function AiChatView({
 			return;
 		}
 
-		if (looksLikeQueryAction(firstResponse)) {
+		if (looksLikeJsonAttempt(firstResponse)) {
 			// Attempted an action but it didn't validate (unrecognized filter
-			// keys, wrong value types, …) — spend the one retry budget on a
-			// corrective nudge rather than surfacing raw JSON to the user.
+			// keys, wrong value types, an off-schema shape naming no `action` at
+			// all like `{"labels": ["Community/Discord"]}`, …) — spend the one
+			// retry budget on a corrective nudge rather than surfacing raw JSON to
+			// the user. Broader than `looksLikeQueryAction` deliberately: any
+			// JSON-shaped output that didn't already resolve as a real action
+			// above belongs here, not in the plain-text branch below.
 			const retryRequest: AiChatMessage[] = [
 				...baseRequest,
 				{ role: "assistant", content: firstResponse },
@@ -410,8 +461,9 @@ export function AiChatView({
 			const retryResponse = await streamVisible(retryRequest);
 			// Same safety net as the successful-query path above — this call is
 			// meant to produce a corrective plain-language answer, but nothing
-			// stops the model from emitting another (still invalid) action.
-			if (!stoppedRef.current && looksLikeQueryAction(retryResponse)) {
+			// stops the model from emitting another (still invalid, or still
+			// off-schema) JSON attempt.
+			if (!stoppedRef.current && looksLikeJsonAttempt(retryResponse)) {
 				setLastAssistant(QUERY_ACTION_FALLBACK);
 			}
 			return;
@@ -517,7 +569,25 @@ export function AiChatView({
 
 	if (engineState === "checking") {
 		return (
-			<EmptyView icon="bot" iconFallback="bot" title="Loading the model…" />
+			<EmptyView
+				icon="bot"
+				iconFallback="bot"
+				title="Loading the model…"
+				note={
+					<>
+						{loadingProgress?.text ?? "Warming up…"}
+						{/* No bar during the brief pre-progress window (the initial
+						    `getState()` cache check) — a bar stuck at 0% would read as
+						    broken rather than simply "hasn't started reporting yet". */}
+						{loadingProgress && (
+							<div className="vf-ai-progress">
+								<div className="vf-ai-progress-fill" style={{ width: `${loadingProgress.pct}%` }} />
+							</div>
+						)}
+					</>
+				}
+				className="vf-ai-chat-loading"
+			/>
 		);
 	}
 
@@ -546,8 +616,8 @@ export function AiChatView({
 				) : (
 					messages.map((message, index) => (
 						<div key={message.id} className={`vf-chat-message vf-chat-message-${message.role}`}>
-							<div className={`vf-chat-bubble vf-chat-bubble-${message.role}`}>
-								{message.content ? (
+							{message.content ? (
+								<div className={`vf-chat-bubble vf-chat-bubble-${message.role}`}>
 									<AiChatBubbleContent
 										text={message.content}
 										taskPaths={message.taskPaths}
@@ -555,10 +625,13 @@ export function AiChatView({
 										taxonomies={taxonomies}
 										onOpenTask={openTask}
 									/>
-								) : (
-									sending && index === messages.length - 1 ? <ThinkingIndicator /> : ""
-								)}
-							</div>
+								</div>
+							) : (
+								// No `.vf-chat-bubble` at all while there's nothing to show yet —
+								// the thinking indicator gets no bubble chrome/background; only
+								// once real content streams in does the bubble appear.
+								sending && index === messages.length - 1 && <ThinkingIndicator />
+							)}
 							<div className="vf-chat-actions">
 								{message.role === "assistant" && message.content && (
 									<button

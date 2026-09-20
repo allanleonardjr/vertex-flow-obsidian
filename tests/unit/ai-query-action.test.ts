@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	executeQueryAction,
+	looksLikeJsonAttempt,
 	looksLikeQueryAction,
 	parseQueryAction,
 } from "../../src/core/ai/query-action";
@@ -96,6 +97,36 @@ describe("looksLikeQueryAction", () => {
 
 	it("is false for JSON that isn't an action object", () => {
 		expect(looksLikeQueryAction('{"hello":"world"}')).toBe(false);
+	});
+});
+
+describe("looksLikeJsonAttempt", () => {
+	it("is true for a structurally valid action (a superset of looksLikeQueryAction)", () => {
+		expect(looksLikeJsonAttempt('{"action":"searchTasks","filters":{}}')).toBe(true);
+	});
+
+	it("is true for JSON naming neither action — the off-schema shape looksLikeQueryAction misses", () => {
+		expect(looksLikeJsonAttempt('{"labels": ["Community/Discord"]}')).toBe(true);
+	});
+
+	it("is true for an arbitrary object with unrelated keys", () => {
+		expect(looksLikeJsonAttempt('{"hello":"world"}')).toBe(true);
+	});
+
+	it("tolerates surrounding prose or a markdown fence around the JSON", () => {
+		expect(looksLikeJsonAttempt('Sure thing:\n```json\n{"labels": ["x"]}\n```')).toBe(true);
+	});
+
+	it("is false for plain conversational text with no JSON in it", () => {
+		expect(looksLikeJsonAttempt("Here's what I found.")).toBe(false);
+	});
+
+	it("is false for invalid/unparseable JSON", () => {
+		expect(looksLikeJsonAttempt("{not valid json")).toBe(false);
+	});
+
+	it("is false for a bare JSON array — no {...} substring for extractJsonCandidate to find", () => {
+		expect(looksLikeJsonAttempt('["a", "b"]')).toBe(false);
 	});
 });
 
