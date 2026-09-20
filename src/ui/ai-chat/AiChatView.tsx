@@ -22,7 +22,7 @@
  * question with no restart needed.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { buildFactsSection } from "../../core/ai/snapshot";
 import { matchHelpTopic } from "../../core/ai/help-retrieval";
 import {
@@ -33,7 +33,7 @@ import {
 import { HELP_TOPICS } from "../../core/help";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { ViewContext } from "../../core/views";
-import type { WorkspaceSnapshot } from "../../core/types";
+import type { Task, WorkspaceSnapshot } from "../../core/types";
 import {
 	AI_MODEL_OPTIONS,
 	aiModelInfo,
@@ -44,6 +44,7 @@ import {
 import { EmptyView } from "../components/EmptyView";
 import { Icon } from "../components/Icon";
 import { MarkdownContent } from "../components/Markdown";
+import { TaskList } from "../components/TaskList";
 import { usePlugin } from "../context";
 import { useTabs } from "../tabs-context";
 import { type AiChatBubble, useAiChatSession } from "./ai-chat-session";
@@ -59,6 +60,15 @@ const AI_CHAT_SOURCE_PATH = "Vertex Flow AI Chat.md";
 /** How long the Copy button shows its confirmation checkmark. */
 const COPY_CONFIRM_MS = 1500;
 
+/**
+ * Shown instead of raw JSON when a second-call response still looks like a
+ * query action — see the `looksLikeQueryAction` check after `streamVisible`
+ * in `runTurn`. The second call has no structural guarantee of producing
+ * final prose (unlike the buffered-and-checked first call), so this is the
+ * deterministic backstop rather than a further model call.
+ */
+const QUERY_ACTION_FALLBACK = "I wasn't able to answer that — try asking in a different way.";
+
 const INSTRUCTIONS = `You are an assistant embedded in the Vertex Flow task manager (an Obsidian plugin).
 
 You're given a small facts section (counts, and this workspace's configured statuses/priorities/task types/labels/people — all fully user-configurable, so use these definitions, never generic assumptions or names from other tools).
@@ -72,7 +82,7 @@ or, for anything about overdue work — never express "overdue" via the text fil
 
 Recognized filter keys: status, priority, taskType, labels, assignee, project, parent, mentions (all arrays of this workspace's display names), text (substring match — NOT for concepts like "overdue"), archived ("included" or "only"), openOnly, unscheduled, recurring, overdue (booleans). Use display names exactly as given in the facts section — never invent a field name. Omit filters you don't need; an empty/omitted filter matches everything. Only ever emit ONE such object, and nothing besides it, when you need data — no other text before or after it.
 
-If a question is answerable from the facts section alone (totals, what statuses/priorities/task types/people exist), or needs no workspace data at all, just answer directly in plain language — never emit a JSON action for those.
+If a question is answerable from the facts section alone (totals, what statuses/priorities/task types/people exist), or needs no workspace data at all, just answer directly in plain language — never emit a JSON action for those. This includes self-referential questions about you, the assistant — "what can you do?", "help", "who are you?", "what is this?" — always answer those directly, in plain language, describing your own capabilities; a JSON action can never answer a question about yourself.
 
 When a "## How Vertex Flow works" section is present below, it's real documentation for this exact app — answer questions about app behavior/features from it directly rather than guessing, and don't mix it up with the workspace's own data.`;
 
@@ -115,10 +125,63 @@ function useThrottledText(text: string): string {
 	return display;
 }
 
-/** One mounted instance per message, so `useThrottledText`'s hook call is stable regardless of how many messages are in the list. */
-function AiChatBubbleContent({ text }: { text: string }) {
+/**
+ * One mounted instance per message, so `useThrottledText`'s hook call is
+ * stable regardless of how many messages are in the list. Also resolves a
+ * resolved `searchTasks` action's `taskPaths` against the *current* snapshot
+ * on every render — never freezing the `Task` objects matched at query time —
+ * so a status change or deletion afterward shows up immediately rather than a
+ * stale result from when the question was asked. A path that no longer
+ * resolves (task deleted since) is silently dropped rather than shown broken;
+ * if every path drops, no list renders at all.
+ */
+function AiChatBubbleContent({
+	text,
+	taskPaths,
+	snapshot,
+	taxonomies,
+	onOpenTask,
+}: {
+	text: string;
+	taskPaths?: string[];
+	snapshot: WorkspaceSnapshot;
+	taxonomies: WorkspaceTaxonomies;
+	onOpenTask: (path: string) => void;
+}) {
 	const display = useThrottledText(text);
-	return <MarkdownContent text={display} sourcePath={AI_CHAT_SOURCE_PATH} />;
+	const resolvedTasks = useMemo(() => {
+		if (!taskPaths || taskPaths.length === 0) return [];
+		const byPath = new Map(snapshot.tasks.map((task) => [task.path, task]));
+		return taskPaths
+			.map((path) => byPath.get(path))
+			.filter((task): task is Task => task != null);
+	}, [taskPaths, snapshot]);
+
+	return (
+		<>
+			<MarkdownContent text={display} sourcePath={AI_CHAT_SOURCE_PATH} />
+			{resolvedTasks.length > 0 && (
+				<TaskList
+					className="vf-chat-task-list"
+					groups={[{ key: "ai-results", tasks: resolvedTasks }]}
+					snapshot={snapshot}
+					taxonomies={taxonomies}
+					onOpenTask={onOpenTask}
+				/>
+			)}
+		</>
+	);
+}
+
+/** Shown in place of an assistant bubble's content before the first token has streamed in. Pure CSS animation — no timers, no state. */
+function ThinkingIndicator() {
+	return (
+		<span className="vf-chat-thinking" aria-label="Thinking…">
+			<span className="vf-chat-thinking-dot" />
+			<span className="vf-chat-thinking-dot" />
+			<span className="vf-chat-thinking-dot" />
+		</span>
+	);
 }
 
 export function AiChatView({
@@ -131,13 +194,18 @@ export function AiChatView({
 	context: ViewContext;
 }) {
 	const plugin = usePlugin();
-	const { openScreen } = useTabs();
+	const { openScreen, openTask } = useTabs();
 	const supported = AiEngineService.supportsWebGPU();
 
 	const [engineState, setEngineState] = useState<AiEngineState | "checking">("checking");
 	const { messages, setMessages, justSwitchedModel } = useAiChatSession();
 	const [input, setInput] = useState("");
 	const [sending, setSending] = useState(false);
+	// Set the instant `stop()` is clicked, purely so the button can reflect the
+	// click immediately — `interrupt()`/the underlying call settling can lag
+	// behind that (see the module doc's non-goal: this doesn't chase WebLLM's
+	// own interrupt latency, only the UI's acknowledgment of it).
+	const [stopping, setStopping] = useState(false);
 	const [copiedId, setCopiedId] = useState<string | null>(null);
 	const bodyRef = useRef<HTMLDivElement | null>(null);
 	const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -206,18 +274,44 @@ export function AiChatView({
 		});
 	};
 
-	/** Always streams live into the visible bubble — only ever called for a response the user should watch appear. */
-	const streamVisible = async (request: AiChatMessage[]) => {
+	/** Attaches a resolved `searchTasks` action's result paths to the last (just-answered) assistant message, for `AiChatBubbleContent` to render as a real task list. */
+	const setLastAssistantTaskPaths = (taskPaths: string[]) => {
+		setMessages((prev) => {
+			const next = [...prev];
+			const last = next[next.length - 1];
+			if (last?.role === "assistant") last.taskPaths = taskPaths;
+			return next;
+		});
+	};
+
+	/**
+	 * Always streams live into the visible bubble — only ever called for a
+	 * response the user should watch appear. Returns the full streamed text so
+	 * callers can run a post-hoc check on it (see the `looksLikeQueryAction`
+	 * safety net in `runTurn`) — the bubble's own state updates asynchronously
+	 * via `appendToLastAssistant`, so this tracks the same text locally rather
+	 * than reading it back out of `messages`.
+	 */
+	const streamVisible = async (request: AiChatMessage[]): Promise<string> => {
 		setLastAssistant("");
+		let full = "";
+		const onToken = (chunk: string) => {
+			full += chunk;
+			appendToLastAssistant(chunk);
+		};
 		try {
-			await plugin.aiEngine.chat(request, appendToLastAssistant);
+			await plugin.aiEngine.chat(request, onToken);
 		} catch (error) {
 			if (!stoppedRef.current) throw error;
 			// Interrupted mid-stream — WebLLM may throw or may just end the
 			// iteration early; either way, leave whatever streamed in place
 			// rather than losing it, and fall through to mark it stopped below.
 		}
-		if (stoppedRef.current) appendToLastAssistant(" [stopped]");
+		if (stoppedRef.current) {
+			appendToLastAssistant(" [stopped]");
+			full += " [stopped]";
+		}
+		return full;
 	};
 
 	const runTurn = async (history: AiChatMessage[], deps: RunTurnDeps) => {
@@ -257,8 +351,12 @@ export function AiChatView({
 
 		if (stoppedRef.current) {
 			// Interrupted mid-first-call: cancel the turn outright — never fire
-			// a second call on a response the user asked to stop.
-			setLastAssistant(firstResponse.trim() ? `${firstResponse} [stopped]` : "Stopped before responding.");
+			// a second call on a response the user asked to stop. `firstResponse`
+			// is never shown here, complete or partial — it's an internal buffer
+			// that may be raw/garbled JSON mid-emission (`{ [stopped]`), never
+			// something meant to reach the user unfiltered, unlike a genuinely
+			// streamed-and-visible second-call response.
+			setLastAssistant("Stopped before responding.");
 			return;
 		}
 
@@ -271,10 +369,27 @@ export function AiChatView({
 				{ role: "assistant", content: firstResponse },
 				{
 					role: "user",
-					content: `Query result:\n${queryResult}\n\nAnswer the original question using this — don't mention the query mechanism itself.`,
+					content: `Query result:\n${queryResult.text}\n\nAnswer the original question using this — don't mention the query mechanism itself.`,
 				},
 			];
-			await streamVisible(secondRequest);
+			const secondResponse = await streamVisible(secondRequest);
+			// The second call has no structural check on it the way the first
+			// call's buffered response does (`parseQueryAction` runs before
+			// anything is shown) — this is the deterministic backstop for the
+			// rare case it still emits a query action instead of prose. The JSON
+			// will have flashed on screen briefly as it streamed in; that's an
+			// accepted tradeoff against buffering every second call and losing
+			// live streaming for the common, correct case.
+			if (!stoppedRef.current && looksLikeQueryAction(secondResponse)) {
+				setLastAssistant(QUERY_ACTION_FALLBACK);
+			} else if (queryResult.tasks && queryResult.tasks.length > 0) {
+				// `searchTasks` only — `countTasks` never sets `tasks` (nothing to
+				// list). Paths only, not the `Task` objects themselves: resolved
+				// against the live snapshot at render time (see
+				// `AiChatBubbleContent`), so a later status change or deletion is
+				// reflected instead of frozen at query time.
+				setLastAssistantTaskPaths(queryResult.tasks.map((task) => task.path));
+			}
 			return;
 		}
 
@@ -292,7 +407,13 @@ export function AiChatView({
 						"Answer directly from what you already know instead.",
 				},
 			];
-			await streamVisible(retryRequest);
+			const retryResponse = await streamVisible(retryRequest);
+			// Same safety net as the successful-query path above — this call is
+			// meant to produce a corrective plain-language answer, but nothing
+			// stops the model from emitting another (still invalid) action.
+			if (!stoppedRef.current && looksLikeQueryAction(retryResponse)) {
+				setLastAssistant(QUERY_ACTION_FALLBACK);
+			}
 			return;
 		}
 
@@ -305,6 +426,7 @@ export function AiChatView({
 	/** Shared by `send()` and `retry()`: appends the fresh assistant placeholder, flips `sending`, and runs the turn. `history` should already end with the user message the response is for. */
 	const beginTurn = (history: AiChatBubble[]) => {
 		stoppedRef.current = false;
+		setStopping(false);
 		setMessages([...history, { id: crypto.randomUUID(), role: "assistant", content: "" }]);
 		setSending(true);
 
@@ -359,6 +481,7 @@ export function AiChatView({
 
 	const stop = () => {
 		stoppedRef.current = true;
+		setStopping(true);
 		plugin.aiEngine.interrupt();
 	};
 
@@ -409,7 +532,7 @@ export function AiChatView({
 		<div className="vf-settings">
 			<header className="vf-toolbar">
 				<div className="vf-toolbar-title">
-					<h2>AI Chat</h2>
+					<h2>AI Chat - {snapshot.workspace.name}</h2>
 				</div>
 			</header>
 
@@ -425,13 +548,19 @@ export function AiChatView({
 						<div key={message.id} className={`vf-chat-message vf-chat-message-${message.role}`}>
 							<div className={`vf-chat-bubble vf-chat-bubble-${message.role}`}>
 								{message.content ? (
-									<AiChatBubbleContent text={message.content} />
+									<AiChatBubbleContent
+										text={message.content}
+										taskPaths={message.taskPaths}
+										snapshot={snapshot}
+										taxonomies={taxonomies}
+										onOpenTask={openTask}
+									/>
 								) : (
-									sending && index === messages.length - 1 ? "…" : ""
+									sending && index === messages.length - 1 ? <ThinkingIndicator /> : ""
 								)}
 							</div>
 							<div className="vf-chat-actions">
-								{message.role === "assistant" && (
+								{message.role === "assistant" && message.content && (
 									<button
 										type="button"
 										className="vf-icon-button"
@@ -443,7 +572,7 @@ export function AiChatView({
 										<Icon id={copiedId === message.id ? "check" : "copy"} size={13} />
 									</button>
 								)}
-								{message.role === "assistant" && index === lastAssistantIndex && !sending && (
+								{message.role === "assistant" && message.content && index === lastAssistantIndex && !sending && (
 									<button
 										type="button"
 										className="vf-icon-button"
@@ -452,6 +581,18 @@ export function AiChatView({
 										onClick={retry}
 									>
 										<Icon id="rotate-ccw" size={13} />
+									</button>
+								)}
+								{message.role === "user" && (
+									<button
+										type="button"
+										className="vf-icon-button"
+										title="Copy"
+										aria-label="Copy message"
+										disabled={sending}
+										onClick={() => copyMessage(message)}
+									>
+										<Icon id={copiedId === message.id ? "check" : "copy"} size={13} />
 									</button>
 								)}
 								{message.role === "user" && (
@@ -487,8 +628,8 @@ export function AiChatView({
 					}}
 				/>
 				{sending ? (
-					<button type="button" className="mod-warning" onClick={stop}>
-						Stop
+					<button type="button" className="mod-warning" disabled={stopping} onClick={stop}>
+						{stopping ? "Stopping…" : "Stop"}
 					</button>
 				) : (
 					<button type="button" className="mod-cta" disabled={!input.trim()} onClick={send}>

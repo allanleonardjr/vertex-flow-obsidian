@@ -114,7 +114,7 @@ describe("executeQueryAction", () => {
 			context,
 		);
 
-		expect(result).toBe("1 task(s) matched.");
+		expect(result.text).toBe("1 task(s) matched.");
 	});
 
 	it("searchTasks resolves a display-name status filter to its id and returns matching rows", () => {
@@ -132,8 +132,8 @@ describe("executeQueryAction", () => {
 			context,
 		);
 
-		expect(result).toContain("TSK-1");
-		expect(result).not.toContain("TSK-2");
+		expect(result.text).toContain("TSK-1");
+		expect(result.text).not.toContain("TSK-2");
 	});
 
 	it("resolves a project title to its path so the project filter actually matches", () => {
@@ -149,8 +149,8 @@ describe("executeQueryAction", () => {
 			context,
 		);
 
-		expect(result).toContain("TSK-1");
-		expect(result).not.toContain("TSK-2");
+		expect(result.text).toContain("TSK-1");
+		expect(result.text).not.toContain("TSK-2");
 	});
 
 	it("resolves an assignee display name to the person's id", () => {
@@ -169,8 +169,8 @@ describe("executeQueryAction", () => {
 			context,
 		);
 
-		expect(result).toContain("TSK-1");
-		expect(result).not.toContain("TSK-2");
+		expect(result.text).toContain("TSK-1");
+		expect(result.text).not.toContain("TSK-2");
 	});
 
 	it("drops a filter value that resolves to nothing rather than crashing", () => {
@@ -200,7 +200,37 @@ describe("executeQueryAction", () => {
 			context,
 		);
 
-		expect(result).toContain("showing the first 100 of 150 matches");
+		expect(result.text).toContain("showing the first 100 of 150 matches");
+		expect(result.tasks).toHaveLength(100);
+	});
+
+	it("returns the real matched Task objects alongside the text for searchTasks", () => {
+		const match = task({ id: "TSK-1", path: "W/Tasks/TSK-1", status: "todo" });
+		const other = task({ id: "TSK-2", path: "W/Tasks/TSK-2", status: "done" });
+		const snapshot = withEntities([match, other], []);
+		const context = snapshotContext(snapshot);
+
+		const result = executeQueryAction(
+			{ action: "searchTasks", filters: { status: ["Todo"] } },
+			snapshot,
+			context,
+		);
+
+		expect(result.tasks).toEqual([match]);
+	});
+
+	it("countTasks never returns a tasks array — nothing to list", () => {
+		const tasks = [task({ id: "TSK-1", path: "W/Tasks/TSK-1", status: "todo" })];
+		const snapshot = withEntities(tasks, []);
+		const context = snapshotContext(snapshot);
+
+		const result = executeQueryAction(
+			{ action: "countTasks", filters: { status: ["todo"] } },
+			snapshot,
+			context,
+		);
+
+		expect(result.tasks).toBeUndefined();
 	});
 
 	it("reflects a renamed status immediately in query results", () => {
@@ -221,7 +251,7 @@ describe("executeQueryAction", () => {
 			context,
 		);
 
-		expect(result).toContain("TSK-1");
+		expect(result.text).toContain("TSK-1");
 	});
 
 	it("overdue: true filters to tasks past due and still open, AND'd with other filters", () => {
@@ -253,9 +283,9 @@ describe("executeQueryAction", () => {
 			"2026-01-01",
 		);
 
-		expect(result).toContain("TSK-1");
-		expect(result).not.toContain("TSK-2");
-		expect(result).not.toContain("TSK-3");
+		expect(result.text).toContain("TSK-1");
+		expect(result.text).not.toContain("TSK-2");
+		expect(result.text).not.toContain("TSK-3");
 	});
 
 	it("ignores overdue: false — no additional filtering beyond the ViewFilters pass-through", () => {
@@ -270,7 +300,7 @@ describe("executeQueryAction", () => {
 			"2026-01-01",
 		);
 
-		expect(result).toContain("TSK-1");
+		expect(result.text).toContain("TSK-1");
 	});
 
 	it("countTasks combined with overdue counts only the overdue subset", () => {
@@ -286,6 +316,6 @@ describe("executeQueryAction", () => {
 			"2026-01-01",
 		);
 
-		expect(result).toBe("1 task(s) matched.");
+		expect(result.text).toBe("1 task(s) matched.");
 	});
 });

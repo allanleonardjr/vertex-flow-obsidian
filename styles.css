@@ -4677,9 +4677,12 @@ input.vf-editable-title-input {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
   padding: 8px 20px;
   overflow-y: auto;
+  width: 100%;
+  max-width: 1024px;
+  margin: 0 auto;
 }
 
 /* One row per message: the bubble, then its always-visible Copy/Retry/Edit
@@ -4702,7 +4705,7 @@ input.vf-editable-title-input {
 }
 
 .vf-chat-bubble {
-  padding: 8px 12px;
+  padding: 5px 10px;
   border-radius: 10px;
   font-size: var(--font-ui-small);
   line-height: 1.5;
@@ -4725,6 +4728,19 @@ input.vf-editable-title-input {
   color: var(--text-on-accent);
 }
 
+/* A `searchTasks` result rendered as a real, clickable task list below the
+   model's prose — same boxed, non-scrolling treatment as `.vf-list-embedded`
+   (Sub-tasks/Relations), which reads right nested inside a bubble rather than
+   `.vf-list`'s own unbounded-scroll default. */
+.vf-chat-task-list {
+  margin-top: 6px;
+  flex: none;
+  padding-bottom: 0;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  overflow: hidden;
+}
+
 .vf-chat-bubble-assistant {
   background: var(--background-secondary);
   color: var(--text-normal);
@@ -4736,12 +4752,73 @@ input.vf-editable-title-input {
   margin-top: 2px;
 }
 
+/* `.vf-icon-button` already sets `background: transparent` at rest, but
+   Obsidian's own base `<button>` styling (background/border/box-shadow) wins
+   here on specificity/source order in a way it doesn't for this class's other
+   uses elsewhere (comment actions, label editor rows) — these are the first
+   plain `.vf-icon-button`s to sit directly in a message list rather than
+   inside a toolbar/row that already resets button chrome. Re-asserted here at
+   higher specificity, scoped to this row only (not the shared base class). */
+.vf-chat-actions .vf-icon-button {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.vf-chat-actions .vf-icon-button:hover {
+  background: var(--background-modifier-hover);
+}
+
+/* The still-streaming assistant placeholder — three dots with a staggered
+   bounce, the same "thinking" visual language as Claude's/ChatGPT's own
+   in-progress states. Pure CSS: no JS timers driving it. */
+.vf-chat-thinking {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+}
+
+.vf-chat-thinking-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.4;
+  animation: vf-chat-thinking-bounce 1.2s ease-in-out infinite;
+}
+
+.vf-chat-thinking-dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.vf-chat-thinking-dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes vf-chat-thinking-bounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
 .vf-chat-input-row {
   display: flex;
   flex-shrink: 0;
   gap: 8px;
   padding: 12px 20px;
   border-top: 1px solid var(--vf-border);
+  width: 100%;
+  max-width: 1024px;
+  margin: 0 auto;
+  box-sizing: border-box;
 }
 
 .vf-chat-input {

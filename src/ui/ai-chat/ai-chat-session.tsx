@@ -33,6 +33,15 @@ export interface AiChatBubble {
 	id: string;
 	role: "user" | "assistant";
 	content: string;
+	/**
+	 * Paths of the tasks a resolved `searchTasks` action matched, set once the
+	 * turn settles — never the `Task` objects themselves. Resolved against the
+	 * live snapshot at render time (`AiChatView`), so a status change or
+	 * deletion after the fact is reflected instead of a frozen result from when
+	 * the question was asked, same "computed, never stored" rule as everything
+	 * else this plugin renders.
+	 */
+	taskPaths?: string[];
 }
 
 interface AiChatSessionValue {

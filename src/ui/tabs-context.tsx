@@ -28,6 +28,7 @@ import type {
 	SavedView,
 	ViewColumnState,
 } from "../core/types";
+import { setAiChatTabOpen } from "../obsidian/ai-chat-tab-storage";
 import { useActiveWorkspace, usePlugin, useSetActiveWorkspace } from "./context";
 import {
 	reorderTabs,
@@ -1014,6 +1015,16 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			),
 		[plugin, pruneTasks],
 	);
+
+	// Records whether the AI Chat tab is currently open on this device
+	// (`ai-chat-tab-storage.ts`) — read back on the next launch to decide
+	// whether a background model warm is worth doing (see `main.ts`'s
+	// `onload`). Runs on every tab-list change, so whatever this was when
+	// Obsidian actually closed is what's left recorded — no separate
+	// `beforeunload` handling needed.
+	useEffect(() => {
+		setAiChatTabOpen(tabs.some((tab) => tab.kind === "ai-chat"));
+	}, [tabs]);
 
 	// Opening or switching to a workspace with nothing showing lands on All
 	// Tasks — the pane should never open onto the empty-tabs state. Runs on

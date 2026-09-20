@@ -220,13 +220,26 @@ function resolveFilterValues(
 /** Rows returned for a `searchTasks` action beyond this are summarized as a count instead. */
 const MAX_QUERY_RESULT_ROWS = 100;
 
+export interface QueryActionResult {
+	/** Formatted for the model's second call — unchanged by this having grown a `tasks` field alongside it. */
+	text: string;
+	/**
+	 * The real matched `Task` objects behind `text`, capped the same way — only
+	 * set for a resolved `searchTasks` action (never `countTasks`, which has no
+	 * rows to hand back). Lets a caller (AI Chat's rendering) show an actual
+	 * task list next to the model's prose without re-running the query, while
+	 * the text sent to the model stays exactly what it already was.
+	 */
+	tasks?: Task[];
+}
+
 /** Runs a validated query action against the real filtering engine and formats the result for the model to read. */
 export function executeQueryAction(
 	action: TaskQueryAction,
 	snapshot: WorkspaceSnapshot,
 	context: ViewContext,
 	today: IsoDate = new Date().toISOString().slice(0, 10),
-): string {
+): QueryActionResult {
 	const resolved = resolveFilterValues(action.filters, snapshot, context);
 	let matched = applyFilters(snapshot.tasks, resolved, context);
 
@@ -239,7 +252,7 @@ export function executeQueryAction(
 	}
 
 	if (action.action === "countTasks") {
-		return `${matched.length} task(s) matched.`;
+		return { text: `${matched.length} task(s) matched.` };
 	}
 
 	const capped = matched.slice(0, MAX_QUERY_RESULT_ROWS);
@@ -248,5 +261,5 @@ export function executeQueryAction(
 		matched.length > MAX_QUERY_RESULT_ROWS
 			? `\n(showing the first ${MAX_QUERY_RESULT_ROWS} of ${matched.length} matches)`
 			: "";
-	return `${flattenTasks(summaries)}${note}`;
+	return { text: `${flattenTasks(summaries)}${note}`, tasks: capped };
 }
