@@ -104,6 +104,19 @@ describe("discoverVaultTemplates", () => {
 		expect(warnings[0]).toContain("built-in");
 	});
 
+	it("keeps two vault templates that happen to share an id", async () => {
+		const io = fakeIo({
+			"first.md": templateSource("dup"),
+			"second.md": templateSource("dup"),
+		});
+		const found = await discoverVaultTemplates(io);
+		expect(found).toHaveLength(2);
+		expect(found.map((t) => t.path)).toEqual([
+			`${WORKSPACE_TEMPLATES_FOLDER}/first.md`,
+			`${WORKSPACE_TEMPLATES_FOLDER}/second.md`,
+		]);
+	});
+
 	it("ignores non-markdown files", async () => {
 		const io = fakeIo({ "notes.txt": "x", "t.md": templateSource("t") });
 		const found = await discoverVaultTemplates(io);
@@ -115,14 +128,16 @@ describe("discoverVaultTemplates", () => {
 			"legacy.md": templateSource("legacy"),
 		};
 		const io = {
-			listFiles: () =>
-				Object.entries(entries).map(([name, content]) => ({
-					name,
-					basename: name.replace(/\.md$/, ""),
-					extension: name.split(".").pop() ?? "",
-					path: `${LEGACY_WORKSPACE_TEMPLATES_FOLDER}/${name}`,
-					content,
-				})),
+			listFiles: (folderPath: string) =>
+				folderPath === LEGACY_WORKSPACE_TEMPLATES_FOLDER
+					? Object.entries(entries).map(([name, content]) => ({
+							name,
+							basename: name.replace(/\.md$/, ""),
+							extension: name.split(".").pop() ?? "",
+							path: `${LEGACY_WORKSPACE_TEMPLATES_FOLDER}/${name}`,
+							content,
+						}))
+					: [],
 			read: async (file: { content: string }) => file.content,
 		} as unknown as NoteIO;
 		const found = await discoverVaultTemplates(io);
