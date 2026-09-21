@@ -38,6 +38,7 @@ This project uses [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - **The New Workspace gallery's example-data checkbox is now called "Populate with content."** The old label ("Populate with example content") described built-in sample data only, but the same checkbox also seeds real tasks carried by your own exported templates — the wording no longer implies they're fake.
+-   "Your templates" in the New Workspace gallery now lists your most recently created template first...
 
 ## 1.0.28 — 2026-09-19
 
@@ -57,6 +58,8 @@ This project uses [Semantic Versioning](https://semver.org/).
 - **Portaled dropdown and popover menus (property row pickers, the Parent/relations picker, the `u <key>` quick picker, and the `[[wikilink]]` autocomplete) now reposition when the mobile on-screen keyboard opens or closes**, instead of sizing themselves against the pre-keyboard viewport and appearing to float over blank space with the keyboard docked below.
 - **Selected filter chips are now visually distinct from unselected ones.** Status/Priority/Type/Label/Assignee/Mentions/Project chips in the filter clause editor used to look almost identical whether selected or not, and chips for values with no taxonomy color (Assignee, Mentions, Project) had no visible selected state at all. Unselected chips are now fully neutral; selecting one fills it with a tinted background and full-strength color — the value's own taxonomy color when it has one, or the app's accent color (matching the "You" badge) when it doesn't.
 - **Canvas now re-fits the viewport when Arrange changes.** Auto-fit only ran once, the first time layout finished after mount — so switching the Arrange control (Dependency flow / Hierarchy, either direction) re-laid out the graph without re-fitting the viewport, often leaving a differently-shaped graph looking empty or badly cropped until you manually hit Fit. Auto-fit now also fires when arrangement or direction change; filter, group, and relation-visibility changes still leave manual pan/zoom untouched, as before.
+-   Vault-authored template cards in the New Workspace gallery now show a task count...
+
 
 ### Documentation
 

@@ -152,6 +152,18 @@ describe("template markdown — supportsExampleContent", () => {
 	});
 });
 
+describe("template markdown — taskCount", () => {
+	it("computes taskCount from the parsed body", () => {
+		const withTasks = parseTemplateMarkdown(
+			template(HEADER, "\n# Projects\n\n# Tasks\n\n## First\n\n## Second\n"),
+		);
+		expect(withTasks.meta.taskCount).toBe(2);
+
+		const withNone = parseTemplateMarkdown(template(HEADER));
+		expect(withNone.meta.taskCount).toBe(0);
+	});
+});
+
 describe("template markdown — card settings", () => {
 	it("lists no taxonomy rows for a template that overrides nothing", () => {
 		const parsed = parseTemplateMarkdown(template(HEADER));

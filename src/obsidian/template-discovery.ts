@@ -10,6 +10,11 @@
  * sharing an id no longer collide with each other — each file's path is its
  * real identity (unique by construction), so both are kept.
  *
+ * The returned list is sorted newest-`createdAt`-first — the order the gallery's
+ * "Your templates" section renders in. Templates without a `createdAt` (hand-
+ * authored files, or ones exported before the field existed) sort after every
+ * dated one, keeping their relative order among themselves.
+ *
  * Deliberately imports no Obsidian API — the caller passes a `Notice`-backed
  * `onWarn`, keeping this unit-testable against a fake `NoteIO`.
  */
@@ -20,53 +25,67 @@ import { TemplateParseError } from "../core/templates/markdown/types";
 import { WORKSPACE_TEMPLATES, type WorkspaceTemplate } from "../core/templates";
 import type { NoteIO } from "./note-io";
 import {
-	LEGACY_WORKSPACE_TEMPLATES_FOLDER,
-	WORKSPACE_TEMPLATES_FOLDER,
+  LEGACY_WORKSPACE_TEMPLATES_FOLDER,
+  WORKSPACE_TEMPLATES_FOLDER,
 } from "./template-folder";
 
 export type VaultTemplate = WorkspaceTemplate & {
-	path: string;
+  path: string;
 };
 
 export async function discoverVaultTemplates(
-	io: NoteIO,
-	onWarn: (message: string) => void = () => {},
+  io: NoteIO,
+  onWarn: (message: string) => void = () => {},
 ): Promise<VaultTemplate[]> {
-	const builtinIds = new Set(WORKSPACE_TEMPLATES.map((template) => template.id));
-	const out: VaultTemplate[] = [];
+  const builtinIds = new Set(
+    WORKSPACE_TEMPLATES.map((template) => template.id),
+  );
+  const out: VaultTemplate[] = [];
 
-	for (const folder of [WORKSPACE_TEMPLATES_FOLDER, LEGACY_WORKSPACE_TEMPLATES_FOLDER]) {
-		for (const file of io.listFiles(folder)) {
-			if (file.extension !== "md") continue;
+  for (const folder of [
+    WORKSPACE_TEMPLATES_FOLDER,
+    LEGACY_WORKSPACE_TEMPLATES_FOLDER,
+  ]) {
+    for (const file of io.listFiles(folder)) {
+      if (file.extension !== "md") continue;
 
-			try {
-				const parsed = parseTemplateMarkdown(await io.read(file));
-				const id = parsed.meta.id;
+      try {
+        const parsed = parseTemplateMarkdown(await io.read(file));
+        const id = parsed.meta.id;
 
-				if (builtinIds.has(id)) {
-					onWarn(
-						`Vertex Flow: "${file.name}" shares its id "${id}" with a built-in template — using the built-in.`,
-					);
-					continue;
-				}
+        if (builtinIds.has(id)) {
+          onWarn(
+            `Vertex Flow: "${file.name}" shares its id "${id}" with a built-in template — using the built-in.`,
+          );
+          continue;
+        }
 
-				out.push({
-					path: file.path,
-					...parsed.meta,
-					workspace: parsed.workspaceOverrides,
-					mePersonId: parsed.mePersonId,
-					buildExampleContent: (buildCtx) =>
-						resolveTemplateContent(parsed, buildCtx),
-				});
-			} catch (error) {
-				const described =
-					error instanceof TemplateParseError
-						? ((error.file = file.path), error.describe())
-						: `${file.path} — ${error instanceof Error ? error.message : String(error)}`;
-				onWarn(`Vertex Flow: skipped template — ${described}`);
-			}
-		}
-	}
+        out.push({
+          path: file.path,
+          ...parsed.meta,
+          workspace: parsed.workspaceOverrides,
+          mePersonId: parsed.mePersonId,
+          buildExampleContent: (buildCtx) =>
+            resolveTemplateContent(parsed, buildCtx),
+        });
+      } catch (error) {
+        const described =
+          error instanceof TemplateParseError
+            ? ((error.file = file.path), error.describe())
+            : `${file.path} — ${error instanceof Error ? error.message : String(error)}`;
+        onWarn(`Vertex Flow: skipped template — ${described}`);
+      }
+    }
+  }
 
-	return out;
+  out.sort((a, b) => {
+    if (a.createdAt && b.createdAt) {
+      return a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0;
+    }
+    if (a.createdAt) return -1;
+    if (b.createdAt) return 1;
+    return 0;
+  });
+
+  return out;
 }

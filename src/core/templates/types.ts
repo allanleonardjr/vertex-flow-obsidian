@@ -75,6 +75,10 @@ export interface TemplateMeta {
 	 *  buildExampleContent(). Derived from the same arrays the template feeds
 	 *  its taxonomy from, via settingsFromValues(). */
 	settings: TemplateSetting[];
+	/** Number of tasks the template's `# Tasks` body declares. Computed at
+	 *  parse time from the same body scan `tasks` comes from — never requires
+	 *  buildExampleContent() — so it can't drift from what's actually there. */
+	taskCount: number;
 }
 
 export interface TemplateBuildContext {

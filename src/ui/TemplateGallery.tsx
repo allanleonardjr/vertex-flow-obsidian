@@ -283,6 +283,9 @@ function TemplateCard({
                 Created: {formatFullDateTime(template.createdAt)}
               </p>
             )}
+            <p className="vf-template-card-tasks">
+              {template.taskCount} {template.taskCount === 1 ? "task" : "tasks"}
+            </p>
             <p className="vf-template-card-path">Located: {template.path}</p>
           </div>
         )}
