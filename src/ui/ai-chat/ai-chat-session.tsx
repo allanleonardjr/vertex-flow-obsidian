@@ -18,6 +18,7 @@
  */
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import type { ProjectFilters } from "../../core/views/filter";
 import type { ViewFilters } from "../../core/types";
 import { useTabs } from "../tabs-context";
 
@@ -34,6 +35,14 @@ export interface AiChatQueryMeta {
 	/** Whether the `overdue` post-filter (not a `ViewFilters` field) was applied on top of `filters`. */
 	overdue: boolean;
 	/** How many tasks matched in total, before truncation — compared against `taskPaths.length` to decide whether "Load more" has anything left to show. */
+	totalMatches: number;
+}
+
+/** The Project-scoped analogue of `AiChatQueryMeta`, for a resolved `searchProjects` action — same "re-run client-side, never sent back to the model" role. */
+export interface AiChatProjectQueryMeta {
+	/** The resolved `ProjectFilters` `executeProjectQueryAction` matched against — display names already turned into real ids. */
+	filters: ProjectFilters;
+	/** How many projects matched in total, before truncation — compared against `projectPaths.length` to decide whether "Load more" has anything left to show. */
 	totalMatches: number;
 }
 
@@ -59,6 +68,10 @@ export interface AiChatBubble {
 	taskPaths?: string[];
 	/** Set alongside `taskPaths` for a resolved `searchTasks` action — see `AiChatQueryMeta`. */
 	queryMeta?: AiChatQueryMeta;
+	/** The Project-scoped analogue of `taskPaths`, set once a resolved `searchProjects` action settles. Same "paths, resolved fresh at render time" rule. */
+	projectPaths?: string[];
+	/** Set alongside `projectPaths` for a resolved `searchProjects` action — see `AiChatProjectQueryMeta`. */
+	projectQueryMeta?: AiChatProjectQueryMeta;
 }
 
 interface AiChatSessionValue {

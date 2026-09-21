@@ -321,18 +321,24 @@ function NestedListRow({
 
 	// Ghost rows never take part in selection or drag — they aren't results.
 	if (ghost) {
+		const openGhost = () =>
+			onOpenTask?.(projected ? (task.recurringFrom ?? task.path) : task.path);
 		return (
 			<div className={className} data-nested="true">
-				<button
+				<div
 					className="vf-row-open"
-					onClick={() =>
-						onOpenTask?.(
-							projected ? (task.recurringFrom ?? task.path) : task.path,
-						)
-					}
+					role="button"
+					tabIndex={0}
+					onClick={openGhost}
+					onKeyDown={(event) => {
+						if (event.key === "Enter" || event.key === " ") {
+							event.preventDefault();
+							openGhost();
+						}
+					}}
 				>
 					{content}
-				</button>
+				</div>
 			</div>
 		);
 	}
@@ -350,15 +356,23 @@ function NestedListRow({
 				animate={{ opacity: 1 }}
 				exit={{ opacity: 0 }}
 			>
-				<button
+				<div
 					className="vf-row-open"
+					role="button"
+					tabIndex={0}
 					onClick={(event) => {
 						if (interaction?.onRowClick) interaction.onRowClick(event, task);
 						else onOpenTask?.(task.path);
 					}}
+					onKeyDown={(event) => {
+						if (event.key === "Enter" || event.key === " ") {
+							event.preventDefault();
+							onOpenTask?.(task.path);
+						}
+					}}
 				>
 					{content}
-				</button>
+				</div>
 				{rowAction(task)}
 			</motion.div>
 		);

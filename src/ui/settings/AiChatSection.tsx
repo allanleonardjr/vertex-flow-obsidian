@@ -14,14 +14,8 @@ import {
 	aiModelInfo,
 	type AiEngineState,
 } from "../../ai/AiEngineService";
-import {
-	generateMcpToken,
-	setMcpToken,
-} from "../../obsidian/mcp-token";
-import { Platform } from "obsidian";
 import { ConfirmDeleteDialog } from "../components/ConfirmDeleteDialog";
 import { usePlugin, useSettingsWriter } from "../context";
-import { Notice } from "obsidian";
 
 function formatBytes(bytes: number): string {
 	if (bytes < 1024) return `${bytes} B`;
@@ -164,6 +158,7 @@ export function AiChatSection() {
 	const writeSettings = useSettingsWriter();
 	const supported = AiEngineService.supportsWebGPU();
 	const selectedModelId = plugin.settings.selectedAiModelId;
+	const enabled = plugin.settings.aiChatEnabled;
 
 	const [storage, setStorage] = useState<{ usage: number; quota: number } | null>(null);
 	useEffect(() => {
@@ -186,14 +181,32 @@ export function AiChatSection() {
 				</div>
 			)}
 
-			<div className="vf-ai-model-list">
+			<label className="vf-toggle">
+				<input
+					type="checkbox"
+					checked={enabled}
+					onChange={(event) => {
+						const next = event.target.checked;
+						writeSettings({ aiChatEnabled: next });
+						// Free the loaded model's memory the instant it's turned off,
+						// rather than waiting for the next place that would have
+						// loaded/used it — the cached download is untouched, so
+						// turning it back on and selecting the same model reloads
+						// from cache with no re-download.
+						if (!next) void plugin.aiEngine.unloadFromMemory();
+					}}
+				/>
+				<span>Enable AI Chat</span>
+			</label>
+
+			<div className={`vf-ai-model-list${enabled ? "" : " is-disabled"}`}>
 				{AI_MODEL_OPTIONS.map((option) => (
 					<AiModelRow
 						key={option.id}
 						id={option.id}
 						label={option.label}
 						selected={selectedModelId === option.id}
-						supported={supported}
+						supported={supported && enabled}
 						onSelect={() => writeSettings({ selectedAiModelId: option.id })}
 					/>
 				))}
@@ -205,36 +218,6 @@ export function AiChatSection() {
 					{formatBytes(storage.quota)}
 				</p>
 			)}
-			<section className="vf-settings-section" id="vf-settings-mcp">
-				<h3>MCP server</h3>
-				<p className="vf-settings-description">
-					Read-only local endpoint for AI clients (LM Studio, etc.). Desktop only — hidden on mobile.
-				</p>
-				{!Platform.isMobile && (
-					<div>
-						<label>
-							<input
-								type="checkbox"
-								checked={plugin.settings.mcpServerEnabled}
-								onChange={(e) => {
-									void writeSettings({ mcpServerEnabled: e.target.checked });
-									if (e.target.checked) {
-										setMcpToken(generateMcpToken());
-										new Notice("New mcp token generated. Reconnect your AI client.");
-									}
-								}}
-							/> Enable MCP server
-						</label>
-						{plugin.settings.mcpServerEnabled && (
-							<div>
-								<span>Port: <b>{plugin.settings.mcpServerPort}</b> (default 27124)</span>
-								<br />
-								The server is running at <code>http://127.0.0.1:{plugin.settings.mcpServerPort}/mcp</code>
-							</div>
-						)}
-					</div>
-				)}
-			</section>
 		</section>
 	);
 }

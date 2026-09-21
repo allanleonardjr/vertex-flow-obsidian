@@ -17,6 +17,7 @@ import {
 	TASK_FIELDS,
 	type CanvasRelationKind,
 	type LinkTarget,
+	type Project,
 	type SavedView,
 	type SortField,
 	type Task,
@@ -167,6 +168,64 @@ export function applyFilters(
 	context: ViewContext,
 ): Task[] {
 	return tasks.filter((task) => matchesFilters(task, filters, context));
+}
+
+/**
+ * The Project-scoped analogue of `ViewFilters`/`matchesFilters` — only the
+ * fields a `Project` actually has (§4.2 of vault-schema.md): reused single/
+ * label/person matching, no `taskType`/`assignee`/`project`/`parent`/relation
+ * flags, since none of those exist on a Project.
+ */
+export interface ProjectFilters {
+	status?: string[];
+	priority?: string[];
+	labels?: string[];
+	owner?: string[];
+	archived?: "included" | "only";
+	/** Matches `title`. */
+	text?: string;
+}
+
+export function matchesProjectFilters(
+	project: Project,
+	filters: ProjectFilters,
+	context: ViewContext,
+): boolean {
+	if (filters.archived === "only") {
+		if (!project.archived) return false;
+	} else if (!filters.archived && project.archived) {
+		return false;
+	}
+
+	if (!matchesSingle(project.status, filters.status)) return false;
+	if (!matchesSingle(project.priority, filters.priority)) return false;
+	if (!matchesLabels(project.labels, filters.labels, context.taxonomies.label))
+		return false;
+
+	if (filters.owner && filters.owner.length > 0) {
+		const allowed = resolvePeople(filters.owner, context);
+		const wantsNone = filters.owner.includes(NONE);
+		if (project.owner == null) {
+			if (!wantsNone) return false;
+		} else if (!allowed.includes(project.owner)) {
+			return false;
+		}
+	}
+
+	if (filters.text && filters.text.trim()) {
+		const needle = filters.text.trim().toLowerCase();
+		if (!project.title.toLowerCase().includes(needle)) return false;
+	}
+
+	return true;
+}
+
+export function applyProjectFilters(
+	projects: Project[],
+	filters: ProjectFilters,
+	context: ViewContext,
+): Project[] {
+	return projects.filter((project) => matchesProjectFilters(project, filters, context));
 }
 
 /* ------------------------------------------------------- canonicalisation -- */

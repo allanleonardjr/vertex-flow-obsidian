@@ -128,6 +128,15 @@ export interface VertexFlowSettings {
    */
   selectedAiModelId: string;
   /**
+   * Whether AI Chat is allowed to load a model into memory at all. Off
+   * releases the currently loaded model immediately (see
+   * `AiEngineService.unloadFromMemory`) without touching its cached
+   * download, and gates the AI Chat tab to a disabled empty state instead of
+   * its normal install/chat flow. Defaults to `true` so existing users see
+   * no behavior change on upgrade.
+   */
+  aiChatEnabled: boolean;
+  /**
    * One-time UI discovery badges the user has already dismissed by
    * visiting the feature, keyed by a stable feature id (e.g.
    * "layout-table"). Absent or false = show the badge; true = seen,
@@ -196,5 +205,6 @@ export const DEFAULT_SETTINGS: VertexFlowSettings = {
   mcpServerEnabled: false,
   mcpServerPort: 27124,
   selectedAiModelId: DEFAULT_AI_MODEL_ID,
+  aiChatEnabled: true,
   seenFeatures: {},
 };

@@ -94,7 +94,7 @@ export class VertexFlowSettingTab extends PluginSettingTab {
 				},
 			},
 			{
-				name: "Local AI bridge",
+				name: "MCP server",
 				desc: "Serve read-only access to your workspaces and help docs over " +
 					"a local Model Context Protocol endpoint for AI clients on this " +
 					"computer (LM Studio, or LM Studio's phone app via its \"Locally\" " +
@@ -117,6 +117,42 @@ export class VertexFlowSettingTab extends PluginSettingTab {
 				},
 				visible: () =>
 					!Platform.isMobile && this.plugin.settings.mcpServerEnabled,
+			},
+			{
+				name: "Find available port",
+				desc: "Scan upward from the current port for one that's free and " +
+					"switch to it automatically.",
+				visible: () =>
+					!Platform.isMobile && this.plugin.settings.mcpServerEnabled,
+				render: (setting) => {
+					const button = setting.settingEl.createEl("button", {
+						text: "Find available port",
+					});
+					button.addEventListener("click", () => {
+						button.disabled = true;
+						button.setText("Scanning…");
+						void this.plugin
+							.findAvailableMcpPort()
+							.then((found) => {
+								if (found == null) {
+									new Notice(
+										"Couldn't find a free port nearby — try picking one manually.",
+									);
+									return;
+								}
+								this.plugin.settings.mcpServerPort = found;
+								void this.plugin.saveSettings();
+								void this.plugin.refreshMcpServer();
+								this.update();
+								new Notice(`Switched to port ${found}.`);
+							})
+							.finally(() => {
+								button.disabled = false;
+								button.setText("Find available port");
+							});
+					});
+					return () => button.remove();
+				},
 			},
 			{
 				name: "Access token",

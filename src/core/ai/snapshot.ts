@@ -105,6 +105,35 @@ export function summarizeTasks(
 	);
 }
 
+export interface AiProjectSummary {
+	title: string;
+	status: string | null;
+	priority: string | null;
+	owner: string | null;
+	labels: string[];
+	startDate: IsoDate | null;
+	dueDate: IsoDate | null;
+	archived: boolean;
+}
+
+function summarizeProject(project: Project, people: Person[]): AiProjectSummary {
+	return {
+		title: project.title,
+		status: project.status,
+		priority: project.priority,
+		owner: personName(people, project.owner),
+		labels: project.labels,
+		startDate: project.startDate,
+		dueDate: project.dueDate,
+		archived: project.archived,
+	};
+}
+
+/** Summarize an already-filtered project list (e.g. a `searchProjects` query result) for display to the model. */
+export function summarizeProjects(projects: Project[], people: Person[]): AiProjectSummary[] {
+	return projects.map((project) => summarizeProject(project, people));
+}
+
 // ---------------------------------------------------------------------------
 // Prompt formatting — pipe-delimited rows instead of JSON: repeated object
 // keys cost real tokens against a budget, and the model only ever reads
@@ -135,6 +164,26 @@ export function flattenTasks(tasks: AiTaskSummary[]): string {
 			task.startDate ?? "-",
 			task.dueDate ?? "-",
 			task.estimate ?? "-",
+		]
+			.map((value) => csvField(String(value)))
+			.join(" | "),
+	);
+	return [header, ...rows].join("\n");
+}
+
+export function flattenProjects(projects: AiProjectSummary[]): string {
+	const header = "title | status | priority | owner | labels | startDate | dueDate | archived";
+	if (projects.length === 0) return `${header}\n(none)`;
+	const rows = projects.map((project) =>
+		[
+			project.title,
+			project.status ?? "-",
+			project.priority ?? "-",
+			project.owner ?? "-",
+			project.labels.length ? project.labels.join(",") : "-",
+			project.startDate ?? "-",
+			project.dueDate ?? "-",
+			project.archived ? "yes" : "no",
 		]
 			.map((value) => csvField(String(value)))
 			.join(" | "),

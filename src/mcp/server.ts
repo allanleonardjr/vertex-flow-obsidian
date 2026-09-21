@@ -67,6 +67,16 @@ export class LocalMcpServer {
 	private mcp?: import("@modelcontextprotocol/sdk/server/mcp.js").McpServer;
 	private transportCtor?: typeof import("@modelcontextprotocol/sdk/server/streamableHttp.js").StreamableHTTPServerTransport;
 	private sessions = new Map<string, McpTransport>();
+	/**
+	 * Raw sockets currently open on `http`, tracked so `stop()` can force-close
+	 * them instead of waiting on `server.close()`'s callback — which only fires
+	 * once every connection ends on its own, and MCP Streamable HTTP sessions
+	 * are intentionally long-lived. Without this, a client holding its
+	 * connection open (normal for this transport) can make `stop()` hang
+	 * indefinitely, leaving the port bound to an orphaned server the app has
+	 * no other handle on.
+	 */
+	private sockets = new Set<import("node:net").Socket>();
 
 	constructor(private readonly deps: McpServiceDeps) {}
 
@@ -88,13 +98,23 @@ export class LocalMcpServer {
 			"@modelcontextprotocol/sdk/server/streamableHttp.js"
 		);
 		const { createMcpServer } = await import("./tools");
-		const { createServer } = await import("node:http");
+		// A literal dynamic `import()` of a bare specifier like "node:http" fails
+		// in Obsidian's CJS plugin sandbox — it tries to resolve like a browser
+		// module fetch. `require` works because esbuild's `cjs` output format
+		// wraps this bundle with a real CJS `require`, and "node:http" is left
+		// untouched by the `external` list in esbuild.config.mjs.
+		// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef -- see comment above
+		const { createServer } = require("node:http") as typeof import("node:http");
 
 		this.mcp = createMcpServer(this.deps.tools);
 		this.transportCtor = transportModule.StreamableHTTPServerTransport;
 
-		const server = createServer((req, res) => {
+		const server: HttpServer = createServer((req, res) => {
 			void this.onRequest(req, res);
+		});
+		server.on("connection", (socket) => {
+			this.sockets.add(socket);
+			socket.on("close", () => this.sockets.delete(socket));
 		});
 		await new Promise<void>((resolve, reject) => {
 			server.once("error", reject);
@@ -120,7 +140,16 @@ export class LocalMcpServer {
 		this.mcp = undefined;
 		this.transportCtor = undefined;
 		if (server) {
-			await new Promise<void>((resolve) => server.close(() => resolve()));
+			// Register the close callback before destroying any sockets, so
+			// there's no window where a socket's `close` event could fire before
+			// anything is listening for the server to consider itself closed.
+			const closed = new Promise<void>((resolve) => server.close(() => resolve()));
+			// Force-end every open connection rather than waiting for a client to
+			// voluntarily disconnect — a long-lived MCP session otherwise stalls
+			// `server.close()` indefinitely (see the `sockets` field doc above).
+			for (const socket of this.sockets) socket.destroy();
+			this.sockets.clear();
+			await closed;
 		}
 	}
 
@@ -228,4 +257,36 @@ export class McpServerService {
 		this.server = null;
 		if (server) await server.stop();
 	}
+}
+
+/**
+ * Scans upward from `startPort + 1` for a port nothing is currently bound
+ * to on `127.0.0.1`, by briefly binding a throwaway server to each
+ * candidate and closing it immediately. Returns `null` if nothing free
+ * turns up within `maxAttempts` candidates, or on mobile (no port scanning
+ * is meaningful there).
+ */
+export async function findAvailablePort(
+	startPort: number,
+	maxAttempts = 20,
+): Promise<number | null> {
+	if (!Platform.isDesktop) return null;
+	// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef -- see start()'s identical node:http comment
+	const net = require("node:net") as typeof import("node:net");
+
+	const tryPort = (port: number): Promise<boolean> =>
+		new Promise((resolve) => {
+			const probe = net.createServer();
+			probe.once("error", () => resolve(false));
+			probe.listen(port, "127.0.0.1", () => {
+				probe.close(() => resolve(true));
+			});
+		});
+
+	for (let i = 1; i <= maxAttempts; i++) {
+		const candidate = startPort + i;
+		if (candidate > 65535) break;
+		if (await tryPort(candidate)) return candidate;
+	}
+	return null;
 }

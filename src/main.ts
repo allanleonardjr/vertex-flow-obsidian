@@ -26,7 +26,7 @@ import {
   getMcpToken,
   setMcpToken,
 } from "./obsidian/mcp-token";
-import { McpServerService } from "./mcp/server";
+import { findAvailablePort, McpServerService } from "./mcp/server";
 import {
   intentFromParams,
   type VaultUriIntent,
@@ -209,12 +209,19 @@ export default class VertexFlowPlugin extends Plugin {
     this.register(async () => void this.refreshMcpServer());
   }
 
-  override onunload(): void {
+  // `obsidian.d.ts` types `Plugin.onunload` as `(): void` — whether the host
+  // actually awaits a returned promise before considering unload complete is
+  // unverified either way, but TypeScript's `void`-return rule lets an async
+  // override type-check regardless, and `LocalMcpServer.stop()` now resolves
+  // in milliseconds (it force-closes lingering sockets rather than waiting on
+  // a client to disconnect), so awaiting it here can only help, never hang.
+  // eslint-disable-next-line @typescript-eslint/no-misused-promises -- see comment above
+  override async onunload(): Promise<void> {
     // Obsidian detaches registered views automatically; the one bit of
     // global state we add is the text-size body class.
     clearUiTextSize();
     if (this.aiWorkerBlobUrl) URL.revokeObjectURL(this.aiWorkerBlobUrl);
-    void this.mcpService?.stop();
+    await this.mcpService?.stop();
   }
 
   /**
@@ -260,6 +267,7 @@ export default class VertexFlowPlugin extends Plugin {
         io: this.io,
         version: this.manifest.version,
         me: (root) => getMePersonId(root),
+        activeWorkspace: () => this.activeWorkspace(),
       },
     });
     try {
@@ -276,6 +284,11 @@ export default class VertexFlowPlugin extends Plugin {
         `Vertex Flow couldn't start its local server on port ${this.settings.mcpServerPort} — is something else using it?`,
       );
     }
+  }
+
+  /** Scans for a free port above the currently configured one — see `findAvailablePort`. */
+  async findAvailableMcpPort(): Promise<number | null> {
+    return findAvailablePort(this.settings.mcpServerPort);
   }
 
   private registerCommands(): void {
@@ -578,6 +591,17 @@ export default class VertexFlowPlugin extends Plugin {
   activeWorkspace() {
     const root = this.lastActiveWorkspaceRoot;
     return (root ? this.index.get(root) : null) ?? this.index.list()[0] ?? null;
+  }
+
+  /**
+   * Whether *this* plugin instance's own MCP server is running — distinct
+   * from "something answers `/health` on the configured port," which could
+   * be a stray server left over from a previous instance (see
+   * `McpSection.tsx`'s health check, which cross-references this to tell the
+   * two apart).
+   */
+  get mcpServerRunning(): boolean {
+    return this.mcpService?.running ?? false;
   }
 
   /**

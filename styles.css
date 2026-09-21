@@ -546,6 +546,7 @@ button.vf-nav-row-menu:hover {
   display: flex;
   align-items: center;
   gap: 4px;
+  margin-bottom: 6px;
   color: var(--vf-muted);
   font-size: var(--font-ui-smaller);
   cursor: pointer;
@@ -627,7 +628,7 @@ button.vf-nav-row-menu:hover {
   gap: 0;
 }
 
-button.vf-row-open {
+.vf-row-open {
   display: flex;
   flex: 1;
   align-items: center;
@@ -1682,6 +1683,26 @@ body.vf-dragging {
   flex-shrink: 0;
   border-radius: 50%;
   background: var(--vf-muted);
+}
+
+/* A small "checking…" spinner shown beside `.vf-status-dot` (e.g. the MCP
+   server status row) while a state is still being determined — no existing
+   spinner convention elsewhere in this codebase to reuse, so kept minimal
+   and sized to match the dot it sits next to. */
+.vf-spinner {
+  width: 9px;
+  height: 9px;
+  flex-shrink: 0;
+  border: 1.5px solid var(--vf-border);
+  border-top-color: var(--vf-muted);
+  border-radius: 50%;
+  animation: vf-spin 0.6s linear infinite;
+}
+
+@keyframes vf-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .vf-chip {
@@ -4628,6 +4649,67 @@ input.vf-editable-title-input {
   line-height: 1.45;
 }
 
+.vf-mcp-address {
+  user-select: text;
+}
+
+.vf-mcp-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 16px;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.vf-mcp-port-field input.vf-input {
+  max-width: 120px;
+}
+
+/* The Port field plus its "Find available port" button, aligned along the
+   input's own baseline rather than the label's — the button has no label
+   row above it, so top-aligning the two would leave it floating higher
+   than the input it sits next to. */
+.vf-mcp-port-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.vf-mcp-port-row .vf-mcp-port-field {
+  margin-bottom: 0;
+}
+
+.vf-settings-mcp-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-secondary);
+}
+
+.vf-settings-mcp-row > span:first-child {
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
+}
+
+.vf-settings-mcp-row code {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: var(--font-ui-smaller);
+}
+
+.vf-settings-mcp-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+
 /* AI Chat model install progress — wider than the tiny sub-task `.vf-progress`
    meter, since this tracks a multi-gigabyte download. */
 .vf-ai-progress-wrap {
@@ -4666,6 +4748,13 @@ input.vf-editable-title-input {
   gap: 4px;
   max-width: 640px;
   margin: 0 0 12px;
+}
+
+/* AI Chat turned off (§3b) — the model list stays visible (selection/install
+   state is still worth seeing) but reads as inert rather than interactive. */
+.vf-ai-model-list.is-disabled {
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 .vf-ai-model-row {
@@ -4808,6 +4897,45 @@ input.vf-editable-title-input {
 .vf-chat-load-more:hover {
   color: var(--text-normal);
   text-decoration: underline;
+}
+
+/* A `searchProjects` result rendered as a plain clickable list — same boxed
+   treatment as `.vf-chat-task-list`, but with no `TaskList`-equivalent
+   component to lean on for projects, so the rows are styled directly here. */
+.vf-chat-project-list {
+  margin-top: 5px;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  overflow: hidden;
+}
+
+.vf-chat-project-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-bottom: 1px solid var(--vf-border);
+  background: transparent;
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  text-align: left;
+  cursor: pointer;
+}
+
+.vf-chat-project-row:last-child {
+  border-bottom: none;
+}
+
+.vf-chat-project-row:hover {
+  background: var(--background-modifier-hover);
+}
+
+.vf-chat-project-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .vf-chat-bubble-assistant {

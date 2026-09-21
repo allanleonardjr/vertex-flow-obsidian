@@ -183,6 +183,21 @@ export class AiEngineService {
 	}
 
 	/**
+	 * Unloads the active model from the worker (frees its RAM/VRAM) without
+	 * touching its cached weights on disk — unlike `clearCache`, this is
+	 * meant to be cheap and reversible: the next `install()` for the same
+	 * model reloads instantly from cache, no network involved.
+	 */
+	async unloadFromMemory(): Promise<void> {
+		if (this.engine) {
+			await this.engine.unload();
+			this.engine = null;
+			this.loadedModelId = null;
+			this.loading = null;
+		}
+	}
+
+	/**
 	 * Interrupts whichever generation is currently in flight (worker-bridged —
 	 * `WebWorkerMLCEngine.interruptGenerate()` posts the interrupt across to
 	 * the actual engine). A no-op if nothing is generating. Only meaningful

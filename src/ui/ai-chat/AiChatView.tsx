@@ -38,15 +38,17 @@ import {
   type TaskIdFragmentMatch,
 } from "../../core/ai/resolve-task-ids";
 import {
+  executeProjectQueryAction,
   executeQueryAction,
   looksLikeAttemptedAction,
+  parseProjectQueryAction,
   parseQueryAction,
 } from "../../core/ai/query-action";
 import { HELP_TOPICS } from "../../core/help";
-import { applyFilters } from "../../core/views/filter";
+import { applyFilters, applyProjectFilters } from "../../core/views/filter";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import type { ViewContext } from "../../core/views";
-import type { Task, WorkspaceSnapshot } from "../../core/types";
+import type { Project, Task, WorkspaceSnapshot } from "../../core/types";
 import {
   AI_MODEL_OPTIONS,
   aiModelInfo,
@@ -58,9 +60,15 @@ import { EmptyView } from "../components/EmptyView";
 import { Icon } from "../components/Icon";
 import { MarkdownContent } from "../components/Markdown";
 import { TaskList } from "../components/TaskList";
+import { TaxonomyChip } from "../components/TaskBits";
 import { usePlugin, useSettingsWriter } from "../context";
 import { useTabs } from "../tabs-context";
-import { type AiChatBubble, type AiChatQueryMeta, useAiChatSession } from "./ai-chat-session";
+import {
+  type AiChatBubble,
+  type AiChatProjectQueryMeta,
+  type AiChatQueryMeta,
+  useAiChatSession,
+} from "./ai-chat-session";
 
 /**
  * A pseudo vault path for `MarkdownContent`'s `sourcePath` — there's no real
@@ -78,6 +86,39 @@ const SWITCH_NOTICE_MS = 3000;
 
 /** How close to the bottom (px) still counts as "at the bottom" for auto-scroll purposes. */
 const NEAR_BOTTOM_THRESHOLD_PX = 80;
+
+/**
+ * A `searchProjects` result rendered as a plain, clickable list — title +
+ * status chip, same spirit as `TaskList`'s rows but with no reusable
+ * project-row component in the app to lean on (unlike tasks' `TaskList`),
+ * so this stays a small inline renderer rather than a new shared component
+ * for a single call site.
+ */
+function AiChatProjectList({
+  projects,
+  taxonomies,
+  onOpenProject,
+}: {
+  projects: Project[];
+  taxonomies: WorkspaceTaxonomies;
+  onOpenProject: (path: string) => void;
+}) {
+  return (
+    <div className="vf-chat-project-list">
+      {projects.map((project) => (
+        <button
+          key={project.path}
+          type="button"
+          className="vf-chat-project-row"
+          onClick={() => onOpenProject(project.path)}
+        >
+          <TaxonomyChip taxonomies={taxonomies} kind="status" id={project.status} />
+          <span className="vf-chat-project-title">{project.title}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /**
  * Shown instead of raw JSON when a second-call response still looks like a
@@ -122,7 +163,16 @@ or, when only a number is needed:
 or, for anything about overdue work — never express "overdue" via the text filter, it only does a substring match and will never work for this:
 {"action": "searchTasks", "filters": {"overdue": true, "project": ["Launch"]}}
 
-Recognized filter keys: status, priority, taskType, labels, assignee, project, parent, mentions (all arrays of this workspace's display names), text (substring match — NOT for concepts like "overdue"), archived ("included" or "only"), openOnly, unscheduled, recurring, overdue (booleans). Use display names exactly as given in the facts section — never invent a field name. Omit filters you don't need; an empty/omitted filter matches everything. Only ever emit ONE such object, and nothing besides it, when you need data — no other text before or after it.
+Recognized task filter keys: status, priority, taskType, labels, assignee, project, parent, mentions (all arrays of this workspace's display names), text (substring match — NOT for concepts like "overdue"), archived ("included" or "only"), openOnly, unscheduled, recurring, overdue (booleans). Use display names exactly as given in the facts section — never invent a field name. Omit filters you don't need; an empty/omitted filter matches everything.
+
+You also do NOT have the project list itself. A question about tasks *within* a named project (e.g. "what's overdue in Launch") still uses searchTasks/countTasks above with a project filter — never the actions below for that. But when a question is about projects themselves — which projects exist, their status/priority/labels/owner, or a count of projects under some filter — respond with ONLY a JSON object on its own, in this exact shape:
+{"action": "searchProjects", "filters": {"status": ["Active"], "priority": ["High"]}}
+or, when only a number is needed:
+{"action": "countProjects", "filters": {"archived": "only"}}
+
+Recognized project filter keys: status, priority, labels, owner (arrays of this workspace's display names), text (substring match on the project title), archived ("included" or "only"). Same display-name rule as task filters — use names exactly as given in the facts section, never invent one.
+
+Only ever emit ONE such object (from either set), and nothing besides it, when you need data — no other text before or after it.
 
 If a question is answerable from the facts section alone (totals, what statuses/priorities/task types/people exist), or needs no workspace data at all, just answer directly in plain language — never emit a JSON action for those. This includes self-referential questions about you, the assistant — "what can you do?", "help", "who are you?", "what is this?" — always answer those directly, in plain language, describing your own capabilities; a JSON action can never answer a question about yourself.
 
@@ -207,18 +257,26 @@ function AiChatBubbleContent({
   text,
   taskPaths,
   queryMeta,
+  projectPaths,
+  projectQueryMeta,
   snapshot,
   taxonomies,
   onOpenTask,
+  onOpenProject,
   onLoadMore,
+  onLoadMoreProjects,
 }: {
   text: string;
   taskPaths?: string[];
   queryMeta?: AiChatQueryMeta;
+  projectPaths?: string[];
+  projectQueryMeta?: AiChatProjectQueryMeta;
   snapshot: WorkspaceSnapshot;
   taxonomies: WorkspaceTaxonomies;
   onOpenTask: (path: string) => void;
+  onOpenProject: (path: string) => void;
   onLoadMore: () => void;
+  onLoadMoreProjects: () => void;
 }) {
   const display = useThrottledText(text);
   const resolvedTasks = useMemo(() => {
@@ -228,11 +286,20 @@ function AiChatBubbleContent({
       .map((path) => byPath.get(path))
       .filter((task): task is Task => task != null);
   }, [taskPaths, snapshot]);
+  const resolvedProjects = useMemo(() => {
+    if (!projectPaths || projectPaths.length === 0) return [];
+    const byPath = new Map(snapshot.projects.map((project) => [project.path, project]));
+    return projectPaths
+      .map((path) => byPath.get(path))
+      .filter((project): project is Project => project != null);
+  }, [projectPaths, snapshot]);
 
   // "Load more" only appears while there are genuinely more matches than are
   // currently shown — once every match is on screen it disappears on its
   // own, no separate "all loaded" state to track.
   const hasMore = queryMeta != null && (taskPaths?.length ?? 0) < queryMeta.totalMatches;
+  const hasMoreProjects =
+    projectQueryMeta != null && (projectPaths?.length ?? 0) < projectQueryMeta.totalMatches;
 
   return (
     <>
@@ -249,6 +316,18 @@ function AiChatBubbleContent({
       {hasMore && (
         <button type="button" className="vf-chat-load-more" onClick={onLoadMore}>
           Load more ({queryMeta.totalMatches - (taskPaths?.length ?? 0)} more)
+        </button>
+      )}
+      {resolvedProjects.length > 0 && (
+        <AiChatProjectList
+          projects={resolvedProjects}
+          taxonomies={taxonomies}
+          onOpenProject={onOpenProject}
+        />
+      )}
+      {hasMoreProjects && (
+        <button type="button" className="vf-chat-load-more" onClick={onLoadMoreProjects}>
+          Load more ({projectQueryMeta.totalMatches - (projectPaths?.length ?? 0)} more)
         </button>
       )}
     </>
@@ -276,9 +355,10 @@ export function AiChatView({
   context: ViewContext;
 }) {
   const plugin = usePlugin();
-  const { openScreen, openTask } = useTabs();
+  const { openScreen, openTask, openProject } = useTabs();
   const writeSettings = useSettingsWriter();
   const supported = AiEngineService.supportsWebGPU();
+  const aiChatEnabled = plugin.settings.aiChatEnabled;
 
   const [engineState, setEngineState] = useState<AiEngineState | "checking">(
     "checking",
@@ -395,6 +475,10 @@ export function AiChatView({
   // away to another tab and back without changing models) — otherwise every
   // remount re-hides the intact message history behind a "Loading…" flash.
   useEffect(() => {
+    // AI Chat turned off (§3c): never start an install/load — the view
+    // renders the disabled empty state below instead, and re-enabling picks
+    // this effect back up cleanly on the next render.
+    if (!aiChatEnabled) return;
     if (plugin.aiEngine.activeModelId === selectedModelId) {
       setEngineState("installed");
       return;
@@ -428,7 +512,7 @@ export function AiChatView({
     return () => {
       cancelled = true;
     };
-  }, [plugin, selectedModelId]);
+  }, [plugin, selectedModelId, aiChatEnabled]);
 
   const handleBodyScroll = () => {
     const el = bodyRef.current;
@@ -491,6 +575,18 @@ export function AiChatView({
       const last = prev[prev.length - 1];
       if (last?.role !== "assistant") return prev;
       return [...prev.slice(0, -1), { ...last, taskPaths, queryMeta }];
+    });
+  };
+
+  /** The Project-scoped analogue of `setLastAssistantQueryResult`, for a resolved `searchProjects` action. */
+  const setLastAssistantProjectQueryResult = (
+    projectPaths: string[],
+    projectQueryMeta: AiChatProjectQueryMeta,
+  ) => {
+    setMessages((prev) => {
+      const last = prev[prev.length - 1];
+      if (last?.role !== "assistant") return prev;
+      return [...prev.slice(0, -1), { ...last, projectPaths, projectQueryMeta }];
     });
   };
 
@@ -595,6 +691,10 @@ export function AiChatView({
     }
 
     const action = parseQueryAction(firstResponse);
+    // Only attempted when the response isn't a valid task action — a model
+    // never emits both, and this keeps the single-round-trip cap intact
+    // (one action, one resolution, one final call).
+    const projectAction = action ? null : parseProjectQueryAction(firstResponse);
 
     if (action) {
       // The same remaining-budget figure the context-usage meter computes
@@ -661,6 +761,47 @@ export function AiChatView({
             filters: queryResult.query.filters,
             overdue: queryResult.query.overdue,
             totalMatches: queryResult.totalMatches ?? queryResult.tasks.length,
+          },
+        );
+      }
+      return;
+    }
+
+    if (projectAction) {
+      const availableTokens = contextUsage
+        ? Math.max(0, contextUsage.contextWindow - contextUsage.usedTokens)
+        : Number.POSITIVE_INFINITY;
+      const queryResult = executeProjectQueryAction(
+        projectAction,
+        deps.snapshot,
+        deps.context,
+        availableTokens,
+      );
+      // Same reasoning as the task version above: a resolved `searchProjects`
+      // result with rows renders automatically as a clickable list, so the
+      // model shouldn't re-enumerate it in prose.
+      const richListNote =
+        queryResult.projects && queryResult.projects.length > 0
+          ? " The matching projects will be shown automatically as a clickable list right after your reply — give a brief one- or two-sentence summary (e.g. a count, a notable highlight) instead of listing them all again in prose."
+          : "";
+      const secondRequest: AiChatMessage[] = [
+        ...baseRequest,
+        { role: "assistant", content: firstResponse },
+        {
+          role: "user",
+          content: `Query result:\n${queryResult.text}\n\nAnswer the original question using this — don't mention the query mechanism itself.${richListNote}`,
+        },
+      ];
+      const secondResponse = await streamVisible(secondRequest);
+      if (!stoppedRef.current && looksLikeAttemptedAction(secondResponse)) {
+        setLastAssistant(QUERY_ACTION_FALLBACK);
+      } else if (queryResult.projects && queryResult.projects.length > 0 && queryResult.query) {
+        // `searchProjects` only — `countProjects` never sets `projects`.
+        setLastAssistantProjectQueryResult(
+          queryResult.projects.map((project) => project.path),
+          {
+            filters: queryResult.query.filters,
+            totalMatches: queryResult.totalMatches ?? queryResult.projects.length,
           },
         );
       }
@@ -804,6 +945,24 @@ export function AiChatView({
     );
   };
 
+  /** The Project-scoped analogue of `loadMoreTasks` — same client-side re-run, no `overdue` post-filter (Projects have no such concept). */
+  const loadMoreProjects = (messageId: string) => {
+    setMessages((prev) =>
+      prev.map((message) => {
+        if (message.id !== messageId || !message.projectQueryMeta || !message.projectPaths) {
+          return message;
+        }
+        const { filters, totalMatches } = message.projectQueryMeta;
+        const nextCount = Math.min(totalMatches, message.projectPaths.length * 2);
+        const matched = applyProjectFilters(snapshot.projects, filters, context);
+        return {
+          ...message,
+          projectPaths: matched.slice(0, nextCount).map((project) => project.path),
+        };
+      }),
+    );
+  };
+
   const stop = () => {
     stoppedRef.current = true;
     setStopping(true);
@@ -874,6 +1033,21 @@ export function AiChatView({
         });
       });
   };
+
+  if (!aiChatEnabled) {
+    return (
+      <EmptyView
+        icon="bot"
+        iconFallback="bot"
+        title="AI Chat is turned off"
+        note="Enable it in Settings to start chatting."
+        action={{
+          label: "Open Settings",
+          onClick: () => openScreen("settings", "vf-settings-ai-chat"),
+        }}
+      />
+    );
+  }
 
   if (!supported || engineState === "unsupported") {
     return (
@@ -982,10 +1156,14 @@ export function AiChatView({
                     text={message.content}
                     taskPaths={message.taskPaths}
                     queryMeta={message.queryMeta}
+                    projectPaths={message.projectPaths}
+                    projectQueryMeta={message.projectQueryMeta}
                     snapshot={snapshot}
                     taxonomies={taxonomies}
                     onOpenTask={openTask}
+                    onOpenProject={openProject}
                     onLoadMore={() => loadMoreTasks(message.id)}
+                    onLoadMoreProjects={() => loadMoreProjects(message.id)}
                   />
                 </div>
               ) : (

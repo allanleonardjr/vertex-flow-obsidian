@@ -15,7 +15,7 @@
  */
 
 import { findValueByName, hasValue, type Taxonomy } from "../taxonomy/engine";
-import { applyFilters, FILTER_ARRAY_FIELDS } from "../views/filter";
+import { applyFilters, applyProjectFilters, FILTER_ARRAY_FIELDS, type ProjectFilters } from "../views/filter";
 import type { ViewContext } from "../views/context";
 import {
 	NONE,
@@ -27,7 +27,14 @@ import {
 	type ViewFilters,
 	type WorkspaceSnapshot,
 } from "../types";
-import { estimateTokens, flattenTasks, isOverdueTask, summarizeTasks } from "./snapshot";
+import {
+	estimateTokens,
+	flattenProjects,
+	flattenTasks,
+	isOverdueTask,
+	summarizeProjects,
+	summarizeTasks,
+} from "./snapshot";
 
 export interface TaskQueryAction {
 	action: "searchTasks" | "countTasks";
@@ -63,6 +70,33 @@ const RECOGNIZED_FILTER_KEYS = new Set<string>([
 
 const ARRAY_FILTER_KEY_SET = new Set<string>(FILTER_ARRAY_FIELDS);
 
+/**
+ * The Project-scoped analogue of `TaskQueryAction`, for `searchProjects`/
+ * `countProjects` — a parallel action/parse/execute path rather than a
+ * generalization of the task one, since `ProjectFilters` recognizes a
+ * different (smaller) key set than `ViewFilters` does.
+ */
+export interface ProjectQueryAction {
+	action: "searchProjects" | "countProjects";
+	filters: ProjectFilters;
+}
+
+const PROJECT_ARRAY_FILTER_KEYS = ["status", "priority", "labels", "owner"] as const;
+const PROJECT_NON_ARRAY_FILTER_KEYS = ["text", "archived"] as const;
+const PROJECT_RECOGNIZED_FILTER_KEYS = new Set<string>([
+	...PROJECT_ARRAY_FILTER_KEYS,
+	...PROJECT_NON_ARRAY_FILTER_KEYS,
+]);
+const PROJECT_ARRAY_FILTER_KEY_SET = new Set<string>(PROJECT_ARRAY_FILTER_KEYS);
+
+/** All four recognized action names — shared by `looksLikeQueryAction` since it never inspects `filters`. */
+const QUERY_ACTION_NAMES = new Set<string>([
+	"searchTasks",
+	"countTasks",
+	"searchProjects",
+	"countProjects",
+]);
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -94,7 +128,7 @@ export function looksLikeQueryAction(response: string): boolean {
 	}
 
 	return (
-		isPlainObject(parsed) && (parsed.action === "searchTasks" || parsed.action === "countTasks")
+		isPlainObject(parsed) && typeof parsed.action === "string" && QUERY_ACTION_NAMES.has(parsed.action)
 	);
 }
 
@@ -184,6 +218,42 @@ export function parseQueryAction(response: string): TaskQueryAction | null {
 	};
 }
 
+/** The Project-scoped analogue of `parseQueryAction` — same shape check, `ProjectFilters`' smaller key set. */
+export function parseProjectQueryAction(response: string): ProjectQueryAction | null {
+	const candidate = extractJsonCandidate(response.trim());
+	if (!candidate) return null;
+
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(candidate);
+	} catch {
+		return null;
+	}
+
+	if (!isPlainObject(parsed)) return null;
+	if (parsed.action !== "searchProjects" && parsed.action !== "countProjects") return null;
+	if (!isPlainObject(parsed.filters)) return null;
+
+	for (const [key, value] of Object.entries(parsed.filters)) {
+		if (!PROJECT_RECOGNIZED_FILTER_KEYS.has(key)) return null;
+
+		if (PROJECT_ARRAY_FILTER_KEY_SET.has(key)) {
+			if (!Array.isArray(value) || !value.every((entry) => typeof entry === "string")) {
+				return null;
+			}
+		} else if (key === "archived") {
+			if (value !== "included" && value !== "only") return null;
+		} else if (key === "text") {
+			if (typeof value !== "string") return null;
+		}
+	}
+
+	return {
+		action: parsed.action,
+		filters: parsed.filters,
+	};
+}
+
 /** An id if already one, else the id of the taxonomy value with this display name — dropped if neither matches. */
 function resolveTaxonomyValues(taxonomy: Taxonomy, values: string[] | undefined): string[] | undefined {
 	if (!values) return undefined;
@@ -254,6 +324,18 @@ function resolveFilterValues(
 		openOnly: filters.openOnly,
 		unscheduled: filters.unscheduled,
 		recurring: filters.recurring,
+	};
+}
+
+/** The Project-scoped analogue of `resolveFilterValues` — same name→id/path resolution, `ProjectFilters`' key set. */
+function resolveProjectFilterValues(filters: ProjectFilters, context: ViewContext): ProjectFilters {
+	return {
+		status: resolveTaxonomyValues(context.taxonomies.status, filters.status),
+		priority: resolveTaxonomyValues(context.taxonomies.priority, filters.priority),
+		labels: resolveTaxonomyValues(context.taxonomies.label, filters.labels),
+		owner: resolvePersonValues(context.people, filters.owner),
+		text: filters.text,
+		archived: filters.archived,
 	};
 }
 
@@ -370,4 +452,55 @@ export function executeQueryAction(
 	}
 
 	return { text: `${formatted}${note}`, tasks: capped, totalMatches, query };
+}
+
+/** The Project-scoped analogue of `QueryActionResult` — `projects` instead of `tasks`, no `overdue` (Projects have no such concept). */
+export interface ProjectQueryActionResult {
+	text: string;
+	projects?: Project[];
+	totalMatches?: number;
+	query?: { filters: ProjectFilters };
+}
+
+/**
+ * The Project-scoped analogue of `executeQueryAction` — same resolve →
+ * filter → adaptive-truncation shape, run against `applyProjectFilters`
+ * instead. `countProjects` never returns rows, mirroring `countTasks`.
+ */
+export function executeProjectQueryAction(
+	action: ProjectQueryAction,
+	snapshot: WorkspaceSnapshot,
+	context: ViewContext,
+	availableTokens: number = Number.POSITIVE_INFINITY,
+): ProjectQueryActionResult {
+	const resolved = resolveProjectFilterValues(action.filters, context);
+	const matched = applyProjectFilters(snapshot.projects, resolved, context);
+
+	if (action.action === "countProjects") {
+		return { text: `${matched.length} project(s) matched.` };
+	}
+
+	const totalMatches = matched.length;
+	const query = { filters: resolved };
+
+	if (totalMatches === 0) {
+		return { text: flattenProjects([]), projects: [], totalMatches, query };
+	}
+
+	let rowCount = Math.min(totalMatches, MAX_QUERY_RESULT_ROWS);
+	let capped: Project[];
+	let formatted: string;
+	let note = "";
+	for (;;) {
+		capped = matched.slice(0, rowCount);
+		formatted = flattenProjects(summarizeProjects(capped, snapshot.workspace.people));
+		note =
+			rowCount < totalMatches
+				? `\n(showing ${rowCount} of ${totalMatches} matching projects — add a filter to narrow this down)`
+				: "";
+		if (estimateTokens(formatted + note) <= availableTokens || rowCount <= 1) break;
+		rowCount = Math.max(1, Math.floor(rowCount / 2));
+	}
+
+	return { text: `${formatted}${note}`, projects: capped, totalMatches, query };
 }

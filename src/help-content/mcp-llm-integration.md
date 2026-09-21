@@ -12,7 +12,7 @@ keeps the vault inside your vault, and is **read-only**.
 ## How it works
 
 When enabled, Vertex Flow starts a small HTTP server bound to `127.0.0.1` — a
-loopback address that only your own machine can reach. It answers 16
+loopback address that only your own machine can reach. It answers 17
 read-only JSON tools that let an LLM:
 
 - **List workspaces, projects, tasks, views, dashboards, labels, and people** —
@@ -28,6 +28,21 @@ read-only JSON tools that let an LLM:
 Every result that points at a note or view carries a deep link
 (`obsidian://vertex-flow…`) the client can hand back to Obsidian to open the
 exact task, view, dashboard, or Help topic.
+
+### Which workspace a tool talks to
+
+If your vault has more than one workspace, every tool takes an optional
+`workspace` — but you'll rarely need to pass it. Left out, a tool defaults
+to **whatever workspace is currently open in the Vertex Flow window**, so
+asking a question without saying which workspace you mean just works.
+
+To point the model at a *different* workspace for the rest of the
+conversation — without switching anything in the Obsidian window itself —
+ask it to use `set_active_workspace` with the workspace's name, or part of
+it (e.g. *"switch to the Lumen Studio workspace"*). That choice sticks for
+every tool call that omits `workspace` until you change it again or the
+server restarts. If a name matches more than one workspace, the model is
+told so and asked to be more specific rather than guessing.
 
 ## Enable the server
 
