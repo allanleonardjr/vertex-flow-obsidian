@@ -127,6 +127,11 @@ export function McpSection({ id }: { id?: string }) {
 			.finally(() => setScanning(false));
 	};
 
+	const copyAddress = () => {
+		void navigator.clipboard.writeText(`http://127.0.0.1:${port}/mcp`);
+		new Notice("Server address copied to clipboard.");
+	};
+
 	const copyToken = () => {
 		const current = getMcpToken();
 		if (!current) {
@@ -230,6 +235,11 @@ export function McpSection({ id }: { id?: string }) {
 							<div className="vf-settings-mcp-row">
 								<span>Server address</span>
 								<code className="vf-mcp-address">{`http://127.0.0.1:${port}/mcp`}</code>
+								<div className="vf-settings-mcp-actions">
+									<button type="button" className="mod-cta" onClick={copyAddress}>
+										Copy address
+									</button>
+								</div>
 							</div>
 
 							<div className="vf-settings-mcp-row">
