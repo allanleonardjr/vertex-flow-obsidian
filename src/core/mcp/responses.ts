@@ -346,6 +346,11 @@ export function taskDetail(
 			duplicateOf: McpRelation | null;
 		};
 		mentions?: string[];
+		/** A ready-to-use `list_tasks` query for this task's sub-tasks, present
+		 *  only when subTaskCount > 0 — so a client that just learned a count
+		 *  from this response doesn't have to already know the query grammar
+		 *  to actually fetch them. */
+		subtasksQuery?: string;
 		description?: string;
 		recurrence?: {
 			trigger: string;
@@ -381,9 +386,11 @@ export function taskDetail(
 		}));
 
 	const counts = countSubtasks(snapshot);
+	const subTaskCount = counts.get(task.path) ?? 0;
 	return {
 		task: {
 			...taskRowWithUri(counts, task),
+			...(subTaskCount > 0 ? { subtasksQuery: `parent:${task.id}` } : {}),
 			parentTitle: task.parent
 				? titlesByPath.get(task.parent) ?? task.parent
 				: undefined,

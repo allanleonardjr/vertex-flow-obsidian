@@ -205,6 +205,25 @@ describe("task payloads", () => {
 		expect(detail.task.description).toBeUndefined();
 		expect(detail.task.parentTitle).toBeUndefined();
 	});
+
+	it("exposes a subtasksQuery when the task has sub-tasks", () => {
+		const parentPath = snapshot.tasks.find((t) => t.parent)?.parent;
+		const parent = snapshot.tasks.find((t) => t.path === parentPath);
+		expect(parent).toBeDefined();
+
+		const detail = taskDetail(snapshot, parent!, "", "alice");
+		expect(detail.task.subtasksQuery).toBe(`parent:${parent!.id}`);
+	});
+
+	it("omits subtasksQuery when the task has no sub-tasks", () => {
+		const leaf = snapshot.tasks.find(
+			(t) => !snapshot.tasks.some((other) => other.parent === t.path),
+		);
+		expect(leaf).toBeDefined();
+
+		const detail = taskDetail(snapshot, leaf!, "", "alice");
+		expect(detail.task.subtasksQuery).toBeUndefined();
+	});
 });
 
 /* ---------------------------------------------------------------- views ---- */

@@ -22,6 +22,7 @@ This project uses [Semantic Versioning](https://semver.org/).
 - **A "Find available port" button next to the MCP server's Port field**, on both the in-app settings panel and Obsidian's native Settings tab, scans upward from the current port for one that's actually free and switches to it automatically.
 - **Turning AI Chat off now actually frees its memory.** A new toggle at the top of the "AI Chat (experimental)" settings section releases the currently loaded model from RAM/VRAM immediately when switched off, without deleting its cached download — turning it back on and selecting the same model reloads instantly from cache with no re-download. The AI Chat tab itself now shows a clear "AI Chat is turned off" state instead of trying to load a model while disabled.
 - **AI Chat can now answer questions about your projects directly** — "which projects have no priority set?", "how many projects are archived?" — via new `searchProjects`/`countProjects` actions, resolved against the same live workspace data and filter engine as task queries. A question about tasks *within* a named project still works exactly as before.
+-   Added subtaskQuery field to get_task mcp tool.
 
 ### Fixed
 

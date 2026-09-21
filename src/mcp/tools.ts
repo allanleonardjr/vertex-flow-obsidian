@@ -341,9 +341,11 @@ export function createMcpServer(deps: McpDeps): McpServer {
 				"Flow query language (see the 'Saved Views' help topic, section " +
 				"'Query language', for the full grammar). Examples: " +
 				"`status:in-progress`, `assignee:Alice label:frontend`, " +
-				"`project:\"Core App\" due:\"this week\"`, `is:open sort:due`. Rows " +
-				"are capped at 200; check `total`/`truncated` and narrow the query " +
-				"if truncated. Archived tasks are hidden unless `showArchived` is set.",
+				"`project:\"Core App\" due:\"this week\"`, `parent:TSK-0012` (a " +
+				"task's sub-tasks — get_task also returns this as `subtasksQuery` " +
+				"when applicable), `is:open sort:due`. Rows are capped at 200; " +
+				"check `total`/`truncated` and narrow the query if truncated. " +
+				"Archived tasks are hidden unless `showArchived` is set.",
 			inputSchema: {
 				workspace: z
 					.string()
@@ -412,7 +414,8 @@ export function createMcpServer(deps: McpDeps): McpServer {
 				"priority, label, assignee, parent, project, relations), " +
 				"description text, recurrence and comments. `taskId` can be the " +
 				"id (e.g. TSK-0012) or the note path. The result's `vaultUri` " +
-				"deep-links into the plugin.",
+				"deep-links into the plugin. When the task has sub-tasks, " +
+				"`subtasksQuery` is a ready-to-use list_tasks query for them.",
 			inputSchema: {
 				workspace: z
 					.string()
