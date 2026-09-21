@@ -34,11 +34,16 @@ This project uses [Semantic Versioning](https://semver.org/).
 - **Enabling the MCP server no longer flashes a false "Not responding" during ordinary startup.** The status now shows a real spinner through to "Running"; a failure is only reported after a short grace period — long enough to cover the server's own async startup, not so long that a genuine failure (e.g. a port already in use) goes unreported.
 - **A reloaded or disabled MCP server could leave an orphaned process still bound to its port, invisible to the running plugin**, so the next start failed with "port already in use" until the port was changed by hand. The server now force-closes any lingering client connections on stop instead of waiting indefinitely for them to disconnect on their own, so the port is reliably released — including under Obsidian's own hot-reload. When something else is genuinely still bound to the configured port (e.g. an old orphaned process from before this fix), the status now says so plainly — "Port in use by another process" — instead of misreporting "Running."
 - **Template gallery cards now collapse their taxonomy/views/dashboards/projects/people preview behind a "Show details" toggle**, closed by default, so the New Workspace grid reads at a glance instead of every card rendering at full height. State isn't persisted — each card reopens closed the next time you visit the gallery.
+- **Vault-authored template cards in the New Workspace gallery now show a task count** ("0 tasks", "12 tasks") in the footer, between Created and Located — so you can tell at a glance whether a template seeds starter tasks or is structure-only (taxonomy, views, dashboards, projects, people), without opening "Show details" or reading the export it came from. Computed fresh from the template's own body every time it's parsed, so it can never drift from what the file actually contains.
 
 ### Changed
 
 - **The New Workspace gallery's example-data checkbox is now called "Populate with content."** The old label ("Populate with example content") described built-in sample data only, but the same checkbox also seeds real tasks carried by your own exported templates — the wording no longer implies they're fake.
--   "Your templates" in the New Workspace gallery now lists your most recently created template first...
+- **"Your templates" in the New Workspace gallery now lists your most recently created template first**, instead of alphabetically by filename — the one you just exported shows up at the top instead of wherever its name happens to sort. A hand-authored template with no `createdAt` sorts to the end, after every dated one.
+
+### Fixed
+
+- **A comment or description containing a pasted `:::description`/`:::comment` block of its own — e.g. another template's markdown copied in as a record of what was generated — could corrupt the rest of the export.** The fence-closing scan only looked for the next bare `:::`, so a nested fence's own close was mistaken for the outer one's; everything after that point got kicked back out into top-level scanning and misread as real headings and metadata, occasionally pulling a whole phantom project, its tasks, and its own taxonomy into the exported file. Fence closing is now depth-aware (any nested `:::...` opener, not just description/comment, increments depth) and ignores a literal `:::` inside a pasted ` ``` ` code sample, so nesting to any depth round-trips correctly.
 
 ## 1.0.28 — 2026-09-19
 
@@ -58,8 +63,6 @@ This project uses [Semantic Versioning](https://semver.org/).
 - **Portaled dropdown and popover menus (property row pickers, the Parent/relations picker, the `u <key>` quick picker, and the `[[wikilink]]` autocomplete) now reposition when the mobile on-screen keyboard opens or closes**, instead of sizing themselves against the pre-keyboard viewport and appearing to float over blank space with the keyboard docked below.
 - **Selected filter chips are now visually distinct from unselected ones.** Status/Priority/Type/Label/Assignee/Mentions/Project chips in the filter clause editor used to look almost identical whether selected or not, and chips for values with no taxonomy color (Assignee, Mentions, Project) had no visible selected state at all. Unselected chips are now fully neutral; selecting one fills it with a tinted background and full-strength color — the value's own taxonomy color when it has one, or the app's accent color (matching the "You" badge) when it doesn't.
 - **Canvas now re-fits the viewport when Arrange changes.** Auto-fit only ran once, the first time layout finished after mount — so switching the Arrange control (Dependency flow / Hierarchy, either direction) re-laid out the graph without re-fitting the viewport, often leaving a differently-shaped graph looking empty or badly cropped until you manually hit Fit. Auto-fit now also fires when arrangement or direction change; filter, group, and relation-visibility changes still leave manual pan/zoom untouched, as before.
--   Vault-authored template cards in the New Workspace gallery now show a task count...
-
 
 ### Documentation
 

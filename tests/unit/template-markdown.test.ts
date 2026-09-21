@@ -164,6 +164,150 @@ describe("template markdown — taskCount", () => {
 	});
 });
 
+describe("template markdown — nested ::: fences", () => {
+	it("keeps a nested :::description from closing its parent :::comment early", () => {
+		const body = [
+			"",
+			"# Projects",
+			"",
+			"# Tasks",
+			"",
+			"## Ship the launch {#task-1}",
+			"status: backlog",
+			"",
+			":::comment JR (0d)",
+			"Pasted example below:",
+			"",
+			":::description",
+			"An inner description, unrelated to this task's own.",
+			":::",
+			"",
+			"The rest of the pasted example continues here and must still land in",
+			"the SAME comment, not get parsed as new document content.",
+			":::",
+			"",
+		].join("\n");
+
+		const parsed = parseTemplateMarkdown(template(HEADER, body));
+
+		expect(parsed.tasks).toHaveLength(1);
+		expect(parsed.tasks[0].comments).toHaveLength(1);
+		expect(parsed.tasks[0].comments[0].body).toContain("An inner description");
+		expect(parsed.tasks[0].comments[0].body).toContain(
+			"The rest of the pasted example",
+		);
+	});
+
+	it("keeps a nested :::comment from closing its parent :::description early", () => {
+		const body = [
+			"",
+			"# Projects",
+			"",
+			"# Tasks",
+			"",
+			"## Ship the launch {#task-1}",
+			"status: backlog",
+			"",
+			":::description",
+			"Pasted example below:",
+			"",
+			":::comment Someone (0d)",
+			"An inner comment, unrelated to this task's own description.",
+			":::",
+			"",
+			"The rest of the description continues here.",
+			":::",
+			"",
+		].join("\n");
+
+		const parsed = parseTemplateMarkdown(template(HEADER, body));
+
+		expect(parsed.tasks).toHaveLength(1);
+		expect(parsed.tasks[0].description).toContain("An inner comment");
+		expect(parsed.tasks[0].description).toContain(
+			"The rest of the description continues here",
+		);
+		expect(parsed.tasks[0].comments).toHaveLength(0);
+	});
+
+	it("handles a fence nested more than one level deep", () => {
+		const body = [
+			"",
+			"# Projects",
+			"",
+			"# Tasks",
+			"",
+			"## Ship the launch {#task-1}",
+			"status: backlog",
+			"",
+			":::comment JR (0d)",
+			":::description",
+			":::comment Nested (0d)",
+			"Three levels in.",
+			":::",
+			":::",
+			":::",
+			"",
+		].join("\n");
+
+		const parsed = parseTemplateMarkdown(template(HEADER, body));
+
+		expect(parsed.tasks[0].comments).toHaveLength(1);
+		expect(parsed.tasks[0].comments[0].body).toContain("Three levels in");
+	});
+
+	it("ignores a literal ':::' inside a pasted code sample", () => {
+		const body = [
+			"",
+			"# Projects",
+			"",
+			"# Tasks",
+			"",
+			"## Ship the launch {#task-1}",
+			"status: backlog",
+			"",
+			":::comment JR (0d)",
+			"Here's how to write a comment fence:",
+			"",
+			"```",
+			":::comment Author (date)",
+			"body",
+			":::",
+			"```",
+			"",
+			"That's the whole syntax.",
+			":::",
+			"",
+		].join("\n");
+
+		const parsed = parseTemplateMarkdown(template(HEADER, body));
+
+		expect(parsed.tasks).toHaveLength(1);
+		expect(parsed.tasks[0].comments).toHaveLength(1);
+		expect(parsed.tasks[0].comments[0].body).toContain("That's the whole syntax");
+	});
+
+	it("still rejects a genuinely unclosed fence", () => {
+		const body = [
+			"",
+			"# Projects",
+			"",
+			"# Tasks",
+			"",
+			"## Ship the launch {#task-1}",
+			"status: backlog",
+			"",
+			":::comment JR (0d)",
+			"Never closed.",
+			"",
+		].join("\n");
+
+		expect(() => parseTemplateMarkdown(template(HEADER, body))).toThrow(
+			/Unclosed :::comment fence/,
+		);
+	});
+});
+
 describe("template markdown — card settings", () => {
 	it("lists no taxonomy rows for a template that overrides nothing", () => {
 		const parsed = parseTemplateMarkdown(template(HEADER));
