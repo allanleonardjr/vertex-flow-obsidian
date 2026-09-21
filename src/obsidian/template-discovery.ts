@@ -10,6 +10,11 @@
  * sharing an id no longer collide with each other — each file's path is its
  * real identity (unique by construction), so both are kept.
  *
+ * The returned list is sorted newest-`createdAt`-first — the order the gallery's
+ * "Your templates" section renders in. Templates without a `createdAt` (hand-
+ * authored files, or ones exported before the field existed) sort after every
+ * dated one, keeping their relative order among themselves.
+ *
  * Deliberately imports no Obsidian API — the caller passes a `Notice`-backed
  * `onWarn`, keeping this unit-testable against a fake `NoteIO`.
  */
@@ -67,6 +72,15 @@ export async function discoverVaultTemplates(
 			}
 		}
 	}
+
+	out.sort((a, b) => {
+		if (a.createdAt && b.createdAt) {
+			return a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0;
+		}
+		if (a.createdAt) return -1;
+		if (b.createdAt) return 1;
+		return 0;
+	});
 
 	return out;
 }

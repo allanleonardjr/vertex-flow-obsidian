@@ -2171,6 +2171,7 @@ button.vf-swatch.is-on {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 16px;
+  align-items: start;
 }
 
 /*
@@ -2244,23 +2245,24 @@ button.vf-swatch.is-on {
   line-height: 1.45;
 }
 
-.vf-template-details-toggle {
+button.vf-template-details-toggle {
   display: flex;
   align-items: center;
   align-self: flex-start;
   gap: 5px;
   padding: 0;
   border: none;
+  border-radius: 0;
   background: transparent;
   box-shadow: none;
-  color: var(--vf-muted);
+  color: var(--interactive-accent);
   font-size: var(--font-ui-smaller);
   font-weight: 600;
   cursor: pointer;
 }
 
-.vf-template-details-toggle:hover {
-  color: var(--text-normal);
+button.vf-template-details-toggle:hover {
+  color: var(--interactive-accent-hover);
 }
 
 .vf-template-settings {
@@ -2326,6 +2328,7 @@ button.vf-swatch.is-on {
 }
 
 .vf-template-card-created,
+.vf-template-card-tasks,
 .vf-template-card-path {
   margin: 0;
 }

@@ -1420,6 +1420,7 @@ export function parseTemplateMarkdown(source: string): ParsedTemplate {
 		templateVersion: optionalString(data, "templateVersion"),
 		source: optionalString(data, "source"),
 		settings: cardSettings(workspaceOverrides, views, dashboards, projects),
+		taskCount: tasks.length,
 	};
 
 	return {

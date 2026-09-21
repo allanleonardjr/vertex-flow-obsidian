@@ -117,6 +117,44 @@ describe("discoverVaultTemplates", () => {
 		]);
 	});
 
+	it("orders vault templates by createdAt, newest first", async () => {
+		const older = serializeTemplateMarkdown({
+			meta: { id: "older", name: "older", createdAt: "2026-09-10T08:13:00.000Z" },
+			workspace: snapshot.workspace,
+			views: snapshot.views.filter((v) => !isSystemViewId(v.id)),
+			dashboards: snapshot.dashboards,
+			projects: snapshot.projects,
+			queryContext: queryContext(snapshot),
+		});
+		const newer = serializeTemplateMarkdown({
+			meta: { id: "newer", name: "newer", createdAt: "2026-09-21T16:54:00.000Z" },
+			workspace: snapshot.workspace,
+			views: snapshot.views.filter((v) => !isSystemViewId(v.id)),
+			dashboards: snapshot.dashboards,
+			projects: snapshot.projects,
+			queryContext: queryContext(snapshot),
+		});
+		const io = fakeIo({ "older.md": older, "newer.md": newer });
+		const found = await discoverVaultTemplates(io);
+		expect(found.map((t) => t.id)).toEqual(["newer", "older"]);
+	});
+
+	it("sorts templates without a createdAt after ones that have it", async () => {
+		const io = fakeIo({
+			"no-date.md": templateSource("no-date"),
+			"dated.md": serializeTemplateMarkdown({
+				meta: { id: "dated", name: "dated", createdAt: "2026-09-21T16:54:00.000Z" },
+				workspace: snapshot.workspace,
+				views: snapshot.views.filter((v) => !isSystemViewId(v.id)),
+				dashboards: snapshot.dashboards,
+				projects: snapshot.projects,
+				queryContext: queryContext(snapshot),
+			}),
+		});
+		const found = await discoverVaultTemplates(io);
+		expect(found.map((t) => t.id)).toEqual(["dated", "no-date"]);
+	});
+
 	it("ignores non-markdown files", async () => {
 		const io = fakeIo({ "notes.txt": "x", "t.md": templateSource("t") });
 		const found = await discoverVaultTemplates(io);
