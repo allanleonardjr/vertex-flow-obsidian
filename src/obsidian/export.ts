@@ -8,7 +8,7 @@
  */
 
 import type { TFile } from "obsidian";
-import { localTodayIso } from "../core/date";
+import { localTodayIso, localTimeStamp } from "../core/date";
 import {
 	buildExport,
 	exportFilename,
@@ -19,7 +19,6 @@ import {
 	type FieldId,
 } from "../core/export";
 import { serializeTemplateMarkdown } from "../core/templates/markdown/serialize";
-import { WORKSPACE_TEMPLATES } from "../core/templates";
 import { slugify } from "../core/ids";
 import { joinPath } from "../core/links";
 import { queryContext } from "../core/query";
@@ -127,11 +126,12 @@ export async function runExport(
  * Tasks ride along only when `includeArchived` is set, so a full snapshot
  * doesn't leave dangling links.
  *
- * The frontmatter `id` stays unprefixed (it's what the gallery keys on and is
- * independent of the filename) — discovery parses every `.md` file in the
- * templates folder(s) rather than matching a filename pattern, so the
- * filename itself is free to follow the shared `exportFilename()` format
- * (`vertex-flow-export-<date>-<time>-<workspace>-template-<name>.md`).
+ * The frontmatter `id` now carries the same date-time stamp as the filename,
+ * so two exports can never collide on `id`. Discovery no longer treats `id`
+ * as a uniqueness key across a vault's own templates — only a collision with
+ * a *built-in* template's id still matters there — so a hand-edited or
+ * duplicated `id` can't make a legitimate template silently disappear from
+ * the gallery; each vault template's real identity is its file path.
  */
 export async function exportAsTemplate(
 	host: ExportHost,
@@ -161,15 +161,11 @@ export async function exportAsTemplate(
 		/^\/+|\/+$/g,
 		"",
 	);
-	const existingIds = host.io
-		.listFiles(folder)
-		.filter((file) => file.extension === "md")
-		.map((file) => file.basename);
-	const taken = new Set<string>([
-		...WORKSPACE_TEMPLATES.map((template) => template.id),
-		...existingIds,
-	]);
-	const id = slugify(form.name, taken);
+	// Reuses the same timestamp `exportFilename()` computes below, so two
+	// exports can never collide on `id` — no need to scan the folder for
+	// what's already taken. (Discovery no longer treats `id` as a uniqueness
+	// key across vault templates anyway — see template-discovery.ts.)
+	const id = `${slugify(form.name)}-${localTodayIso(now)}-${localTimeStamp(now)}`;
 
 	// A Project's description lives in its note body, not on the `Project`
 	// record — read it on demand, exactly like Task export reads documents.
