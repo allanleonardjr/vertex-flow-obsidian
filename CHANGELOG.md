@@ -15,29 +15,9 @@ This project uses [Semantic Versioning](https://semver.org/).
 - **Opening AI Chat while a model is still genuinely loading now shows a real, animated progress bar with live shard-loading text**, instead of a static "Loading the model…" — the icon also pulses so the multi-second gaps between WebLLM's own progress updates (normal, not a bug) don't read as stuck.
 - **Switching models from the in-chat selector no longer takes over the whole screen.** Your conversation stays fully visible and scrollable the entire time; a small inline "Switching to…" status appears near the input (with a live progress line for a genuine download) instead, followed by a brief confirmation once it lands — or a clear inline error if it fails, rather than a silent full-screen bounce back to an install prompt. Only a completely fresh tab's very first automatic model check still shows the full-screen loading experience.
 - **A live usage meter now shows roughly how much of the selected model's context window your conversation is using**, next to the model selector — muted while there's plenty of room, shifting to a warning color as it climbs, with a plain-language note once you're close to the ceiling suggesting a new conversation or a larger-context model. It's an estimate, labeled as one, not an exact token count.
-
-- **MCP layer for local LLM clients** — a read-only Streamable HTTP server
-  (`127.0.0.1:27124` by default, toggleable, desktop-only) exposes 16 JSON
-  tools letting a local LLM (e.g. LM Studio) query vault workspaces,
-  projects, tasks, views, dashboards, labels, and people; read single entities;
-  search with the same query syntax as the view bar; and read the built-in Help
-  docs. All results carry `obsidian://vertex-flow…` deep links that open the
-  exact task, view, dashboard, or Help topic inside Obsidian. The server stores
-  only a per-device token in localStorage and never writes to the vault or
-  synced settings.
-
-- **Deep-link support** (`obsidian://vertex-flow…`) — four action types
-  (`open-note`, `open-view`, `help`, `query`) decoded via `intentFromParams`
-  and consumed as pending flags that the React tree picks up once a pane mounts:
-  `open-note` → task tab or native editor, `open-view` → synthesesed Saved View
-  (or dashboard when the id names one), `help` → Help topic screen, `query` →
-  ephemeral query tab parsed from the query string against a workspace snapshot.
-
-- **Help doc topic "AI integration (MCP)"** — a new bundled Help topic
-  (`mcp-llm-integration`) explaining what the MCP server is, how to enable it,
-  the `mcpServers` config for LM Studio (`http://127.0.0.1:27124/mcp` +
-  `Authorization: Bearer <token>`), how to check it's running (`/health`), and
-  security notes (localhost-only, token-gated, read-only tools).
+- **MCP layer for local LLM clients** — a read-only Streamable HTTP server (`127.0.0.1:27124` by default, toggleable, desktop-only) exposes 16 JSON tools letting a local LLM (e.g. LM Studio) query vault workspaces, projects, tasks, views, dashboards, labels, and people; read single entities; search with the same query syntax as the view bar; and read the built-in Help docs. All results carry `obsidian://vertex-flow…` deep links that open the exact task, view, dashboard, or Help topic inside Obsidian. The server stores only a per-device token in localStorage and never writes to the vault or synced settings.
+- **Deep-link support** (`obsidian://vertex-flow…`) — four action types (`open-note`, `open-view`, `help`, `query`) decoded via `intentFromParams` and consumed as pending flags that the React tree picks up once a pane mounts: `open-note` → task tab or native editor, `open-view` → synthesesed Saved View (or dashboard when the id names one), `help` → Help topic screen, `query` → ephemeral query tab parsed from the query string against a workspace snapshot.
+- **Help doc topic "AI integration (MCP)"** — a new bundled Help topic (`mcp-llm-integration`) explaining what the MCP server is, how to enable it, the `mcpServers` config for LM Studio (`http://127.0.0.1:27124/mcp` + `Authorization: Bearer <token>`), how to check it's running (`/health`), and security notes (localhost-only, token-gated, read-only tools).
 - **MCP tools no longer need you to know a workspace's internal id.** Every workspace-scoped tool's parameter is now `workspace` (renamed from `workspaceId`) and optional — omitted, it defaults to whichever workspace is currently open in Vertex Flow; supplied, it now matches by name or a partial, case-insensitive name fragment as well as the exact root path. A new `set_active_workspace` tool lets the model switch that default by name for the rest of the session (until changed again or the server restarts) without touching what's actually shown in the Obsidian window. Tool count is now 17; a name matching more than one workspace returns a clear error listing the candidates instead of guessing.
 - **A "Find available port" button next to the MCP server's Port field**, on both the in-app settings panel and Obsidian's native Settings tab, scans upward from the current port for one that's actually free and switches to it automatically.
 - **Turning AI Chat off now actually frees its memory.** A new toggle at the top of the "AI Chat (experimental)" settings section releases the currently loaded model from RAM/VRAM immediately when switched off, without deleting its cached download — turning it back on and selecting the same model reloads instantly from cache with no re-download. The AI Chat tab itself now shows a clear "AI Chat is turned off" state instead of trying to load a model while disabled.
@@ -45,11 +25,7 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
-- **Pending-intent consumption** — `pendingOpenViewRoot` now routes
-  `open-view` deep links naming a dashboard to a dashboard tab and switches the
-  active workspace accordingly; `pendingQuery` parses the query string and lands
-  on a synthesised query tab; `pendingHelpTopic` forwards into `openHelp` so
-  the Help screen lands on the requested topic.
+- **Pending-intent consumption** — `pendingOpenViewRoot` now routes `open-view` deep links naming a dashboard to a dashboard tab and switches the active workspace accordingly; `pendingQuery` parses the query string and lands on a synthesised query tab; `pendingHelpTopic` forwards into `openHelp` so the Help screen lands on the requested topic.
 - **Interrupting an AI Chat response mid-generation could show garbled or raw JSON text appended with `[stopped]`.** The internal buffer used to decide whether a response was a data query is never shown to you now — stopping before anything genuinely visible has streamed always reads exactly "Stopped before responding." Clicking Stop also now shows immediate feedback ("Stopping…", disabled) rather than appearing unresponsive while the underlying generation winds down. The JSON safety net was also too narrow, in two ways now fixed: it required output to be shaped like a recognized search/count action, so plain off-schema JSON (e.g. `{"labels": ["Community/Discord"]}`) slipped through as raw text with working Copy/Retry on it — and even garbled or concatenated JSON that doesn't parse at all (two run-together action attempts) skipped the check entirely, since it only ever ran on output that successfully parsed. Any response that even looks like an attempted structured output now gets the same corrective retry, falling back to a plain "I wasn't able to answer that" message if it still doesn't produce a real answer.
 - **Chat bubble spacing was inconsistent between messages** — a still-generating response's "thinking" dots no longer show the bubble's background at all (only real content gets the bubble), and paragraph spacing inside a bubble is now reliably tight and consistent regardless of message length or shape (a short reply vs. one with several paragraphs, or a paragraph followed by a rendered task list). The root cause: the spacing rule depended on a CSS class Obsidian's renderer doesn't actually add in this context, silently doing nothing — it's applied directly now.
 - **An unfiltered or broad `searchTasks` question (e.g. "show me all tasks") against a large workspace could exceed the selected model's context window outright**, especially on the smallest model. The matched-task list formatted into the request now adaptively shrinks to fit the model's actual remaining budget (same technique as the earlier full-snapshot fix, applied here instead), rather than a fixed row count with no awareness of what the current model can actually hold. Every AI Chat model call also now caps its own response length explicitly rather than leaving it unbounded, closing off a related way a well-under-budget question could still overflow.
@@ -57,6 +33,11 @@ This project uses [Semantic Versioning](https://semver.org/).
 - **Toggling the MCP server off and back on no longer silently regenerates its access token**, which used to break every already-connected client for no reason. The token now only changes when you explicitly click "Regenerate."
 - **Enabling the MCP server no longer flashes a false "Not responding" during ordinary startup.** The status now shows a real spinner through to "Running"; a failure is only reported after a short grace period — long enough to cover the server's own async startup, not so long that a genuine failure (e.g. a port already in use) goes unreported.
 - **A reloaded or disabled MCP server could leave an orphaned process still bound to its port, invisible to the running plugin**, so the next start failed with "port already in use" until the port was changed by hand. The server now force-closes any lingering client connections on stop instead of waiting indefinitely for them to disconnect on their own, so the port is reliably released — including under Obsidian's own hot-reload. When something else is genuinely still bound to the configured port (e.g. an old orphaned process from before this fix), the status now says so plainly — "Port in use by another process" — instead of misreporting "Running."
+- **Template gallery cards now collapse their taxonomy/views/dashboards/projects/people preview behind a "Show details" toggle**, closed by default, so the New Workspace grid reads at a glance instead of every card rendering at full height. State isn't persisted — each card reopens closed the next time you visit the gallery.
+
+### Changed
+
+- **The New Workspace gallery's example-data checkbox is now called "Populate with content."** The old label ("Populate with example content") described built-in sample data only, but the same checkbox also seeds real tasks carried by your own exported templates — the wording no longer implies they're fake.
 
 ## 1.0.28 — 2026-09-19
 
