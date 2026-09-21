@@ -4,7 +4,7 @@
  * A template gallery is the *only* way to make a workspace — there is no
  * separate "blank" path, the plainest template ("Getting Started") is just the
  * first card. Picking a card opens a short config step (name / folder / ID
- * prefix / "populate with example content?") before anything is written.
+ * prefix / "populate with content?") before anything is written.
  *
  * Always rendered as a full pane — inline in the empty state, or in its own
  * tab when opened from the sidebar (`onClose` closes that tab).
@@ -189,7 +189,7 @@ function Gallery({
           <div className="vf-template-grid">
             {vaultTemplates.map((template) => (
               <TemplateCard
-                key={template.id}
+                key={template.path}
                 template={template}
                 onPick={onPick}
               />
@@ -216,6 +216,8 @@ function TemplateCard({
   template: WorkspaceTemplate & { path?: string };
   onPick: (template: WorkspaceTemplate) => void;
 }) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
   return (
     <div
       data-template={template.id}
@@ -240,11 +242,39 @@ function TemplateCard({
         <span className="vf-template-card-title">{template.name}</span>
       </div>
       <p className="vf-template-card-desc">{template.description}</p>
-      <dl className="vf-template-settings">
-        {template.settings.map((setting) => (
-          <SettingRow key={setting.label} setting={setting} />
-        ))}
-      </dl>
+      {template.settings.length > 0 && (
+        <>
+          <button
+            type="button"
+            className="vf-template-details-toggle"
+            aria-expanded={detailsOpen}
+            onClick={(event) => {
+              event.stopPropagation();
+              setDetailsOpen((open) => !open);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.stopPropagation();
+              }
+            }}
+          >
+            <span
+              className={`vf-section-chevron${detailsOpen ? " is-open" : ""}`}
+              aria-hidden
+            >
+              ›
+            </span>
+            {detailsOpen ? "Hide details" : "Show details"}
+          </button>
+          {detailsOpen && (
+            <dl className="vf-template-settings">
+              {template.settings.map((setting) => (
+                <SettingRow key={setting.label} setting={setting} />
+              ))}
+            </dl>
+          )}
+        </>
+      )}
       <div className="vf-template-card-footer">
         {template.path && (
           <div className="vf-template-card-meta">
@@ -506,7 +536,7 @@ function ConfigStep({
         </small>
       </label>
 
-      {/* "Populate with example content" gates whatever Tasks the template
+      {/* "Populate with content" gates whatever Tasks the template
           ships — a built-in gallery template's sample work, or the Tasks a
           vault template was exported with. `supportsExampleContent` is
           truthful about whether there's anything to seed: explicitly `false`
@@ -520,7 +550,7 @@ function ConfigStep({
             onChange={(event) => setPopulate(event.target.checked)}
           />
           <span>
-            Populate with example content
+            Populate with content
             <small>
               {"path" in template
                 ? "Creates the template's Tasks in your new workspace."

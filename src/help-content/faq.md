@@ -71,5 +71,5 @@ folder (you can type one or browse; vault-root `Vertex Flow Templates/` is the
 default), and a template saved there shows up in the New Workspace gallery under
 **From your Vault**, ready to seed a fresh workspace. Tasks stay behind unless
 you tick **"Include tasks in the template file"** — a template that carries
-them then offers the gallery's **"Populate with example content"** toggle when
+them then offers the gallery's **"Populate with content"** toggle when
 you create a new workspace from it.

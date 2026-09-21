@@ -23,7 +23,7 @@ priorities, and types you can shape to your own workflow:
 1. From the sidebar's **Workspaces** section, create a new workspace.
 2. Pick a template (appropriate for a solo shopping list all the way up to a
    full team), give the workspace a name and folder, and choose an ID prefix.
-3. Optionally check **populate with example content** to explore before you
+3. Optionally check **populate with content** to explore before you
    build.
 
 ## Add your first tasks

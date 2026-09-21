@@ -118,7 +118,7 @@ export interface WorkspaceTemplate extends TemplateMeta {
 	 *  Projects ride the returned content as *structure* and are applied whether
 	 *  or not the creator opts into example content; only the returned tasks
 	 *  (and their descriptions/comments) are example material, applied solely
-	 *  when the user ticks "Populate with example content". */
+	 *  when the user ticks "Populate with content". */
 	buildExampleContent(ctx: TemplateBuildContext): TemplateContent;
 }
 

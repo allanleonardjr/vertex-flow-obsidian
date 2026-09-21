@@ -5,6 +5,14 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Added
+
+- **Template gallery cards now collapse their taxonomy/views/dashboards/projects/people preview behind a "Show details" toggle**, closed by default, so the New Workspace grid reads at a glance instead of every card rendering at full height. State isn't persisted — each card reopens closed the next time you visit the gallery.
+
+### Changed
+
+- **The New Workspace gallery's example-data checkbox is now called "Populate with content."** The old label ("Populate with example content") described built-in sample data only, but the same checkbox also seeds real tasks carried by your own exported templates — the wording no longer implies they're fake.
+
 ## 1.0.28 — 2026-09-19
 
 ### Fixed
