@@ -5222,6 +5222,106 @@ input.vf-editable-title-input {
   color: var(--text-error);
 }
 
+/* Local model server: what a pending answer is doing right now, under the
+   thinking dots — a one-line status, then the current round's reasoning.
+   Shown only while its answer is live; no animation of its own beyond the
+   dots, which already honour reduced motion. */
+.vf-chat-activity {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  max-width: 100%;
+}
+
+.vf-chat-activity-status {
+  margin: 0;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.vf-chat-reasoning {
+  width: 560px;
+  max-width: 100%;
+}
+
+/* The "Thinking · 8s" header — a quiet text toggle, reset from Obsidian's
+   base `button` chrome via the `button.` selector. */
+button.vf-chat-reasoning-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  box-shadow: none;
+  background: transparent;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+}
+
+button.vf-chat-reasoning-toggle:hover {
+  color: var(--text-normal);
+}
+
+/* Reasoning text, live or in Steps: plain preformatted text in a muted box,
+   capped at about eleven lines and scrollable past that. */
+.vf-chat-reasoning-body {
+  box-sizing: border-box;
+  max-height: calc(1.5em * 11);
+  margin-top: 4px;
+  padding: 6px 8px;
+  overflow-y: auto;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius);
+  background: var(--background-secondary);
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+/* Local model server: a finished answer's Steps timeline, collapsed by
+   default beside the "Used:" note — same quiet treatment. */
+.vf-chat-steps {
+  margin-top: 4px;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.vf-chat-steps summary {
+  cursor: pointer;
+}
+
+.vf-chat-steps ol {
+  width: 560px;
+  max-width: 100%;
+  margin: 4px 0 0;
+  padding-left: 20px;
+}
+
+.vf-chat-step + .vf-chat-step {
+  margin-top: 2px;
+}
+
+.vf-chat-step code {
+  font-size: inherit;
+}
+
+.vf-chat-step.is-error .vf-chat-step-outcome {
+  color: var(--text-error);
+}
+
+.vf-chat-step-reasoning {
+  margin-top: 2px;
+}
+
+.vf-chat-step-reasoning summary {
+  cursor: pointer;
+}
+
 /* Local model server: the server-reported token count for the last reply. */
 .vf-chat-token-usage {
   color: var(--vf-muted);

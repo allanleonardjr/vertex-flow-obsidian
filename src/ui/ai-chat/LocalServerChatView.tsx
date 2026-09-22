@@ -19,6 +19,7 @@
  * resolved against the live index at render time — computed, never stored.
  */
 
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   LocalServerAbortError,
@@ -39,6 +40,15 @@ import {
   workspaceFromSetActiveResult,
   type LocalChatWireMessage,
 } from "../../core/ai/local-server";
+import {
+  describeActivity,
+  formatElapsed,
+  summarizeToolArgs,
+  summarizeToolResult,
+  thinkingElapsed,
+  totalElapsed,
+  type ChatStep,
+} from "../../core/ai/chat-steps";
 import { localTodayIso } from "../../core/date";
 import { workspaceTaxonomies } from "../../core/taxonomy";
 import type { Project, Task, WorkspaceSnapshot } from "../../core/types";
@@ -54,6 +64,7 @@ import {
   ChatMessageActions,
   ChatTaskList,
   ThinkingIndicator,
+  useThrottledText,
 } from "./chat-parts";
 import { Select } from "../components/Select";
 
@@ -67,6 +78,9 @@ const NEAR_BOTTOM_THRESHOLD_PX = 80;
 const INITIAL_RESULT_ROWS = 10;
 
 const TOOL_CAP_NOTE = `Stopped after ${MAX_TOOL_ROUNDS} tool rounds. Try a more specific question.`;
+
+type ModelStep = Extract<ChatStep, { kind: "model" }>;
+type ToolStep = Extract<ChatStep, { kind: "tool" }>;
 
 type ModelsState =
   | { status: "loading" }
@@ -157,6 +171,138 @@ function ToolsUsed({ calls }: { calls: NonNullable<AiChatBubble["toolCalls"]> })
             {call.isError ? " (error)" : ""}
           </li>
         ))}
+      </ol>
+    </details>
+  );
+}
+
+/** How close to the bottom (px) of the live reasoning box still counts as "following along". */
+const REASONING_STICK_THRESHOLD_PX = 8;
+
+/**
+ * What the pending answer is doing right now, under (or instead of) the
+ * thinking dots: a one-line status (`Waiting for the model · 12s`,
+ * `Running list_tasks…`, `Writing answer…`) ticking every second, plus the
+ * current round's reasoning streaming into a capped, scrollable box.
+ *
+ * Mounted only while its answer is the live one, so the clock and all of this
+ * state go away when the turn ends — the reasoning lives on in `ChatSteps`.
+ * A new answer is a new message, so a fresh instance starts expanded; within
+ * one answer a collapse sticks across rounds.
+ */
+function ChatActivity({ steps, hasAnswerText }: { steps: ChatStep[]; hasAnswerText: boolean }) {
+  const [now, setNow] = useState(() => Date.now());
+  const [collapsed, setCollapsed] = useState(false);
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  // Follows new reasoning until the user scrolls up; back at the bottom, it resumes.
+  const stickRef = useRef(true);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const last = steps[steps.length - 1];
+  const current = last?.kind === "model" ? last : undefined;
+  const reasoning = useThrottledText(current?.reasoning ?? "");
+  const showReasoning = !hasAnswerText && current != null && reasoning.length > 0;
+
+  useEffect(() => {
+    const body = bodyRef.current;
+    if (!body || collapsed || !stickRef.current) return;
+    body.scrollTop = body.scrollHeight;
+  }, [reasoning, collapsed]);
+
+  const status = describeActivity(steps, now, hasAnswerText);
+
+  return (
+    <div className="vf-chat-activity">
+      {!hasAnswerText && <ThinkingIndicator />}
+      <p className="vf-chat-activity-status" aria-live="polite">
+        {status}
+      </p>
+      {showReasoning && (
+        <div className={`vf-chat-reasoning${collapsed ? " is-collapsed" : ""}`}>
+          <button
+            type="button"
+            className="vf-chat-reasoning-toggle"
+            aria-expanded={!collapsed}
+            onClick={() => {
+              stickRef.current = true;
+              setCollapsed((value) => !value);
+            }}
+          >
+            Thinking · {formatElapsed(thinkingElapsed(current, now))}
+            {collapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+          </button>
+          {!collapsed && (
+            <div
+              ref={bodyRef}
+              className="vf-chat-reasoning-body"
+              onScroll={() => {
+                const el = bodyRef.current;
+                if (!el) return;
+                stickRef.current =
+                  el.scrollHeight - el.scrollTop - el.clientHeight <= REASONING_STICK_THRESHOLD_PX;
+              }}
+            >
+              {reasoning}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * A finished answer's timeline, collapsed by default beside the "Used:" note:
+ * every model round (how long it took, how long before its first token, and
+ * its reasoning, itself collapsed) and every tool call (arguments, outcome,
+ * duration).
+ */
+function ChatSteps({ steps }: { steps: ChatStep[] }) {
+  return (
+    <details className="vf-chat-steps">
+      <summary>
+        Steps · {steps.length} · {formatElapsed(totalElapsed(steps))}
+      </summary>
+      <ol>
+        {steps.map((step, index) => {
+          const elapsed = formatElapsed((step.endedAt ?? step.startedAt) - step.startedAt);
+          if (step.kind === "model") {
+            return (
+              <li key={index} className="vf-chat-step">
+                <span>
+                  Model round {step.round} · {elapsed}
+                  {step.firstTokenAt != null &&
+                    ` (waited ${formatElapsed(step.firstTokenAt - step.startedAt)})`}
+                </span>
+                {step.reasoning && (
+                  <details className="vf-chat-step-reasoning">
+                    <summary>Reasoning</summary>
+                    <div className="vf-chat-reasoning-body">{step.reasoning}</div>
+                  </details>
+                )}
+              </li>
+            );
+          }
+          return (
+            <li
+              key={index}
+              className={`vf-chat-step${step.outcome?.isError ? " is-error" : ""}`}
+            >
+              <code>{step.name || "unknown tool"}</code>
+              {step.argsSummary && (
+                <span className="vf-chat-step-args"> {step.argsSummary}</span>
+              )}
+              <span className="vf-chat-step-outcome">
+                {" "}
+                → {step.outcome?.summary ?? "no result"} · {elapsed}
+              </span>
+            </li>
+          );
+        })}
       </ol>
     </details>
   );
@@ -255,6 +401,56 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
   };
 
   const runTurn = async (history: AiChatBubble[], model: string, signal: AbortSignal) => {
+    // The turn's Steps timeline. This local array is the source of truth;
+    // every change replaces the step object (never mutates it) and publishes
+    // a fresh copy to the bubble, so a replayed state updater stays correct.
+    const steps: ChatStep[] = [];
+    const syncSteps = () => {
+      const published = [...steps];
+      updateLastAssistant((bubble) => ({ ...bubble, steps: published }));
+    };
+    const patchModelStep = (index: number, patch: (step: ModelStep) => ModelStep) => {
+      const step = steps[index];
+      if (step?.kind === "model") steps[index] = patch(step);
+    };
+    const patchToolStep = (index: number, patch: (step: ToolStep) => ToolStep) => {
+      const step = steps[index];
+      if (step?.kind === "tool") steps[index] = patch(step);
+    };
+
+    try {
+      await runRounds(history, model, signal, steps, syncSteps, patchModelStep, patchToolStep);
+    } catch (error) {
+      // Close whatever was still open, so Steps never shows a step running
+      // forever after a Stop or a failure.
+      const reason =
+        signal.aborted || error instanceof LocalServerAbortError ? "stopped" : "failed";
+      const endedAt = Date.now();
+      steps.forEach((step, index) => {
+        if (step.endedAt != null) return;
+        if (step.kind === "model") patchModelStep(index, (s) => ({ ...s, endedAt }));
+        else {
+          patchToolStep(index, (s) => ({
+            ...s,
+            endedAt,
+            outcome: s.outcome ?? { isError: true, summary: reason },
+          }));
+        }
+      });
+      syncSteps();
+      throw error;
+    }
+  };
+
+  const runRounds = async (
+    history: AiChatBubble[],
+    model: string,
+    signal: AbortSignal,
+    steps: ChatStep[],
+    syncSteps: () => void,
+    patchModelStep: (index: number, patch: (step: ModelStep) => ModelStep) => void,
+    patchToolStep: (index: number, patch: (step: ToolStep) => ToolStep) => void,
+  ) => {
     const bridge = await ensureBridge(chatRoot);
     const tools = mcpToolsToOpenAiTools(await bridge.listTools());
     const baseMessages = bubblesToWireMessages(
@@ -270,6 +466,17 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
 
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
       updateLastAssistant((bubble) => ({ ...bubble, content: "" }));
+      const modelIndex =
+        steps.push({ kind: "model", round: round + 1, startedAt: Date.now(), reasoning: "" }) - 1;
+      syncSteps();
+      /** Stamps the round's first content or reasoning fragment; returns whether this was it. */
+      const markFirstToken = (): boolean => {
+        const step = steps[modelIndex];
+        if (step?.kind !== "model" || step.firstTokenAt != null) return false;
+        const firstTokenAt = Date.now();
+        patchModelStep(modelIndex, (s) => ({ ...s, firstTokenAt }));
+        return true;
+      };
       const result = await streamChatCompletion({
         baseUrl,
         apiKey: getLocalServerKey(),
@@ -279,9 +486,21 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
           tools,
           tool_choice: "auto",
         },
-        onContentDelta: appendToLastAssistant,
+        onContentDelta: (text) => {
+          const first = markFirstToken();
+          appendToLastAssistant(text);
+          if (first) syncSteps();
+        },
+        onReasoningDelta: (text) => {
+          markFirstToken();
+          patchModelStep(modelIndex, (s) => ({ ...s, reasoning: s.reasoning + text }));
+          syncSteps();
+        },
         signal,
       });
+      const roundEndedAt = Date.now();
+      patchModelStep(modelIndex, (s) => ({ ...s, endedAt: roundEndedAt }));
+      syncSteps();
       const tokens = result.usage?.total_tokens;
       if (typeof tokens === "number") {
         updateLastAssistant((bubble) => ({ ...bubble, tokens }));
@@ -299,11 +518,39 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
       for (const call of result.toolCalls) {
         if (signal.aborted) throw new LocalServerAbortError();
         const parsed = parseToolArguments(call.name, call.arguments);
+        const toolIndex =
+          steps.push({
+            kind: "tool",
+            name: call.name,
+            argsSummary: "error" in parsed ? "invalid arguments" : summarizeToolArgs(parsed.args),
+            startedAt: Date.now(),
+          }) - 1;
+        syncSteps();
         if ("error" in parsed) {
+          const endedAt = Date.now();
+          patchToolStep(toolIndex, (s) => ({
+            ...s,
+            endedAt,
+            outcome: {
+              isError: true,
+              summary: summarizeToolResult(parsed.error.replace(/^Error:\s*/, ""), true),
+            },
+          }));
+          syncSteps();
           toolMessages.push({ role: "tool", tool_call_id: call.id, content: parsed.error });
           toolCalls.push({ name: call.name, isError: true });
         } else {
           const outcome = await bridge.callTool(call.name, parsed.args);
+          const endedAt = Date.now();
+          patchToolStep(toolIndex, (s) => ({
+            ...s,
+            endedAt,
+            outcome: {
+              isError: outcome.isError,
+              summary: summarizeToolResult(outcome.text, outcome.isError),
+            },
+          }));
+          syncSteps();
           if (signal.aborted) throw new LocalServerAbortError();
           toolMessages.push({
             role: "tool",
@@ -551,14 +798,16 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
           </p>
         ) : (
           messages.map((message, index) => {
-            const isStreamingPlaceholder =
-              sending && index === messages.length - 1 && !message.content;
+            // The live answer: `ChatActivity` shows its progress, and its
+            // Steps wait until the turn ends.
+            const isLive =
+              sending && index === messages.length - 1 && message.role === "assistant";
             return (
               <div
                 key={message.id}
                 className={`vf-chat-message vf-chat-message-${message.role}`}
               >
-                {message.content ? (
+                {message.content && (
                   <div
                     className={`vf-chat-bubble vf-chat-bubble-${message.role}${
                       message.error ? " is-error" : ""
@@ -574,11 +823,15 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
                       />
                     )}
                   </div>
-                ) : (
-                  isStreamingPlaceholder && <ThinkingIndicator />
+                )}
+                {isLive && (
+                  <ChatActivity steps={message.steps ?? []} hasAnswerText={!!message.content} />
                 )}
                 {message.toolCalls && message.toolCalls.length > 0 && (
                   <ToolsUsed calls={message.toolCalls} />
+                )}
+                {!isLive && message.steps && message.steps.length > 0 && (
+                  <ChatSteps steps={message.steps} />
                 )}
                 <ChatMessageActions
                   message={message}

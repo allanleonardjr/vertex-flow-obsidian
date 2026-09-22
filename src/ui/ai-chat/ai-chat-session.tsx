@@ -35,6 +35,7 @@ import {
 	type ReactNode,
 } from "react";
 import { createMcpBridge, type McpBridge } from "../../ai/mcp-bridge";
+import type { ChatStep } from "../../core/ai/chat-steps";
 import type { LocalChatWireMessage, ToolResultRows } from "../../core/ai/local-server";
 import type { ProjectFilters } from "../../core/views/filter";
 import type { ViewFilters } from "../../core/types";
@@ -109,6 +110,13 @@ export interface AiChatBubble {
 	tokens?: number;
 	/** Local server only: this bubble is a connection/server error, shown but never replayed to the model. */
 	error?: boolean;
+	/**
+	 * Local server only: the turn's timeline — each model round (with its
+	 * streamed reasoning) and each tool call, with timings. Display-only:
+	 * never replayed to the model (`bubblesToWireMessages` ignores it), never
+	 * copied, never written to disk.
+	 */
+	steps?: ChatStep[];
 }
 
 interface AiChatSessionValue {
