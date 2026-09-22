@@ -364,16 +364,42 @@ export function TaskTable({
 								{grouped && group.label && (
 									<tr className="vf-table-group-row">
 										<td colSpan={columns.length + 1}>
-											<span className="vf-table-group-label">
-												{group.color && (
+											{interaction?.onToggleGroupCollapse ? (
+												<button
+													type="button"
+													className="vf-table-group-label vf-table-group-toggle"
+													aria-expanded={!group.collapsed}
+													onClick={() =>
+														interaction.onToggleGroupCollapse?.(group.key)
+													}
+												>
 													<span
-														className="vf-status-dot"
-														style={{ backgroundColor: group.color }}
-													/>
-												)}
-												<span>{group.label}</span>
-												<span className="vf-count">{group.tasks.length}</span>
-											</span>
+														className={`vf-section-chevron${group.collapsed ? "" : " is-open"}`}
+														aria-hidden
+													>
+														›
+													</span>
+													{group.color && (
+														<span
+															className="vf-status-dot"
+															style={{ backgroundColor: group.color }}
+														/>
+													)}
+													<span>{group.label}</span>
+													<span className="vf-count">{group.tasks.length}</span>
+												</button>
+											) : (
+												<span className="vf-table-group-label">
+													{group.color && (
+														<span
+															className="vf-status-dot"
+															style={{ backgroundColor: group.color }}
+														/>
+													)}
+													<span>{group.label}</span>
+													<span className="vf-count">{group.tasks.length}</span>
+												</span>
+											)}
 										</td>
 									</tr>
 								)}
