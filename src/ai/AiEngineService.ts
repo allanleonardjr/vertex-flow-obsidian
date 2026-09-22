@@ -41,50 +41,17 @@ export interface AiModelOption {
  * bigger window's real need.
  *
  * Targets are chosen to stay within ≈8 GB total: 16K on the Qwen2.5 options,
- * 8K on Llama-3.1-8B (128 KB/token kv — the priciest of the four), and a
- * 32K long-context option via Gemma 4 E2B's single-key-value-head attention
- * (the cheapest big-window grammar in the list).
+ * and 8K on Llama-3.1-8B (128 KB/token kv — the priciest of the three).
  */
 const MODEL_AUGMENTATIONS: Record<string, { contextWindow: number; kvBytesPerToken: number }> = {
 	"Qwen2.5-3B-Instruct-q4f16_1-MLC": { contextWindow: 16384, kvBytesPerToken: 73_728 },
 	"Qwen2.5-7B-Instruct-q4f16_1-MLC": { contextWindow: 16384, kvBytesPerToken: 57_344 },
 	"Llama-3.1-8B-Instruct-q4f32_1-MLC": { contextWindow: 8192, kvBytesPerToken: 131_072 },
-	"gemma-4-E2B-it-q4f16_1-MLC": { contextWindow: 32768, kvBytesPerToken: 35_840 },
-};
-
-/**
- * Gemma 4 E2B, compiled for WebGPU as `KirbyzDaShizNit/gemma-4-E2B-it-q4f16_1-MLC`
- * (q4f16_1, ~2.7 GB weights). A custom MLC/WebLLM artifact, not an official
- * mlc-ai release — included here as the long-context option, kept separate
- * from the package's own prebuilt records. Its compiled
- * `mlc-chat-config.json` ships with an 8192-token window, raised to 32K
- * below — the runtime KV allocation is what bounds it, not the model (native
- * 128K with a 512-token sliding window).
- *
- * WebLLM's embedded TVM runtime (fixed at the installed package version,
- * 0.2.85 — the newest published) can only instantiate a model library that
- * imports the symbols it exports. Most Gemma 4 WebGPU builds at the moment
- * (including `welcoma/...` and `Maelstrome/...`) were compiled against a
- * forked TVM adding `ResetThreadPool`, which 0.2.85 does not export — those
- * fail at load with a `WebAssembly LinkError`. This build's lib imports only
- * the standard `TVMFFIWasmSafeCall`, so it links. Verified by inspecting the
- * wasm's import section, not assumed; unvalidated upstream (0 downloads), so
- * the install itself remains the real test.
- */
-const GEMMA_4_E2B_MODEL_BASE = "https://huggingface.co/KirbyzDaShizNit/gemma-4-E2B-it-q4f16_1-MLC";
-const GEMMA_4_E2B_MODEL: ModelRecord = {
-	model: GEMMA_4_E2B_MODEL_BASE,
-	model_id: "gemma-4-E2B-it-q4f16_1-MLC",
-	model_lib: `${GEMMA_4_E2B_MODEL_BASE}/resolve/main/libs/gemma-4-E2B-it-q4f16_1-MLC-webgpu.wasm`,
-	required_features: ["shader-f16"],
-	vram_required_MB: 3800,
-	overrides: { context_window_size: 32768 },
 };
 
 /**
  * The plugin's effective model list: the package's prebuilt records with the
- * augmentations above applied, plus the custom Gemma 4 E2B record. Single
- * source of truth for both the engine's `appConfig` and `aiModelInfo()` so
+ * augmentations above applied. Single source of truth for both the engine's `appConfig` and `aiModelInfo()` so
  * the settings row, the chat context meter, and `chat()`'s `max_tokens`
  * budget all agree on the window actually running in the worker.
  */
@@ -105,13 +72,11 @@ export const AI_MODEL_LIST: ModelRecord[] = [
 			},
 		};
 	}),
-	GEMMA_4_E2B_MODEL,
 ];
 
 /**
- * The four selectable options. Three are package prebuilts (Qwen2.5-3B,
- * Qwen2.5-7B, Llama-3.1-8B), all carrying the raised context windows above;
- * the fourth is the community-compiled Gemma 4 E2B long-context option. The
+ * The three selectable options, all package prebuilts (Qwen2.5-3B,
+ * Qwen2.5-7B, Llama-3.1-8B) carrying the raised context windows above. The
  * query-on-demand architecture in `AiChatView` (facts layer + on-demand
  * `searchTasks`/`countTasks`, never a full snapshot injection) is what keeps
  * even the smallest option usable at any workspace size.
@@ -120,10 +85,14 @@ export const AI_MODEL_OPTIONS: AiModelOption[] = [
 	{ id: "Qwen2.5-3B-Instruct-q4f16_1-MLC", label: "Fast (small)" },
 	{ id: "Qwen2.5-7B-Instruct-q4f16_1-MLC", label: "Balanced" },
 	{ id: "Llama-3.1-8B-Instruct-q4f32_1-MLC", label: "Most capable (needs more VRAM)" },
-	{ id: "gemma-4-E2B-it-q4f16_1-MLC", label: "Gemma 4 E2B (edge, long context)" },
 ];
 
 export const DEFAULT_AI_MODEL_ID = AI_MODEL_OPTIONS[0].id;
+
+/** A persisted model id that's no longer offered (e.g. a retired option) falls back to the default instead of being loaded blind. */
+export function resolveAiModelId(modelId: string): string {
+	return AI_MODEL_OPTIONS.some((option) => option.id === modelId) ? modelId : DEFAULT_AI_MODEL_ID;
+}
 
 /**
  * `chat()`'s `max_tokens` sizing — an explicit cap on the *completion*,
@@ -158,8 +127,7 @@ export class AiEngineService {
 	private readonly appConfig: AppConfig = {
 		...prebuiltAppConfig,
 		// The plugin's effective list: prebuilt records plus the raised
-		// context windows and the custom Gemma 4 E2B record — the same list
-		// `aiModelInfo` reads.
+		// context windows — the same list `aiModelInfo` reads.
 		model_list: AI_MODEL_LIST,
 		// More predictable quota behavior than the Cache API default for
 		// multi-gigabyte model weights.

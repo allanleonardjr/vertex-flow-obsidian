@@ -15,7 +15,7 @@ import {
   Plugin,
   WorkspaceLeaf,
 } from "obsidian";
-import { AiEngineService } from "./ai/AiEngineService";
+import { AiEngineService, resolveAiModelId } from "./ai/AiEngineService";
 import { VaultIndex } from "./obsidian/index-store";
 import { Mutations } from "./obsidian/mutations";
 import { NoteIO } from "./obsidian/note-io";
@@ -697,8 +697,7 @@ export default class VertexFlowPlugin extends Plugin {
 
     // Dead keys from older localStorage/runtime-state migrations — never
     // read by current code. `selectedAiModelId` is deliberately NOT in this
-    // list: it belongs to the in-progress feature/ai branch and has no
-    // corresponding VertexFlowSettings field yet, but should be left alone.
+    // list: it's a live setting, normalized by `resolveAiModelId` below.
     for (const deadKey of [
       "mePerson",
       "activeWorkspaceRoot",
@@ -713,6 +712,9 @@ export default class VertexFlowPlugin extends Plugin {
       {},
       DEFAULT_SETTINGS,
       raw as Partial<VertexFlowSettings>,
+    );
+    this.settings.selectedAiModelId = resolveAiModelId(
+      this.settings.selectedAiModelId,
     );
     // Persist the migration/cleanup immediately so data.json is rewritten
     // clean on the very next load, not just whenever some other setting
