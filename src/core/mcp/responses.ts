@@ -330,7 +330,7 @@ export function taskRowWithUri(
 	return {
 		...taskRow(subtaskCounts, task),
 		vaultUri: buildVaultUri({
-			action: "open-note",
+			action: "open-task",
 			path: task.path,
 			target: "vf",
 		}),
@@ -1129,7 +1129,7 @@ export function recurringRows(
 			statuses ?? taxonomies.status.values,
 		),
 		vaultUri: buildVaultUri({
-			action: "open-note",
+			action: "open-task",
 			path: row.task.path,
 			target: "vf",
 		}),

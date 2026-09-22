@@ -9,10 +9,10 @@
  *
  * Grammar (each URI carries exactly one action):
  *
- *   open-note=<encoded path>      Open a note in Vertex Flow's editor
- *       &target=vf|native           (`vf` = the Task editor tab; `native` =
- *                                   Obsidian's plain markdown leaf — the one
- *                                   exception, useful for non-task notes)
+ *   open-task=<encoded path>      Open a task (or, when the path names a
+ *       &target=vf|native           non-task note, that note) in Vertex Flow's
+ *                                   editor (`vf` = the Task editor tab; `native` =
+ *                                   Obsidian's plain markdown leaf)
  *   open-view=<encoded viewId>    Open a Saved View tab in the plugin UI
  *       &root=<encoded root>        System Views need the owning workspace root;
  *                                   a user view resolves its owner via the index
@@ -29,7 +29,7 @@
 export const MCP_URI_SCHEME = "obsidian://vertex-flow";
 
 export type VaultUriIntent =
-	| { action: "open-note"; path: string; target: "vf" | "native" }
+	| { action: "open-task"; path: string; target: "vf" | "native" }
 	| { action: "open-view"; viewId: string; root?: string }
 	| { action: "help"; topicId: string; anchor?: string }
 	| { action: "query"; source: string; root?: string };
@@ -38,8 +38,8 @@ export type VaultUriIntent =
 export function buildVaultUri(intent: VaultUriIntent): string {
 	const params = new URLSearchParams();
 	switch (intent.action) {
-		case "open-note":
-			params.set("open-note", intent.path);
+		case "open-task":
+			params.set("open-task", intent.path);
 			params.set("target", intent.target);
 			break;
 		case "open-view":
@@ -65,10 +65,10 @@ export function buildVaultUri(intent: VaultUriIntent): string {
 export function intentFromParams(
 	params: Record<string, string | null | undefined>,
 ): VaultUriIntent | null {
-	if (typeof params["open-note"] === "string" && params["open-note"] !== "") {
+	if (typeof params["open-task"] === "string" && params["open-task"] !== "") {
 		return {
-			action: "open-note",
-			path: params["open-note"],
+			action: "open-task",
+			path: params["open-task"],
 			target: params["target"] === "native" ? "native" : "vf",
 		};
 	}

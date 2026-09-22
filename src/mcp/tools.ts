@@ -176,7 +176,7 @@ function vaultUriForHit(
 	switch (hit.kind) {
 		case "task":
 		case "project":
-			return buildVaultUri({ action: "open-note", path: hit.id, target: "vf" });
+			return buildVaultUri({ action: "open-task", path: hit.id, target: "vf" });
 		case "view":
 			return buildVaultUri({ action: "open-view", viewId: hit.id, root });
 		default:
@@ -1273,7 +1273,7 @@ export function createMcpServer(deps: McpDeps): McpServer {
 					path: task.path,
 					snippet,
 					vaultUri: buildVaultUri({
-						action: "open-note",
+						action: "open-task",
 						path: task.path,
 						target: "vf",
 					}),

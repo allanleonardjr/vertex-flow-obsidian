@@ -49,8 +49,8 @@ const snapshot = sampleSnapshot();
 
 describe("vault URI grammar", () => {
 	const intents: VaultUriIntent[] = [
-		{ action: "open-note", path: "Sample Workspace/Tasks/TSK-0001", target: "vf" },
-		{ action: "open-note", path: "A/B/C.md note", target: "native" },
+		{ action: "open-task", path: "Sample Workspace/Tasks/TSK-0001", target: "vf" },
+		{ action: "open-task", path: "A/B/C.md note", target: "native" },
 		{ action: "open-view", viewId: "all-tasks", root: "Sample Workspace" },
 		{ action: "open-view", viewId: "sprint-board" },
 		{ action: "help", topicId: "views-saved-views", anchor: "query-language" },
@@ -65,7 +65,7 @@ describe("vault URI grammar", () => {
 
 	it("handles paths with spaces and slashes", () => {
 		const intent: VaultUriIntent = {
-			action: "open-note",
+			action: "open-task",
 			path: "Sample Workspace/Projects/Core App Experience",
 			target: "vf",
 		};
@@ -73,13 +73,13 @@ describe("vault URI grammar", () => {
 	});
 
 	it("rejects URIs from another scheme", () => {
-		expect(parseVaultUri("obsidian://other?open-note=x")).toBeNull();
+		expect(parseVaultUri("obsidian://other?open-task=x")).toBeNull();
 	});
 
-	it("defaults the open-note target to vf", () => {
-		const parsed = parseVaultUri("obsidian://vertex-flow?open-note=Tasks%2FTSK-1");
+	it("defaults the open-task target to vf", () => {
+		const parsed = parseVaultUri("obsidian://vertex-flow?open-task=Tasks%2FTSK-1");
 		expect(parsed).toEqual({
-			action: "open-note",
+			action: "open-task",
 			path: "Tasks/TSK-1",
 			target: "vf",
 		});
@@ -255,7 +255,7 @@ describe("task payloads", () => {
 		const task = snapshot.tasks[0];
 		const detail = taskDetail(snapshot, task, "Do the thing.", "alice");
 		expect(detail.task.id).toBe(task.id);
-		expect(detail.task.vaultUri).toContain("open-note");
+		expect(detail.task.vaultUri).toContain("open-task");
 		expect(detail.task.description).toBe("Do the thing.");
 		expect(detail.task.relations).toHaveProperty("blocks");
 		expect(detail.task.relations).toHaveProperty("duplicateOf");
@@ -633,7 +633,7 @@ describe("recurring payloads", () => {
 		expect(list.results[0].summary).toContain("Every week");
 		expect(list.results[0].vaultUri).toBe(
 			buildVaultUri({
-				action: "open-note",
+				action: "open-task",
 				path: list.results[0].path,
 				target: "vf",
 			}),

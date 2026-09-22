@@ -19,6 +19,7 @@ import {
 	prebuiltAppConfig,
 	type AppConfig,
 	type InitProgressCallback,
+	type ModelRecord,
 	type WebWorkerMLCEngine,
 } from "@mlc-ai/web-llm";
 import { estimateTokens } from "../core/ai/snapshot";
@@ -29,20 +30,97 @@ export interface AiModelOption {
 }
 
 /**
- * Three real candidates pulled from the installed `@mlc-ai/web-llm` package's
- * own `prebuiltAppConfig.model_list` (verified against v0.2.85, the latest
- * published version — see `aiModelInfo` below, which reads vram/context from
- * that same list rather than duplicating numbers here). They differ in size
- * and quality, not context window: no chat model in that list, of any family,
- * ships past a 4096-token context — the query-on-demand architecture in
- * `AiChatView` (facts layer + on-demand `searchTasks`/`countTasks`, never a
- * full snapshot injection) is what actually keeps this working at any
- * workspace size, regardless of which of these is active.
+ * Plugin-owned augmentations applied on top of the installed
+ * `@mlc-ai/web-llm` package's own `prebuiltAppConfig.model_list`. The MLC
+ * builders ship every chat model with a conservative 4096-token KV cache;
+ * the models themselves are natively far longer-context (Qwen2.5 → 128K,
+ * Llama 3.1 → 128K), so we raise the runtime window here. That costs VRAM
+ * linearly — `2 · layers · kv_heads · head_dim · 2 bytes` per token — which
+ * is why `kvBytesPerToken` per model also feeds the `vram_required_MB`
+ * recompute below instead of letting the settings row under-report the
+ * bigger window's real need.
+ *
+ * Targets are chosen to stay within ≈8 GB total: 16K on the Qwen2.5 options,
+ * 8K on Llama-3.1-8B (128 KB/token kv — the priciest of the four), and a
+ * 32K long-context option via Gemma 4 E2B's single-key-value-head attention
+ * (the cheapest big-window grammar in the list).
+ */
+const MODEL_AUGMENTATIONS: Record<string, { contextWindow: number; kvBytesPerToken: number }> = {
+	"Qwen2.5-3B-Instruct-q4f16_1-MLC": { contextWindow: 16384, kvBytesPerToken: 73_728 },
+	"Qwen2.5-7B-Instruct-q4f16_1-MLC": { contextWindow: 16384, kvBytesPerToken: 57_344 },
+	"Llama-3.1-8B-Instruct-q4f32_1-MLC": { contextWindow: 8192, kvBytesPerToken: 131_072 },
+	"gemma-4-E2B-it-q4f16_1-MLC": { contextWindow: 32768, kvBytesPerToken: 35_840 },
+};
+
+/**
+ * Gemma 4 E2B, compiled for WebGPU as `KirbyzDaShizNit/gemma-4-E2B-it-q4f16_1-MLC`
+ * (q4f16_1, ~2.7 GB weights). A custom MLC/WebLLM artifact, not an official
+ * mlc-ai release — included here as the long-context option, kept separate
+ * from the package's own prebuilt records. Its compiled
+ * `mlc-chat-config.json` ships with an 8192-token window, raised to 32K
+ * below — the runtime KV allocation is what bounds it, not the model (native
+ * 128K with a 512-token sliding window).
+ *
+ * WebLLM's embedded TVM runtime (fixed at the installed package version,
+ * 0.2.85 — the newest published) can only instantiate a model library that
+ * imports the symbols it exports. Most Gemma 4 WebGPU builds at the moment
+ * (including `welcoma/...` and `Maelstrome/...`) were compiled against a
+ * forked TVM adding `ResetThreadPool`, which 0.2.85 does not export — those
+ * fail at load with a `WebAssembly LinkError`. This build's lib imports only
+ * the standard `TVMFFIWasmSafeCall`, so it links. Verified by inspecting the
+ * wasm's import section, not assumed; unvalidated upstream (0 downloads), so
+ * the install itself remains the real test.
+ */
+const GEMMA_4_E2B_MODEL_BASE = "https://huggingface.co/KirbyzDaShizNit/gemma-4-E2B-it-q4f16_1-MLC";
+const GEMMA_4_E2B_MODEL: ModelRecord = {
+	model: GEMMA_4_E2B_MODEL_BASE,
+	model_id: "gemma-4-E2B-it-q4f16_1-MLC",
+	model_lib: `${GEMMA_4_E2B_MODEL_BASE}/resolve/main/libs/gemma-4-E2B-it-q4f16_1-MLC-webgpu.wasm`,
+	required_features: ["shader-f16"],
+	vram_required_MB: 3800,
+	overrides: { context_window_size: 32768 },
+};
+
+/**
+ * The plugin's effective model list: the package's prebuilt records with the
+ * augmentations above applied, plus the custom Gemma 4 E2B record. Single
+ * source of truth for both the engine's `appConfig` and `aiModelInfo()` so
+ * the settings row, the chat context meter, and `chat()`'s `max_tokens`
+ * budget all agree on the window actually running in the worker.
+ */
+export const AI_MODEL_LIST: ModelRecord[] = [
+	...prebuiltAppConfig.model_list.map((record) => {
+		const augmentation = MODEL_AUGMENTATIONS[record.model_id];
+		if (!augmentation) return record;
+		const baseContext = record.overrides?.context_window_size ?? 4096;
+		const addedKvPerMb = augmentation.kvBytesPerToken / (1024 * 1024);
+		return {
+			...record,
+			vram_required_MB:
+				(record.vram_required_MB ?? 0) +
+				Math.max(0, augmentation.contextWindow - baseContext) * addedKvPerMb,
+			overrides: {
+				...record.overrides,
+				context_window_size: augmentation.contextWindow,
+			},
+		};
+	}),
+	GEMMA_4_E2B_MODEL,
+];
+
+/**
+ * The four selectable options. Three are package prebuilts (Qwen2.5-3B,
+ * Qwen2.5-7B, Llama-3.1-8B), all carrying the raised context windows above;
+ * the fourth is the community-compiled Gemma 4 E2B long-context option. The
+ * query-on-demand architecture in `AiChatView` (facts layer + on-demand
+ * `searchTasks`/`countTasks`, never a full snapshot injection) is what keeps
+ * even the smallest option usable at any workspace size.
  */
 export const AI_MODEL_OPTIONS: AiModelOption[] = [
 	{ id: "Qwen2.5-3B-Instruct-q4f16_1-MLC", label: "Fast (small)" },
 	{ id: "Qwen2.5-7B-Instruct-q4f16_1-MLC", label: "Balanced" },
 	{ id: "Llama-3.1-8B-Instruct-q4f32_1-MLC", label: "Most capable (needs more VRAM)" },
+	{ id: "gemma-4-E2B-it-q4f16_1-MLC", label: "Gemma 4 E2B (edge, long context)" },
 ];
 
 export const DEFAULT_AI_MODEL_ID = AI_MODEL_OPTIONS[0].id;
@@ -60,9 +138,9 @@ const MIN_COMPLETION_TOKENS = 64;
 /** No ordinary chat reply needs more than this; caps `max_tokens` even when the raw remaining budget would technically allow more. */
 const MAX_COMPLETION_TOKENS = 1024;
 
-/** VRAM/context for a model id, read live from the package's own config — never hand-copied, so it can't drift from what's actually installed. */
+/** VRAM/context for a model id, read from `AI_MODEL_LIST` — the same list the engine runs — never a hard-coded copy that could drift from it. */
 export function aiModelInfo(modelId: string): { vramMB: number | null; contextWindow: number | null } {
-	const entry = prebuiltAppConfig.model_list.find((candidate) => candidate.model_id === modelId);
+	const entry = AI_MODEL_LIST.find((candidate) => candidate.model_id === modelId);
 	return {
 		vramMB: entry?.vram_required_MB ?? null,
 		contextWindow: entry?.overrides?.context_window_size ?? null,
@@ -79,6 +157,10 @@ export interface AiChatMessage {
 export class AiEngineService {
 	private readonly appConfig: AppConfig = {
 		...prebuiltAppConfig,
+		// The plugin's effective list: prebuilt records plus the raised
+		// context windows and the custom Gemma 4 E2B record — the same list
+		// `aiModelInfo` reads.
+		model_list: AI_MODEL_LIST,
 		// More predictable quota behavior than the Cache API default for
 		// multi-gigabyte model weights.
 		cacheBackend: "indexeddb",

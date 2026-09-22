@@ -535,7 +535,7 @@ export default class VertexFlowPlugin extends Plugin {
    */
   private async handleDeepLink(intent: VaultUriIntent): Promise<void> {
     switch (intent.action) {
-      case "open-note": {
+      case "open-task": {
         if (intent.target === "native") {
           await this.app.workspace.openLinkText(intent.path, "");
           return;

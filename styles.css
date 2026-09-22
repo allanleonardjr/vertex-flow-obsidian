@@ -4782,15 +4782,32 @@ input.vf-editable-title-input {
    meter, since this tracks a multi-gigabyte download. */
 .vf-ai-progress-wrap {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  max-width: 420px;
-  margin: 0 0 12px;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 640px;
+  margin: 12px 0;
+}
+
+/* Stacked layout for the settings download meter: full-width bar on its own
+   line, the long status text wrapping un-truncated beneath it. */
+.vf-ai-progress-wrap .vf-ai-progress {
+  flex: none;
+  width: 100%;
+  min-width: 0;
+}
+
+.vf-ai-progress-wrap .vf-ai-progress-label {
+  flex: none;
+  width: 100%;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .vf-ai-progress {
   flex: 1 1 auto;
   height: 6px;
+  min-width: 80px;
   overflow: hidden;
   border-radius: 3px;
   background: var(--background-modifier-border);
@@ -4804,10 +4821,13 @@ input.vf-editable-title-input {
 }
 
 .vf-ai-progress-label {
-  flex-shrink: 0;
+  flex-shrink: 1;
   color: var(--vf-muted);
   font-size: var(--font-ui-smaller);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .vf-ai-model-list {

@@ -110,9 +110,18 @@ export function HelpView() {
     return initial?.id ?? null;
   });
 
-  const [expanded, setExpanded] = useState<Set<string>>(
-    () => new Set(initial ? (ancestorIds(HELP_TOPICS, initial.id) ?? []) : []),
-  );
+  const [expanded, setExpanded] = useState<Set<string>>(() => {
+    const seed = initial ? (ancestorIds(HELP_TOPICS, initial.id) ?? []) : [];
+
+    // A deep link can land on a nested topic whose ancestors are collapsed —
+    // expand the whole chain so the selected topic is visible in the TOC.
+    const target = pendingHelpTarget;
+    if (target && findHelpTopic(HELP_TOPICS, target.topicId)) {
+      return new Set([...seed, ...(ancestorIds(HELP_TOPICS, target.topicId) ?? []), target.topicId]);
+    }
+
+    return new Set(seed);
+  });
 
   /**
    * The anchor to scroll to after the current topic's markdown has rendered.
@@ -139,9 +148,13 @@ export function HelpView() {
     setSelectedId(topic.id);
     setPendingAnchor(target.anchor ?? null);
 
-    if (topic.children?.length) {
-      setExpanded((current) => new Set(current).add(topic.id));
-    }
+    const chain = ancestorIds(HELP_TOPICS, topic.id) ?? [];
+
+    setExpanded((current) => {
+      const next = new Set(current);
+      for (const id of [...chain, topic.id]) next.add(id);
+      return next;
+    });
 
   }, [pendingHelpTarget]);
 
