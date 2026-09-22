@@ -4732,6 +4732,52 @@ input.vf-editable-title-input {
   margin-top: 2px;
 }
 
+/* The connected-clients table inside the MCP settings section (workspace
+   settings and the native Settings tab both reuse it). */
+.vf-mcp-clients-row {
+  gap: 8px;
+}
+
+.vf-mcp-clients {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-ui-smaller);
+}
+
+.vf-mcp-clients th {
+  color: var(--vf-muted);
+  font-weight: 600;
+  text-align: left;
+  padding: 4px 12px 6px 0;
+  white-space: nowrap;
+}
+
+.vf-mcp-clients td {
+  padding: 6px 12px 6px 0;
+  border-top: 1px solid var(--vf-border);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.vf-mcp-clients td:last-child,
+.vf-mcp-clients th:last-child {
+  padding-right: 0;
+}
+
+.vf-mcp-clients td code {
+  font-size: var(--font-ui-smaller);
+}
+
+.vf-mcp-client-name {
+  font-weight: 600;
+}
+
+.vf-mcp-client-version {
+  color: var(--vf-muted);
+  margin-left: 6px;
+  font-size: var(--font-ui-smaller);
+}
+
 /* AI Chat model install progress — wider than the tiny sub-task `.vf-progress`
    meter, since this tracks a multi-gigabyte download. */
 .vf-ai-progress-wrap {

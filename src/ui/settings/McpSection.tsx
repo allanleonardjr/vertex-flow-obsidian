@@ -13,6 +13,7 @@ import {
 	getMcpToken,
 	setMcpToken,
 } from "../../obsidian/mcp-token";
+import type { McpClientInfo } from "../../mcp/server";
 import { usePlugin, useSettingsWriter } from "../context";
 
 /**
@@ -32,6 +33,8 @@ export function McpSection({ id }: { id?: string }) {
 
 	const [health, setHealth] = useState<HealthState>(null);
 	const [scanning, setScanning] = useState(false);
+	const [clients, setClients] = useState<McpClientInfo[]>([]);
+	const [disconnecting, setDisconnecting] = useState<string | null>(null);
 
 	// Polls the server's own unauthenticated `/health` route — the setting
 	// (`enabled`) only reflects intent, not whether the bind actually
@@ -102,6 +105,46 @@ export function McpSection({ id }: { id?: string }) {
 			if (timer != null) window.clearTimeout(timer);
 		};
 	}, [enabled, port]);
+
+	// Connected clients — read straight off the service while the server is
+	// actually up (the health poll is the same gate the status line uses). A
+	// shallow change check keeps re-renders from firing when nothing changed.
+	useEffect(() => {
+		if (!enabled || health !== "up") {
+			setClients([]);
+			return;
+		}
+		let cancelled = false;
+		const refresh = () => {
+			if (cancelled) return;
+			const next = plugin.mcpClients();
+			setClients((prev) => {
+				if (
+					prev.length === next.length &&
+					prev.every((client, i) => client.sessionId === next[i].sessionId)
+				) {
+					return prev;
+				}
+				return next;
+			});
+		};
+		refresh();
+		const timer = window.setInterval(refresh, 2000);
+		return () => {
+			cancelled = true;
+			window.clearInterval(timer);
+		};
+	}, [enabled, health, plugin]);
+
+	const disconnectClient = async (sessionId: string) => {
+		setDisconnecting(sessionId);
+		try {
+			await plugin.disconnectMcpClient(sessionId);
+		} finally {
+			setDisconnecting(null);
+			setClients(plugin.mcpClients());
+		}
+	};
 
 	const handlePortChange = (value: string) => {
 		const nextPort = Number(value);
@@ -253,6 +296,59 @@ export function McpSection({ id }: { id?: string }) {
 										Regenerate
 									</button>
 								</div>
+							</div>
+
+							<div className="vf-settings-mcp-row vf-mcp-clients-row">
+								<span>Connected clients</span>
+								{clients.length === 0 ? (
+									<p className="vf-settings-description">
+										No clients connected.
+									</p>
+								) : (
+									<table className="vf-mcp-clients">
+										<thead>
+											<tr>
+												<th>Client</th>
+												<th>Connected</th>
+												<th>Session</th>
+												<th />
+											</tr>
+										</thead>
+										<tbody>
+											{clients.map((client) => (
+												<tr key={client.sessionId}>
+													<td>
+														<span className="vf-mcp-client-name">
+															{client.name ?? "Unknown"}
+														</span>
+														{client.version && (
+															<span className="vf-mcp-client-version">
+																{client.version}
+															</span>
+														)}
+													</td>
+													<td>
+														{new Date(client.connectedAt).toLocaleTimeString()}
+													</td>
+													<td>
+														<code>{client.sessionId.slice(0, 8)}</code>
+													</td>
+													<td>
+														<button
+															type="button"
+															disabled={disconnecting === client.sessionId}
+															onClick={() => void disconnectClient(client.sessionId)}
+														>
+															{disconnecting === client.sessionId
+																? "Disconnecting…"
+																: "Disconnect"}
+														</button>
+													</td>
+												</tr>
+											))}
+										</tbody>
+									</table>
+								)}
 							</div>
 						</>
 					)}

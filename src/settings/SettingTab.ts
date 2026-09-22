@@ -181,19 +181,99 @@ export class VertexFlowSettingTab extends PluginSettingTab {
 						void navigator.clipboard.writeText(current);
 						new Notice("Mcp token copied to clipboard.");
 					});
-					const regenerate = controls.createEl("button", {
-						text: "Regenerate",
-					});
-					regenerate.addEventListener("click", () => {
-						setMcpToken(generateMcpToken());
-						new Notice("New mcp token generated. Reconnect your AI client.");
-						this.update();
-					});
-					return () => row.remove();
-				},
+const regenerate = controls.createEl("button", {
+					text: "Regenerate",
+				});
+				regenerate.addEventListener("click", () => {
+					setMcpToken(generateMcpToken());
+					new Notice("New mcp token generated. Reconnect your AI client.");
+					this.update();
+				});
+				return () => row.remove();
 			},
-		];
-	}
+		},
+		{
+			name: "Connected clients",
+			desc: "Clients currently holding a session on the local MCP server. " +
+				"Disconnect one to end its session immediately.",
+			visible: () =>
+				!Platform.isMobile && this.plugin.settings.mcpServerEnabled,
+			render: (setting) => {
+				const row = setting.settingEl.createDiv({
+					cls: "vf-settings-mcp-row vf-mcp-clients-row",
+				});
+				row.createSpan({ text: "Connected clients" });
+				const body = row.createDiv({ cls: "vf-mcp-clients-body" });
+				const disconnecting = new Set<string>();
+
+				const paint = () => {
+					body.empty();
+					const clients = this.plugin.mcpClients();
+					if (clients.length === 0) {
+						body.createEl("p", {
+							text: "No clients connected.",
+							cls: "vf-settings-description",
+						});
+						return;
+					}
+					const table = body.createEl("table", { cls: "vf-mcp-clients" });
+					const headRow = table
+						.createEl("thead")
+						.createEl("tr");
+					headRow.createEl("th", { text: "Client" });
+					headRow.createEl("th", { text: "Connected" });
+					headRow.createEl("th", { text: "Session" });
+					headRow.createEl("th");
+					const tbody = table.createEl("tbody");
+					for (const client of clients) {
+						const tr = tbody.createEl("tr");
+						const nameCell = tr.createEl("td");
+nameCell.createSpan({
+						text: client.name ?? "Unknown",
+						cls: "vf-mcp-client-name",
+					});
+					if (client.version) {
+						nameCell.createSpan({
+							text: client.version,
+							cls: "vf-mcp-client-version",
+						});
+					}
+						tr.createEl("td", {
+							text: new Date(client.connectedAt).toLocaleTimeString(),
+						});
+						tr.createEl("td").createEl("code", {
+							text: client.sessionId.slice(0, 8),
+						});
+						const button = tr.createEl("td").createEl("button", {
+							text: disconnecting.has(client.sessionId)
+								? "Disconnecting…"
+								: "Disconnect",
+						});
+						button.disabled = disconnecting.has(client.sessionId);
+						button.addEventListener("click", () => {
+							disconnecting.add(client.sessionId);
+							button.disabled = true;
+							button.setText("Disconnecting…");
+							void this.plugin
+								.disconnectMcpClient(client.sessionId)
+								.finally(() => {
+									disconnecting.delete(client.sessionId);
+									paint();
+								});
+						});
+					}
+				};
+
+				paint();
+				const timer = window.setInterval(() => paint(), 2000);
+				return () => {
+					window.clearInterval(timer);
+					row.remove();
+				};
+			},
+		},
+	];
+}
 
 	override getControlValue(key: string): unknown {
 		if (key === UI_TEXT_SIZE_KEY) return this.plugin.settings.uiTextSize;

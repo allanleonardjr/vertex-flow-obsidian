@@ -133,15 +133,13 @@ export function createMcpServer(deps: McpDeps): McpServer {
 		{ capabilities: { tools: {} } },
 	);
 
-	// Server-instance-wide default workspace, settable via
-	// `set_active_workspace` below. Deliberately NOT per-connection/per-session
-	// state: this is a local, single-user server where in practice one client
-	// talks to it at a time, and threading per-session state through the SDK's
-	// transport would be real complexity for no real benefit here. It also
-	// deliberately resets on server restart (toggling the setting off/on,
-	// changing the port, regenerating the token) rather than persisting —
-	// "sticky until changed" means for the life of this running server, not
-	// forever.
+	// Session-scoped default workspace, settable via `set_active_workspace`
+	// below. One `createMcpServer` call backs one client session, so this is
+	// per-connected-client state: each client gets its own default, threaded
+	// entirely through tool parameters (no shared mutable state in the HTTP
+	// layer). It resets when that client's session ends (reconnect, disconnect
+	// from Settings, or a server restart) rather than persisting — "sticky
+	// until changed" means for the life of this connected session, not forever.
 	let defaultWorkspaceRoot: string | null = null;
 
 	/** Snapshot a tool's `workspace` resolves against, or an error payload. */
@@ -196,9 +194,9 @@ export function createMcpServer(deps: McpDeps): McpServer {
 			description:
 				"Set the default workspace every other tool uses when " +
 				"workspace is omitted, by name (or part of it) or by root " +
-				"path. Stays in effect until changed again or the server " +
-				"restarts. Does not change what's open in the Obsidian window " +
-				"— this only affects MCP tool calls.",
+				"path. Stays in effect until changed again or this client's " +
+				"session ends. Does not change what's open in the Obsidian " +
+				"window — this only affects MCP tool calls.",
 			inputSchema: {
 				workspace: z
 					.string()

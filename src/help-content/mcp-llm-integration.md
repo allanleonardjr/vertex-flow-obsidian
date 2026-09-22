@@ -40,9 +40,11 @@ To point the model at a *different* workspace for the rest of the
 conversation — without switching anything in the Obsidian window itself —
 ask it to use `set_active_workspace` with the workspace's name, or part of
 it (e.g. *"switch to the Lumen Studio workspace"*). That choice sticks for
-every tool call that omits `workspace` until you change it again or the
-server restarts. If a name matches more than one workspace, the model is
-told so and asked to be more specific rather than guessing.
+every tool call that omits `workspace` until you change it again or this
+client's session ends. (Each connected client keeps its own default —
+switching workspace for one doesn't affect another.) If a name matches more
+than one workspace, the model is told so and asked to be more specific
+rather than guessing.
 
 ## Enable the server
 
@@ -86,6 +88,17 @@ In an MCP config file this looks like:
 The client then grants the model tools named `list_*`, `get_*`,
 `search_tasks`, and `read_help*`. Ask it something like *"what's the oldest
 open task in my inbox?"* or *"summarise everything due this week"*.
+
+### Multiple clients at once
+
+More than one AI client can talk to the server at the same time — e.g. LM
+Studio and an MCP Inspector session together — and each holds its own
+session. The MCP server section in **Workspace Settings** (and the native
+**Settings → Vertex Flow** panel) shows a **Connected clients** table with
+every client's name, version, connect time, and session id. Use a row's
+**Disconnect** button to end one client's session immediately; the client's
+next request is rejected and it must reconnect (a fresh session starts
+cleanly). Restarting the server or reloading Obsidian ends them all.
 
 ## Check it's running
 

@@ -20,9 +20,14 @@
  * the module graph that *always* loads stays browser-clean.
  *
  * Sessions are stateful (the SDK default); each is a
- * `StreamableHTTPServerTransport` held in a map keyed by its session id. Since
- * this is a service to an AI client running on the same machine, session
- * state is intentionally ephemeral — restarting Obsidian drops every client.
+ * `StreamableHTTPServerTransport` held — alongside its **own** `McpServer`
+ * and the client identity snapshot tracked for the settings — in a map keyed
+ * by its session id. Each session needs a fresh `McpServer` because the SDK
+ * allows a `Server` instance exactly one connected transport; sharing one
+ * would break at the second client. Since this is a service to AI clients
+ * running on the same machine, session state is intentionally ephemeral —
+ * restarting Obsidian drops every client, and any client can be ended on its
+ * own from Settings (`disconnectSession`).
  */
 
 import { Platform } from "obsidian";
@@ -36,6 +41,30 @@ export interface McpServiceDeps {
 	getPort: () => number;
 	/** Cross-cutting tool dependencies: index, note I/O, version, `me` lookup. */
 	tools: import("./tools").McpDeps;
+}
+
+/**
+ * What we know about one connected client, for the MCP settings table.
+ *
+ * `name`/`version` are the `clientInfo` the client sent in its `initialize`
+ * request; `userAgent` is the HTTP `User-Agent` header seen on that request.
+ * Any of the three may be absent (a client that skips its identity, or a
+ * session captured before the initialize task was processed). `connectedAt`
+ * marks when the session started.
+ */
+export interface McpClientInfo {
+	sessionId: string;
+	name: string | null;
+	version: string | null;
+	userAgent: string | null;
+	connectedAt: number;
+}
+
+/** One live client session: its transport, its own MCP server, and identity. */
+interface McpSession {
+	transport: McpTransport;
+	mcp: import("@modelcontextprotocol/sdk/server/mcp.js").McpServer;
+	info: McpClientInfo;
 }
 
 function randomUuid(): string {
@@ -64,9 +93,15 @@ type McpTransport = import("@modelcontextprotocol/sdk/server/streamableHttp.js")
 
 export class LocalMcpServer {
 	private http?: HttpServer;
-	private mcp?: import("@modelcontextprotocol/sdk/server/mcp.js").McpServer;
 	private transportCtor?: typeof import("@modelcontextprotocol/sdk/server/streamableHttp.js").StreamableHTTPServerTransport;
-	private sessions = new Map<string, McpTransport>();
+	/**
+	 * Factory for the per-session MCP servers, cached from the dynamic import
+	 * chain inside `start()` so `onRequest` can mint one per new session
+	 * without re-importing. `createMcpServer` re-registers the tool surface
+	 * synchronously on each call — cheap, and only a handful per session.
+	 */
+	private sessionFactory?: typeof import("./tools");
+	private sessions = new Map<string, McpSession>();
 	/**
 	 * Raw sockets currently open on `http`, tracked so `stop()` can force-close
 	 * them instead of waiting on `server.close()`'s callback — which only fires
@@ -97,7 +132,7 @@ export class LocalMcpServer {
 		const transportModule = await import(
 			"@modelcontextprotocol/sdk/server/streamableHttp.js"
 		);
-		const { createMcpServer } = await import("./tools");
+		this.sessionFactory = await import("./tools");
 		// A literal dynamic `import()` of a bare specifier like "node:http" fails
 		// in Obsidian's CJS plugin sandbox — it tries to resolve like a browser
 		// module fetch. `require` works because esbuild's `cjs` output format
@@ -106,7 +141,6 @@ export class LocalMcpServer {
 		// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef -- see comment above
 		const { createServer } = require("node:http") as typeof import("node:http");
 
-		this.mcp = createMcpServer(this.deps.tools);
 		this.transportCtor = transportModule.StreamableHTTPServerTransport;
 
 		const server: HttpServer = createServer((req, res) => {
@@ -125,7 +159,7 @@ export class LocalMcpServer {
 		});
 		if (this.sessions.size > 0) {
 			await Promise.all(
-				[...this.sessions.values()].flatMap((t) => [t.close()]),
+				[...this.sessions.values()].flatMap((s) => [s.transport.close()]),
 			);
 			this.sessions.clear();
 		}
@@ -135,10 +169,15 @@ export class LocalMcpServer {
 	async stop(): Promise<void> {
 		const server = this.http;
 		this.http = undefined;
-		await Promise.all([...this.sessions.values()].map((t) => t.close()));
+		await Promise.all(
+			[...this.sessions.values()].flatMap((s) => [
+				s.transport.close(),
+				s.mcp.close(),
+			]),
+		);
 		this.sessions.clear();
-		this.mcp = undefined;
 		this.transportCtor = undefined;
+		this.sessionFactory = undefined;
 		if (server) {
 			// Register the close callback before destroying any sockets, so
 			// there's no window where a socket's `close` event could fire before
@@ -187,7 +226,7 @@ export class LocalMcpServer {
 			return;
 		}
 
-		if (url.pathname !== "/mcp" || !this.mcp || !this.transportCtor) {
+		if (url.pathname !== "/mcp" || !this.http || !this.transportCtor || !this.sessionFactory) {
 			json(res, 404, { error: "not-found" });
 			return;
 		}
@@ -203,14 +242,35 @@ export class LocalMcpServer {
 					json(res, 404, { error: "session-not-found" });
 					return;
 				}
-				transport = existing;
+				transport = existing.transport;
 			} else {
+				// A fresh session owns a fresh McpServer: the SDK allows each
+				// `Server` instance just one connected transport, so a shared
+				// instance would reject every client after the first with
+				// "Already connected" (surfaced as a 500). Registering the tool
+				// surface per session costs nothing measurable and gives each
+				// client its own negotiated protocol state.
+				const mcp = this.sessionFactory.createMcpServer(this.deps.tools);
 				const TransportCtor = this.transportCtor;
+				const userAgent =
+					typeof req.headers["user-agent"] === "string"
+						? req.headers["user-agent"]
+						: null;
 				transport = new TransportCtor({
 					sessionIdGenerator: randomUuid,
 					enableJsonResponse: true,
 					onsessioninitialized: (sid) => {
-						this.sessions.set(sid, transport);
+						this.sessions.set(sid, {
+							transport,
+							mcp,
+							info: {
+								sessionId: sid,
+								name: null,
+								version: null,
+								userAgent,
+								connectedAt: Date.now(),
+							},
+						});
 					},
 					onsessionclosed: (sid) => {
 						this.sessions.delete(sid);
@@ -219,14 +279,54 @@ export class LocalMcpServer {
 				transport.onclose = () => {
 					if (transport.sessionId) this.sessions.delete(transport.sessionId);
 				};
-				await this.mcp.connect(transport);
+				await mcp.connect(transport);
 			}
 			await transport.handleRequest(req, res);
+			this.refreshSessionInfo(transport.sessionId);
 		} catch (err) {
 			console.error("[vertex-flow:mcp] request failed", err);
 			if (!res.writableEnded) {
 				json(res, 500, { error: "internal-error" });
 			}
+		}
+	}
+
+	/**
+	 * Snapshot of every live session, oldest first, for the settings table.
+	 */
+	connectedClients(): McpClientInfo[] {
+		return [...this.sessions.values()]
+			.map((s) => ({ ...s.info }))
+			.sort((a, b) => a.connectedAt - b.connectedAt);
+	}
+
+	/**
+	 * Force-end one client's session: closes its transport's SSE streams and
+	 * in-flight requests, which fires `onclose` and drops it from the map —
+	 * the client's next request stops with 404 session-not-found. Returns
+	 * false when no session has that id (already ended).
+	 */
+	async disconnectSession(sessionId: string): Promise<boolean> {
+		const session = this.sessions.get(sessionId);
+		if (!session) return false;
+		await session.transport.close();
+		return true;
+	}
+
+	/**
+	 * Pull the client's self-reported `clientInfo` (name/version) off its
+	 * session's own `McpServer` into the session record. Only callable after
+	 * the transport has processed a request: the SDK fills this in when it
+	 * handles `initialize`, so `onsessioninitialized` fires too early for it.
+	 */
+	private refreshSessionInfo(sessionId: string | undefined): void {
+		if (!sessionId) return;
+		const session = this.sessions.get(sessionId);
+		if (!session) return;
+		const clientInfo = session.mcp.server.getClientVersion();
+		if (clientInfo) {
+			session.info.name = clientInfo.name;
+			session.info.version = clientInfo.version;
 		}
 	}
 }
@@ -256,6 +356,17 @@ export class McpServerService {
 		const server = this.server;
 		this.server = null;
 		if (server) await server.stop();
+	}
+
+	/** Live client sessions, or [] when the server isn't running. */
+	listClients(): McpClientInfo[] {
+		return this.server?.connectedClients() ?? [];
+	}
+
+	/** Force-end one client session. True only if it was live. */
+	async disconnectClient(sessionId: string): Promise<boolean> {
+		if (!this.server) return false;
+		return this.server.disconnectSession(sessionId);
 	}
 }
 

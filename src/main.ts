@@ -26,7 +26,11 @@ import {
   getMcpToken,
   setMcpToken,
 } from "./obsidian/mcp-token";
-import { findAvailablePort, McpServerService } from "./mcp/server";
+import {
+	findAvailablePort,
+	McpServerService,
+	type McpClientInfo,
+} from "./mcp/server";
 import {
   intentFromParams,
   type VaultUriIntent,
@@ -289,6 +293,16 @@ export default class VertexFlowPlugin extends Plugin {
   /** Scans for a free port above the currently configured one — see `findAvailablePort`. */
   async findAvailableMcpPort(): Promise<number | null> {
     return findAvailablePort(this.settings.mcpServerPort);
+  }
+
+  /** Snapshot of clients currently holding an MCP session — see the settings UI. */
+  mcpClients(): McpClientInfo[] {
+    return this.mcpService?.listClients() ?? [];
+  }
+
+  /** Force-end one client's MCP session — triggered from the settings UI. */
+  async disconnectMcpClient(sessionId: string): Promise<void> {
+    await this.mcpService?.disconnectClient(sessionId);
   }
 
   private registerCommands(): void {
