@@ -38,6 +38,7 @@ import {
   McpServerService,
   type McpClientInfo,
 } from "./mcp/server";
+import type { McpDeps } from "./mcp/tools";
 import { intentFromParams, type VaultUriIntent } from "./core/mcp/uris";
 import {
   configureLastWorkspaceStorage,
@@ -274,14 +275,7 @@ export default class VertexFlowPlugin extends Plugin {
         }
         return token;
       },
-      tools: {
-        index: this.index,
-        io: this.io,
-        version: this.manifest.version,
-        me: (root) => getMePersonId(root),
-        activeWorkspace: () => this.activeWorkspace(),
-        today: () => localTodayIso(),
-      },
+      tools: this.mcpToolDeps(() => this.activeWorkspace()),
     });
     try {
       await this.mcpService.start();
@@ -297,6 +291,23 @@ export default class VertexFlowPlugin extends Plugin {
         `Vertex Flow couldn't start its local server on port ${this.settings.mcpServerPort} — is something else using it?`,
       );
     }
+  }
+
+  /**
+   * The dependencies every MCP tool surface runs on. The HTTP server passes
+   * the window's active workspace; AI Chat's in-process bridge
+   * (`src/ai/mcp-bridge.ts`) passes the chat's own workspace instead, so a
+   * tool call there never depends on (or changes) what the pane shows.
+   */
+  mcpToolDeps(activeWorkspace: McpDeps["activeWorkspace"]): McpDeps {
+    return {
+      index: this.index,
+      io: this.io,
+      version: this.manifest.version,
+      me: (root) => getMePersonId(root),
+      activeWorkspace,
+      today: () => localTodayIso(),
+    };
   }
 
   /** Scans for a free port above the currently configured one — see `findAvailablePort`. */
