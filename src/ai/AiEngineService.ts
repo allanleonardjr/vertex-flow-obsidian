@@ -1,9 +1,17 @@
 /**
  * Thin wrapper around WebLLM's worker engine: zero-install, in-browser
  * inference with no API keys and no user-managed local model. Model download
- * and lifecycle (cache check, install, clear, switch) are fully automated
- * here — exactly one model is ever active in the worker at a time, though
- * several may sit cached in IndexedDB simultaneously.
+ * and lifecycle (cache check, install, cancel, clear, switch) are fully
+ * automated here — exactly one model is ever active in the worker at a time,
+ * though several may sit cached in IndexedDB simultaneously.
+ *
+ * The service owns the one Web Worker and tears it down (terminate, not just
+ * `unload()`) on every failed load, cancel, unload, or clear of the active
+ * model — a failed WebGPU load can leave the worker's device lost, and
+ * reusing or abandoning it is what used to stack up dead workers. It also
+ * owns the in-flight download status and a per-session map of load failures,
+ * published through `subscribe()`, so every screen showing a download sees
+ * the same one no matter which screen started it or whether it remounted.
  *
  * Not under `src/core/` — it takes a real runtime dependency
  * (`@mlc-ai/web-llm`), which the Golden Rule's core-purity allowlist doesn't
@@ -22,6 +30,7 @@ import {
 	type ModelRecord,
 	type WebWorkerMLCEngine,
 } from "@mlc-ai/web-llm";
+import { describeAiLoadError } from "../core/ai/load-error";
 import { estimateTokens } from "../core/ai/snapshot";
 
 export interface AiModelOption {
@@ -118,6 +127,38 @@ export function aiModelInfo(modelId: string): { vramMB: number | null; contextWi
 
 export type AiEngineState = "unsupported" | "not-installed" | "installed";
 
+/** The one download/load currently in flight — at most one at a time, since the worker holds a single engine. */
+export interface AiInstallStatus {
+	modelId: string;
+	pct: number;
+	text: string;
+}
+
+/** Immutable snapshot of everything `subscribe()` listeners react to — replaced (never mutated) on each change, so `useSyncExternalStore` can compare it by identity. */
+export interface AiEngineStatus {
+	inFlight: AiInstallStatus | null;
+	loadErrors: ReadonlyMap<string, string>;
+}
+
+/** What a pending `install()` rejects with when `cancelInstall()` stops it. Never recorded as a load error — callers treat it as a quiet no-op. */
+export class AiInstallCancelledError extends Error {
+	constructor() {
+		super("The model download was cancelled.");
+		this.name = "AiInstallCancelledError";
+	}
+}
+
+/** WebLLM's `unload()` posts to the worker and waits for a reply; after a GPU device loss that reply may never come, so teardown never waits longer than this before terminating the worker anyway. */
+const UNLOAD_TIMEOUT_MS = 3000;
+
+interface LoadJob {
+	modelId: string;
+	cancelled: boolean;
+	/** Rejects `promise` with `AiInstallCancelledError` — a terminated worker never answers, so the load itself may never settle on its own. */
+	rejectCancelled: (error: AiInstallCancelledError) => void;
+	promise: Promise<void>;
+}
+
 export interface AiChatMessage {
 	role: "system" | "user" | "assistant";
 	content: string;
@@ -135,8 +176,13 @@ export class AiEngineService {
 	};
 
 	private engine: WebWorkerMLCEngine | null = null;
+	private worker: Worker | null = null;
 	private loadedModelId: string | null = null;
-	private loading: Promise<void> | null = null;
+	private loading: LoadJob | null = null;
+	/** Model id → user-facing failure message. Runtime-only, per session — never persisted, so a restart always gets a fresh attempt. */
+	private loadErrors = new Map<string, string>();
+	private status: AiEngineStatus = { inFlight: null, loadErrors: new Map() };
+	private listeners = new Set<() => void>();
 
 	constructor(private readonly workerUrl: string) {}
 
@@ -177,6 +223,38 @@ export class AiEngineService {
 		return (await this.getState(modelId)) === "installed";
 	}
 
+	/** Notified on every change to the in-flight status or the load-error map. Returns the unsubscribe. */
+	subscribe = (listener: () => void): (() => void) => {
+		this.listeners.add(listener);
+		return () => {
+			this.listeners.delete(listener);
+		};
+	};
+
+	getStatus = (): AiEngineStatus => this.status;
+
+	getInFlight(): AiInstallStatus | null {
+		return this.status.inFlight;
+	}
+
+	getLoadError(modelId: string): string | null {
+		return this.loadErrors.get(modelId) ?? null;
+	}
+
+	clearLoadError(modelId: string): void {
+		if (this.loadErrors.delete(modelId)) this.publish();
+	}
+
+	private setInFlight(inFlight: AiInstallStatus | null): void {
+		this.status = { ...this.status, inFlight };
+		for (const listener of this.listeners) listener();
+	}
+
+	private publish(): void {
+		this.status = { ...this.status, loadErrors: new Map(this.loadErrors) };
+		for (const listener of this.listeners) listener();
+	}
+
 	/**
 	 * Downloads (first run) or loads-from-cache (every run after) the given
 	 * model into the worker engine, making it the active one. Idempotent and
@@ -184,67 +262,176 @@ export class AiEngineService {
 	 * seconds with no network activity. Reports "unsupported" rather than
 	 * throwing when WebGPU is absent, since that's an expected environment,
 	 * not a failure.
+	 *
+	 * Progress is published through `subscribe()`/`getInFlight()`, never a
+	 * per-call callback. A second call for the model already loading joins
+	 * that load; a call for a *different* model while one is loading throws
+	 * rather than claiming success for a model it never loaded. A real
+	 * failure is recorded (`getLoadError`) before rethrowing; a cancel rejects
+	 * with `AiInstallCancelledError` and records nothing.
 	 */
-	async install(modelId: string, onProgress?: InitProgressCallback): Promise<AiEngineState> {
+	async install(modelId: string): Promise<AiEngineState> {
 		if (!AiEngineService.supportsWebGPU()) return "unsupported";
-		if (this.loadedModelId !== modelId || !this.engine) {
-			if (!this.loading) {
-				this.loading = this.load(modelId, onProgress);
+		if (this.loadedModelId === modelId && this.engine) return "installed";
+
+		if (this.loading) {
+			if (this.loading.modelId !== modelId) {
+				throw new Error("Another model is already downloading. Cancel it first.");
 			}
-			await this.loading;
+			await this.loading.promise;
+			return "installed";
 		}
-		return "installed";
+
+		const job = this.startLoad(modelId);
+		try {
+			await job.promise;
+			this.loadErrors.delete(modelId);
+			return "installed";
+		} catch (error) {
+			if (!(error instanceof AiInstallCancelledError)) {
+				this.loadErrors.set(
+					modelId,
+					describeAiLoadError(error instanceof Error ? error.message : String(error)),
+				);
+			}
+			throw error;
+		} finally {
+			if (this.loading === job) {
+				this.loading = null;
+				this.status = { ...this.status, inFlight: null };
+			}
+			this.publish();
+		}
 	}
 
-	private async load(modelId: string, onProgress?: InitProgressCallback): Promise<void> {
+	/**
+	 * Stops the in-flight download/load, if any. WebLLM has no abort API, so
+	 * this terminates the worker outright — shards that finished downloading
+	 * stay cached, and the next `install()` resumes from them. Works off the
+	 * worker, not the engine: during a first-ever load the engine doesn't
+	 * exist yet. The pending `install()` rejects with `AiInstallCancelledError`.
+	 */
+	cancelInstall(): void {
+		const job = this.loading;
+		if (!job) return;
+		job.cancelled = true;
+		void this.teardown();
+		job.rejectCancelled(new AiInstallCancelledError());
+	}
+
+	private startLoad(modelId: string): LoadJob {
+		let rejectCancelled!: (error: AiInstallCancelledError) => void;
+		const cancelled = new Promise<never>((_, reject) => {
+			rejectCancelled = reject;
+		});
+		const job: LoadJob = {
+			modelId,
+			cancelled: false,
+			rejectCancelled,
+			promise: Promise.resolve(),
+		};
+		this.loading = job;
+		this.setInFlight({ modelId, pct: 0, text: "Starting…" });
+		job.promise = Promise.race([this.load(job), cancelled]);
+		return job;
+	}
+
+	private async load(job: LoadJob): Promise<void> {
+		const onProgress: InitProgressCallback = (report) => {
+			if (job.cancelled || this.loading !== job) return;
+			this.setInFlight({
+				modelId: job.modelId,
+				pct: Math.round(report.progress * 100),
+				text: report.text,
+			});
+		};
 		try {
 			if (this.engine) {
 				// Same worker, swap the active model — `reload()` handles both
 				// "already cached" (fast, no network) and "needs downloading"
 				// (same progress callback as a first-ever install) itself.
-				this.engine.setInitProgressCallback(onProgress ?? (() => {}));
-				await this.engine.reload(modelId);
+				this.engine.setInitProgressCallback(onProgress);
+				await this.engine.reload(job.modelId);
+				if (job.cancelled) return;
 			} else {
 				const worker = new Worker(this.workerUrl);
-				this.engine = await CreateWebWorkerMLCEngine(worker, modelId, {
+				this.worker = worker;
+				const engine = await CreateWebWorkerMLCEngine(worker, job.modelId, {
 					appConfig: this.appConfig,
 					initProgressCallback: onProgress,
 				});
+				// A cancel already terminated this worker and cleared the
+				// fields — a late resolve must not resurrect a dead engine.
+				if (job.cancelled) {
+					worker.terminate();
+					return;
+				}
+				this.engine = engine;
 			}
-			this.loadedModelId = modelId;
-		} finally {
-			this.loading = null;
+			this.loadedModelId = job.modelId;
+		} catch (error) {
+			// Create or reload rejected (e.g. the GPU device was lost, after
+			// which WebLLM disposes its instance) — nothing in this worker is
+			// reusable. A cancel has already torn down, possibly followed by a
+			// newer load that must not be disturbed.
+			if (!job.cancelled) await this.teardown();
+			throw error;
 		}
 	}
 
 	/**
-	 * Removes one model's cached weights/config/wasm. Unloads the live engine
-	 * only if that model was the active one — clearing a different, inactive
-	 * model's cache never disturbs whatever is currently loaded.
+	 * Best-effort unload, then terminate the worker, then forget everything —
+	 * fields are cleared synchronously first so nothing can reuse the dying
+	 * engine while `unload()` is still pending (or hanging on a lost device).
+	 */
+	private async teardown(): Promise<void> {
+		const engine = this.engine;
+		const worker = this.worker;
+		this.engine = null;
+		this.worker = null;
+		this.loadedModelId = null;
+		this.loading = null;
+		this.setInFlight(null);
+		try {
+			if (engine) {
+				await Promise.race([
+					engine.unload(),
+					new Promise((resolve) => window.setTimeout(resolve, UNLOAD_TIMEOUT_MS)),
+				]);
+			}
+		} catch {
+			// Expected after a device loss — the worker is terminated regardless.
+		}
+		worker?.terminate();
+	}
+
+	/**
+	 * Removes one model's cached weights/config/wasm. Tears down the worker
+	 * only if that model is the active (or currently loading) one — clearing a
+	 * different, inactive model's cache never disturbs whatever is loaded.
 	 */
 	async clearCache(modelId: string): Promise<void> {
-		if (this.loadedModelId === modelId && this.engine) {
-			await this.engine.unload();
-			this.engine = null;
-			this.loadedModelId = null;
-			this.loading = null;
+		if (this.loading?.modelId === modelId) {
+			this.cancelInstall();
+		} else if (this.loadedModelId === modelId) {
+			await this.teardown();
 		}
+		this.clearLoadError(modelId);
 		await deleteModelAllInfoInCache(modelId, this.appConfig);
 	}
 
 	/**
-	 * Unloads the active model from the worker (frees its RAM/VRAM) without
-	 * touching its cached weights on disk — unlike `clearCache`, this is
-	 * meant to be cheap and reversible: the next `install()` for the same
-	 * model reloads instantly from cache, no network involved.
+	 * Unloads the active model and terminates the worker (frees its RAM/VRAM)
+	 * without touching cached weights on disk — unlike `clearCache`, this is
+	 * cheap and reversible: the next `install()` for the same model reloads
+	 * from cache, no network involved. Stops an in-flight load too.
 	 */
 	async unloadFromMemory(): Promise<void> {
-		if (this.engine) {
-			await this.engine.unload();
-			this.engine = null;
-			this.loadedModelId = null;
-			this.loading = null;
+		if (this.loading) {
+			this.cancelInstall();
+			return;
 		}
+		await this.teardown();
 	}
 
 	/**

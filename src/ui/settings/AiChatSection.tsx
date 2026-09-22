@@ -3,17 +3,20 @@
  * keys, no external server: whichever model is selected downloads once into
  * this browser's IndexedDB cache and stays there across Obsidian restarts.
  * Several models may be cached at once — only one is ever the *active* one
- * (see `AiEngineService`) — so each row below tracks its own install state
- * independently.
+ * (see `AiEngineService`) — so each row below tracks its own cache state
+ * independently, while download progress and load failures come from the
+ * service (`useAiEngineStatus`) and survive this screen unmounting.
  */
 
 import { useEffect, useState } from "react";
 import {
 	AI_MODEL_OPTIONS,
 	AiEngineService,
+	AiInstallCancelledError,
 	aiModelInfo,
 	type AiEngineState,
 } from "../../ai/AiEngineService";
+import { useAiEngineStatus } from "../ai-chat/useAiEngineStatus";
 import { ConfirmDeleteDialog } from "../components/ConfirmDeleteDialog";
 import { usePlugin, useSettingsWriter } from "../context";
 
@@ -43,40 +46,52 @@ function AiModelRow({
 	onSelect: () => void;
 }) {
 	const plugin = usePlugin();
+	const { inFlight, getLoadError } = useAiEngineStatus();
 	const [state, setState] = useState<AiEngineState | "checking">("checking");
-	const [progress, setProgress] = useState<{ pct: number; text: string } | null>(null);
 	const [confirmingClear, setConfirmingClear] = useState(false);
 	const info = aiModelInfo(id);
 
-	const refresh = () => void plugin.aiEngine.getState(id).then(setState);
-	useEffect(refresh, [plugin, id]);
+	// Progress is the service's, not this row's — so leaving Settings
+	// mid-download and coming back still shows it live.
+	const progress = inFlight?.modelId === id ? inFlight : null;
+	const otherInFlight = inFlight != null && progress == null;
+	const loadError = progress == null ? getLoadError(id) : null;
 
-	const install = () => {
-		setProgress({ pct: 0, text: "Starting…" });
-		void plugin.aiEngine
-			.install(id, (report) =>
-				setProgress({ pct: Math.round(report.progress * 100), text: report.text }),
-			)
+	const refresh = () => void plugin.aiEngine.getState(id).then(setState);
+	// Also re-checks whenever this row's download starts or settles —
+	// whichever screen started it, and including a cancel, which leaves a
+	// partial (resumable) cache that still reads as not installed.
+	useEffect(refresh, [plugin, id, progress != null]);
+
+	/** Resolves `true` once the model is actually loaded; a failure (shown under the row) or a cancel (quiet) resolves `false`. */
+	const install = (): Promise<boolean> =>
+		plugin.aiEngine
+			.install(id)
 			.then((next) => {
-				setProgress(null);
 				setState(next);
+				return next === "installed";
 			})
 			.catch((error: unknown) => {
-				setProgress(null);
-				setState("not-installed");
-				console.error("Vertex Flow: AI model install failed", error);
+				if (!(error instanceof AiInstallCancelledError)) {
+					console.error("Vertex Flow: AI model install failed", error);
+				}
+				refresh();
+				return false;
 			});
-	};
 
-	// A click always both selects this model AND activates it — fast (a
-	// worker `reload()` from cache, no network) if already installed,
-	// otherwise this starts its own download with the progress row below.
-	// Deliberately not an effect reacting to `selected`: that would fire on
-	// every mount of the already-selected row too, silently starting a
-	// multi-gigabyte download just from opening this settings screen.
+	// A click both activates this model AND selects it — fast (a worker
+	// `reload()` from cache, no network) if already installed, otherwise this
+	// starts its own download with the progress row below. The setting is
+	// written only once the install succeeds (same order as the chat view's
+	// `switchModel`), so a failed or cancelled install leaves the previous
+	// selection untouched. Deliberately not an effect reacting to `selected`:
+	// that would fire on every mount of the already-selected row too,
+	// silently starting a multi-gigabyte download just from opening this
+	// settings screen.
 	const handleSelect = () => {
-		onSelect();
-		install();
+		void install().then((ok) => {
+			if (ok) onSelect();
+		});
 	};
 
 	const clearCache = () => {
@@ -84,14 +99,20 @@ function AiModelRow({
 		void plugin.aiEngine.clearCache(id).then(refresh);
 	};
 
+	// Downloaded but failed to load (`getState` only checks the cache) — keep
+	// the "Installed" status visible and turn the button into a retry.
+	const installedButFailed = state === "installed" && loadError != null;
+
 	const installLabel =
 		progress != null
 			? `Downloading… ${progress.pct}%`
-			: state === "installed"
-				? "Installed"
-				: state === "unsupported"
-					? "Unsupported"
-					: "Install";
+			: installedButFailed
+				? "Retry load"
+				: state === "installed"
+					? "Installed"
+					: state === "unsupported"
+						? "Unsupported"
+						: "Install";
 
 	return (
 		<div className="vf-ai-model-row">
@@ -100,7 +121,7 @@ function AiModelRow({
 					type="radio"
 					name="vf-ai-model"
 					checked={selected}
-					disabled={!supported}
+					disabled={!supported || otherInFlight}
 					onChange={handleSelect}
 				/>
 				<span>
@@ -115,15 +136,21 @@ function AiModelRow({
 			</label>
 
 			<div className="vf-ai-model-row-actions">
+				{installedButFailed && <span className="vf-ai-model-status">Installed</span>}
 				<button
 					type="button"
 					className="mod-cta"
-					disabled={!supported || state === "installed" || progress != null}
-					onClick={install}
+					disabled={
+						!supported ||
+						progress != null ||
+						otherInFlight ||
+						(state === "installed" && !installedButFailed)
+					}
+					onClick={() => void install()}
 				>
 					{installLabel}
 				</button>
-				{state === "installed" && (
+				{state === "installed" && progress == null && (
 					<button type="button" onClick={() => setConfirmingClear(true)}>
 						Clear cache
 					</button>
@@ -136,8 +163,17 @@ function AiModelRow({
 						<div className="vf-ai-progress-fill" style={{ width: `${progress.pct}%` }} />
 					</div>
 					<span className="vf-ai-progress-label">{progress.text}</span>
+					<button
+						type="button"
+						className="vf-ai-progress-cancel"
+						onClick={() => plugin.aiEngine.cancelInstall()}
+					>
+						Cancel
+					</button>
 				</div>
 			)}
+
+			{loadError != null && <p className="vf-ai-model-error">{loadError}</p>}
 
 			{confirmingClear && (
 				<ConfirmDeleteDialog

@@ -4,8 +4,9 @@
  *
  * Deliberately small: an icon, a one-line title, an optional note (a hint), an
  * optional "New task" button for the cases where creating one is the obvious
- * next move, and an optional extra `action` button (e.g. "Clear filters").
- * Callers decide which of those apply.
+ * next move, an optional extra `action` button (e.g. "Clear filters"), and an
+ * optional link-style `secondaryAction` beneath it. Callers decide which of
+ * those apply.
  */
 
 import type { ReactNode } from "react";
@@ -18,6 +19,7 @@ export function EmptyView({
   note,
   onNewTask,
   action,
+  secondaryAction,
   className,
 }: {
   icon?: string;
@@ -27,6 +29,8 @@ export function EmptyView({
   onNewTask?: () => void;
   /** An extra call-to-action, rendered as a button like "New task". */
   action?: { label: string; onClick: () => void };
+  /** A quieter, link-style alternative to `action` (e.g. "Cancel", "Open Settings"). */
+  secondaryAction?: { label: string; onClick: () => void };
   /** Extra class on the root, for a caller that needs to scope CSS (e.g. an animation) to its own usage without touching every other empty state. */
   className?: string;
 }) {
@@ -53,6 +57,15 @@ export function EmptyView({
           onClick={action.onClick}
         >
           {action.label}
+        </button>
+      )}
+      {secondaryAction && (
+        <button
+          type="button"
+          className="vf-link-button"
+          onClick={secondaryAction.onClick}
+        >
+          {secondaryAction.label}
         </button>
       )}
     </div>

@@ -2167,6 +2167,12 @@ button.vf-swatch.is-on {
   margin-top: 4px;
 }
 
+/* `EmptyView`'s secondary action (e.g. AI Chat's Cancel / Open Settings) —
+   the global `button.vf-link-button` look, just spaced like the CTA above. */
+.vf-view-empty button.vf-link-button {
+  margin-top: 2px;
+}
+
 /* AI Chat's model-loading empty state — a gentle pulse on the icon so it
    reads as actively working through the multi-second gaps between WebLLM's
    own per-shard progress ticks (not continuous), rather than looking frozen.
@@ -4887,6 +4893,29 @@ input.vf-editable-title-input {
   gap: 8px;
 }
 
+/* "Installed" beside a Retry load button — the download is intact, only the
+   load into GPU memory failed. */
+.vf-ai-model-status {
+  align-self: center;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+/* Why the last install/load of this model failed (runtime-only, per session);
+   the row's Install / Retry load button is the retry. */
+.vf-ai-model-error {
+  margin: 8px 0 0;
+  color: var(--text-error);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.5;
+}
+
+/* Cancel sits under the stacked progress bar/label — keep it button-sized
+   rather than stretched across the column. */
+.vf-ai-progress-cancel {
+  align-self: flex-start;
+}
+
 .vf-settings-callout strong {
   color: var(--text-normal);
 }
@@ -5264,6 +5293,13 @@ input.vf-editable-title-input {
 
 .vf-chat-switch-status.is-error {
   color: var(--text-error);
+}
+
+/* Cancel for an in-chat model switch/reload — a quiet inline link beside the
+   status text, not a full button competing with the input below. */
+.vf-chat-switch-status button.vf-link-button {
+  padding: 0 4px;
+  font-size: inherit;
 }
 
 .vf-taxonomy-table {

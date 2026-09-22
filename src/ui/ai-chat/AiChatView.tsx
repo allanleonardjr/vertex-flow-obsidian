@@ -53,9 +53,11 @@ import {
   AI_MODEL_OPTIONS,
   aiModelInfo,
   AiEngineService,
+  AiInstallCancelledError,
   type AiChatMessage,
   type AiEngineState,
 } from "../../ai/AiEngineService";
+import { useAiEngineStatus } from "./useAiEngineStatus";
 import { EmptyView } from "../components/EmptyView";
 import { Icon } from "../components/Icon";
 import { MarkdownContent } from "../components/Markdown";
@@ -360,19 +362,21 @@ export function AiChatView({
   const supported = AiEngineService.supportsWebGPU();
   const aiChatEnabled = plugin.settings.aiChatEnabled;
 
-  const [engineState, setEngineState] = useState<AiEngineState | "checking">(
-    "checking",
-  );
-  // Real shard-loading progress for the "checking" state below — mirrors
-  // `AiModelRow` in Settings' `{ pct, text }` shape exactly, same progress
-  // callback `install()` already supports. `null` before the first progress
-  // event fires (the brief `getState()` cache-check window, or a reactivation
-  // fast enough that few/no events arrive) — the render falls back to a
+  // "error": the selected model's last load failed this session — shown as
+  // its own state rather than silently retried on every mount.
+  const [engineState, setEngineState] = useState<
+    AiEngineState | "checking" | "error"
+  >("checking");
+  // Real shard-loading progress for the loading/switching states below —
+  // the service's shared status, so it matches Settings' row exactly and
+  // survives either screen remounting. `null` before a load starts (the
+  // brief `getState()` cache-check window) — the render falls back to a
   // generic message for that gap.
-  const [loadingProgress, setLoadingProgress] = useState<{
-    pct: number;
-    text: string;
-  } | null>(null);
+  const { inFlight, getLoadError } = useAiEngineStatus();
+  // Bumped after a failed or cancelled in-chat switch: that tears down the
+  // worker, taking the previously active model with it, so the load effect
+  // below re-runs to bring the still-selected model back.
+  const [reloadToken, setReloadToken] = useState(0);
   // The model label an in-chat `switchModel()` call is actively switching to
   // — set for the duration of the switch, so the inline "Switching to…"
   // status (shown instead of the full-screen loading takeover once a
@@ -428,6 +432,7 @@ export function AiChatView({
     AI_MODEL_OPTIONS.find((option) => option.id === selectedModelId)?.label ??
     selectedModelId;
   const selectedModelInfo = aiModelInfo(selectedModelId);
+  const selectedLoadError = getLoadError(selectedModelId);
 
   /**
    * A live, always-visible estimate of how much of the selected model's
@@ -483,36 +488,50 @@ export function AiChatView({
       setEngineState("installed");
       return;
     }
+    // Failed already this session: show why, and leave retrying to the
+    // user (Retry clears the error, which re-runs this effect) instead of
+    // re-attempting the same failing load on every mount.
+    if (selectedLoadError) {
+      setEngineState("error");
+      return;
+    }
     let cancelled = false;
     setEngineState("checking");
-    // Stale progress from a previous model/mount must never linger into this
-    // one's loading state.
-    setLoadingProgress(null);
-    void plugin.aiEngine.getState(selectedModelId).then(async (state) => {
-      if (cancelled) return;
-      if (state !== "installed") {
-        setEngineState(state);
-        return;
-      }
-      // Cached model: this just loads/activates it in the worker, no
-      // download — but genuinely reports progress while loading shards from
-      // cache into GPU memory, not only during a fresh download.
-      const loaded = await plugin.aiEngine.install(
-        selectedModelId,
-        (report) => {
-          if (!cancelled)
-            setLoadingProgress({
-              pct: Math.round(report.progress * 100),
-              text: report.text,
-            });
-        },
-      );
-      if (!cancelled) setEngineState(loaded);
-    });
+    // A download of this model already running (e.g. started from Settings)
+    // is joined directly — its partial cache would read as "not-installed".
+    const alreadyLoading =
+      plugin.aiEngine.getInFlight()?.modelId === selectedModelId;
+    const cacheState: Promise<AiEngineState> = alreadyLoading
+      ? Promise.resolve("installed")
+      : plugin.aiEngine.getState(selectedModelId);
+    void cacheState
+      .then(async (state) => {
+        if (cancelled) return;
+        if (state !== "installed") {
+          setEngineState(state);
+          return;
+        }
+        // Cached model: this just loads/activates it in the worker, no
+        // download — but genuinely reports progress while loading shards
+        // from cache into GPU memory, not only during a fresh download.
+        const loaded = await plugin.aiEngine.install(selectedModelId);
+        if (!cancelled) setEngineState(loaded);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        if (error instanceof AiInstallCancelledError) {
+          setEngineState("not-installed");
+          return;
+        }
+        console.error("Vertex Flow: AI model load failed", error);
+        setEngineState(
+          plugin.aiEngine.getLoadError(selectedModelId) ? "error" : "not-installed",
+        );
+      });
     return () => {
       cancelled = true;
     };
-  }, [plugin, selectedModelId, aiChatEnabled]);
+  }, [plugin, selectedModelId, aiChatEnabled, selectedLoadError, reloadToken]);
 
   const handleBodyScroll = () => {
     const el = bodyRef.current;
@@ -973,7 +992,7 @@ export function AiChatView({
   // user-initiated path that *does* kick off an install inline, unlike the
   // mount-time effect above (which never downloads): picking a not-yet-cached
   // model downloads it right here, reporting live progress through the same
-  // `loadingProgress` the loading screen already reads.
+  // shared `inFlight` status the loading screen already reads.
   //
   // The setting is written only AFTER the install succeeds. That ordering is
   // deliberate: `writeSettings` bumps `plugin.index.touch()` and re-renders,
@@ -982,7 +1001,8 @@ export function AiChatView({
   // mid-download and clobber our "checking" progress screen with the install
   // prompt. Installing first keeps `selectedModelId` stable for the whole
   // download, so only the fast path (already active) fires once it lands. A
-  // failed download leaves the prior model selected.
+  // failed or cancelled download leaves the prior model selected (and, since
+  // either tears down the worker, reloads it via `reloadToken`).
   const switchModel = (modelId: string) => {
     hasSwitchedRef.current = true;
     if (modelId === selectedModelId) return;
@@ -999,14 +1019,8 @@ export function AiChatView({
 
     setSwitchTargetLabel(label);
     setEngineState("checking");
-    setLoadingProgress(null);
     void plugin.aiEngine
-      .install(modelId, (report) =>
-        setLoadingProgress({
-          pct: Math.round(report.progress * 100),
-          text: report.text,
-        }),
-      )
+      .install(modelId)
       .then((state) => {
         setEngineState(state);
         setSwitchTargetLabel(null);
@@ -1024,12 +1038,16 @@ export function AiChatView({
         }
       })
       .catch((error: unknown) => {
-        console.error("Vertex Flow: AI model switch failed", error);
-        setEngineState("not-installed");
         setSwitchTargetLabel(null);
+        setReloadToken((token) => token + 1);
+        if (error instanceof AiInstallCancelledError) return;
+        console.error("Vertex Flow: AI model switch failed", error);
+        const reason =
+          plugin.aiEngine.getLoadError(modelId) ??
+          (error instanceof Error ? error.message : String(error));
         setSwitchNotice({
           kind: "error",
-          message: `Couldn't switch to "${label}" — the download may have failed.`,
+          message: `Couldn't switch to "${label}". ${reason}`,
         });
       });
   };
@@ -1069,6 +1087,33 @@ export function AiChatView({
   // ("checking") or just failed ("not-installed", from `switchModel`'s catch
   // block). Only this tab's very first automatic mount-time check — before
   // any switch — still gets the full-screen treatment.
+  // A load failure is recorded per session and never auto-retried (see the
+  // load effect) — shown whatever the switch history, since the selected
+  // model can't answer anything until it loads.
+  if (engineState === "error" && selectedLoadError) {
+    return (
+      <EmptyView
+        icon="bot"
+        iconFallback="bot"
+        title={`Couldn't load "${selectedModelLabel}"`}
+        note={selectedLoadError}
+        action={{
+          label: "Retry",
+          onClick: () => {
+            // Straight to loading — clearing the error re-runs the load
+            // effect, which would otherwise see a stale "error" for a frame.
+            setEngineState("checking");
+            plugin.aiEngine.clearLoadError(selectedModelId);
+          },
+        }}
+        secondaryAction={{
+          label: "Open Settings",
+          onClick: () => openScreen("settings", "vf-settings-ai-chat"),
+        }}
+      />
+    );
+  }
+
   if (engineState === "not-installed" && !hasSwitchedRef.current) {
     const sizeNote =
       selectedModelInfo.vramMB != null
@@ -1096,19 +1141,24 @@ export function AiChatView({
         title="Loading the model…"
         note={
           <>
-            {loadingProgress?.text ?? "Warming up…"}
+            {inFlight?.text ?? "Warming up…"}
             {/* No bar during the brief pre-progress window (the initial
 						    `getState()` cache check) — a bar stuck at 0% would read as
 						    broken rather than simply "hasn't started reporting yet". */}
-            {loadingProgress && (
+            {inFlight && (
               <div className="vf-ai-progress">
                 <div
                   className="vf-ai-progress-fill"
-                  style={{ width: `${loadingProgress.pct}%` }}
+                  style={{ width: `${inFlight.pct}%` }}
                 />
               </div>
             )}
           </>
+        }
+        secondaryAction={
+          inFlight
+            ? { label: "Cancel", onClick: () => plugin.aiEngine.cancelInstall() }
+            : undefined
         }
         className="vf-ai-chat-loading"
       />
@@ -1128,6 +1178,10 @@ export function AiChatView({
   // window without disturbing the chat still on screen — see the guarded
   // early returns above).
   const switching = switchTargetLabel != null;
+  // The selected model reloading inline after a failed/cancelled switch (see
+  // `reloadToken`) — same inline treatment, never a full-screen takeover.
+  const reloadingInline =
+    !switching && engineState === "checking" && inFlight != null;
 
   return (
     <div className="vf-settings">
@@ -1240,13 +1294,24 @@ export function AiChatView({
 			    happening, then a brief success/error note once it settles — the
 			    inline alternative to the full-screen loading/install takeover a
 			    fresh empty chat still gets (see the guarded early returns above). */}
-      {switching ? (
+      {switching || reloadingInline ? (
         <p className="vf-chat-switch-status">
           <ThinkingIndicator />
           <span>
-            Switching to "{switchTargetLabel}"…
-            {loadingProgress ? ` ${loadingProgress.text}` : ""}
+            {switching
+              ? `Switching to "${switchTargetLabel}"…`
+              : `Loading "${selectedModelLabel}"…`}
+            {inFlight ? ` ${inFlight.text}` : ""}
           </span>
+          {inFlight && (
+            <button
+              type="button"
+              className="vf-link-button"
+              onClick={() => plugin.aiEngine.cancelInstall()}
+            >
+              Cancel
+            </button>
+          )}
         </p>
       ) : (
         switchNotice && (
@@ -1294,7 +1359,7 @@ export function AiChatView({
           <button
             type="button"
             className="mod-cta"
-            disabled={!input.trim() || switching}
+            disabled={!input.trim() || switching || reloadingInline}
             onClick={send}
           >
             Send
@@ -1332,7 +1397,7 @@ export function AiChatView({
           id="vf-chat-model"
           className="vf-select"
           value={selectedModelId}
-          disabled={sending || switching}
+          disabled={sending || switching || reloadingInline}
           onChange={(event) => switchModel(event.target.value)}
         >
           {AI_MODEL_OPTIONS.map((option) => (
