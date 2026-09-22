@@ -84,6 +84,42 @@ list.
 
 Stop ends an answer immediately, even while the model is still calling tools.
 
+## Following along while it works
+
+While an answer is on its way, a status line under the animated dots says
+what's happening:
+
+- **Waiting for the model** with a seconds counter: the server is reading your
+  question and the conversation so far. The counter shows elapsed time rather
+  than a percentage because the OpenAI-compatible endpoint Vertex Flow uses
+  doesn't report prompt-processing progress.
+- **Thinking** with a counter: the model is reasoning before it answers.
+- **Running list_tasks…** (or another tool), then a short result such as
+  **list_tasks: 42 results**.
+- **Writing answer…** once the answer itself starts to appear.
+
+**Thinking models** also stream their reasoning into a small box under the
+status line. Click its **Thinking** header to collapse it; it stays collapsed
+for the rest of that answer. Reasoning only appears if the model produces it.
+In LM Studio or Bionic you may need to turn on the server setting that returns
+reasoning separately from the answer. Models that write their reasoning inline
+between `<think>` tags are handled too: that text goes to the reasoning box,
+never into the answer.
+
+## Steps
+
+Once an answer is finished, **Steps** under it (collapsed at first) lists
+everything that went into it, with timings:
+
+- each **model round**: how long it took, how long it waited before the first
+  word, and its **Reasoning** (click to expand), if there was any;
+- each **tool call**: the tool's name, a short summary of what it was asked
+  for, and what it returned.
+
+A step cut short by Stop is marked "stopped". Reasoning and Steps are shown
+only to you: they're never sent back to the model, never copied with Copy, and
+never saved to disk.
+
 ## Troubleshooting
 
 **"Nothing is answering at…"**
