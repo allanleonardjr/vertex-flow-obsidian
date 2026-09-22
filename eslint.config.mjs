@@ -21,6 +21,23 @@ export default defineConfig([
         "warn",
         { brands: ["Vertex Flow"], enforceCamelCaseLower: true },
       ],
+      // Obsidian strips the native dropdown arrow, so every dropdown goes
+      // through the shared `Select` component, which draws its own.
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "JSXOpeningElement[name.name='select']",
+          message:
+            "Use <Select> from src/ui/components/Select.tsx: bare <select>s render with no arrow in Obsidian.",
+        },
+      ],
+    },
+  },
+  {
+    // The one place a bare <select> is allowed: the component that wraps it.
+    files: ["src/ui/components/Select.tsx"],
+    rules: {
+      "no-restricted-syntax": "off",
     },
   },
   {
