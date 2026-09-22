@@ -20,6 +20,7 @@ import {
 	createToolCallAccumulator,
 	parseSseChunk,
 	type AccumulatedCompletion,
+	type StreamFragments,
 } from "../core/ai/openai-stream";
 
 /** What a pending request rejects with when its `AbortSignal` fires (Stop). */
@@ -186,13 +187,16 @@ export interface StreamChatCompletionOptions {
 	/** The request body minus `stream`/`stream_options`, which are always set here. */
 	body: Record<string, unknown>;
 	onContentDelta: (text: string) => void;
+	/** Reasoning ("thinking") fragments, from a separate reasoning field or inline `<think>` blocks. Never part of the answer. */
+	onReasoningDelta?: (text: string) => void;
 	signal: AbortSignal;
 }
 
 /**
- * Streams one `/chat/completions` round, feeding content fragments to
- * `onContentDelta` as they arrive and resolving with the accumulated content,
- * tool calls, finish reason and usage. There is deliberately no timeout: a
+ * Streams one `/chat/completions` round, feeding answer fragments to
+ * `onContentDelta` and reasoning fragments to `onReasoningDelta` as they
+ * arrive, and resolving with the accumulated content, reasoning, tool calls,
+ * finish reason and usage. There is deliberately no timeout: a
  * server may load the model just in time on the first request, so a slow
  * first token is normal. `signal` destroys the request and rejects with
  * `LocalServerAbortError`.
@@ -202,6 +206,7 @@ export async function streamChatCompletion({
 	apiKey,
 	body,
 	onContentDelta,
+	onReasoningDelta,
 	signal,
 }: StreamChatCompletionOptions): Promise<AccumulatedCompletion> {
 	if (!Platform.isDesktop) throw desktopOnly();
@@ -252,28 +257,32 @@ export async function streamChatCompletion({
 				}
 
 				const accumulator = createToolCallAccumulator();
+				const deliver = ({ content, reasoning }: StreamFragments) => {
+					if (reasoning) onReasoningDelta?.(reasoning);
+					if (content) onContentDelta(content);
+				};
+				// Releases a held-back partial `<think>` tag before resolving.
+				const complete = () => {
+					deliver(accumulator.flush());
+					finish(() => resolve(accumulator.result()));
+				};
 				let buffer = "";
 				res.setEncoding("utf8");
 				res.on("data", (chunk: string) => {
 					if (settled) return;
 					const parsed = parseSseChunk(buffer + chunk);
 					buffer = parsed.rest;
-					for (const event of parsed.events) {
-						const text = accumulator.push(event);
-						if (text) onContentDelta(text);
-					}
+					for (const event of parsed.events) deliver(accumulator.push(event));
 					if (parsed.done) {
-						finish(() => resolve(accumulator.result()));
+						complete();
 						res.destroy();
 					}
 				});
 				res.on("end", () => {
 					// A final event without the trailing blank line still counts.
-					for (const event of parseSseChunk(`${buffer}\n\n`).events) {
-						const text = accumulator.push(event);
-						if (text) onContentDelta(text);
-					}
-					finish(() => resolve(accumulator.result()));
+					if (settled) return;
+					for (const event of parseSseChunk(`${buffer}\n\n`).events) deliver(accumulator.push(event));
+					complete();
 				});
 				res.on("error", (error) => finish(() => reject(error)));
 			},
