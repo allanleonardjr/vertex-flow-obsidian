@@ -31,6 +31,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Platform } from "obsidian";
 import { buildFactsSection, estimateTokens, isOverdueTask } from "../../core/ai/snapshot";
 import { matchHelpTopic } from "../../core/ai/help-retrieval";
 import {
@@ -58,11 +59,16 @@ import {
   type AiEngineState,
 } from "../../ai/AiEngineService";
 import { useAiEngineStatus } from "./useAiEngineStatus";
+import { effectiveAiProvider } from "../../core/ai/local-server";
+import { LocalServerChatView } from "./LocalServerChatView";
 import { EmptyView } from "../components/EmptyView";
-import { Icon } from "../components/Icon";
-import { MarkdownContent } from "../components/Markdown";
-import { TaskList } from "../components/TaskList";
-import { TaxonomyChip } from "../components/TaskBits";
+import {
+  AiChatProjectList,
+  ChatMarkdown,
+  ChatMessageActions,
+  ChatTaskList,
+  ThinkingIndicator,
+} from "./chat-parts";
 import { usePlugin, useSettingsWriter } from "../context";
 import { useTabs } from "../tabs-context";
 import {
@@ -72,14 +78,6 @@ import {
   useAiChatSession,
 } from "./ai-chat-session";
 
-/**
- * A pseudo vault path for `MarkdownContent`'s `sourcePath` — there's no real
- * note behind a chat bubble, but a relative link/embed still needs something
- * to resolve against, the same role `HELP_SOURCE_PATH` plays for the Help pane
- * (see `HelpView.tsx`/`ShortcutsHelpDialog.tsx`).
- */
-const AI_CHAT_SOURCE_PATH = "Vertex Flow AI Chat.md";
-
 /** How long the Copy button shows its confirmation checkmark. */
 const COPY_CONFIRM_MS = 1500;
 
@@ -88,39 +86,6 @@ const SWITCH_NOTICE_MS = 3000;
 
 /** How close to the bottom (px) still counts as "at the bottom" for auto-scroll purposes. */
 const NEAR_BOTTOM_THRESHOLD_PX = 80;
-
-/**
- * A `searchProjects` result rendered as a plain, clickable list — title +
- * status chip, same spirit as `TaskList`'s rows but with no reusable
- * project-row component in the app to lean on (unlike tasks' `TaskList`),
- * so this stays a small inline renderer rather than a new shared component
- * for a single call site.
- */
-function AiChatProjectList({
-  projects,
-  taxonomies,
-  onOpenProject,
-}: {
-  projects: Project[];
-  taxonomies: WorkspaceTaxonomies;
-  onOpenProject: (path: string) => void;
-}) {
-  return (
-    <div className="vf-chat-project-list">
-      {projects.map((project) => (
-        <button
-          key={project.path}
-          type="button"
-          className="vf-chat-project-row"
-          onClick={() => onOpenProject(project.path)}
-        >
-          <TaxonomyChip taxonomies={taxonomies} kind="status" id={project.status} />
-          <span className="vf-chat-project-title">{project.title}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
 
 /**
  * Shown instead of raw JSON when a second-call response still looks like a
@@ -212,40 +177,6 @@ interface RunTurnDeps {
 }
 
 /**
- * Coalesces rapid updates (a streaming assistant message can append a token
- * every few milliseconds) down to at most one per animation frame, so
- * `MarkdownContent`'s full re-render (it clears and rebuilds the DOM via
- * Obsidian's `MarkdownRenderer` on every text change) doesn't run on every
- * single token. Always settles to the exact latest value — the last update
- * schedules one more frame, so nothing is ever left stale once streaming
- * stops.
- */
-function useThrottledText(text: string): string {
-  const [display, setDisplay] = useState(text);
-  const latestRef = useRef(text);
-  latestRef.current = text;
-  const frameRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (frameRef.current != null) return;
-    frameRef.current = window.requestAnimationFrame(() => {
-      frameRef.current = null;
-      setDisplay(latestRef.current);
-    });
-  }, [text]);
-
-  useEffect(
-    () => () => {
-      if (frameRef.current != null)
-        window.cancelAnimationFrame(frameRef.current);
-    },
-    [],
-  );
-
-  return display;
-}
-
-/**
  * One mounted instance per message, so `useThrottledText`'s hook call is
  * stable regardless of how many messages are in the list. Also resolves a
  * resolved `searchTasks` action's `taskPaths` against the *current* snapshot
@@ -280,7 +211,6 @@ function AiChatBubbleContent({
   onLoadMore: () => void;
   onLoadMoreProjects: () => void;
 }) {
-  const display = useThrottledText(text);
   const resolvedTasks = useMemo(() => {
     if (!taskPaths || taskPaths.length === 0) return [];
     const byPath = new Map(snapshot.tasks.map((task) => [task.path, task]));
@@ -305,11 +235,10 @@ function AiChatBubbleContent({
 
   return (
     <>
-      <MarkdownContent text={display} sourcePath={AI_CHAT_SOURCE_PATH} />
+      <ChatMarkdown text={text} />
       {resolvedTasks.length > 0 && (
-        <TaskList
-          className="vf-chat-task-list"
-          groups={[{ key: "ai-results", tasks: resolvedTasks }]}
+        <ChatTaskList
+          tasks={resolvedTasks}
           snapshot={snapshot}
           taxonomies={taxonomies}
           onOpenTask={onOpenTask}
@@ -336,18 +265,13 @@ function AiChatBubbleContent({
   );
 }
 
-/** Shown in place of an assistant bubble's content before the first token has streamed in. Pure CSS animation — no timers, no state. */
-function ThinkingIndicator() {
-  return (
-    <span className="vf-chat-thinking" aria-label="Thinking…">
-      <span className="vf-chat-thinking-dot" />
-      <span className="vf-chat-thinking-dot" />
-      <span className="vf-chat-thinking-dot" />
-    </span>
-  );
-}
-
-export function AiChatView({
+/**
+ * The built-in (in-browser WebLLM) chat — everything this module's header
+ * describes. Only ever mounted when the effective provider is `"builtin"`
+ * (see `AiChatView` below), so none of its model install/load effects run in
+ * local model server mode.
+ */
+function BuiltinAiChatView({
   snapshot,
   taxonomies,
   context,
@@ -1227,64 +1151,15 @@ export function AiChatView({
                 sending &&
                 index === messages.length - 1 && <ThinkingIndicator />
               )}
-              <div className="vf-chat-actions">
-                {message.role === "assistant" && message.content && (
-                  <button
-                    type="button"
-                    className="vf-icon-button"
-                    title="Copy"
-                    aria-label="Copy message"
-                    disabled={sending}
-                    onClick={() => copyMessage(message)}
-                  >
-                    <Icon
-                      id={copiedId === message.id ? "check" : "copy"}
-                      size={13}
-                    />
-                  </button>
-                )}
-                {message.role === "assistant" &&
-                  message.content &&
-                  index === lastAssistantIndex &&
-                  !sending && (
-                    <button
-                      type="button"
-                      className="vf-icon-button"
-                      title="Retry"
-                      aria-label="Retry this response"
-                      onClick={retry}
-                    >
-                      <Icon id="rotate-ccw" size={13} />
-                    </button>
-                  )}
-                {message.role === "user" && (
-                  <button
-                    type="button"
-                    className="vf-icon-button"
-                    title="Copy"
-                    aria-label="Copy message"
-                    disabled={sending}
-                    onClick={() => copyMessage(message)}
-                  >
-                    <Icon
-                      id={copiedId === message.id ? "check" : "copy"}
-                      size={13}
-                    />
-                  </button>
-                )}
-                {message.role === "user" && (
-                  <button
-                    type="button"
-                    className="vf-icon-button"
-                    title="Edit"
-                    aria-label="Edit message"
-                    disabled={sending}
-                    onClick={() => editMessage(index)}
-                  >
-                    <Icon id="pencil" size={13} />
-                  </button>
-                )}
-              </div>
+              <ChatMessageActions
+                message={message}
+                isLastAssistant={index === lastAssistantIndex}
+                sending={sending}
+                copied={copiedId === message.id}
+                onCopy={() => copyMessage(message)}
+                onRetry={retry}
+                onEdit={() => editMessage(index)}
+              />
             </div>
           ))
         )}
@@ -1409,4 +1284,27 @@ export function AiChatView({
       </div>
     </div>
   );
+}
+
+/**
+ * The AI Chat tab: a thin switch on the effective provider. The two views are
+ * different components, so switching providers unmounts one entirely — the
+ * built-in view's WebLLM hooks and mount-time model load never run while the
+ * local model server is in use, and vice versa.
+ */
+export function AiChatView({
+  snapshot,
+  taxonomies,
+  context,
+}: {
+  snapshot: WorkspaceSnapshot;
+  taxonomies: WorkspaceTaxonomies;
+  context: ViewContext;
+}) {
+  const plugin = usePlugin();
+  const provider = effectiveAiProvider(plugin.settings.aiProvider, Platform.isDesktop);
+  if (provider === "local-server") {
+    return <LocalServerChatView snapshot={snapshot} />;
+  }
+  return <BuiltinAiChatView snapshot={snapshot} taxonomies={taxonomies} context={context} />;
 }

@@ -230,6 +230,31 @@ export function extractResultRows(toolName: string, resultText: string): ToolRes
 	return { kind: isTasks ? "tasks" : "projects", workspaceRoot, paths };
 }
 
+/**
+ * A tool call's raw `arguments` text → the object to call it with. Empty text
+ * means "no arguments" (some servers send `""` for a parameterless call).
+ * Invalid or non-object JSON yields an error message written for the model,
+ * so it can correct itself on the next round rather than the call running
+ * with made-up arguments.
+ */
+export function parseToolArguments(
+	name: string,
+	text: string,
+): { args: Record<string, unknown> } | { error: string } {
+	if (!text.trim()) return { args: {} };
+	try {
+		const value: unknown = JSON.parse(text);
+		if (value != null && typeof value === "object" && !Array.isArray(value)) {
+			return { args: value as Record<string, unknown> };
+		}
+	} catch {
+		// Fall through to the shared error below.
+	}
+	return {
+		error: `Error: the arguments for ${name || "this tool"} weren't a valid JSON object, so it wasn't run. Call it again with a JSON object matching its parameters.`,
+	};
+}
+
 /** The workspace root a successful `set_active_workspace` result switched to. */
 export function workspaceFromSetActiveResult(resultText: string): string | null {
 	const payload = parseObject(resultText);

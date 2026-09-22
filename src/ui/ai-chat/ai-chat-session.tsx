@@ -15,11 +15,30 @@
  * `beginTurn`'s catch block) rather than by pre-emptively wiping history on
  * every switch, which would throw away a working conversation on a switch
  * that was going to be fine.
+ *
+ * Switching the AI *provider* (built-in ↔ local model server) does reset it,
+ * through `resetConversation()`: the two keep different history shapes (the
+ * local server replays each turn's tool exchange via `wire`). The local
+ * server mode's own state lives here too, for the same survive-a-tab-switch
+ * reason — the chat's own workspace (`chatWorkspaceRoot`, independent of the
+ * pane's) and its private in-process MCP bridge, created lazily on the first
+ * local-server turn and closed whenever the conversation resets.
  */
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import {
+	createContext,
+	useCallback,
+	useContext,
+	useEffect,
+	useRef,
+	useState,
+	type ReactNode,
+} from "react";
+import { createMcpBridge, type McpBridge } from "../../ai/mcp-bridge";
+import type { LocalChatWireMessage, ToolResultRows } from "../../core/ai/local-server";
 import type { ProjectFilters } from "../../core/views/filter";
 import type { ViewFilters } from "../../core/types";
+import { usePlugin } from "../context";
 import { useTabs } from "../tabs-context";
 
 /**
@@ -72,26 +91,118 @@ export interface AiChatBubble {
 	projectPaths?: string[];
 	/** Set alongside `projectPaths` for a resolved `searchProjects` action — see `AiChatProjectQueryMeta`. */
 	projectQueryMeta?: AiChatProjectQueryMeta;
+	/** Local server only: every tool this turn called, in order, for the "Used: …" note. */
+	toolCalls?: { name: string; isError: boolean }[];
+	/**
+	 * Local server only: the assistant-with-`tool_calls` and `tool` messages
+	 * this turn produced, in order, excluding the final answer (`content`).
+	 * Only ever used to replay history to the server (`bubblesToWireMessages`).
+	 */
+	wire?: LocalChatWireMessage[];
+	/**
+	 * Local server only: the last row-producing tool result of the turn, as
+	 * paths — resolved against the live index at render time, same "computed,
+	 * never stored" rule as `taskPaths`. `shown` grows with "Load more".
+	 */
+	resultRows?: ToolResultRows & { shown: number };
+	/** Local server only: the last response's `usage.total_tokens`, when the server reported it. */
+	tokens?: number;
+	/** Local server only: this bubble is a connection/server error, shown but never replayed to the model. */
+	error?: boolean;
 }
 
 interface AiChatSessionValue {
 	messages: AiChatBubble[];
 	setMessages: React.Dispatch<React.SetStateAction<AiChatBubble[]>>;
+	/** Local server only: the chat's own workspace root — `null` until the view seeds it from the pane. Never changes the pane or sidebar. */
+	chatWorkspaceRoot: string | null;
+	setChatWorkspaceRoot: (root: string | null) => void;
+	/** Local server only: the conversation's MCP bridge (created on first use), with `set_active_workspace` applied for `root` if it isn't already. */
+	ensureBridge: (root: string) => Promise<McpBridge>;
+	/** Clears the messages and the chat workspace, and closes the bridge. Used on tab close and on a provider switch. */
+	resetConversation: () => void;
+}
+
+interface BridgeEntry {
+	bridge: Promise<McpBridge>;
+	/** The root `set_active_workspace` was last applied for through `ensureBridge`. */
+	appliedRoot: string | null;
 }
 
 const AiChatSessionCtx = createContext<AiChatSessionValue | null>(null);
 
 export function AiChatSessionProvider({ children }: { children: ReactNode }) {
+	const plugin = usePlugin();
 	const { tabs } = useTabs();
 	const [messages, setMessages] = useState<AiChatBubble[]>([]);
+	const [chatWorkspaceRoot, setChatWorkspaceRoot] = useState<string | null>(null);
+	// Read by the bridge's `activeWorkspace` fallback at call time, so the
+	// bridge never needs rebuilding when the chat workspace changes.
+	const chatRootRef = useRef(chatWorkspaceRoot);
+	chatRootRef.current = chatWorkspaceRoot;
+	const bridgeRef = useRef<BridgeEntry | null>(null);
+
+	const closeBridge = useCallback(() => {
+		const entry = bridgeRef.current;
+		bridgeRef.current = null;
+		void entry?.bridge.then(
+			(bridge) => bridge.close(),
+			() => undefined,
+		);
+	}, []);
+
+	const ensureBridge = useCallback(
+		async (root: string): Promise<McpBridge> => {
+			let entry = bridgeRef.current;
+			if (!entry) {
+				const bridge = createMcpBridge(
+					plugin.mcpToolDeps(() =>
+						chatRootRef.current != null ? plugin.index.get(chatRootRef.current) : null,
+					),
+				);
+				const created: BridgeEntry = { bridge, appliedRoot: null };
+				entry = created;
+				bridgeRef.current = created;
+				// A failed creation isn't cached — the next turn tries again.
+				bridge.catch(() => {
+					if (bridgeRef.current === created) bridgeRef.current = null;
+				});
+			}
+			const bridge = await entry.bridge;
+			if (entry.appliedRoot !== root) {
+				const result = await bridge.callTool("set_active_workspace", { workspace: root });
+				if (!result.isError) entry.appliedRoot = root;
+			}
+			return bridge;
+		},
+		[plugin],
+	);
+
+	const resetConversation = useCallback(() => {
+		setMessages([]);
+		setChatWorkspaceRoot(null);
+		closeBridge();
+	}, [closeBridge]);
 
 	const tabOpen = tabs.some((tab) => tab.kind === "ai-chat");
 	useEffect(() => {
-		if (!tabOpen) setMessages([]);
-	}, [tabOpen]);
+		if (!tabOpen) resetConversation();
+	}, [tabOpen, resetConversation]);
+
+	// The pane itself closing — nothing else will ever close this bridge.
+	useEffect(() => closeBridge, [closeBridge]);
 
 	return (
-		<AiChatSessionCtx.Provider value={{ messages, setMessages }}>
+		<AiChatSessionCtx.Provider
+			value={{
+				messages,
+				setMessages,
+				chatWorkspaceRoot,
+				setChatWorkspaceRoot,
+				ensureBridge,
+				resetConversation,
+			}}
+		>
 			{children}
 		</AiChatSessionCtx.Provider>
 	);

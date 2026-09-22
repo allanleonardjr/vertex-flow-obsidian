@@ -9,6 +9,7 @@ import {
 	LOCAL_SERVER_PRESETS,
 	mcpToolsToOpenAiTools,
 	normalizeBaseUrl,
+	parseToolArguments,
 	pickModelId,
 	presetForUrl,
 	toLocalServerErrorLike,
@@ -219,5 +220,19 @@ describe("bubblesToWireMessages", () => {
 			{ role: "user", content: "and now?" },
 			{ role: "user", content: "again" },
 		]);
+	});
+});
+
+describe("parseToolArguments", () => {
+	it("parses an object, and treats empty text as no arguments", () => {
+		expect(parseToolArguments("list_tasks", '{"query":"is:open"}')).toEqual({ args: { query: "is:open" } });
+		expect(parseToolArguments("list_workspaces", "  ")).toEqual({ args: {} });
+	});
+
+	it("returns a model-facing error for invalid or non-object JSON", () => {
+		for (const text of ['{"query":', "[1,2]", "42"]) {
+			const result = parseToolArguments("list_tasks", text);
+			expect("error" in result && result.error).toContain("list_tasks");
+		}
 	});
 });
