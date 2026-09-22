@@ -398,9 +398,15 @@ export function createMcpServer(deps: McpDeps): McpServer {
 				"Flow query language (see the 'Saved Views' help topic, section " +
 				"'Query language', for the full grammar). Examples: " +
 				"`status:in-progress`, `assignee:Alice label:frontend`, " +
-				"`project:\"Core App\" due:\"this week\"`, `parent:TSK-0012` (a " +
-				"task's sub-tasks — get_task also returns this as `subtasksQuery` " +
-				"when applicable), `is:open sort:due`. Sorting uses the query's " +
+				"`due:2026-09-19` (due that exact day), `due-after:2026-09-01 " +
+				"due-before:2026-10-01` (a range — every date field has this " +
+				"`due`/`start`/`created`/`updated`/`completed` × `-before`/" +
+				"`-after` shape), `-status:done -label:someday` (any `field:` " +
+				"can be prefixed with `-` to exclude instead of include — " +
+				"independent of what the plain `field:` allows), " +
+				"`project:\"Core App\" parent:TSK-0012` (a task's sub-tasks — " +
+				"get_task also returns this as `subtasksQuery` when " +
+				"applicable), `is:open sort:due`. Sorting uses the query's " +
 				"`sort:` clause faithfully (e.g. `sort:-due`, `sort:comments`, " +
 				"`sort:subtasks`); without one, tasks stay in their manual rank " +
 				"order. Rows are capped at 200; check `total`/`truncated` and " +
@@ -825,7 +831,8 @@ export function createMcpServer(deps: McpDeps): McpServer {
 				"nor canceled), `archived` — optionally broken down by status, " +
 				"priority, task type, label, assignee or project via the `by` " +
 				"array. Accepts the same query-language filter as list_tasks (e.g. " +
-				"`assignee:me`, `due:\"this week\"`); the count is exact and " +
+				"`assignee:me`, `due-before:2026-10-01`, `-status:done`); the " +
+				"count is exact and " +
 				"uncapped, unlike list_tasks' 200-row cap. Buckets use resolved " +
 				"display names, and a task with no value lands in a `(none)` bucket.",
 			inputSchema: {

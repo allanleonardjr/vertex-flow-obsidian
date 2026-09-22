@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vertex Flow — Deep Link Tester</title>
+    <style>
+      :root {
+        --bg: #12131a;
+        --panel: #1a1c26;
+        --border: #2a2d3d;
+        --text: #e6e8f0;
+        --muted: #8b8fa3;
+        --accent: #6366f1;
+        --ok: #34d399;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 32px 16px 64px;
+        background: var(--bg);
+        color: var(--text);
+        font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      h1 { font-size: 22px; margin: 0 0 4px; }
+      .sub { color: var(--muted); margin: 0 0 24px; }
+      .note {
+        background: #1b232d;
+        border: 1px solid #2f4457;
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin-bottom: 28px;
+        color: var(--muted);
+      }
+      .note code { color: var(--ok); }
+      section {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px 24px;
+        margin-bottom: 20px;
+      }
+      h2 {
+        font-size: 15px;
+        margin: 0 0 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+      }
+      .desc { color: var(--muted); margin: 0 0 14px; }
+      ul { list-style: none; margin: 0; padding: 0; }
+      li { margin: 0 0 10px; }
+      a {
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 600;
+        word-break: break-all;
+      }
+      a:hover { text-decoration: underline; }
+      .uri {
+        display: block;
+        font: 12px/1.4 ui-monospace, "SF Mono", Menlo, monospace;
+        color: var(--muted);
+        margin-top: 2px;
+        word-break: break-all;
+      }
+      .tag {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--ok);
+        border: 1px solid rgba(52, 211, 153, 0.35);
+        border-radius: 4px;
+        padding: 1px 6px;
+        margin-right: 8px;
+        vertical-align: 1px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Vertex Flow — Deep Link Tester</h1>
+    <p class="sub">
+      Generated from the <code>Vertex Flow Backup</code> workspace (vault: Development).
+    </p>
+
+    <div class="note">
+      Open this file in a <strong>web browser</strong>, then click a link. Your browser hands the
+      <code>obsidian://</code> URI to macOS, which routes it to Obsidian. The first time, you may get
+      a "Do you want to open Obsidian?" prompt — accept it. Clicking inside Obsidian itself or a plain
+      terminal's <code>open</code> command works too.
+    </div>
+
+    <section>
+      <h2>Tasks</h2>
+      <p class="desc">Open a task in the Vertex Flow editor (<code>target=vf</code>) or as a plain note (<code>target=native</code>). Paths are vault-relative, with or without <code>.md</code>.</p>
+      <ul>
+        <li>
+          <span class="tag">vf</span>
+          <a href="obsidian://vertex-flow?open-task=Vertex%20Flow/Vertex%20Flow%20Backup/Tasks/VRT-0022">Open VRT-0022 (Keyboard Tab Order) in the editor</a>
+          <span class="uri">obsidian://vertex-flow?open-task=Vertex%20Flow/Vertex%20Flow%20Backup/Tasks/VRT-0022&amp;target=vf</span>
+        </li>
+        <li>
+          <span class="tag">vf</span>
+          <a href="obsidian://vertex-flow?open-task=Vertex%20Flow/Vertex%20Flow%20Backup/Tasks/VRT-0147">Open VRT-0147 (Build a Local LLM AI Agent &amp; Chat)</a>
+          <span class="uri">obsidian://vertex-flow?open-task=Vertex%20Flow/Vertex%20Flow%20Backup/Tasks/VRT-0147</span>
+        </li>
+        <li>
+          <span class="tag">vf</span>
+          <a href="obsidian://vertex-flow?open-task=Vertex%20Flow/Vertex%20Flow%20Backup/Tasks/VRT-0146.md">Open VRT-0146 (Nested tasks in comments bug) — with .md suffix</a>
+          <span class="uri">obsidian://vertex-flow?open-task=Vertex%20Flow/Vertex%20Flow%20Backup/Tasks/VRT-0146.md</span>
+        </li>
+        <li>
+          <span class="tag">native</span>
+          <a href="obsidian://vertex-flow?open-task=Vertex%20Flow/Vertex%20Flow%20Backup/Tasks/VRT-0145.md&target=native">Open VRT-0145 (Gallery card details collapsible) as a raw Obsidian note</a>
+          <span class="uri">obsidian://vertex-flow?open-task=Vertex%20Flow/Vertex%20Flow%20Backup/Tasks/VRT-0145.md&amp;target=native</span>
+        </li>
+        <li>
+          <span class="tag">native</span>
+          <a href="obsidian://vertex-flow?open-task=Vertex%20Flow/Vertex%20Flow%20Backup/Projects/Obsidian.md&target=native">Open the "Obsidian" project note natively</a>
+          <span class="uri">obsidian://vertex-flow?open-task=Vertex%20Flow/Vertex%20Flow%20Backup/Projects/Obsidian.md&amp;target=native</span>
+        </li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Views</h2>
+      <p class="desc">
+        System views resolve against the active workspace. Saved views (from <code>Views/*.md</code>)
+        take an optional <code>&amp;root=</code> to pin the workspace.
+      </p>
+      <ul>
+        <li>
+          <span class="tag">system</span>
+          <a href="obsidian://vertex-flow?open-view=tasks">All Tasks</a>
+          <span class="uri">obsidian://vertex-flow?open-view=tasks</span>
+        </li>
+        <li>
+          <span class="tag">system</span>
+          <a href="obsidian://vertex-flow?open-view=untriaged">Untriaged</a>
+          <span class="uri">obsidian://vertex-flow?open-view=untriaged</span>
+        </li>
+        <li>
+          <span class="tag">saved</span>
+          <a href="obsidian://vertex-flow?open-view=obsidian-in-progress&root=Vertex%20Flow/Vertex%20Flow%20Backup">Obsidian/In Progress</a>
+          <span class="uri">obsidian://vertex-flow?open-view=obsidian-in-progress&amp;root=Vertex%20Flow/Vertex%20Flow%20Backup</span>
+        </li>
+        <li>
+          <span class="tag">saved</span>
+          <a href="obsidian://vertex-flow?open-view=obsidian-open&root=Vertex%20Flow/Vertex%20Flow%20Backup">Obsidian/Open</a>
+          <span class="uri">obsidian://vertex-flow?open-view=obsidian-open&amp;root=Vertex%20Flow/Vertex%20Flow%20Backup</span>
+        </li>
+        <li>
+          <span class="tag">saved</span>
+          <a href="obsidian://vertex-flow?open-view=obsidian-urgent-high&root=Vertex%20Flow/Vertex%20Flow%20Backup">Obsidian/Urgent &amp; High</a>
+          <span class="uri">obsidian://vertex-flow?open-view=obsidian-urgent-high&amp;root=Vertex%20Flow/Vertex%20Flow%20Backup</span>
+        </li>
+        <li>
+          <span class="tag">saved</span>
+          <a href="obsidian://vertex-flow?open-view=obsidian-bugs-open&root=Vertex%20Flow/Vertex%20Flow%20Backup">Obsidian/Bugs - Open</a>
+          <span class="uri">obsidian://vertex-flow?open-view=obsidian-bugs-open&amp;root=Vertex%20Flow/Vertex%20Flow%20Backup</span>
+        </li>
+        <li>
+          <span class="tag">saved</span>
+          <a href="obsidian://vertex-flow?open-view=new-view&root=Vertex%20Flow/Vertex%20Flow%20Backup">New view (Canvas layout)</a>
+          <span class="uri">obsidian://vertex-flow?open-view=new-view&amp;root=Vertex%20Flow/Vertex%20Flow%20Backup</span>
+        </li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Queries</h2>
+      <p class="desc">Open an ephemeral query tab, parsed against the workspace snapshot.</p>
+      <ul>
+        <li>
+          <a href="obsidian://vertex-flow?query=status:todo,in-progress,ready-for-release%20project:=Obsidian%20layout:table%20sort:rank&root=Vertex%20Flow/Vertex%20Flow%20Backup">Open Obsidian tasks (table, rank)</a>
+          <span class="uri">obsidian://vertex-flow?query=status:todo,in-progress,ready-for-release%20project:=Obsidian%20layout:table%20sort:rank&amp;root=Vertex%20Flow/Vertex%20Flow%20Backup</span>
+        </li>
+        <li>
+          <a href="obsidian://vertex-flow?query=priority:urgent,high%20status:queue,todo,in-progress,ready-for-release%20group:status%20sort:priority&root=Vertex%20Flow/Vertex%20Flow%20Backup">Open Urgent &amp; High by status</a>
+          <span class="uri">obsidian://vertex-flow?query=priority:urgent,high%20status:queue,todo,in-progress,ready-for-release%20group:status%20sort:priority&amp;root=Vertex%20Flow/Vertex%20Flow%20Backup</span>
+        </li>
+        <li>
+          <a href="obsidian://vertex-flow?query=type:release%20group:none%20sort:-title&root=Vertex%20Flow/Vertex%20Flow%20Backup">Open all Releases</a>
+          <span class="uri">obsidian://vertex-flow?query=type:release%20group:none%20sort:-title&amp;root=Vertex%20Flow/Vertex%20Flow%20Backup</span>
+        </li>
+        <li>
+          <a href="obsidian://vertex-flow?query=is:recurring&root=Vertex%20Flow/Vertex%20Flow%20Backup">Open recurring tasks</a>
+          <span class="uri">obsidian://vertex-flow?query=is:recurring&amp;root=Vertex%20Flow/Vertex%20Flow%20Backup</span>
+        </li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Help</h2>
+      <p class="desc">Land the Help pane on a specific topic. Add <code>&amp;anchor=&lt;slug&gt;</code> to jump to a heading.</p>
+      <ul>
+        <li>
+          <a href="obsidian://vertex-flow?help=layouts-canvas-layout">Canvas layout</a>
+          <span class="uri">obsidian://vertex-flow?help=layouts-canvas-layout</span>
+        </li>
+        <li>
+          <a href="obsidian://vertex-flow?help=views-saved-views&anchor=query-language">Saved Views → Query language heading</a>
+          <span class="uri">obsidian://vertex-flow?help=views-saved-views&amp;anchor=query-language</span>
+        </li>
+        <li>
+          <a href="obsidian://vertex-flow?help=concepts-recurring-tasks">Recurring Tasks</a>
+          <span class="uri">obsidian://vertex-flow?help=concepts-recurring-tasks</span>
+        </li>
+        <li>
+          <a href="obsidian://vertex-flow?help=mcp-llm-integration">AI integration (MCP)</a>
+          <span class="uri">obsidian://vertex-flow?help=mcp-llm-integration</span>
+        </li>
+        <li>
+          <a href="obsidian://vertex-flow?help=keyboard-shortcuts">Keyboard shortcuts</a>
+          <span class="uri">obsidian://vertex-flow?help=keyboard-shortcuts</span>
+        </li>
+        <li>
+          <a href="obsidian://vertex-flow?help=dashboards">Dashboards</a>
+          <span class="uri">obsidian://vertex-flow?help=dashboards</span>
+        </li>
+        <li>
+          <a href="obsidian://vertex-flow?help=getting-started">Getting started</a>
+          <span class="uri">obsidian://vertex-flow?help=getting-started</span>
+        </li>
+      </ul>
+    </section>
+  </body>
+</html>

@@ -8,7 +8,13 @@
  * plugin-private scheme.
  */
 
-import { normalizePath, Notice, Platform, Plugin, WorkspaceLeaf } from "obsidian";
+import {
+  normalizePath,
+  Notice,
+  Platform,
+  Plugin,
+  WorkspaceLeaf,
+} from "obsidian";
 import { AiEngineService } from "./ai/AiEngineService";
 import { VaultIndex } from "./obsidian/index-store";
 import { Mutations } from "./obsidian/mutations";
@@ -27,14 +33,11 @@ import {
   setMcpToken,
 } from "./obsidian/mcp-token";
 import {
-	findAvailablePort,
-	McpServerService,
-	type McpClientInfo,
+  findAvailablePort,
+  McpServerService,
+  type McpClientInfo,
 } from "./mcp/server";
-import {
-  intentFromParams,
-  type VaultUriIntent,
-} from "./core/mcp/uris";
+import { intentFromParams, type VaultUriIntent } from "./core/mcp/uris";
 import {
   configureLastWorkspaceStorage,
   getLastWorkspaceRoot,
@@ -150,7 +153,9 @@ export default class VertexFlowPlugin extends Plugin {
     // it resolves under the per-vault `app://<id>` origin, while plugin code
     // itself runs under `app://obsidian.md`, so `new Worker()` refuses it as
     // cross-origin. A same-document Blob URL sidesteps that entirely.
-    const workerPath = normalizePath(`${this.manifest.dir ?? ""}/webllm.worker.js`);
+    const workerPath = normalizePath(
+      `${this.manifest.dir ?? ""}/webllm.worker.js`,
+    );
     const workerSource = await this.app.vault.adapter.read(workerPath);
     this.aiWorkerBlobUrl = URL.createObjectURL(
       new Blob([workerSource], { type: "application/javascript" }),
@@ -567,6 +572,7 @@ export default class VertexFlowPlugin extends Plugin {
           anchor: intent.anchor,
         };
         await this.activateView();
+        this.index.touch();
         return;
       case "query":
         this.pendingQuery = {
@@ -659,10 +665,7 @@ export default class VertexFlowPlugin extends Plugin {
         "editorRailCollapsed",
         ["taskEditorRailCollapsed", "projectEditorRailCollapsed"],
       ],
-      [
-        "editorSourceOpen",
-        ["taskEditorSourceOpen", "projectEditorSourceOpen"],
-      ],
+      ["editorSourceOpen", ["taskEditorSourceOpen", "projectEditorSourceOpen"]],
       [
         "descriptionCollapsed",
         [
