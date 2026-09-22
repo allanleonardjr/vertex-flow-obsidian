@@ -40,6 +40,7 @@ import { useAiChatSession } from "../ai-chat/ai-chat-session";
 import { useAiEngineStatus } from "../ai-chat/useAiEngineStatus";
 import { ConfirmDeleteDialog } from "../components/ConfirmDeleteDialog";
 import { usePlugin, useSettingsWriter } from "../context";
+import { Select } from "../components/Select";
 
 function formatBytes(bytes: number): string {
 	if (bytes < 1024) return `${bytes} B`;
@@ -306,8 +307,9 @@ function LocalServerSettings({ enabled }: { enabled: boolean }) {
 		<div className={`vf-local-server-settings${enabled ? "" : " is-disabled"}`}>
 			<label className="vf-field">
 				<span>Server</span>
-				<select
+				<Select
 					className="vf-select"
+					wrapClassName="vf-select-wrap-block"
 					value={presetValue}
 					onChange={(event) => pickPreset(event.target.value as LocalServerPresetId)}
 				>
@@ -316,7 +318,7 @@ function LocalServerSettings({ enabled }: { enabled: boolean }) {
 							{preset.label}
 						</option>
 					))}
-				</select>
+				</Select>
 			</label>
 
 			<label className="vf-field">

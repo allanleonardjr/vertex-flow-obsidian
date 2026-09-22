@@ -77,6 +77,7 @@ import {
   type AiChatQueryMeta,
   useAiChatSession,
 } from "./ai-chat-session";
+import { Select } from "../components/Select";
 
 /** How long the Copy button shows its confirmation checkmark. */
 const COPY_CONFIRM_MS = 1500;
@@ -1268,7 +1269,7 @@ function BuiltinAiChatView({
         <label className="vf-chat-model-label" htmlFor="vf-chat-model">
           Model
         </label>
-        <select
+        <Select
           id="vf-chat-model"
           className="vf-select"
           value={selectedModelId}
@@ -1280,7 +1281,7 @@ function BuiltinAiChatView({
               {option.label}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
     </div>
   );

@@ -12,6 +12,7 @@ import { workspaceTaxonomies } from "../../core/taxonomy";
 import type { WorkspaceSnapshot } from "../../core/types";
 import { TypeSelect } from "../components/fields";
 import { usePlugin } from "../context";
+import { Select } from "../components/Select";
 
 export function TaskDefaultsSection({
 	snapshot,
@@ -55,7 +56,7 @@ export function TaskDefaultsSection({
 
 			<label className="vf-field">
 				<span>New tasks go to</span>
-				<select
+				<Select
 					value={workspace.newTaskPlacement}
 					onChange={(event) =>
 						commit({
@@ -65,7 +66,7 @@ export function TaskDefaultsSection({
 				>
 					<option value="top">Top of the list</option>
 					<option value="bottom">Bottom of the list</option>
-				</select>
+				</Select>
 			</label>
 		</section>
 	);

@@ -7,7 +7,7 @@
  *
  * Rendered as a modal rather than `Popover` (which any outside click dismisses)
  * because a multi-control form needs to survive a stray click and a native
- * <select> dropdown.
+ * select dropdown.
  */
 
 import { useState } from "react";
@@ -34,6 +34,7 @@ import {
 	scopeValueOptions,
 	type Option,
 } from "./fieldOptions";
+import { Select as NativeSelect } from "../components/Select";
 
 export interface WidgetConfigResult {
 	chartType: ChartType;
@@ -54,13 +55,13 @@ function Select<T extends string>({
 	return (
 		<label className="vf-field">
 			<span>{label}</span>
-			<select value={value} onChange={(e) => onChange(e.target.value as T)}>
+			<NativeSelect value={value} onChange={(e) => onChange(e.target.value as T)}>
 				{options.map((option) => (
 					<option key={option.value} value={option.value}>
 						{option.label}
 					</option>
 				))}
-			</select>
+			</NativeSelect>
 		</label>
 	);
 }

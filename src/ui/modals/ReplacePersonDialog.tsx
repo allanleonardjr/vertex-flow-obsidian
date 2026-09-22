@@ -9,6 +9,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { describePersonUsage, type PersonDeletionPlan } from "../../core/people";
+import { Select } from "../components/Select";
 
 export function ReplacePersonDialog({
 	plan,
@@ -73,8 +74,9 @@ export function ReplacePersonDialog({
 				{effectiveMode === "reassign" && (
 					<label className="vf-field">
 						<span>Reassign to</span>
-						<select
+						<Select
 							className="vf-select"
+							wrapClassName="vf-select-wrap-block"
 							value={replacementId}
 							onChange={(e) => setReplacementId(e.target.value)}
 						>
@@ -83,7 +85,7 @@ export function ReplacePersonDialog({
 									{p.name}
 								</option>
 							))}
-						</select>
+						</Select>
 					</label>
 				)}
 				</div>

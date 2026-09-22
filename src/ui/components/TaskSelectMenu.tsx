@@ -6,7 +6,7 @@
  *
  * `extraOptions` carries non-task rows (the Parent field mixes in Projects).
  * `value` is whichever option is current — a task path or an extra value — and
- * gets the same tick a native `<select>` shows.
+ * gets the same tick a native select shows.
  *
  * The menu renders in a portal, anchored to the trigger: the editor rail is an
  * overflow-scroll container, and a menu this wide would otherwise be clipped.

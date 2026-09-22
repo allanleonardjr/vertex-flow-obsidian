@@ -34,6 +34,7 @@ import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 import { NumberField, PropertyRow, StatusSelect } from "./fields";
 import { usePlugin } from "../context";
+import { Select } from "./Select";
 
 const FREQUENCIES: { id: RecurrenceFrequency; label: string }[] = [
   { id: "daily", label: "Daily" },
@@ -478,8 +479,9 @@ export function RecurrenceEditDialog({
                   }
                 />
                 {rule.weekdayOfMonth != null ? (
-                  <select
+                  <Select
                     className="vf-input"
+                    wrapClassName="vf-select-wrap-block"
                     value={rule.weekdayOfMonth}
                     onChange={(e) =>
                       patch({ weekdayOfMonth: Number(e.target.value) })
@@ -491,7 +493,7 @@ export function RecurrenceEditDialog({
                         {weekdayName(weekdayOf(finalize().nextDate))}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 ) : (
                   <div className="vf-inline-field">
                     <span>On the</span>
@@ -517,8 +519,9 @@ export function RecurrenceEditDialog({
 
             {rule.freq === "yearly" && (
               <Field label="In month">
-                <select
+                <Select
                   className="vf-input"
+                  wrapClassName="vf-select-wrap-block"
                   value={rule.monthOfYear ?? ""}
                   onChange={(e) =>
                     patch({
@@ -534,7 +537,7 @@ export function RecurrenceEditDialog({
                       {month}
                     </option>
                   ))}
-                </select>
+                </Select>
               </Field>
             )}
 

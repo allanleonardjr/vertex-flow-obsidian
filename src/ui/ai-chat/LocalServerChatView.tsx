@@ -55,6 +55,7 @@ import {
   ChatTaskList,
   ThinkingIndicator,
 } from "./chat-parts";
+import { Select } from "../components/Select";
 
 /** How long the Copy button shows its confirmation checkmark. */
 const COPY_CONFIRM_MS = 1500;
@@ -495,7 +496,7 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
           <h2>AI Chat - {chatName}</h2>
         </div>
         <div className="vf-chat-header-controls">
-          <select
+          <Select
             className="vf-select"
             aria-label="Chat workspace"
             value={chatSnapshot.workspace.root}
@@ -507,8 +508,8 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
                 {workspace.workspace.name}
               </option>
             ))}
-          </select>
-          <select
+          </Select>
+          <Select
             className="vf-select"
             aria-label="Model"
             value={modelId ?? ""}
@@ -520,7 +521,7 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
                 {id}
               </option>
             ))}
-          </select>
+          </Select>
           <button
             type="button"
             className="vf-icon-button"

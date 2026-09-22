@@ -34,6 +34,7 @@ import { ColorField } from "../components/ColorField";
 import { COLOR_PALETTE } from "../../core/color";
 import { ReplaceValueDialog } from "./ReplaceValueDialog";
 import { ConfirmDeleteDialog } from "../components/ConfirmDeleteDialog";
+import { Select } from "../components/Select";
 
 const CATEGORY_LABEL: Record<StatusCategory, string> = {
 	backlog: "Backlog",
@@ -234,8 +235,9 @@ function TaxonomyRow({
 			/>
 
 			{categorized && (
-				<select
+				<Select
 					className="vf-select vf-taxonomy-category"
+					wrapClassName="vf-taxonomy-category-wrap"
 					value={value.category}
 					onChange={(event) => onRecategorize(event.target.value as StatusCategory)}
 				>
@@ -244,7 +246,7 @@ function TaxonomyRow({
 							{CATEGORY_LABEL[category]}
 						</option>
 					))}
-				</select>
+				</Select>
 			)}
 
 			{ordered && (
@@ -310,8 +312,9 @@ function AddValueRow({
 				}}
 			/>
 			{categorized && (
-				<select
+				<Select
 					className="vf-select vf-taxonomy-category"
+					wrapClassName="vf-taxonomy-category-wrap"
 					value={category}
 					onChange={(event) => setCategory(event.target.value as StatusCategory)}
 				>
@@ -320,7 +323,7 @@ function AddValueRow({
 							{CATEGORY_LABEL[option]}
 						</option>
 					))}
-				</select>
+				</Select>
 			)}
 			<button className="mod-cta" disabled={!name.trim()} onClick={submit}>
 				Add

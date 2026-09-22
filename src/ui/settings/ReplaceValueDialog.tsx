@@ -13,6 +13,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { describeUsage, type TaxonomyDeletionPlan, type TaxonomyUsage } from "../../core/taxonomy";
+import { Select } from "../components/Select";
 
 export function ReplaceValueDialog({
 	plan,
@@ -79,8 +80,9 @@ export function ReplaceValueDialog({
 				{effectiveMode === "reassign" && (
 					<label className="vf-field">
 						<span>Replace with</span>
-						<select
+						<Select
 							className="vf-select"
+							wrapClassName="vf-select-wrap-block"
 							value={replacementId}
 							onChange={(event) => setReplacementId(event.target.value)}
 						>
@@ -89,7 +91,7 @@ export function ReplaceValueDialog({
 									{candidate.name}
 								</option>
 							))}
-						</select>
+						</Select>
 					</label>
 				)}
 				</div>

@@ -590,6 +590,73 @@ button.vf-nav-row-menu:hover {
   font-size: var(--font-ui-smaller);
 }
 
+/* Every native dropdown goes through the shared `Select` component
+   (src/ui/components/Select.tsx), which wraps it in `.vf-select-wrap`.
+   Obsidian's base theme strips the native arrow and draws none, and a
+   `<select>` can't host a pseudo-element, so the chevron is the wrapper's
+   `::after`: an SVG used only as a mask (just its alpha counts), painted with
+   the theme's own text color. Clicks pass through it to the select. */
+.vf-select-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+/* Beats `.vf-select` / `.vf-input`'s `padding` shorthand for the right side
+   only; each caller keeps its own top/left/bottom padding. */
+.vf-select-wrap > select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 26px;
+  cursor: pointer;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.vf-select-wrap::after {
+  content: "";
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  transform: translateY(-50%);
+  pointer-events: none;
+  background-color: var(--text-muted);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='3,6 8,11 13,6'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='3,6 8,11 13,6'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.vf-select-wrap:hover::after {
+  background-color: var(--text-normal);
+}
+
+.vf-select-wrap.is-disabled::after {
+  opacity: 0.5;
+}
+
+/* The wrapper is a `<span>`, so undo `.vf-field span`'s label styling
+   (block, bold, spaced) when it sits directly in a field. */
+.vf-field > .vf-select-wrap {
+  display: inline-flex;
+  margin-bottom: 0;
+  font-weight: normal;
+}
+
+/* For selects that used to be `width: 100%` of their field (`.vf-select`
+   in a settings field or dialog, the recurrence editor): the wrapper takes
+   the full width now, and the select fills it. */
+.vf-select-wrap.vf-select-wrap-block {
+  display: flex;
+  width: 100%;
+}
+
+.vf-select-wrap-block > select {
+  width: 100%;
+}
+
 .vf-embedded-list-footer .vf-select {
   background: transparent;
   border: 1px dashed var(--vf-border);
@@ -5275,28 +5342,20 @@ input.vf-editable-title-input {
   font-size: var(--font-ui-smaller);
 }
 
-/* Obsidian's base theme strips the native dropdown arrow (its own `appearance`
-   reset) without adding a replacement back, so this control read as a plain
-   text box rather than a select — `appearance: none` here is explicit
-   (guarantees no conflicting native arrow can render alongside the SVG one
-   below) and the chevron is drawn back in via `background-image`. That's a
-   static-colored SVG, not `var(--vf-muted)` itself — a data-URI background
-   image is painted in an isolated context and can't reference a CSS custom
-   property — chosen to read as the same neutral muted grey in both themes. */
+/* The chat pickers' compact look (the built-in model picker, and the local
+   server chat's workspace/model pickers). The arrow and its right-hand room
+   come from the shared `Select` component's `.vf-select-wrap`; the padding is
+   written as longhands so this rule never overrides that right padding. */
 .vf-chat-model-row .vf-select,
 .vf-chat-header-controls .vf-select {
   width: auto;
   min-width: 150px;
   background-color: transparent;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%239a9a9a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='4,6 8,10 12,6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 6px center;
-  background-size: 11px;
-  appearance: none;
-  -webkit-appearance: none;
   border: 1px solid var(--vf-border);
   color: var(--vf-muted);
-  padding: 2px 24px 2px 6px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+  padding-left: 6px;
   border-radius: var(--vf-radius);
   cursor: pointer;
 }
@@ -5411,6 +5470,12 @@ input.vf-editable-title-input {
 
 .vf-taxonomy-category {
   width: 140px;
+  flex-shrink: 0;
+}
+
+/* The category select's wrapper is the row's flex item now; keep it from
+   shrinking below the select's fixed 140px. */
+.vf-taxonomy-category-wrap {
   flex-shrink: 0;
 }
 
@@ -8107,6 +8172,13 @@ input.vf-dash-widget-title {
   color: var(--vf-muted);
 }
 
+/* The dropdown's `Select` wrapper is also a direct `<span>` child — it isn't
+   a field label, so it doesn't take the label's muted, smaller text. */
+.vf-widget-config-fields .vf-field > .vf-select-wrap {
+  font-size: inherit;
+  color: inherit;
+}
+
 /* --- Empty-state panels: first-run Welcome + workspace recovery ----------
    One centered card (accent icon box, centered copy, one primary affordance).
    `.vf-recover` widens it and swaps the CTA for a list of restorable
@@ -8699,7 +8771,8 @@ button.vf-history-expand {
   outline: none;
 }
 
-/* Selects fill their field and leave room for the native disclosure arrow. */
+/* Selects fill their field (their `Select` wrapper is `vf-select-wrap-block`)
+   and leave room for the wrapper's chevron. */
 .vf-recurrence-dialog select.vf-input {
   width: 100%;
   max-width: 100%;

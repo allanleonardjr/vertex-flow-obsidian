@@ -90,7 +90,7 @@ interface MenuPlacement {
 /**
  * The shell every picker in the editor rail shares: a trigger that renders the
  * current value exactly as the menu rows do, over an anchored list of those
- * rows. Rows are `<button>`s rather than `<option>`s because a native `<select>`
+ * rows. Rows are `<button>`s rather than `<option>`s because a native select
  * can't draw a colour dot, a signal glyph, a tinted pill or an avatar.
  *
  * A search box appears only once the list is long enough to be worth filtering
@@ -330,7 +330,7 @@ export function SelectMenu({
 /**
  * A taxonomy picker whose trigger and rows show the value exactly as it renders
  * everywhere else in the app — a colour dot for Status, a signal icon for
- * Priority, a tinted pill for Type. A native `<select>` can't draw any of that.
+ * Priority, a tinted pill for Type. A native select can't draw any of that.
  *
  * `renderOption(null)` is the "no value" row; pass `allowNone: false` (Status)
  * to drop it. When shown it renders in italics with a rule beneath, set apart
