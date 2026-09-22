@@ -25,13 +25,15 @@ import type {
 	ViewFilters,
 	ViewType,
 } from "../types";
-import { canonicalizeDefinition } from "../views/filter";
+import { isValidIsoDay } from "../date";
+import { canonicalizeDefinition, EXCLUDE_FIELD_KEY } from "../views/filter";
 import { DEFAULT_DEFINITION } from "../views/defaults";
 import type { QueryContext } from "./context";
 import {
 	ALL_FIELD_TOKENS,
 	CANVAS_DIRECTION_BY_TOKEN,
 	CANVAS_LAYOUT_BY_TOKEN,
+	DATE_BOUND_FIELD_BY_TOKEN,
 	DATE_FIELD_BY_TOKEN,
 	EMPTY_BY_TOKEN,
 	FIELD_BY_TOKEN,
@@ -164,6 +166,20 @@ export function parseQuery(
 				);
 				continue;
 			}
+		}
+
+		// Exclusion only makes sense on a real filter field, never on layout
+		// clauses, flags, range bounds, or free text.
+		if (
+			token.excluded &&
+			(!FILTER_FIELD_BY_TOKEN.has(field) || FILTER_FIELD_BY_TOKEN.get(field) === "text")
+		) {
+			fail(
+				"not-expressible",
+				`"-${token.field}:" isn't supported — exclusion only works on filter fields`,
+				token.span,
+			);
+			continue;
 		}
 
 		/* -- flags -- */
@@ -356,6 +372,26 @@ export function parseQuery(
 			continue;
 		}
 
+		/* -- date range bounds -- */
+
+		const dateBoundKey = DATE_BOUND_FIELD_BY_TOKEN.get(field);
+		if (dateBoundKey) {
+			const value = soleValue(token);
+			if (!value) continue;
+			noteDuplicate(dateBoundKey, token.span);
+			const raw = value.text.trim();
+			if (!isValidIsoDay(raw)) {
+				fail(
+					"unknown-value",
+					`"${raw}" isn't a valid date (expected YYYY-MM-DD)`,
+					value.span,
+				);
+			} else {
+				filters[dateBoundKey] = raw;
+			}
+			continue;
+		}
+
 		/* -- filters -- */
 
 		const filterKey = FILTER_FIELD_BY_TOKEN.get(field);
@@ -379,17 +415,18 @@ export function parseQuery(
 			continue;
 		}
 
-		noteDuplicate(filterKey, token.span);
-
 		const key = filterKey;
+		const targetKey = token.excluded ? EXCLUDE_FIELD_KEY[key] : key;
+		noteDuplicate(targetKey, token.span);
+
 		const spec = FILTER_FIELDS[key];
-		const collected = filters[key] ?? [];
+		const collected = (filters as Record<string, string[] | undefined>)[targetKey] ?? [];
 		for (const value of token.values) {
 			const resolved = resolveValue(spec, value.text, value.verbatim, context);
 			if (resolved.issue) issues.push({ ...resolved.issue, span: value.span });
 			collected.push(resolved.value);
 		}
-		filters[key] = collected;
+		(filters as Record<string, string[]>)[targetKey] = collected;
 	}
 
 	const text = textParts.join(" ").trim();

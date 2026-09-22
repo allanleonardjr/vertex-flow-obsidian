@@ -30,11 +30,17 @@ export interface LexedValue {
 export type LexedToken =
 	| {
 			kind: "clause";
-			/** Lower-cased field name, without the colon. */
+			/** Lower-cased field name, without the colon and without a
+			 *  leading `-`. */
 			field: string;
 			fieldSpan: QuerySpan;
 			values: LexedValue[];
 			span: QuerySpan;
+			/** A leading `-` before the field name (`-status:done`) — this
+			 *  clause excludes rather than includes. Decided lexically, the
+			 *  same way the `=` verbatim prefix is; `parse.ts` decides
+			 *  whether the field it landed on can actually be excluded. */
+			excluded: boolean;
 	  }
 	| { kind: "bare"; value: LexedValue; span: QuerySpan };
 
@@ -146,6 +152,12 @@ export function lex(source: string): LexResult {
 			continue;
 		}
 
+		// A leading `-` marks the clause as exclusion (`-status:done`) rather
+		// than a literal part of the field name. `word.length > 1` so a bare
+		// "-" before ":" (no field name at all) doesn't get treated as one.
+		const excluded = word.startsWith("-") && word.length > 1;
+		const fieldWord = excluded ? word.slice(1) : word;
+
 		const fieldSpan = { start: tokenStart, end: i };
 		i += 1; // consume ':'
 
@@ -162,10 +174,11 @@ export function lex(source: string): LexResult {
 
 		tokens.push({
 			kind: "clause",
-			field: word.toLowerCase(),
+			field: fieldWord.toLowerCase(),
 			fieldSpan,
 			values,
 			span: { start: tokenStart, end: i },
+			excluded,
 		});
 	}
 
