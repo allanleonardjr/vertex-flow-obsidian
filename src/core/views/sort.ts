@@ -7,7 +7,7 @@
  * shouldn't suddenly make it so.
  */
 
-import { subtaskProgress } from "../hierarchy";
+import { childTasks, subtaskProgress } from "../hierarchy";
 import { compareTasksByRank } from "../ranking";
 import { getValue } from "../taxonomy/engine";
 import { relationCount, type SortDirection, type SortField, type TableSortKey, type Task } from "../types";
@@ -158,6 +158,26 @@ export function compareField(
 				value: relationCount(a) - relationCount(b),
 				nullSkewed: false,
 			};
+
+		case "comments":
+			// Same reasoning as `relations`: zero comments is a real, least
+			// position. A task newer than the index's body-read pass has no
+			// `commentCount` yet and reads as 0 here.
+			return {
+				value: (a.commentCount ?? 0) - (b.commentCount ?? 0),
+				nullSkewed: false,
+			};
+
+		case "subtasks": {
+			// Follows `progress`'s rule: no scope means absent, and a task with
+			// no children is zero — not "missing data".
+			if (!context.scope) return { value: 0, nullSkewed: false };
+			const count = (task: Task) => childTasks(context.scope!, task.path).length;
+			return {
+				value: count(a) - count(b),
+				nullSkewed: false,
+			};
+		}
 	}
 }
 

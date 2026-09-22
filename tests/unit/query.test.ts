@@ -661,6 +661,45 @@ describe("table-sort: clause", () => {
 	});
 });
 
+/* --------------------------------------------------------------- sort: ----- */
+
+describe("sort: clause — derived fields", () => {
+	it("parses sort:comments and its aliases", () => {
+		const field = (source: string) =>
+			parseQuery(source, ctx).definition.sortBy;
+		expect(field("sort:comments")).toBe("comments");
+		expect(field("sort:comment")).toBe("comments");
+		expect(parseQuery("sort:-comments", ctx).definition.sortDirection).toBe(
+			"desc",
+		);
+	});
+
+	it("parses sort:subtasks and its aliases", () => {
+		const field = (source: string) =>
+			parseQuery(source, ctx).definition.sortBy;
+		expect(field("sort:subtasks")).toBe("subtasks");
+		expect(field("sort:subtask")).toBe("subtasks");
+		expect(field("sort:children")).toBe("subtasks");
+		expect(parseQuery("sort:-subtasks", ctx).definition.sortDirection).toBe(
+			"desc",
+		);
+	});
+
+	it("round-trips sort:-comments and sort:subtasks through print", () => {
+		const comments = parseQuery("sort:-comments", ctx);
+		expect(printQuery(comments.definition, ctx)).toContain("sort:-comments");
+		const subtasks = parseQuery("sort:subtasks", ctx);
+		expect(printQuery(subtasks.definition, ctx)).toContain("sort:subtasks");
+	});
+
+	it("accepts the new fields in table-sort:", () => {
+		expect(parseQuery("table-sort:comments,-subtasks", ctx).definition.tableSort).toEqual([
+			{ field: "comments", direction: "asc" },
+			{ field: "subtasks", direction: "desc" },
+		]);
+	});
+});
+
 /* --------------------------------------------------------- name resolution -- */
 
 describe("resolution", () => {

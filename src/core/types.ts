@@ -370,6 +370,13 @@ export interface Task {
 	path: LinkTarget;
 	/** `Person.id`s @mentioned in the body/comments — powers `mentions: self`. */
 	mentions: string[];
+	/**
+	 * Number of comments in the body, derived by the index's `refreshMentions`
+	 * body-read pass — the same single read that resolves `mentions`. Optional
+	 * because a `Task` literal (parse, mutation, a projected occurrence) doesn't
+	 * know its body; sort/rows treat an absent value as 0.
+	 */
+	commentCount?: number;
 
 	/**
 	 * A speculative future occurrence of a recurring series, synthesised by
@@ -613,7 +620,9 @@ export type SortField =
 	| "assignee"
 	| "labels"
 	| "progress"
-	| "relations";
+	| "relations"
+	| "comments"
+	| "subtasks";
 
 export type SortDirection = "asc" | "desc";
 

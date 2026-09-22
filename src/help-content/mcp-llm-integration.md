@@ -12,7 +12,7 @@ keeps the vault inside your vault, and is **read-only**.
 ## How it works
 
 When enabled, Vertex Flow starts a small HTTP server bound to `127.0.0.1` — a
-loopback address that only your own machine can reach. It answers 17
+loopback address that only your own machine can reach. It answers 27
 read-only JSON tools that let an LLM:
 
 - **List workspaces, projects, tasks, views, dashboards, labels, and people** —
@@ -20,10 +20,23 @@ read-only JSON tools that let an LLM:
   use.
 - **Read a single task, project, view, or dashboard in full** — comments and
   @mentions included.
+- **Run a saved view as the plugin renders it** (`run_view`) and **read a
+  dashboard's computed chart data** (`read_dashboard`) — so "what does the
+  Board show?" and "what does the pie chart say?" get the same numbers the UI
+  shows, not a guess.
+- **Count and summarise** (`count_tasks`, `count_projects`, `get_summary`,
+  `get_stats`) — exact, uncapped answers to "how many…", "what's overdue?" and
+  "who commented most?".
+- **List recurring-task series** (`list_recurring`) with their next occurrence
+  dates — and honour the `show:recurring` preview in a `list_tasks` query.
+- **Find** (`find`) tasks, projects, views and people by title, id or
+  description, and **search task descriptions** (`search_descriptions`) by text
+  or regex.
 - **Search your notes** with the same query syntax you type in the view bar
   (`status:todo priority:high`, `due:today`, `assignee:me`, …).
 - **Read the built-in Help docs** — so the model can answer questions about
-  your workspace accurately instead of guessing.
+  your workspace accurately instead of guessing, and point at the exact doc
+  section that explains a concept.
 
 Every result that points at a note or view carries a deep link
 (`obsidian://vertex-flow…`) the client can hand back to Obsidian to open the
@@ -85,9 +98,10 @@ In an MCP config file this looks like:
 }
 ```
 
-The client then grants the model tools named `list_*`, `get_*`,
-`search_tasks`, and `read_help*`. Ask it something like *"what's the oldest
-open task in my inbox?"* or *"summarise everything due this week"*.
+The client then grants the model `count_*`, `get_*`, `list_*`, `read_*`,
+`run_view`, and `search_help_docs` tools. Ask it something like *"what's the
+oldest open task in my inbox?"*, *"how many tasks are overdue?"*, or
+*"summarise everything due this week"*.
 
 ### Multiple clients at once
 

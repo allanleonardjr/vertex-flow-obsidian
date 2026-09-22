@@ -41,6 +41,7 @@ import {
 } from "./obsidian/last-workspace-storage";
 import { recurrenceNodesInChain } from "./core/recurrence";
 import { isTaskNoteType } from "./core/entity-type";
+import { localTodayIso } from "./core/date";
 import { migrateEntityTypes } from "./obsidian/migrate-entity-type";
 import { migrateCompletedAt } from "./obsidian/migrate-completed-at";
 import { installSwipeGuard } from "./obsidian/swipe-guard";
@@ -272,6 +273,7 @@ export default class VertexFlowPlugin extends Plugin {
         version: this.manifest.version,
         me: (root) => getMePersonId(root),
         activeWorkspace: () => this.activeWorkspace(),
+        today: () => localTodayIso(),
       },
     });
     try {

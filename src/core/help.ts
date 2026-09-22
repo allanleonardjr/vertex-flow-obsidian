@@ -30,6 +30,29 @@ export function findHelpTopic(
 }
 
 /**
+ * Titles of every ancestor of a topic, outermost first — the breadcrumb
+ * rendered as "Help / Views / Saved views", where "Help" is the pane itself
+ * and never an entry. Empty array for a top-level topic; `null` when the id
+ * isn't in the tree (same contract as `findHelpTopic`).
+ */
+export function topicAncestors(
+  topics: readonly HelpTopic[],
+  topicId: string,
+): string[] | null {
+  const walk = (nodes: readonly HelpTopic[], path: string[]): string[] | null => {
+    for (const node of nodes) {
+      if (node.id === topicId) return path;
+      if (node.children) {
+        const found = walk(node.children, [...path, node.title]);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+  return walk(topics, []);
+}
+
+/**
  * The slug a rendered heading's anchor maps to. Obsidian's MarkdownRenderer
  * doesn't inject heading ids, so deep links have to recompute them from the
  * heading text with the same rules at both test time (walking the raw markdown)

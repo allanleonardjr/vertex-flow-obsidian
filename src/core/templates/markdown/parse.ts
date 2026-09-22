@@ -457,6 +457,8 @@ const SORT_FIELDS: readonly SortField[] = [
 	"labels",
 	"progress",
 	"relations",
+	"comments",
+	"subtasks",
 ];
 
 /** The view/dashboard shorthand accepts the query language's friendlier

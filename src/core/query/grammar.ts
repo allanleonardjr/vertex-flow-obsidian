@@ -131,6 +131,8 @@ export const SORT_VALUES: Record<SortField, EnumValueSpec> = {
 	labels: { token: "labels", aliases: ["label", "tag", "tags"] },
 	progress: { token: "progress", aliases: [] },
 	relations: { token: "relations", aliases: ["rel"] },
+	comments: { token: "comments", aliases: ["comment", "cmt", "comments"] },
+	subtasks: { token: "subtasks", aliases: ["subtask", "children", "child"] },
 };
 
 export const LAYOUT_VALUES: Record<ViewType, EnumValueSpec> = {

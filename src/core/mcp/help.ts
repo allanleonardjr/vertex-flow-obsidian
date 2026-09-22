@@ -13,35 +13,62 @@
  *  - `get_help_topic(topicId)` — one topic's full markdown, so an LLM can read
  *    the actual documentation rather than a paraphrase.
  *
+ * Every result carries the topic's breadcrumb and a deep-link URI, so a client
+ * can both *tell* a user where a fact lives and *open* it on command.
+ *
  * Pure over the bundled topic tree: no Obsidian, fully unit-testable.
  */
 
-import { findHelpTopic, HELP_TOPICS, type HelpTopic } from "../help";
+import {
+	findHelpTopic,
+	findHeadingSlugs,
+	HELP_TOPICS,
+	topicAncestors,
+} from "../help";
 import { flattenHelpTopics, scoreHelpTopic } from "../ai/help-retrieval";
+import { buildVaultUri } from "./uris";
 
 export interface McpHelpHit {
 	topicId: string;
 	title: string;
-	/** The topic's nearest-ancestor section, for disambiguation. */
-	section?: string;
+	/**
+	 * Ancestor topic titles, outermost first — the breadcrumb rendered as
+	 * "Help / Views / Saved views", where "Help" is the pane itself and never
+	 * an entry on the path. Empty for a top-level topic.
+	 */
+	path: string[];
+	/** `obsidian://vertex-flow?help=<topicId>` — opens the topic in the Help pane. */
+	vaultUri: string;
 }
 
 export interface McpHelpTopicDetail {
 	topicId: string;
 	title: string;
-	section?: string;
+	path: string[];
+	vaultUri: string;
+	/**
+	 * Heading slugs in this topic's markdown, in document order. Append one to
+	 * `vaultUri`'s `anchor` param (`…&anchor=<slug>`) to deep-link straight to
+	 * a section — e.g. anchor `query-language` on the Saved Views topic.
+	 */
+	anchors: string[];
 	content: string;
 }
 
-/** The topic's parent section title (e.g. "Views" for `views-saved-views`). */
-function topicSection(topics: readonly HelpTopic[], topic: HelpTopic): string | undefined {
-	for (const t of topics) {
-		if (t.id === topic.id) return undefined;
-		if (t.children?.some((child) => child.id === topic.id)) return t.title;
-		const nested = topicSection(t.children ?? [], topic);
-		if (nested) return nested;
-	}
-	return undefined;
+/**
+ * A single topic, reduced for MCP responses. Returns `null` when `topicId`
+ * isn't in the tree — the same contract `findHelpTopic` has, so callers never
+ * synthesize a breadcrumb for an id they haven't looked up.
+ */
+export function helpTopicRef(topicId: string): McpHelpHit | null {
+	const topic = findHelpTopic(HELP_TOPICS, topicId);
+	if (!topic) return null;
+	return {
+		topicId: topic.id,
+		title: topic.title,
+		path: topicAncestors(HELP_TOPICS, topicId) ?? [],
+		vaultUri: buildVaultUri({ action: "help", topicId: topic.id }),
+	};
 }
 
 /** Ranked topic titles for a free-text query. Empty when nothing clears the bar. */
@@ -59,25 +86,21 @@ export function searchHelp(
 		.filter((entry) => entry.score > 0)
 		.sort((a, b) => b.score - a.score)
 		.slice(0, maxResults);
-	return scored.map(({ topic }) => ({
-		topicId: topic.id,
-		title: topic.title,
-		...(topicSection(HELP_TOPICS, topic)
-			? { section: topicSection(HELP_TOPICS, topic) }
-			: {}),
-	}));
+	return scored.flatMap(({ topic }) => {
+		const ref = helpTopicRef(topic.id);
+		return ref ? [ref] : [];
+	});
 }
 
 /** One topic's full content, or `null` when the id isn't found in the tree. */
 export function getHelpTopic(topicId: string): McpHelpTopicDetail | null {
-	const topic = findHelpTopic(HELP_TOPICS, topicId);
-	if (!topic) return null;
+	const summary = helpTopicRef(topicId);
+	if (!summary) return null;
+	const topic = findHelpTopic(HELP_TOPICS, topicId)!;
+	const content = topic.content ?? "";
 	return {
-		topicId: topic.id,
-		title: topic.title,
-		...(topicSection(HELP_TOPICS, topic)
-			? { section: topicSection(HELP_TOPICS, topic) }
-			: {}),
-		content: topic.content ?? "",
+		...summary,
+		anchors: findHeadingSlugs(content),
+		content,
 	};
 }

@@ -15,19 +15,30 @@
  * that into an MCP `isError` result.
  */
 
-import { workspaceTaxonomies } from "../taxonomy";
+import { computeWidgetData, type WidgetData } from "../dashboards/aggregate";
+import { formatProgress, projectProgress, scopeOf, subtaskProgress } from "../hierarchy";
+import { describeRecurrence } from "../recurrence/describe";
+import { projectRecurrences } from "../recurrence/project";
+import { recurringOverview } from "../recurrence/overview";
+import { isCanceled, isCompleted, isOpen, workspaceTaxonomies } from "../taxonomy";
 import type {
 	Comment,
 	DashboardConfig,
+	IsoDate,
 	LinkTarget,
+	Progress,
 	Project,
 	SavedView,
+	StatusValue,
 	Task,
 	ViewFilters,
 	WorkspaceSnapshot,
 } from "../types";
+import { relationCount } from "../types";
 import { snapshotContext } from "../views/context";
+import { evaluateView } from "../views/evaluate";
 import { applyFilters } from "../views/filter";
+import { sortTasks, sortTasksMulti } from "../views/sort";
 import { buildVaultUri } from "./uris";
 
 /** Every list tool returns at most this many rows. */
@@ -56,6 +67,16 @@ export function pageList<T>(rows: T[]): McpListPayload<T> {
 		total: rows.length,
 		truncated: rows.length > MCP_MAX_RESULTS,
 	};
+}
+
+/** Progress rollup, serialized for the detail payloads. */
+export interface McpProgress extends Progress {
+	/** Compact form, e.g. `"6/10"` — completed against the non-canceled total. */
+	text: string;
+}
+
+function mcpProgress(progress: Progress): McpProgress {
+	return { ...progress, text: formatProgress(progress) };
 }
 
 /* ------------------------------------------------------------- workspace --- */
@@ -192,11 +213,26 @@ export function projectDetail(
 	project: Project,
 	description: string,
 ): {
-	project: McpProjectRow & { description?: string };
+	project: McpProjectRow & {
+		description?: string;
+		/** Top-level task rollup — see `projectProgress` (sub-tasks counted in
+		 *  their own parent's bar, archived tasks excluded). */
+		progress: McpProgress;
+	};
 } {
 	const counts = countTasksByProject(snapshot);
 	const row = projectRow(snapshot, project, counts);
-	return { project: { ...row, ...(description ? { description } : {}) } };
+	const taxonomies = workspaceTaxonomies(snapshot.workspace);
+	const rollup = mcpProgress(
+		projectProgress(scopeOf(snapshot), project.path, taxonomies.status),
+	);
+	return {
+		project: {
+			...row,
+			progress: rollup,
+			...(description ? { description } : {}),
+		},
+	};
 }
 
 export function projectRows(
@@ -232,7 +268,11 @@ export interface McpTaskRow {
 	startDate: string | null;
 	dueDate: string | null;
 	archived: boolean;
+	archivedAt: string | null;
+	completedAt: string | null;
 	subTaskCount: number;
+	relationCount: number;
+	commentCount: number;
 	createdAt: string;
 	updatedAt: string;
 }
@@ -268,7 +308,11 @@ export function taskRow(
 		startDate: task.startDate,
 		dueDate: task.dueDate,
 		archived: task.archived,
+		archivedAt: task.archivedAt,
+		completedAt: task.completedAt,
 		subTaskCount: subtaskCounts.get(task.path) ?? 0,
+		relationCount: relationCount(task),
+		commentCount: task.commentCount ?? 0,
 		createdAt: task.createdAt,
 		updatedAt: task.updatedAt,
 	};
@@ -293,6 +337,19 @@ export function taskRowWithUri(
 	};
 }
 
+/** Optional ordering for `taskRows`, mirroring a Saved View's sort clauses.
+ *  Omitted entirely (or `sortBy: "rank"`), tasks stay in rank order — the same
+ *  result the List view shows by default. */
+export interface McpTaskSort {
+	sortBy?: import("../types").SortField;
+	sortDirection?: import("../types").SortDirection;
+	tableSort?: import("../types").TableSortKey[];
+	/** Honor the `show:recurring` clause: merge projected future occurrences
+	 *  in (requires `today`). */
+	recurringPreview?: boolean;
+	today?: import("../types").IsoDate;
+}
+
 /**
  * Filter + cap a workspace's tasks. `filters` rides the real Saved View filter
  * engine (`applyFilters`), resolved against a context that names people and
@@ -305,13 +362,28 @@ export function taskRows(
 	filters: ViewFilters = {},
 	me: string | null = null,
 	showArchived = false,
+	sort: McpTaskSort = {},
 ): McpTaskRow[] {
-	const counts = countSubtasks(snapshot);
 	const context = snapshotContext(snapshot, me);
 	const effective = showArchived
 		? { ...filters, archived: "included" as const }
 		: filters;
-	const matched = applyFilters(snapshot.tasks, effective, context);
+	let matched = applyFilters(snapshot.tasks, effective, context);
+
+	if (sort.recurringPreview && sort.today) {
+		matched = [...matched, ...projectRecurrences(snapshot, matched, sort.today)];
+	}
+
+	if (sort.tableSort && sort.tableSort.length > 0) {
+		matched = sortTasksMulti(matched, sort.tableSort, context);
+	} else if (sort.sortBy && sort.sortBy !== "rank") {
+		matched = sortTasks(matched, sort.sortBy, sort.sortDirection ?? "asc", context);
+	} else if (sort.sortDirection === "desc") {
+		// Explicit descending rank — the only "rank" call that changes output.
+		matched = sortTasks(matched, "rank", "desc", context);
+	}
+
+	const counts = countSubtasks(snapshot);
 	return matched.map((t) => taskRow(counts, t));
 }
 
@@ -351,6 +423,9 @@ export function taskDetail(
 		 *  from this response doesn't have to already know the query grammar
 		 *  to actually fetch them. */
 		subtasksQuery?: string;
+		/** Direct sub-task completion rollup — see `subtaskProgress`. Empty for
+		 *  a leaf task (`total: 0`), which is meaningfully different from 0%. */
+		subtaskProgress: McpProgress;
 		description?: string;
 		recurrence?: {
 			trigger: string;
@@ -387,9 +462,13 @@ export function taskDetail(
 
 	const counts = countSubtasks(snapshot);
 	const subTaskCount = counts.get(task.path) ?? 0;
+	const rollup = mcpProgress(
+		subtaskProgress(scopeOf(snapshot), task, taxonomies.status),
+	);
 	return {
 		task: {
 			...taskRowWithUri(counts, task),
+			subtaskProgress: rollup,
 			...(subTaskCount > 0 ? { subtasksQuery: `parent:${task.id}` } : {}),
 			parentTitle: task.parent
 				? titlesByPath.get(task.parent) ?? task.parent
@@ -624,4 +703,537 @@ export function commentRows(comments: Comment[]): McpCommentRow[] {
 		body: c.body,
 		reactions: c.reactions,
 	}));
+}
+
+/* ------------------------------------------- counts, summary and stats ---- */
+
+/** One bucket of a count breakdown. */
+export interface McpNameCount {
+	id: string;
+	/** True when this is the "(none)" bucket — no value set, not an entity id. */
+	isNone?: boolean;
+	name: string;
+	count: number;
+}
+
+export interface McpCounts {
+	/** Tasks the filter matched (before the 200-row list cap — counts are uncapped). */
+	total: number;
+	/** The matched tasks that are neither completed nor canceled, ignoring archived. */
+	open: number;
+	/** Archived tasks pulled in by `showArchived` (0 when it wasn't set). */
+	archived: number;
+	byStatus?: McpNameCount[];
+	byPriority?: McpNameCount[];
+	byTaskType?: McpNameCount[];
+	byLabel?: McpNameCount[];
+	byAssignee?: McpNameCount[];
+	byProject?: McpNameCount[];
+}
+
+export type McpCountBy =
+	| "status"
+	| "priority"
+	| "taskType"
+	| "label"
+	| "assignee"
+	| "project";
+
+function aggregateByName(
+	tasks: Task[],
+	keyOf: (t: Task) => string | null,
+	nameOf: (key: string | null) => string,
+): McpNameCount[] {
+	const tallies = new Map<string | null, number>();
+	for (const task of tasks) {
+		const key = keyOf(task);
+		tallies.set(key, (tallies.get(key) ?? 0) + 1);
+	}
+	return [...tallies.entries()]
+		.sort((a, b) => b[1] - a[1] || (a[0] ?? "").localeCompare(b[0] ?? ""))
+		.map(([key, count]) => ({
+			id: key ?? "",
+			isNone: key == null,
+			name: nameOf(key),
+			count,
+		}));
+}
+
+/** The full count surface behind `count_tasks` — a pure sibling of `taskRows`. */
+export function countTasks(
+	snapshot: WorkspaceSnapshot,
+	filters: ViewFilters = {},
+	me: string | null = null,
+	showArchived = false,
+	by: McpCountBy[] = [],
+): McpCounts {
+	const context = snapshotContext(snapshot, me);
+	const effective = showArchived
+		? { ...filters, archived: "included" as const }
+		: filters;
+	const matched = applyFilters(snapshot.tasks, effective, context);
+	const visible = matched.filter((t) => !t.archived);
+	const statuses = workspaceTaxonomies(snapshot.workspace).status;
+
+	const out: McpCounts = {
+		total: matched.length,
+		open: visible.filter((t) => isOpen(statuses, t.status)).length,
+		archived: matched.filter((t) => t.archived).length,
+	};
+
+	const taxonomies = workspaceTaxonomies(snapshot.workspace);
+	const taxonomyNames = (field: "status" | "priority" | "taskType") =>
+		new Map(taxonomies[field].values.map((v) => [v.id, v.name]));
+	const labelNames = new Map(
+		snapshot.workspace.labels.map((l) => [l.id, l.name]),
+	);
+	const projectTitles = new Map(snapshot.projects.map((p) => [p.path, p.title]));
+	const nameOf = (names: Map<string, string>) => (key: string | null) =>
+		key != null ? (names.get(key) ?? key) : "(none)";
+
+	const add = (field: McpCountBy, keyOf: (t: Task) => string | null, names: Map<string, string>) => {
+		const key = `by${field[0].toUpperCase()}${field.slice(1)}` as keyof McpCounts;
+		(out[key] as McpNameCount[]) = aggregateByName(
+			matched,
+			keyOf,
+			nameOf(names),
+		);
+	};
+
+	for (const field of by) {
+		switch (field) {
+			case "status":
+				add("status", (t) => t.status, taxonomyNames("status"));
+				break;
+			case "priority":
+				add("priority", (t) => t.priority, taxonomyNames("priority"));
+				break;
+			case "taskType":
+				add("taskType", (t) => t.taskType, taxonomyNames("taskType"));
+				break;
+			case "label": {
+				// Labels are multi-valued — a task counts under every label it
+				// carries, and a task with none lands in the `(none)` bucket.
+				const tally = new Map<string | null, number>();
+				for (const t of matched) {
+					if (t.labels.length === 0) {
+						tally.set(null, (tally.get(null) ?? 0) + 1);
+					} else {
+						for (const id of t.labels) {
+							tally.set(id, (tally.get(id) ?? 0) + 1);
+						}
+					}
+				}
+				out.byLabel = [...tally.entries()]
+					.sort((a, b) => b[1] - a[1])
+					.map(([key, count]) => ({
+						id: key ?? "",
+						isNone: key == null,
+						name: nameOf(labelNames)(key),
+						count,
+					}));
+				break;
+			}
+			case "assignee":
+				{
+					const personNames = new Map(
+						snapshot.workspace.people.map((p) => [p.id, p.name]),
+					);
+					add("assignee", (t) => t.assignee, personNames);
+				}
+				break;
+			case "project":
+				add("project", (t) => t.project, projectTitles);
+				break;
+		}
+	}
+	return out;
+}
+
+export interface McpProjectCounts {
+	total: number;
+	archived: number;
+	byStatus?: McpNameCount[];
+}
+
+/** `count_projects` — a status breakdown by the shared status taxonomy. */
+export function countProjects(
+	snapshot: WorkspaceSnapshot,
+	showArchived = false,
+	byStatus = false,
+): McpProjectCounts {
+	const included = showArchived
+		? snapshot.projects
+		: snapshot.projects.filter((p) => !p.archived);
+	const out: McpProjectCounts = {
+		total: included.length,
+		archived: snapshot.projects.filter((p) => p.archived).length,
+	};
+	if (byStatus) {
+		const statuses = workspaceTaxonomies(snapshot.workspace).status;
+		const names = new Map(statuses.values.map((v) => [v.id, v.name]));
+		const tally = new Map<string | null, number>();
+		for (const project of included) {
+			tally.set(project.status, (tally.get(project.status) ?? 0) + 1);
+		}
+		out.byStatus = [...tally.entries()]
+			.sort((a, b) => b[1] - a[1])
+			.map(([key, count]) => ({
+				id: key ?? "",
+				isNone: key == null,
+				name: key != null ? (names.get(key) ?? key) : "(none)",
+				count,
+			}));
+	}
+	return out;
+}
+
+/** The works-spanning picture one `get_summary` call should answer at a glance. */
+export interface McpSummary {
+	tasks: {
+		total: number;
+		open: number;
+		completed: number;
+		canceled: number;
+		archived: number;
+		subtasks: number;
+		overdue: number;
+		dueToday: number;
+	};
+	projects: { total: number; open: number; archived: number };
+	people: number;
+	labels: number;
+	views: number;
+	dashboards: number;
+	recurring: { seriesCount: number };
+}
+
+export function getSummary(
+	snapshot: WorkspaceSnapshot,
+	today: IsoDate,
+): McpSummary {
+	const statuses = workspaceTaxonomies(snapshot.workspace).status;
+	const tasks = snapshot.tasks.filter((t) => !t.archived);
+
+	let completed = 0;
+	let canceled = 0;
+	let overdue = 0;
+	let dueToday = 0;
+	for (const task of tasks) {
+		const category = task.status ? isCompleted(statuses, task.status) : false;
+		if (isCanceled(statuses, task.status)) canceled++;
+		else if (category) completed++;
+		if (isOpen(statuses, task.status)) {
+			if (task.dueDate && task.dueDate < today) overdue++;
+			if (task.dueDate === today) dueToday++;
+		}
+	}
+
+	return {
+		tasks: {
+			total: tasks.length,
+			open: tasks.filter((t) => isOpen(statuses, t.status)).length,
+			completed,
+			canceled,
+			archived: snapshot.tasks.filter((t) => t.archived).length,
+			subtasks: tasks.filter((t) => t.parent != null).length,
+			overdue,
+			dueToday,
+		},
+		projects: {
+			total: snapshot.projects.filter((p) => !p.archived).length,
+			open: snapshot.projects.filter(
+				(p) => !p.archived && isOpen(statuses, p.status),
+			).length,
+			archived: snapshot.projects.filter((p) => p.archived).length,
+		},
+		people: snapshot.workspace.people.length,
+		labels: snapshot.workspace.labels.length,
+		views: snapshot.views.length,
+		dashboards: snapshot.dashboards.length,
+		recurring: { seriesCount: recurringOverview(snapshot, today).length },
+	};
+}
+
+export interface McpTaskStats {
+	total: number;
+	open: number;
+	completed: number;
+	canceled: number;
+	archived: number;
+	withDueDate: number;
+	estimated: number;
+	estimateSum: number;
+	estimateAvg: number;
+	withComments: number;
+	overdue: number;
+	dueToday: number;
+	newest: { id: string; title: string; createdAt: IsoDate } | null;
+	oldest: { id: string; title: string; createdAt: IsoDate } | null;
+	mostCommented: { id: string; title: string; commentCount: number }[];
+}
+
+export interface McpStats {
+	tasks: McpTaskStats;
+	comments: {
+		total: number;
+		perAuthor: McpNameCount[];
+	};
+	subtaskProgress: { total: number; completed: number; percent: number };
+}
+
+/**
+ * Workspace stats for a fully-loaded snapshot. `commentTally` is the
+ * per-author tally across every task's body, injected from the index's cache
+ * (the pure module can't read bodies); everything else is derived in-core.
+ */
+export function getStats(
+	snapshot: WorkspaceSnapshot,
+	today: IsoDate,
+	commentTally: Record<string, number> = {},
+): McpStats {
+	const statuses = workspaceTaxonomies(snapshot.workspace).status;
+	const tasks = snapshot.tasks.filter((t) => !t.archived);
+
+	let completed = 0;
+	let canceled = 0;
+	let overdue = 0;
+	let dueToday = 0;
+	let withComments = 0;
+	let estimateSum = 0;
+	let estimated = 0;
+	for (const task of tasks) {
+		if (isCompleted(statuses, task.status)) completed++;
+		else if (isCanceled(statuses, task.status)) canceled++;
+		if (isOpen(statuses, task.status)) {
+			if (task.dueDate && task.dueDate < today) overdue++;
+			if (task.dueDate === today) dueToday++;
+		}
+		if ((task.commentCount ?? 0) > 0) withComments++;
+		if (task.estimate != null) {
+			estimated++;
+			estimateSum += task.estimate;
+		}
+	}
+
+	const byCreated = [...tasks].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+	const newest = byCreated[byCreated.length - 1] ?? null;
+	const oldest = byCreated[0] ?? null;
+
+	const mostCommented = [...tasks]
+		.sort((a, b) => (b.commentCount ?? 0) - (a.commentCount ?? 0))
+		.slice(0, 5)
+		.filter((t) => (t.commentCount ?? 0) > 0)
+		.map((t) => ({
+			id: t.id,
+			title: t.title,
+			commentCount: t.commentCount ?? 0,
+		}));
+
+	const personNames = new Map(
+		snapshot.workspace.people.map((p) => [p.id, p.name]),
+	);
+	const perAuthor = Object.entries(commentTally)
+		.map(([id, count]) => ({
+			id,
+			name: personNames.get(id) ?? id,
+			count,
+		}))
+		.sort((a, b) => b.count - a.count);
+
+	const completedCount = tasks.filter((t) => t.parent == null);
+	return {
+		tasks: {
+			total: tasks.length,
+			open: tasks.filter((t) => isOpen(statuses, t.status)).length,
+			completed,
+			canceled,
+			archived: snapshot.tasks.filter((t) => t.archived).length,
+			withDueDate: tasks.filter((t) => t.dueDate != null).length,
+			estimated,
+			estimateSum,
+			estimateAvg: estimated > 0 ? estimateSum / estimated : 0,
+			withComments,
+			overdue,
+			dueToday,
+			newest: newest
+				? { id: newest.id, title: newest.title, createdAt: newest.createdAt }
+				: null,
+			oldest: oldest
+				? { id: oldest.id, title: oldest.title, createdAt: oldest.createdAt }
+				: null,
+			mostCommented,
+		},
+		comments: {
+			total: Object.values(commentTally).reduce((a, b) => a + b, 0),
+			perAuthor,
+		},
+		subtaskProgress: {
+			total: completedCount.length,
+			completed: completedCount.filter((t) =>
+				isCompleted(statuses, t.status),
+			).length,
+			percent:
+				completedCount.length > 0
+					? Math.round(
+							(completedCount.filter((t) =>
+								isCompleted(statuses, t.status),
+							).length /
+								completedCount.length) *
+								100,
+						)
+					: 0,
+		},
+	};
+}
+
+/* -------------------------------------------------------------- recurring --- */
+
+export interface McpRecurringRow {
+	taskId: string;
+	title: string;
+	path: string;
+	trigger: "on-date" | "on-close";
+	frequency: string;
+	interval: number;
+	nextDate: IsoDate | null;
+	chainLength: number;
+	/** Human one-liner, e.g. "every week, starts today (on close)". */
+	summary: string;
+	vaultUri: string;
+}
+
+export interface McpRecurringList {
+	seriesCount: number;
+	results: McpRecurringRow[];
+}
+
+/** Every live recurrence series in a workspace, one row each. */
+export function recurringRows(
+	snapshot: WorkspaceSnapshot,
+	today: IsoDate,
+	statuses?: readonly StatusValue[],
+): McpRecurringList {
+	const taxonomies = workspaceTaxonomies(snapshot.workspace);
+	const rows = recurringOverview(snapshot, today).map((row) => ({
+		taskId: row.task.id,
+		title: row.task.title,
+		path: row.task.path,
+		trigger: row.recurrence.trigger,
+		frequency: row.recurrence.freq,
+		interval: row.recurrence.interval,
+		nextDate: row.nextDate,
+		chainLength: row.chainLength,
+		summary: describeRecurrence(
+			row.recurrence,
+			statuses ?? taxonomies.status.values,
+		),
+		vaultUri: buildVaultUri({
+			action: "open-note",
+			path: row.task.path,
+			target: "vf",
+		}),
+	}));
+	return { seriesCount: rows.length, results: rows };
+}
+
+/* -------------------------------------------------------------- run_view --- */
+
+export interface McpGroupedTasks {
+	key: string;
+	label: string;
+	results: McpTaskRow[];
+	total: number;
+	truncated: boolean;
+}
+
+export interface McpRunView {
+	viewId: string;
+	name: string;
+	viewType: string;
+	/** How many tasks the view's filters matched, never capped. */
+	total: number;
+	/** How many of the workspace's tasks the filters excluded. */
+	filteredOut: number;
+	results: McpTaskRow[];
+	truncated: boolean;
+	groups?: McpGroupedTasks[];
+}
+
+/**
+ * Evaluate a real Saved View against a snapshot — verified against the plugin's
+ * own `evaluateView` (same filter/sort/group engine), so "what does this view
+ * show?" has one authoritative answer. `today` enables the `show:recurring`
+ * projection when the view has `recurringPreview` on. Rows are capped like
+ * `list_tasks` (see `total`/`truncated`); `total`/`filteredOut` stay uncapped.
+ */
+export function runView(
+	snapshot: WorkspaceSnapshot,
+	view: SavedView,
+	me: string | null = null,
+	today?: IsoDate,
+	withGroups = false,
+): McpRunView {
+	const context = snapshotContext(snapshot, me);
+	const evaluated = evaluateView(snapshot, view, context, today);
+	const counts = countSubtasks(snapshot);
+	const rows = evaluated.tasks.map((t) => taskRow(counts, t));
+	return {
+		viewId: view.id,
+		name: view.name,
+		viewType: view.viewType,
+		filteredOut: evaluated.filteredOut,
+		// `pageList` carries `total` = the full matched list, uncapped by the
+		// row slice — same number as `evaluated.total`.
+		...pageList(rows),
+		...(withGroups
+			? {
+					groups: evaluated.groups.map((group) => ({
+						key: group.key,
+						label: group.label,
+						...pageList(group.tasks.map((t) => taskRow(counts, t))),
+					})),
+				}
+			: {}),
+	};
+}
+
+/* ------------------------------------------------------------ dashboards --- */
+
+export interface McpDashboardDataRow {
+	id: string;
+	chartType: string;
+	title: string;
+	data: WidgetData;
+}
+
+export interface McpDashboardData {
+	dashboard: McpDashboardRow;
+	/** How many tasks the dashboard-wide filter matched. */
+	total: number;
+	widgets: McpDashboardDataRow[];
+}
+
+/**
+ * The chart-ready data behind every widget — the same `computeWidgetData` the
+ * Dashboard view renders, so a model can read actual numbers ("the bar chart
+ * split by status") rather than just the widget's config.
+ */
+export function readDashboard(
+	snapshot: WorkspaceSnapshot,
+	dashboard: DashboardConfig,
+	me: string | null = null,
+): McpDashboardData {
+	const context = snapshotContext(snapshot, me);
+	const tasks = applyFilters(snapshot.tasks, dashboard.filters, context);
+	return {
+		dashboard: dashboardRow(snapshot.workspace.root, dashboard),
+		total: tasks.length,
+		widgets: dashboard.widgets.map((widget) => ({
+			id: widget.id,
+			chartType: widget.chartType,
+			title: widget.title,
+			data: computeWidgetData(widget, tasks, context),
+		})),
+	};
 }

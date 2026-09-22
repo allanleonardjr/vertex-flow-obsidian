@@ -843,31 +843,32 @@ export class VaultIndex {
 
 				const cachedMention = this.mentionCache.get(task.path);
 				const cachedDesc = this.descriptionCache.get(task.path);
-				// With no People register there's nothing to resolve, so an
-				// absent mention-cache entry is not itself a reason to re-read.
+				// The mention/comment-tally cache is written unconditionally (the
+				// tally doesn't need a People register), so a fresh entry is the
+				// single gate for skipping the body read.
 				const mentionFresh =
-					people.length === 0 ||
-					(cachedMention != null && cachedMention.mtime === file.stat.mtime);
+					cachedMention != null && cachedMention.mtime === file.stat.mtime;
 				const descFresh =
 					cachedDesc != null && cachedDesc.mtime === file.stat.mtime;
 				if (mentionFresh && descFresh) {
-					if (cachedMention) task.mentions = cachedMention.mentions;
+					task.mentions = cachedMention.mentions;
+					task.commentCount = commentTotal(cachedMention.commentCounts);
 					continue;
 				}
 
 				const body = await this.io.readBody(file);
 
-				if (people.length > 0) {
-					// `@mention` resolution and the per-author comment tally both
-					// come out of this one string.
-					const mentions = mentionsInNote(body, people);
-					this.mentionCache.set(task.path, {
-						mtime: file.stat.mtime,
-						mentions,
-						commentCounts: commentCountsInBody(body),
-					});
-					task.mentions = mentions;
-				}
+				// `@mention` resolution and the per-author comment tally both
+				// come out of this one string.
+				const mentions = mentionsInNote(body, people);
+				const commentCounts = commentCountsInBody(body);
+				this.mentionCache.set(task.path, {
+					mtime: file.stat.mtime,
+					mentions,
+					commentCounts,
+				});
+				task.mentions = mentions;
+				task.commentCount = commentTotal(commentCounts);
 				this.descriptionCache.set(task.path, {
 					mtime: file.stat.mtime,
 					text: parseDescription(body),
@@ -912,6 +913,13 @@ export class VaultIndex {
 
 function basenameOf(path: string): string {
 	return path.slice(path.lastIndexOf("/") + 1);
+}
+
+/** Sum a per-author comment tally (see `commentCountsInBody`). */
+function commentTotal(counts: Record<string, number>): number {
+	let total = 0;
+	for (const count of Object.values(counts)) total += count;
+	return total;
 }
 
 /** The retired structured view-definition keys, top-level on a `Views/*.md`
