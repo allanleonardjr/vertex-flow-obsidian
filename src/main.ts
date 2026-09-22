@@ -32,6 +32,7 @@ import {
   getMcpToken,
   setMcpToken,
 } from "./obsidian/mcp-token";
+import { configureLocalServerKeyStorage } from "./obsidian/local-server-key";
 import {
   findAvailablePort,
   McpServerService,
@@ -118,6 +119,7 @@ export default class VertexFlowPlugin extends Plugin {
     configureMeStorage(appId);
     configureLastWorkspaceStorage(appId);
     configureMcpTokenStorage(appId);
+    configureLocalServerKeyStorage(appId);
     // Reopen the workspace this device last had active. A stale value (the
     // workspace was deleted/renamed) is harmless — `activeWorkspace()` and
     // `useActiveWorkspace()` both fall back to the first workspace.

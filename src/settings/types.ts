@@ -7,6 +7,10 @@
  */
 
 import { DEFAULT_AI_MODEL_ID } from "../ai/AiEngineService";
+import {
+  DEFAULT_LOCAL_SERVER_BASE_URL,
+  type AiProvider,
+} from "../core/ai/local-server";
 
 /**
  * Interface text density. `compact` is the built-in baseline;
@@ -137,6 +141,28 @@ export interface VertexFlowSettings {
    */
   aiChatEnabled: boolean;
   /**
+   * Which engine answers in AI Chat: `"builtin"` — the in-browser WebLLM
+   * models above — or `"local-server"`, an OpenAI-compatible server the user
+   * runs themselves (LM Studio, Ollama, …) that calls the MCP tool set
+   * natively. Local server is desktop-only: on mobile the effective provider
+   * is always builtin (`effectiveAiProvider`), and this stored value is left
+   * alone rather than rewritten, since it syncs to the desktop too.
+   */
+  aiProvider: AiProvider;
+  /**
+   * The local model server's OpenAI-compatible base URL, usually ending in
+   * `/v1`. Only the URL is stored — the preset shown in Settings is derived
+   * from it (`presetForUrl`). Its optional API key is a secret, so it lives
+   * in `localStorage` instead (see `src/obsidian/local-server-key.ts`).
+   */
+  localServerBaseUrl: string;
+  /**
+   * The local server model AI Chat talks to, as listed by `GET /models`.
+   * Empty (or no longer listed) means "the first model the server lists" —
+   * see `pickModelId`.
+   */
+  localServerModelId: string;
+  /**
    * One-time UI discovery badges the user has already dismissed by
    * visiting the feature, keyed by a stable feature id (e.g.
    * "layout-table"). Absent or false = show the badge; true = seen,
@@ -206,5 +232,8 @@ export const DEFAULT_SETTINGS: VertexFlowSettings = {
   mcpServerPort: 27124,
   selectedAiModelId: DEFAULT_AI_MODEL_ID,
   aiChatEnabled: true,
+  aiProvider: "builtin",
+  localServerBaseUrl: DEFAULT_LOCAL_SERVER_BASE_URL,
+  localServerModelId: "",
   seenFeatures: {},
 };
