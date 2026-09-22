@@ -19,6 +19,7 @@ import { NONE, SELF, type ViewDefinition, type ViewFilters } from "../types";
 import {
 	canonicalizeDefinition,
 	canonicalizeFilters,
+	EXCLUDE_FIELD_KEY,
 	FILTER_ARRAY_FIELDS,
 } from "../views/filter";
 import { DEFAULT_DEFINITION } from "../views/defaults";
@@ -26,6 +27,7 @@ import type { QueryContext, QueryEntity } from "./context";
 import {
 	CANVAS_DIRECTION_VALUES,
 	CANVAS_LAYOUT_VALUES,
+	DATE_BOUND_FIELDS,
 	DATE_FIELD_VALUES,
 	EMPTY_VALUES,
 	FIELD_VALUES,
@@ -214,6 +216,15 @@ export function printFilters(
 		parts.push(`${spec.token}:${rendered.join(",")}`);
 	}
 
+	for (const key of FILTER_ARRAY_FIELDS) {
+		const excludeKey = EXCLUDE_FIELD_KEY[key];
+		const values = canonical[excludeKey];
+		if (!values || values.length === 0) continue;
+		const spec = FILTER_FIELDS[key];
+		const rendered = values.map((value) => printValue(spec, value, context));
+		parts.push(`-${spec.token}:${rendered.join(",")}`);
+	}
+
 	if (canonical.text) parts.push(printText(canonical.text));
 
 	if (canonical.archived === "included") {
@@ -236,6 +247,17 @@ export function printFilters(
 	if (canonical.recurring) {
 		parts.push(`${FLAG_TOKENS.recurring.field}:${FLAG_TOKENS.recurring.value}`);
 	}
+
+	if (canonical.dueDateBefore) parts.push(`${DATE_BOUND_FIELDS.dueDateBefore.token}:${canonical.dueDateBefore}`);
+	if (canonical.dueDateAfter) parts.push(`${DATE_BOUND_FIELDS.dueDateAfter.token}:${canonical.dueDateAfter}`);
+	if (canonical.startDateBefore) parts.push(`${DATE_BOUND_FIELDS.startDateBefore.token}:${canonical.startDateBefore}`);
+	if (canonical.startDateAfter) parts.push(`${DATE_BOUND_FIELDS.startDateAfter.token}:${canonical.startDateAfter}`);
+	if (canonical.createdAtBefore) parts.push(`${DATE_BOUND_FIELDS.createdAtBefore.token}:${canonical.createdAtBefore}`);
+	if (canonical.createdAtAfter) parts.push(`${DATE_BOUND_FIELDS.createdAtAfter.token}:${canonical.createdAtAfter}`);
+	if (canonical.updatedAtBefore) parts.push(`${DATE_BOUND_FIELDS.updatedAtBefore.token}:${canonical.updatedAtBefore}`);
+	if (canonical.updatedAtAfter) parts.push(`${DATE_BOUND_FIELDS.updatedAtAfter.token}:${canonical.updatedAtAfter}`);
+	if (canonical.completedAtBefore) parts.push(`${DATE_BOUND_FIELDS.completedAtBefore.token}:${canonical.completedAtBefore}`);
+	if (canonical.completedAtAfter) parts.push(`${DATE_BOUND_FIELDS.completedAtAfter.token}:${canonical.completedAtAfter}`);
 
 	return parts.join(" ");
 }

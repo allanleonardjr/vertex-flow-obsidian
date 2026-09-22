@@ -29,7 +29,8 @@ export type ResolveAs =
 	| "label"
 	| "person"
 	| "project"
-	| "task";
+	| "task"
+	| "date";
 
 export interface FilterFieldSpec {
 	/** The canonical token — what the printer emits. */
@@ -94,6 +95,36 @@ export const FILTER_FIELDS: Record<ArrayFilterKey, FilterFieldSpec> = {
 		resolveAs: "task",
 		unsetIsVacuous: false,
 	},
+	dueDate: {
+		token: "due",
+		aliases: ["duedate", "due-date"],
+		resolveAs: "date",
+		unsetIsVacuous: false,
+	},
+	startDate: {
+		token: "start",
+		aliases: ["startdate", "start-date"],
+		resolveAs: "date",
+		unsetIsVacuous: false,
+	},
+	createdAt: {
+		token: "created",
+		aliases: ["createdat", "created-at"],
+		resolveAs: "date",
+		unsetIsVacuous: true,
+	},
+	updatedAt: {
+		token: "updated",
+		aliases: ["updatedat", "updated-at"],
+		resolveAs: "date",
+		unsetIsVacuous: true,
+	},
+	completedAt: {
+		token: "completed",
+		aliases: ["completedat", "completed-at"],
+		resolveAs: "date",
+		unsetIsVacuous: false,
+	},
 };
 
 /** The free-text field. Not in `FILTER_FIELDS` — its value isn't a list. */
@@ -151,6 +182,37 @@ export const DATE_FIELD_VALUES: Record<
 > = {
 	dueDate: { token: "due", aliases: ["duedate", "due-date"] },
 	startDate: { token: "start", aliases: ["startdate", "start-date"] },
+};
+
+/**
+ * Date range-bound clauses (`due-before:`, `due-after:`, …) — each token
+ * names the exact `ViewFilters` scalar key it sets. Single-valued, unlike
+ * the exact-match date fields above, so this is a plain token → key map
+ * rather than a `FilterFieldSpec` table.
+ */
+export const DATE_BOUND_FIELDS: Record<
+	| "dueDateBefore"
+	| "dueDateAfter"
+	| "startDateBefore"
+	| "startDateAfter"
+	| "createdAtBefore"
+	| "createdAtAfter"
+	| "updatedAtBefore"
+	| "updatedAtAfter"
+	| "completedAtBefore"
+	| "completedAtAfter",
+	EnumValueSpec
+> = {
+	dueDateBefore: { token: "due-before", aliases: [] },
+	dueDateAfter: { token: "due-after", aliases: [] },
+	startDateBefore: { token: "start-before", aliases: [] },
+	startDateAfter: { token: "start-after", aliases: [] },
+	createdAtBefore: { token: "created-before", aliases: [] },
+	createdAtAfter: { token: "created-after", aliases: [] },
+	updatedAtBefore: { token: "updated-before", aliases: [] },
+	updatedAtAfter: { token: "updated-after", aliases: [] },
+	completedAtBefore: { token: "completed-before", aliases: [] },
+	completedAtAfter: { token: "completed-after", aliases: [] },
 };
 
 /** Canvas-only: the arrangement algorithm (`canvas-layout:` clause). */
@@ -313,6 +375,13 @@ export const DATE_FIELD_BY_TOKEN = indexBy(
 	][],
 ) as Map<string, "dueDate" | "startDate">;
 
+export const DATE_BOUND_FIELD_BY_TOKEN = indexBy(
+	Object.entries(DATE_BOUND_FIELDS) as [
+		keyof typeof DATE_BOUND_FIELDS,
+		EnumValueSpec,
+	][],
+) as Map<string, keyof typeof DATE_BOUND_FIELDS>;
+
 export const CANVAS_LAYOUT_BY_TOKEN = indexBy(
 	Object.entries(CANVAS_LAYOUT_VALUES) as [CanvasArrangement, EnumValueSpec][],
 ) as Map<string, CanvasArrangement>;
@@ -360,6 +429,7 @@ export const LAYOUT_ONLY_CLAUSES: ReadonlySet<string> = new Set([
 /** Every field token the parser recognises — the pool for "did you mean…". */
 export const ALL_FIELD_TOKENS: readonly string[] = [
 	...FILTER_FIELD_BY_TOKEN.keys(),
+	...DATE_BOUND_FIELD_BY_TOKEN.keys(),
 	"group",
 	"sort",
 	"table-sort",

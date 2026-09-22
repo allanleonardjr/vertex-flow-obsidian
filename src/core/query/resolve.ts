@@ -12,6 +12,7 @@
  * directions.
  */
 
+import { isValidIsoDay } from "../date";
 import { basename, parseLink } from "../links";
 import { findValueByName, getValue, type Taxonomy } from "../taxonomy";
 import { NONE, SELF } from "../types";
@@ -250,6 +251,19 @@ export function resolveValue(
 						code: "self-unconfigured",
 						message: "Nobody is marked as you yet, so this matches nothing",
 					},
+		};
+	}
+
+	if (spec.resolveAs === "date") {
+		const trimmed = raw.trim();
+		if (isValidIsoDay(trimmed)) return { value: trimmed };
+		return {
+			value: raw,
+			issue: {
+				severity: "warning",
+				code: "unknown-value",
+				message: `"${raw}" isn't a valid date (expected YYYY-MM-DD) — keeping it as written`,
+			},
 		};
 	}
 

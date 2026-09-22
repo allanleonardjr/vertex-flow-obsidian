@@ -6,6 +6,7 @@
  */
 
 import { basename } from "../../core/links";
+import { FILTER_FIELDS as QUERY_FILTER_FIELDS } from "../../core/query/grammar";
 import { listValues } from "../../core/taxonomy";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import {
@@ -187,7 +188,19 @@ export type FilterKey =
   | "mentions"
   | "project"
   | "archived"
-  | "text";
+  | "text"
+  | "dueDate"
+  | "startDate"
+  | "createdAt"
+  | "updatedAt"
+  | "completedAt"
+  | "excludeStatus"
+  | "excludePriority"
+  | "excludeTaskType"
+  | "excludeLabels"
+  | "excludeAssignee"
+  | "excludeMentions"
+  | "excludeProject";
 
 export const FILTER_FIELDS: { key: FilterKey; label: string }[] = [
   { key: "status", label: "Status" },
@@ -199,20 +212,74 @@ export const FILTER_FIELDS: { key: FilterKey; label: string }[] = [
   { key: "project", label: "Project" },
   { key: "archived", label: "Archived" },
   { key: "text", label: "Title" },
+  { key: "dueDate", label: "Due date" },
+  { key: "startDate", label: "Start date" },
+  { key: "createdAt", label: "Created" },
+  { key: "updatedAt", label: "Updated" },
+  { key: "completedAt", label: "Completed" },
+  { key: "excludeStatus", label: "Not Status" },
+  { key: "excludePriority", label: "Not Priority" },
+  { key: "excludeTaskType", label: "Not Type" },
+  { key: "excludeLabels", label: "Not Label" },
+  { key: "excludeAssignee", label: "Not Assignee" },
+  { key: "excludeMentions", label: "Not Mentions" },
+  { key: "excludeProject", label: "Not Project" },
 ];
 
 /**
  * Filter keys the query bar can set but the chip bar has no editor for — shown
  * as a read-only tag with a ✕ so a query-only filter is never invisible and
- * unremovable. `parent` is the only such key; it would otherwise need a picker
- * over the whole task list.
+ * unremovable. `parent` needs a picker over the whole task list; `excludeParent`
+ * gets the same treatment as its include counterpart, for the same reason.
  */
-export type ReadonlyFilterKey = "parent";
+export type ReadonlyFilterKey = "parent" | "excludeParent";
 
 export const READONLY_FILTER_FIELDS: {
   key: ReadonlyFilterKey;
   label: string;
-}[] = [{ key: "parent", label: "Parent" }];
+}[] = [
+  { key: "parent", label: "Parent" },
+  { key: "excludeParent", label: "Not Parent" },
+];
+
+/** The 5 date-family filter keys — each backed by `<key>`/`<key>Before`/`<key>After`. */
+export const DATE_FAMILY_KEYS = [
+  "dueDate",
+  "startDate",
+  "createdAt",
+  "updatedAt",
+  "completedAt",
+] as const;
+export type DateFamilyKey = (typeof DATE_FAMILY_KEYS)[number];
+
+export const isDateFamilyKey = (key: FilterKey): key is DateFamilyKey =>
+  (DATE_FAMILY_KEYS as readonly string[]).includes(key);
+
+/** Whether "no date set" is a meaningful choice for this date family — mirrors
+ *  `unsetIsVacuous` in the query grammar, so the chip-bar editor and the query
+ *  language never disagree about which fields can be filtered to unset. */
+export const dateFamilyAllowsUnset = (key: DateFamilyKey): boolean =>
+  !QUERY_FILTER_FIELDS[key].unsetIsVacuous;
+
+/** `"Sep 19"` — short enough for a filter-chip face; UTC so a date-only value
+ *  (`YYYY-MM-DD`) never shifts a day off in a negative-UTC-offset timezone. */
+export function formatFilterDay(iso: string): string {
+  const date = new Date(`${iso.slice(0, 10)}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+/** The key that holds a date family's exclusive before/after bounds. */
+export function dateBoundKey<K extends DateFamilyKey, B extends "Before" | "After">(
+  key: K,
+  bound: B,
+): `${K}${B}` {
+  return `${key}${bound}`;
+}
 
 export const filterFieldLabel = (key: FilterKey | ReadonlyFilterKey): string =>
   FILTER_FIELDS.find((f) => f.key === key)?.label ??
@@ -225,9 +292,28 @@ export interface Choice {
   color?: string | null;
 }
 
-/** The selectable values for a chip-style (non-text) filter clause. */
+/** `excludeStatus` → `status`, `excludeTaskType` → `taskType`, etc. */
+function baseFilterKey<K extends string>(key: K): string {
+  if (!key.startsWith("exclude")) return key;
+  const rest = key.slice(7);
+  return rest.charAt(0).toLowerCase() + rest.slice(1);
+}
+
+/** The selectable values for a chip-style (non-text) filter clause. An
+ *  exclude key (`excludeStatus`) reuses its include counterpart's choice
+ *  list unchanged — exclusion picks from the same taxonomy/roster/project
+ *  set, it just means something different once chosen. */
 export function filterChoices(
-  key: Exclude<FilterKey, "text" | "archived">,
+  key: Exclude<
+    FilterKey,
+    | "text"
+    | "archived"
+    | "dueDate"
+    | "startDate"
+    | "createdAt"
+    | "updatedAt"
+    | "completedAt"
+  >,
   snapshot: WorkspaceSnapshot,
   taxonomies: WorkspaceTaxonomies,
 ): Choice[] {
@@ -242,7 +328,8 @@ export function filterChoices(
       color: v.color,
     }));
 
-  switch (key) {
+  const base = baseFilterKey(key);
+  switch (base) {
     case "status":
       return taxo("status");
     case "priority":
@@ -264,6 +351,8 @@ export function filterChoices(
         ...snapshot.projects.map((p) => ({ value: p.path, label: p.title })),
         { value: NONE, label: "No project" },
       ];
+    default:
+      return [];
   }
 }
 
@@ -282,16 +371,29 @@ export function summarizeClause(
         ? "Included"
         : "Hidden";
   }
+  if (key === "parent" || key === "excludeParent") {
+    const values = filters[key] ?? [];
+    if (values.length === 0) return "any";
+    const name = (v: string) =>
+      snapshot.tasks.find((t) => t.path === v)?.id ?? basename(v);
+    if (values.length <= 2) return values.map(name).join(", ");
+    return `${name(values[0])} +${values.length - 1}`;
+  }
+  if (isDateFamilyKey(key)) {
+    const exact = filters[key] ?? [];
+    if (exact.includes(NONE)) return "not set";
+    const before = filters[dateBoundKey(key, "Before")];
+    const after = filters[dateBoundKey(key, "After")];
+    const parts: string[] = [];
+    if (exact.length > 0) parts.push(`on ${exact.map(formatFilterDay).join(", ")}`);
+    if (after) parts.push(`after ${formatFilterDay(after)}`);
+    if (before) parts.push(`before ${formatFilterDay(before)}`);
+    return parts.length > 0 ? parts.join(", ") : "any";
+  }
   const values = filters[key] ?? [];
   if (values.length === 0) return "any";
-  const name =
-    key === "parent"
-      ? (v: string) =>
-          snapshot.tasks.find((t) => t.path === v)?.id ?? basename(v)
-      : (v: string) => {
-          const choices = filterChoices(key, snapshot, taxonomies);
-          return choices.find((c) => c.value === v)?.label ?? v;
-        };
+  const choices = filterChoices(key, snapshot, taxonomies);
+  const name = (v: string) => choices.find((c) => c.value === v)?.label ?? v;
   if (values.length <= 2) return values.map(name).join(", ");
   return `${name(values[0])} +${values.length - 1}`;
 }
@@ -302,6 +404,13 @@ export function activeFilterKeys(filters: ViewFilters): FilterKey[] {
     if (key === "text") return Boolean(filters.text?.trim());
     // String-valued, not an array — `"only".length` is truthy by accident.
     if (key === "archived") return filters.archived != null;
+    if (isDateFamilyKey(key)) {
+      return (
+        (filters[key]?.length ?? 0) > 0 ||
+        filters[dateBoundKey(key, "Before")] != null ||
+        filters[dateBoundKey(key, "After")] != null
+      );
+    }
     return (filters[key]?.length ?? 0) > 0;
   });
 }

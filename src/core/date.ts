@@ -24,6 +24,16 @@ export function localTimeStamp(now: Date = new Date()): string {
 	return `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
 }
 
+/** True for a real calendar day in YYYY-MM-DD form — rejects malformed
+ *  strings (`2026-9-1`) and non-existent days (`2026-02-30`) without a
+ *  date library, by round-tripping through `Date` and checking the y/m/d
+ *  it reports back matches what was asked for. */
+export function isValidIsoDay(value: string): boolean {
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+	const d = new Date(`${value}T00:00:00Z`);
+	return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
+}
+
 export interface DueDateStatus {
 	isToday: boolean;
 	isOverdue: boolean;
