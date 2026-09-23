@@ -5,6 +5,8 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.29 — 2026-09-23
+
 ### Added
 
 - **Template gallery cards now collapse their taxonomy/views/dashboards/projects/people preview behind a "Show details" toggle**, closed by default, so the New Workspace grid reads at a glance instead of every card rendering at full height. State isn't persisted — each card reopens closed the next time you visit the gallery.
