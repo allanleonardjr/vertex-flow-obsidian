@@ -12,10 +12,14 @@ import {
 	parseToolArguments,
 	pickModelId,
 	presetForUrl,
+	REASONING_LEVELS,
+	reasoningLevelFor,
+	reasoningRequestFields,
 	toLocalServerErrorLike,
 	truncateToolResult,
 	workspaceFromSetActiveResult,
 	type LocalChatWireMessage,
+	type LocalServerPresetId,
 } from "../../src/core/ai/local-server";
 
 describe("effectiveAiProvider", () => {
@@ -220,6 +224,55 @@ describe("bubblesToWireMessages", () => {
 			{ role: "user", content: "and now?" },
 			{ role: "user", content: "again" },
 		]);
+	});
+});
+
+describe("reasoningLevelFor", () => {
+	it("returns the stored level when it's one of the five ids", () => {
+		expect(reasoningLevelFor({ "model-a": "low" }, "model-a")).toBe("low");
+		expect(reasoningLevelFor({ "model-a": "off" }, "model-a")).toBe("off");
+	});
+
+	it("lists all five levels, Default first", () => {
+		expect(REASONING_LEVELS.map((l) => l.id)).toEqual(["default", "off", "low", "medium", "high"]);
+	});
+
+	it("falls back to default for a missing entry, an unknown string, a null model, or a missing/garbage saved value", () => {
+		expect(reasoningLevelFor({ "model-a": "low" }, "model-b")).toBe("default");
+		expect(reasoningLevelFor({ "model-a": "xhigh" }, "model-a")).toBe("default");
+		expect(reasoningLevelFor({ "model-a": "low" }, null)).toBe("default");
+		expect(reasoningLevelFor(undefined, "model-a")).toBe("default");
+		expect(reasoningLevelFor("not an object" as unknown as Record<string, unknown>, "model-a")).toBe("default");
+		expect(reasoningLevelFor(null as unknown as Record<string, unknown>, "model-a")).toBe("default");
+		expect(reasoningLevelFor({ "model-a": 42 }, "model-a")).toBe("default");
+	});
+});
+
+describe("reasoningRequestFields", () => {
+	const presets: LocalServerPresetId[] = ["lm-studio", "ollama", "jan", "llama-cpp", "custom"];
+
+	it("sends nothing for default", () => {
+		for (const preset of presets) {
+			expect(reasoningRequestFields("default", preset)).toEqual({});
+		}
+	});
+
+	it("sends reasoning_effort for low/medium/high on every preset", () => {
+		for (const preset of presets) {
+			expect(reasoningRequestFields("low", preset)).toEqual({ reasoning_effort: "low" });
+			expect(reasoningRequestFields("medium", preset)).toEqual({ reasoning_effort: "medium" });
+			expect(reasoningRequestFields("high", preset)).toEqual({ reasoning_effort: "high" });
+		}
+	});
+
+	it("sends reasoning_effort: off for lm-studio, and none + enable_thinking:false for every other preset", () => {
+		expect(reasoningRequestFields("off", "lm-studio")).toEqual({ reasoning_effort: "off" });
+		for (const preset of ["ollama", "jan", "llama-cpp", "custom"] as LocalServerPresetId[]) {
+			expect(reasoningRequestFields("off", preset)).toEqual({
+				reasoning_effort: "none",
+				chat_template_kwargs: { enable_thinking: false },
+			});
+		}
 	});
 });
 

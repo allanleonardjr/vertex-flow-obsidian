@@ -60,6 +60,36 @@ the chat uses the first model it lists.
 Some servers load a model the first time it's asked for, so the first reply
 after a while can take noticeably longer. That's normal.
 
+## Reasoning
+
+Next to the model menu is a **Reasoning** menu with five levels: **Default**,
+**Off**, **Low**, **Medium**, and **High**. Low, Medium and High ask the model
+to reason more before it answers; Off asks it to skip reasoning; Default
+sends nothing and leaves it entirely to the server and model.
+
+Your choice is saved **per model** - switching models in the menu next to it
+shows that model's own choice, since only some models reason at all and a
+single setting for every model would be wrong for the rest.
+
+Support varies by server and model:
+
+- Some models can't turn reasoning off at all, even when Off is selected.
+- Some servers ignore the setting outright.
+- Some servers reject it. When that happens, the chat automatically retries
+  the answer without it and shows a small note: "This server didn't accept
+  the reasoning setting, so it used its default."
+
+To check whether a choice actually took effect, watch the reasoning box while
+the answer streams, or open **Steps** afterward - both show whether the model
+reasoned at all. If a level isn't working the way you expect, the most
+reliable fix is changing the model's own reasoning setting in the server app
+itself (for example, the model's settings in LM Studio or Bionic).
+
+Older versions of LM Studio only return reasoning in a separate field when
+that's turned on under **App Settings → Developer**. If it's off there, the
+model's reasoning still arrives, just inline in the answer between `<think>`
+tags - Vertex Flow separates it into the reasoning box either way.
+
 ## The chat's own workspace
 
 The chat starts on the workspace you had open, and the header shows which

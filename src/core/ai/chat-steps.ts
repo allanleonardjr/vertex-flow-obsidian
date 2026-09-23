@@ -28,6 +28,10 @@ export type ChatStep =
 			startedAt: number;
 			endedAt?: number;
 			outcome?: { isError: boolean; summary: string };
+			/** The call's raw parsed arguments, for the Request/Response detail toggle. Unset when arguments failed to parse. */
+			args?: Record<string, unknown>;
+			/** The call's raw result (or error) text, for the same toggle. Unset until the call finishes. */
+			resultText?: string;
 	  };
 
 const ARG_VALUE_MAX = 40;
@@ -95,6 +99,45 @@ export function summarizeToolResult(text: string, isError: boolean): string {
 		return firstLine ? `error: ${clip(firstLine.trim(), RESULT_ERROR_MAX)}` : "error";
 	}
 	return text.length > LONG_RESULT_CHARS ? `done, ${text.length.toLocaleString("en-US")} chars` : "done";
+}
+
+/**
+ * Pretty-prints a tool call's raw arguments or result for the Request/
+ * Response detail toggle — JSON with 2-space indent when the value is (or
+ * parses as) JSON, the exact raw text/value otherwise. Never throws.
+ */
+export function formatToolPayload(value: unknown): string {
+	if (value == null) return "";
+	if (typeof value === "string") {
+		try {
+			return JSON.stringify(JSON.parse(value), null, 2);
+		} catch {
+			return value;
+		}
+	}
+	if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+		return value.toString();
+	}
+	try {
+		return JSON.stringify(value, null, 2);
+	} catch {
+		return "[unserializable value]";
+	}
+}
+
+/**
+ * Every model round's reasoning in a finished answer, concatenated in
+ * order — the single persistent Reasoning box shown once the turn ends,
+ * replacing the live view's slot rather than the reasoning disappearing
+ * until it's dug out of Steps. Rounds with empty/whitespace-only reasoning
+ * contribute nothing (no blank gap), rather than being included as-is.
+ */
+export function combinedReasoning(steps: ChatStep[]): string {
+	return steps
+		.filter((step): step is Extract<ChatStep, { kind: "model" }> => step.kind === "model")
+		.map((step) => step.reasoning.trim())
+		.filter((text) => text.length > 0)
+		.join("\n\n");
 }
 
 /** `0.8s` under 10 seconds, `14s` under a minute, `1m 05s` above. */

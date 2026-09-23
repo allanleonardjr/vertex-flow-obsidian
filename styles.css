@@ -5204,6 +5204,15 @@ input.vf-editable-title-input {
   color: var(--text-error);
 }
 
+/* Local model server: the server rejected the reasoning setting for this
+   answer (HTTP 400) and it was retried without it — a small muted note, not
+   an error state, so it doesn't compete visually with the answer above it. */
+.vf-chat-reasoning-note {
+  margin: 4px 0 0;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+}
+
 /* Local model server: the collapsed "Used: list_tasks, …" note under an
    answer. Quiet by default — it's provenance, not part of the answer. */
 .vf-chat-tools-used {
@@ -5317,28 +5326,34 @@ button.vf-chat-reasoning-toggle:hover {
   color: var(--text-error);
 }
 
-.vf-chat-step-reasoning {
+.vf-chat-step-detail {
   margin-top: 2px;
 }
 
-.vf-chat-step-reasoning summary {
+.vf-chat-step-detail summary {
   cursor: pointer;
+}
+
+/* Compact override of the dialog-sized `.vf-segmented` control for this
+   small, inline context — same colors/behavior (including the `.is-on`
+   accent fill), smaller everything. */
+.vf-chat-step-detail .vf-segmented {
+  width: auto;
+  display: inline-flex;
+  margin-top: 4px;
+}
+
+.vf-chat-step-detail .vf-segmented-item {
+  min-height: 24px;
+  min-width: 0;
+  padding: 3px 10px;
+  font-size: var(--font-ui-smaller);
 }
 
 /* Local model server: the server-reported token count for the last reply. */
 .vf-chat-token-usage {
   color: var(--vf-muted);
   font-size: var(--font-ui-smaller);
-}
-
-/* Local model server: the chat's own workspace and model pickers, plus the
-   model-list refresh button, on the right of the header. */
-.vf-chat-header-controls {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  min-width: 0;
 }
 
 /* `.vf-icon-button` already sets `background: transparent` at rest, but
@@ -5398,59 +5413,69 @@ button.vf-chat-reasoning-toggle:hover {
   }
 }
 
-.vf-chat-input-row {
+/* The composer: textarea + its controls share one bordered/rounded box
+   (Bionic/Claude/OpenCode-style), instead of the textarea carrying its own
+   border next to a separate Send button. */
+.vf-chat-composer {
   display: flex;
+  flex-direction: column;
   flex-shrink: 0;
-  gap: 8px;
-  padding: 12px 20px;
-  border-top: 1px solid var(--vf-border);
   width: 100%;
   max-width: 1024px;
   margin: 0 auto;
+  padding: 8px;
+  border: 1px solid var(--vf-border);
+  border-radius: 10px;
+  background: var(--background-primary);
   box-sizing: border-box;
 }
 
+/* Obsidian's base theme puts a border/background/box-shadow on
+   `textarea:hover`/`:focus` — the composer box (`.vf-chat-composer`) already
+   supplies that chrome, so every state here is flattened back to none/
+   transparent rather than letting the base theme's own textarea styling
+   double up around it. */
 .vf-chat-input {
-  flex: 1;
+  width: 100%;
   min-height: 36px;
   max-height: 140px;
-  padding: 8px 10px;
+  padding: 6px 4px;
   resize: none;
-  border: 1px solid var(--vf-border);
-  border-radius: 6px;
-  background: var(--background-primary);
   color: var(--text-normal);
   font-size: var(--font-ui-small);
   font-family: inherit;
-}
-
-/* Model switcher footer below the chat input — right-aligned so it reads as a
-   quiet status control rather than a first-class input, same centered
-   max-width as the input row it sits under. */
-.vf-chat-model-row {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-  flex-shrink: 0;
-  width: 100%;
-  max-width: 1024px;
-  margin: 0 auto;
-  padding: 0 20px 12px;
   box-sizing: border-box;
 }
 
-.vf-chat-model-label {
-  color: var(--vf-muted);
-  font-size: var(--font-ui-smaller);
+/* `!important` here because Obsidian's base theme styles
+   `textarea:hover`/`:focus`/`:focus-visible` with its own
+   border/background/box-shadow using `!important`, which a plain class
+   selector (even at higher specificity) can't otherwise beat. */
+.vf-chat-input,
+.vf-chat-input:hover,
+.vf-chat-input:focus,
+.vf-chat-input:focus-visible,
+.vf-chat-input:active {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
 }
 
-/* The chat pickers' compact look (the built-in model picker, and the local
-   server chat's workspace/model pickers). The arrow and its right-hand room
-   come from the shared `Select` component's `.vf-select-wrap`; the padding is
-   written as longhands so this rule never overrides that right padding. */
-.vf-chat-model-row .vf-select,
-.vf-chat-header-controls .vf-select {
+/* The row of controls along the composer's bottom edge: usage/context meter
+   pinned left (via that element's own `margin-right: auto`, same trick the
+   old `.vf-chat-context-meter` already used), Model (+ refresh, local-server
+   only) in the middle, Send/Stop pinned right. `flex-wrap` lets Model/refresh
+   drop to a second line on a narrow pane rather than clipping. */
+.vf-chat-composer-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 6px;
+}
+
+.vf-chat-composer-controls .vf-select {
   width: auto;
   min-width: 150px;
   background-color: transparent;
@@ -5463,10 +5488,83 @@ button.vf-chat-reasoning-toggle:hover {
   cursor: pointer;
 }
 
-.vf-chat-model-row .vf-select:hover,
-.vf-chat-header-controls .vf-select:hover {
+.vf-chat-composer-controls .vf-select:hover {
   color: var(--text-normal);
   border-color: var(--interactive-accent);
+}
+
+/* Model (+ refresh, local-server only) and Send/Stop travel together as one
+   right-aligned cluster — `margin-left: auto` lives here, not on
+   `.vf-chat-send-btn` alone, so Send stays adjacent to Model/refresh instead
+   of drifting to the far right with an empty gap when there's no usage/
+   context-meter element on the left to fill the row. */
+.vf-chat-composer-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+/* Send/Stop: a round icon-only button — replaces the earlier text
+   "Send"/"Stop" buttons. */
+.vf-chat-send-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 999px;
+}
+
+/* Local model server only: the chat's own workspace, centered below the
+   composer (OpenCode's folder-indicator pattern). */
+.vf-chat-workspace-row {
+  display: flex;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 100%;
+  max-width: 1024px;
+  margin: 0 auto;
+  padding: 6px 20px 12px;
+  box-sizing: border-box;
+}
+
+/* Sized to just the button (not the full centered `.vf-chat-workspace-row`)
+   so the `Popover` inside it — `position: absolute; left: 0` — lines up
+   under the button instead of the row's far-left edge. This wrapper, not
+   the button, is what needs `position: relative`: the `Popover` is a DOM
+   sibling of the button, not a descendant, so `position: relative` on the
+   button itself has no effect on it. */
+.vf-chat-workspace-anchor {
+  position: relative;
+  display: inline-flex;
+}
+
+/* `button.` for specificity — Obsidian's base theme otherwise wins on
+   background/border for a plain button sitting directly in the chat pane
+   rather than inside a toolbar that already resets button chrome (see
+   `.vf-chat-actions .vf-icon-button` above for the same issue). No
+   background in any state, including hover — only the text/icon color
+   shifts, same treatment as `.vf-template-details-toggle` elsewhere in this
+   file. */
+button.vf-chat-workspace-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: var(--vf-radius);
+  background: transparent;
+  box-shadow: none;
+  color: var(--interactive-accent);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+}
+
+button.vf-chat-workspace-trigger:hover {
+  color: var(--interactive-accent-hover);
 }
 
 /* Live, always-visible estimate of how much of the selected model's context

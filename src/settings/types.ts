@@ -10,6 +10,7 @@ import { DEFAULT_AI_MODEL_ID } from "../ai/AiEngineService";
 import {
   DEFAULT_LOCAL_SERVER_BASE_URL,
   type AiProvider,
+  type ReasoningLevel,
 } from "../core/ai/local-server";
 
 /**
@@ -163,6 +164,13 @@ export interface VertexFlowSettings {
    */
   localServerModelId: string;
   /**
+   * Per-model reasoning choice for the local server, keyed by model id as
+   * listed by `GET /models`. Absent means Default (nothing sent). Read
+   * through `reasoningLevelFor` so a bad or hand-edited value falls back
+   * safely rather than throwing.
+   */
+  localServerReasoning: Record<string, ReasoningLevel>;
+  /**
    * One-time UI discovery badges the user has already dismissed by
    * visiting the feature, keyed by a stable feature id (e.g.
    * "layout-table"). Absent or false = show the badge; true = seen,
@@ -235,5 +243,6 @@ export const DEFAULT_SETTINGS: VertexFlowSettings = {
   aiProvider: "builtin",
   localServerBaseUrl: DEFAULT_LOCAL_SERVER_BASE_URL,
   localServerModelId: "",
+  localServerReasoning: {},
   seenFeatures: {},
 };

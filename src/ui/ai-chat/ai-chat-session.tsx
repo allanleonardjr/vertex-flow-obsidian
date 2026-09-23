@@ -117,6 +117,12 @@ export interface AiChatBubble {
 	 * copied, never written to disk.
 	 */
 	steps?: ChatStep[];
+	/**
+	 * Local server only: the server rejected the reasoning setting (HTTP 400)
+	 * on at least one round of this turn, so it was retried and answered with
+	 * the server's default instead. Shown as a small note under the answer.
+	 */
+	reasoningNote?: boolean;
 }
 
 interface AiChatSessionValue {

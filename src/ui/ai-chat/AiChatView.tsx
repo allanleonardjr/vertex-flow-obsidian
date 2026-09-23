@@ -78,6 +78,7 @@ import {
   useAiChatSession,
 } from "./ai-chat-session";
 import { Select } from "../components/Select";
+import { Icon } from "../components/Icon";
 
 /** How long the Copy button shows its confirmation checkmark. */
 const COPY_CONFIRM_MS = 1500;
@@ -1207,7 +1208,7 @@ function BuiltinAiChatView({
         </p>
       )}
 
-      <div className="vf-chat-input-row">
+      <div className="vf-chat-composer">
         <textarea
           ref={inputRef}
           className="vf-chat-input"
@@ -1222,66 +1223,69 @@ function BuiltinAiChatView({
             }
           }}
         />
-        {sending ? (
-          <button
-            type="button"
-            className="mod-warning"
-            disabled={stopping}
-            onClick={stop}
-          >
-            {stopping ? "Stopping…" : "Stop"}
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="mod-cta"
-            disabled={!input.trim() || switching || reloadingInline}
-            onClick={send}
-          >
-            Send
-          </button>
-        )}
-      </div>
-
-      <div className="vf-chat-model-row">
-        {contextUsage && (
-          <div
-            className={`vf-chat-context-meter${
-              contextUsage.pct >= 90
-                ? " is-critical"
-                : contextUsage.pct >= 80
-                  ? " is-warning"
-                  : ""
-            }`}
-            title={`~${contextUsage.pct}% of "${selectedModelLabel}"'s context window used (estimated)`}
-          >
-            <div className="vf-ai-progress">
-              <div
-                className="vf-ai-progress-fill"
-                style={{ width: `${contextUsage.pct}%` }}
-              />
+        <div className="vf-chat-composer-controls">
+          {contextUsage && (
+            <div
+              className={`vf-chat-context-meter${
+                contextUsage.pct >= 90
+                  ? " is-critical"
+                  : contextUsage.pct >= 80
+                    ? " is-warning"
+                    : ""
+              }`}
+              title={`~${contextUsage.pct}% of "${selectedModelLabel}"'s context window used (estimated)`}
+            >
+              <div className="vf-ai-progress">
+                <div
+                  className="vf-ai-progress-fill"
+                  style={{ width: `${contextUsage.pct}%` }}
+                />
+              </div>
+              <span className="vf-chat-context-meter-label">
+                ~{contextUsage.pct}% of context
+              </span>
             </div>
-            <span className="vf-chat-context-meter-label">
-              ~{contextUsage.pct}% of context
-            </span>
+          )}
+          <div className="vf-chat-composer-actions">
+            <Select
+              id="vf-chat-model"
+              className="vf-select"
+              aria-label="Model"
+              value={selectedModelId}
+              disabled={sending || switching || reloadingInline}
+              onChange={(event) => switchModel(event.target.value)}
+            >
+              {AI_MODEL_OPTIONS.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+            {sending ? (
+              <button
+                type="button"
+                className="vf-chat-send-btn mod-warning"
+                disabled={stopping}
+                title={stopping ? "Stopping…" : "Stop generating"}
+                aria-label={stopping ? "Stopping…" : "Stop generating"}
+                onClick={stop}
+              >
+                <Icon id="square" size={14} />
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="vf-chat-send-btn mod-cta"
+                disabled={!input.trim() || switching || reloadingInline}
+                title="Send message"
+                aria-label="Send message"
+                onClick={send}
+              >
+                <Icon id="arrow-up" size={16} />
+              </button>
+            )}
           </div>
-        )}
-        <label className="vf-chat-model-label" htmlFor="vf-chat-model">
-          Model
-        </label>
-        <Select
-          id="vf-chat-model"
-          className="vf-select"
-          value={selectedModelId}
-          disabled={sending || switching || reloadingInline}
-          onChange={(event) => switchModel(event.target.value)}
-        >
-          {AI_MODEL_OPTIONS.map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.label}
-            </option>
-          ))}
-        </Select>
+        </div>
       </div>
     </div>
   );

@@ -23,6 +23,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   LocalServerAbortError,
+  LocalServerHttpError,
   listModels,
   streamChatCompletion,
 } from "../../ai/local-server-client";
@@ -35,14 +36,21 @@ import {
   mcpToolsToOpenAiTools,
   parseToolArguments,
   pickModelId,
+  presetForUrl,
+  REASONING_LEVELS,
+  reasoningLevelFor,
+  reasoningRequestFields,
   toLocalServerErrorLike,
   truncateToolResult,
   workspaceFromSetActiveResult,
   type LocalChatWireMessage,
+  type ReasoningLevel,
 } from "../../core/ai/local-server";
 import {
+  combinedReasoning,
   describeActivity,
   formatElapsed,
+  formatToolPayload,
   summarizeToolArgs,
   summarizeToolResult,
   thinkingElapsed,
@@ -58,6 +66,7 @@ import { Icon } from "../components/Icon";
 import { usePlugin, useSettingsWriter } from "../context";
 import { useTabs } from "../tabs-context";
 import { type AiChatBubble, useAiChatSession } from "./ai-chat-session";
+import { Popover } from "../components/Popover";
 import {
   AiChatProjectList,
   ChatMarkdown,
@@ -230,7 +239,7 @@ function ChatActivity({
   const current = last?.kind === "model" ? last : undefined;
   const reasoning = useThrottledText(current?.reasoning ?? "");
   const showReasoning =
-    !hasAnswerText && current != null && reasoning.length > 0;
+    !hasAnswerText && current != null && reasoning.trim().length > 0;
 
   useEffect(() => {
     const body = bodyRef.current;
@@ -282,10 +291,77 @@ function ChatActivity({
 }
 
 /**
- * A finished answer's timeline, collapsed by default beside the "Used:" note:
- * every model round (how long it took, how long before its first token, and
- * its reasoning, itself collapsed) and every tool call (arguments, outcome,
- * duration).
+ * A finished answer's reasoning, shown once, persistently, in the slot the
+ * live `ChatActivity` view occupied while streaming — rather than
+ * disappearing once the turn ends and only resurfacing nested inside a
+ * collapsed Steps entry. Defaults expanded, matching the live view it
+ * replaces; the person can still collapse it, same chevron/toggle language
+ * as everywhere else reasoning appears.
+ */
+function FinishedReasoning({ text }: { text: string }) {
+  const [collapsed, setCollapsed] = useState(false);
+  return (
+    <div className={`vf-chat-reasoning${collapsed ? " is-collapsed" : ""}`}>
+      <button
+        type="button"
+        className="vf-chat-reasoning-toggle"
+        aria-expanded={!collapsed}
+        onClick={() => setCollapsed((value) => !value)}
+      >
+        Reasoning
+        {collapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+      </button>
+      {!collapsed && <div className="vf-chat-reasoning-body">{text}</div>}
+    </div>
+  );
+}
+
+/**
+ * The Request/Response toggle nested under a finished tool call's summary
+ * line — raw arguments and raw result/error text, pretty-printed when
+ * they're JSON. Collapsed by default. Renders nothing for a call with
+ * neither (there always is at least one by the time a step reaches
+ * `ChatSteps`, since this only renders on a finished answer).
+ */
+function ToolCallDetail({ step }: { step: ToolStep }) {
+  const [tab, setTab] = useState<"request" | "response">("request");
+  if (step.args == null && step.resultText == null) return null;
+  const payload =
+    tab === "request"
+      ? formatToolPayload(step.args)
+      : formatToolPayload(step.resultText);
+  return (
+    <details className="vf-chat-step-detail">
+      <summary>Request / Response</summary>
+      <div className="vf-segmented" role="group">
+        <button
+          type="button"
+          className={`vf-segmented-item${tab === "request" ? " is-on" : ""}`}
+          aria-pressed={tab === "request"}
+          onClick={() => setTab("request")}
+        >
+          Request
+        </button>
+        <button
+          type="button"
+          className={`vf-segmented-item${tab === "response" ? " is-on" : ""}`}
+          aria-pressed={tab === "response"}
+          onClick={() => setTab("response")}
+        >
+          Response
+        </button>
+      </div>
+      <pre className="vf-chat-reasoning-body">{payload}</pre>
+    </details>
+  );
+}
+
+/**
+ * A finished answer's timeline, collapsed by default beside the "Used:"
+ * note: every model round's timing (how long it took, how long before its
+ * first token) and every tool call's summary plus its Request/Response
+ * detail toggle. Reasoning itself lives in `FinishedReasoning` above, not
+ * here.
  */
 function ChatSteps({ steps }: { steps: ChatStep[] }) {
   return (
@@ -306,14 +382,6 @@ function ChatSteps({ steps }: { steps: ChatStep[] }) {
                   {step.firstTokenAt != null &&
                     ` (waited ${formatElapsed(step.firstTokenAt - step.startedAt)})`}
                 </span>
-                {step.reasoning && (
-                  <details className="vf-chat-step-reasoning">
-                    <summary>Reasoning</summary>
-                    <div className="vf-chat-reasoning-body">
-                      {step.reasoning}
-                    </div>
-                  </details>
-                )}
               </li>
             );
           }
@@ -330,6 +398,7 @@ function ChatSteps({ steps }: { steps: ChatStep[] }) {
                 {" "}
                 → {step.outcome?.summary ?? "no result"} · {elapsed}
               </span>
+              <ToolCallDetail step={step} />
             </li>
           );
         })}
@@ -364,6 +433,7 @@ export function LocalServerChatView({
   const [sending, setSending] = useState(false);
   const [stopping, setStopping] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const nearBottomRef = useRef(true);
@@ -426,6 +496,10 @@ export function LocalServerChatView({
     models.status === "ready"
       ? pickModelId(plugin.settings.localServerModelId, models.ids)
       : null;
+  const reasoningLevel = reasoningLevelFor(
+    plugin.settings.localServerReasoning,
+    modelId,
+  );
 
   // Every updater builds a fresh object — React may replay an updater, and a
   // mutated `prev` would double-append streamed text (see the built-in view).
@@ -450,6 +524,7 @@ export function LocalServerChatView({
   const runTurn = async (
     history: AiChatBubble[],
     model: string,
+    level: ReasoningLevel,
     signal: AbortSignal,
   ) => {
     // The turn's Steps timeline. This local array is the source of truth;
@@ -479,6 +554,7 @@ export function LocalServerChatView({
       await runRounds(
         history,
         model,
+        level,
         signal,
         steps,
         syncSteps,
@@ -513,6 +589,7 @@ export function LocalServerChatView({
   const runRounds = async (
     history: AiChatBubble[],
     model: string,
+    level: ReasoningLevel,
     signal: AbortSignal,
     steps: ChatStep[],
     syncSteps: () => void,
@@ -538,6 +615,12 @@ export function LocalServerChatView({
     const toolCalls: { name: string; isError: boolean }[] = [];
     let resultRows: AiChatBubble["resultRows"];
 
+    const reasoningFields = reasoningRequestFields(level, presetForUrl(baseUrl));
+    // Remembered only for the rest of *this* turn — a fresh turn always
+    // starts by trying the fields again, so a later server/model change can
+    // still succeed.
+    let sendReasoning = Object.keys(reasoningFields).length > 0;
+
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
       updateLastAssistant((bubble) => ({ ...bubble, content: "" }));
       const modelIndex =
@@ -556,30 +639,60 @@ export function LocalServerChatView({
         patchModelStep(modelIndex, (s) => ({ ...s, firstTokenAt }));
         return true;
       };
-      const result = await streamChatCompletion({
-        baseUrl,
-        apiKey: getLocalServerKey(),
-        body: {
-          model,
-          messages: [...baseMessages, ...wire],
-          tools,
-          tool_choice: "auto",
-        },
-        onContentDelta: (text) => {
-          const first = markFirstToken();
-          appendToLastAssistant(text);
-          if (first) syncSteps();
-        },
-        onReasoningDelta: (text) => {
-          markFirstToken();
+      const runStream = (withReasoning: boolean) =>
+        streamChatCompletion({
+          baseUrl,
+          apiKey: getLocalServerKey(),
+          body: {
+            model,
+            messages: [...baseMessages, ...wire],
+            tools,
+            tool_choice: "auto",
+            ...(withReasoning ? reasoningFields : {}),
+          },
+          onContentDelta: (text) => {
+            const first = markFirstToken();
+            appendToLastAssistant(text);
+            if (first) syncSteps();
+          },
+          onReasoningDelta: (text) => {
+            markFirstToken();
+            patchModelStep(modelIndex, (s) => ({
+              ...s,
+              reasoning: s.reasoning + text,
+            }));
+            syncSteps();
+          },
+          signal,
+        });
+
+      let result;
+      try {
+        result = await runStream(sendReasoning);
+      } catch (error) {
+        if (
+          sendReasoning &&
+          error instanceof LocalServerHttpError &&
+          error.status === 400
+        ) {
+          // The server rejected the reasoning fields outright — drop them
+          // for the rest of this turn and retry this same round once
+          // without them. Any other error, or a 400 on the plain retry,
+          // propagates exactly as today.
+          sendReasoning = false;
+          updateLastAssistant((bubble) => ({ ...bubble, content: "" }));
           patchModelStep(modelIndex, (s) => ({
             ...s,
-            reasoning: s.reasoning + text,
+            reasoning: "",
+            firstTokenAt: undefined,
           }));
           syncSteps();
-        },
-        signal,
-      });
+          result = await runStream(false);
+          updateLastAssistant((bubble) => ({ ...bubble, reasoningNote: true }));
+        } else {
+          throw error;
+        }
+      }
       const roundEndedAt = Date.now();
       patchModelStep(modelIndex, (s) => ({ ...s, endedAt: roundEndedAt }));
       syncSteps();
@@ -608,6 +721,7 @@ export function LocalServerChatView({
               "error" in parsed
                 ? "invalid arguments"
                 : summarizeToolArgs(parsed.args),
+            args: "error" in parsed ? undefined : parsed.args,
             startedAt: Date.now(),
           }) - 1;
         syncSteps();
@@ -623,6 +737,7 @@ export function LocalServerChatView({
                 true,
               ),
             },
+            resultText: parsed.error,
           }));
           syncSteps();
           toolMessages.push({
@@ -641,6 +756,7 @@ export function LocalServerChatView({
               isError: outcome.isError,
               summary: summarizeToolResult(outcome.text, outcome.isError),
             },
+            resultText: outcome.text,
           }));
           syncSteps();
           if (signal.aborted) throw new LocalServerAbortError();
@@ -703,7 +819,9 @@ export function LocalServerChatView({
     ]);
     setSending(true);
 
-    void runTurn(history, modelId, controller.signal)
+    // Snapshotted at send time, like the model — changing either select
+    // mid-answer never affects the turn already running.
+    void runTurn(history, modelId, reasoningLevel, controller.signal)
       .catch((error: unknown) => {
         if (
           controller.signal.aborted ||
@@ -866,49 +984,6 @@ export function LocalServerChatView({
         <div className="vf-toolbar-title">
           <h2>AI Chat - {chatName}</h2>
         </div>
-        <div className="vf-chat-header-controls">
-          <Select
-            className="vf-select"
-            aria-label="Chat workspace"
-            value={chatSnapshot.workspace.root}
-            disabled={sending}
-            onChange={(event) => changeWorkspace(event.target.value)}
-          >
-            {workspaces.map((workspace) => (
-              <option
-                key={workspace.workspace.root}
-                value={workspace.workspace.root}
-              >
-                {workspace.workspace.name}
-              </option>
-            ))}
-          </Select>
-          <Select
-            className="vf-select"
-            aria-label="Model"
-            value={modelId ?? ""}
-            disabled={sending}
-            onChange={(event) =>
-              writeSettings({ localServerModelId: event.target.value })
-            }
-          >
-            {models.ids.map((id) => (
-              <option key={id} value={id}>
-                {id}
-              </option>
-            ))}
-          </Select>
-          <button
-            type="button"
-            className="vf-icon-button"
-            title="Refresh the model list"
-            aria-label="Refresh the model list"
-            disabled={sending || models.refreshing}
-            onClick={() => setModelsRequest((n) => n + 1)}
-          >
-            <Icon id="refresh-cw" size={13} />
-          </button>
-        </div>
       </header>
 
       <div
@@ -934,6 +1009,12 @@ export function LocalServerChatView({
               sending &&
               index === messages.length - 1 &&
               message.role === "assistant";
+            // Computed once per render rather than inline twice below —
+            // `""` (falsy) when the turn is still live or has no reasoning
+            // to show at all.
+            const reasoningText = isLive
+              ? ""
+              : combinedReasoning(message.steps ?? []);
             return (
               <div
                 key={message.id}
@@ -954,6 +1035,12 @@ export function LocalServerChatView({
                         onLoadMore={() => loadMoreRows(message.id)}
                       />
                     )}
+                    {message.reasoningNote && (
+                      <p className="vf-chat-reasoning-note">
+                        This server didn't accept the reasoning setting, so
+                        it used its default.
+                      </p>
+                    )}
                   </div>
                 )}
                 {isLive && (
@@ -962,6 +1049,7 @@ export function LocalServerChatView({
                     hasAnswerText={!!message.content}
                   />
                 )}
+                {reasoningText && <FinishedReasoning text={reasoningText} />}
                 {message.toolCalls && message.toolCalls.length > 0 && (
                   <ToolsUsed calls={message.toolCalls} />
                 )}
@@ -983,7 +1071,7 @@ export function LocalServerChatView({
         )}
       </div>
 
-      <div className="vf-chat-input-row">
+      <div className="vf-chat-composer">
         <textarea
           ref={inputRef}
           className="vf-chat-input"
@@ -997,37 +1085,140 @@ export function LocalServerChatView({
             }
           }}
         />
-        {sending ? (
-          <button
-            type="button"
-            className="mod-warning"
-            disabled={stopping}
-            onClick={stop}
-          >
-            {stopping ? "Stopping…" : "Stop"}
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="mod-cta"
-            disabled={!input.trim() || !modelId}
-            onClick={send}
-          >
-            Send
-          </button>
-        )}
+        <div className="vf-chat-composer-controls">
+          {typeof lastTokens === "number" && (
+            <span
+              className="vf-chat-token-usage"
+              title="Tokens the server reported for the last response"
+            >
+              ~{lastTokens.toLocaleString()} tokens
+            </span>
+          )}
+          <div className="vf-chat-composer-actions">
+            <Select
+              className="vf-select"
+              aria-label="Reasoning"
+              title="How much the model reasons before answering. Only affects models that support it."
+              value={reasoningLevel}
+              disabled={sending || !modelId}
+              onChange={(event) => {
+                if (!modelId) return;
+                const nextLevel = event.target.value as ReasoningLevel;
+                const next = { ...plugin.settings.localServerReasoning };
+                if (nextLevel === "default") delete next[modelId];
+                else next[modelId] = nextLevel;
+                writeSettings({ localServerReasoning: next });
+              }}
+            >
+              {REASONING_LEVELS.map((level) => (
+                <option key={level.id} value={level.id}>
+                  Reasoning: {level.label}
+                </option>
+              ))}
+            </Select>
+            <Select
+              className="vf-select"
+              aria-label="Model"
+              value={modelId ?? ""}
+              disabled={sending}
+              onChange={(event) =>
+                writeSettings({ localServerModelId: event.target.value })
+              }
+            >
+              {models.ids.map((id) => (
+                <option key={id} value={id}>
+                  {id}
+                </option>
+              ))}
+            </Select>
+            <button
+              type="button"
+              className="vf-icon-button"
+              title="Refresh the model list"
+              aria-label="Refresh the model list"
+              disabled={sending || models.refreshing}
+              onClick={() => setModelsRequest((n) => n + 1)}
+            >
+              <Icon id="refresh-cw" size={13} />
+            </button>
+            {sending ? (
+              <button
+                type="button"
+                className="vf-chat-send-btn mod-warning"
+                disabled={stopping}
+                title={stopping ? "Stopping…" : "Stop generating"}
+                aria-label={stopping ? "Stopping…" : "Stop generating"}
+                onClick={stop}
+              >
+                <Icon id="square" size={14} />
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="vf-chat-send-btn mod-cta"
+                disabled={!input.trim() || !modelId}
+                title="Send message"
+                aria-label="Send message"
+                onClick={send}
+              >
+                <Icon id="arrow-up" size={16} />
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
-      {typeof lastTokens === "number" && (
-        <div className="vf-chat-model-row">
-          <span
-            className="vf-chat-token-usage"
-            title="Tokens the server reported for the last response"
+      <div className="vf-chat-workspace-row">
+        <div className="vf-chat-workspace-anchor">
+          <button
+            type="button"
+            className="vf-chat-workspace-trigger"
+            aria-haspopup="listbox"
+            aria-expanded={workspaceMenuOpen}
+            onClick={(event) => {
+              event.stopPropagation();
+              setWorkspaceMenuOpen((open) => !open);
+            }}
           >
-            ~{lastTokens.toLocaleString()} tokens
-          </span>
+            <Icon
+              id={chatSnapshot.workspace.icon}
+              fallback="folder"
+              size={14}
+            />
+            <span>{chatName}</span>
+            <ChevronDown size={12} />
+          </button>
+          {workspaceMenuOpen && (
+            <Popover align="left" onClose={() => setWorkspaceMenuOpen(false)}>
+              <div className="vf-option-list">
+                {workspaces.map((workspace) => (
+                  <button
+                    key={workspace.workspace.root}
+                    type="button"
+                    className={`vf-menu-item${
+                      workspace.workspace.root === chatSnapshot.workspace.root
+                        ? " is-active"
+                        : ""
+                    }`}
+                    disabled={sending}
+                    onClick={() => {
+                      changeWorkspace(workspace.workspace.root);
+                      setWorkspaceMenuOpen(false);
+                    }}
+                  >
+                    <Icon
+                      id={workspace.workspace.icon}
+                      fallback="folder"
+                      size={14}
+                    />
+                    <span>{workspace.workspace.name}</span>
+                  </button>
+                ))}
+              </div>
+            </Popover>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

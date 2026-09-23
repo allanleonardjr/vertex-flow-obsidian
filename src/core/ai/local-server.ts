@@ -88,6 +88,64 @@ export function pickModelId(saved: string, available: string[]): string | null {
 	return available[0] ?? null;
 }
 
+/* ------------------------------------------------------------- reasoning -- */
+
+/**
+ * How much a model reasons before answering, or `"default"` to send nothing
+ * and leave it to the server/model. There's no `minimal`/`on`/`xhigh` — see
+ * `reasoningRequestFields` for why `off` isn't just another effort level.
+ */
+export type ReasoningLevel = "default" | "off" | "low" | "medium" | "high";
+
+/** In the order shown in the composer's Reasoning select. */
+export const REASONING_LEVELS: { id: ReasoningLevel; label: string }[] = [
+	{ id: "default", label: "Default" },
+	{ id: "off", label: "Off" },
+	{ id: "low", label: "Low" },
+	{ id: "medium", label: "Medium" },
+	{ id: "high", label: "High" },
+];
+
+const REASONING_LEVEL_IDS = new Set(REASONING_LEVELS.map((level) => level.id));
+
+/**
+ * The stored per-model reasoning choice, tolerant of a malformed or
+ * hand-edited `data.json`: a non-object `saved`, a missing entry, an unknown
+ * string, or a `null` `modelId` all fall back to `"default"` rather than
+ * throwing.
+ */
+export function reasoningLevelFor(
+	saved: Record<string, unknown> | undefined,
+	modelId: string | null,
+): ReasoningLevel {
+	if (!saved || typeof saved !== "object" || modelId == null) return "default";
+	const value = saved[modelId];
+	return typeof value === "string" && REASONING_LEVEL_IDS.has(value as ReasoningLevel)
+		? (value as ReasoningLevel)
+		: "default";
+}
+
+/**
+ * The request fields a reasoning level maps to, server-preset-aware for
+ * `off` — there's no single standard field every OpenAI-compatible server
+ * honors for disabling reasoning outright:
+ * - `default` sends nothing;
+ * - `low`/`medium`/`high` send the standard `reasoning_effort`;
+ * - `off` sends `reasoning_effort: "off"` for LM Studio / Bionic (their own
+ *   vocabulary), or `reasoning_effort: "none"` plus the non-standard
+ *   `chat_template_kwargs.enable_thinking: false` (vLLM/llama.cpp/NIM-style)
+ *   for every other preset, including Custom.
+ */
+export function reasoningRequestFields(
+	level: ReasoningLevel,
+	preset: LocalServerPresetId,
+): Record<string, unknown> {
+	if (level === "default") return {};
+	if (level !== "off") return { reasoning_effort: level };
+	if (preset === "lm-studio") return { reasoning_effort: "off" };
+	return { reasoning_effort: "none", chat_template_kwargs: { enable_thinking: false } };
+}
+
 /* ---------------------------------------------------------------- errors -- */
 
 /** The error shape the Node client produces: a socket error `code`, an HTTP `status`, or just a message. */

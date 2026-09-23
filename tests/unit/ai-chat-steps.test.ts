@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+	combinedReasoning,
 	describeActivity,
 	formatElapsed,
+	formatToolPayload,
 	lastModelStep,
 	summarizeToolArgs,
 	summarizeToolResult,
@@ -65,6 +67,63 @@ describe("summarizeToolResult", () => {
 	it("says done, with the size for long results", () => {
 		expect(summarizeToolResult(JSON.stringify({ workspace: { id: "W" } }), false)).toBe("done");
 		expect(summarizeToolResult("z".repeat(2500), false)).toBe("done, 2,500 chars");
+	});
+});
+
+describe("formatToolPayload", () => {
+	it("returns an empty string for null/undefined", () => {
+		expect(formatToolPayload(null)).toBe("");
+		expect(formatToolPayload(undefined)).toBe("");
+	});
+
+	it("pretty-prints an object", () => {
+		expect(formatToolPayload({ query: "is:open", limit: 5 })).toBe(
+			'{\n  "query": "is:open",\n  "limit": 5\n}',
+		);
+	});
+
+	it("pretty-prints a JSON string", () => {
+		expect(formatToolPayload('{"total":2,"results":[]}')).toBe(
+			'{\n  "total": 2,\n  "results": []\n}',
+		);
+	});
+
+	it("returns non-JSON text as-is", () => {
+		expect(formatToolPayload("Tool list_tasks not found")).toBe(
+			"Tool list_tasks not found",
+		);
+	});
+});
+
+describe("combinedReasoning", () => {
+	const model = (reasoning: string, round = 1): ChatStep => ({
+		kind: "model",
+		round,
+		startedAt: 0,
+		reasoning,
+	});
+	const tool = (): ChatStep => ({
+		kind: "tool",
+		name: "list_tasks",
+		argsSummary: "",
+		startedAt: 0,
+	});
+
+	it("returns an empty string with no reasoning anywhere", () => {
+		expect(combinedReasoning([])).toBe("");
+		expect(combinedReasoning([model("   "), tool()])).toBe("");
+	});
+
+	it("joins every round's non-empty reasoning in order", () => {
+		expect(
+			combinedReasoning([model("first thought"), tool(), model("second thought", 2)]),
+		).toBe("first thought\n\nsecond thought");
+	});
+
+	it("skips whitespace-only rounds without leaving a gap", () => {
+		expect(
+			combinedReasoning([model("first thought"), model("  \n", 2), model("third thought", 3)]),
+		).toBe("first thought\n\nthird thought");
 	});
 });
 

@@ -184,24 +184,24 @@ export function ChatMessageActions({
         <button
           type="button"
           className="vf-icon-button"
-          title="Copy"
-          aria-label="Copy message"
+          title="Rollback and Edit"
+          aria-label="Roll back and edit this message"
           disabled={sending}
-          onClick={onCopy}
+          onClick={onEdit}
         >
-          <Icon id={copied ? "check" : "copy"} size={13} />
+          <Icon id="undo-2" size={13} />
         </button>
       )}
       {message.role === "user" && (
         <button
           type="button"
           className="vf-icon-button"
-          title="Edit"
-          aria-label="Edit message"
+          title="Copy"
+          aria-label="Copy message"
           disabled={sending}
-          onClick={onEdit}
+          onClick={onCopy}
         >
-          <Icon id="pencil" size={13} />
+          <Icon id={copied ? "check" : "copy"} size={13} />
         </button>
       )}
     </div>
