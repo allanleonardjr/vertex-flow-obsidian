@@ -6,7 +6,14 @@
  * through the same `parseTemplateMarkdown()` the built-in gallery uses, and maps
  * successes to `WorkspaceTemplate` exactly as `markdownTemplates()` does. A bad
  * file is skipped via `onWarn` (never taking the gallery down); an id that
- * collides with a built-in template loses to the built-in.
+ * collides with a built-in template loses to the built-in. Two vault templates
+ * sharing an id no longer collide with each other — each file's path is its
+ * real identity (unique by construction), so both are kept.
+ *
+ * The returned list is sorted newest-`createdAt`-first — the order the gallery's
+ * "Your templates" section renders in. Templates without a `createdAt` (hand-
+ * authored files, or ones exported before the field existed) sort after every
+ * dated one, keeping their relative order among themselves.
  *
  * Deliberately imports no Obsidian API — the caller passes a `Notice`-backed
  * `onWarn`, keeping this unit-testable against a fake `NoteIO`.
@@ -32,7 +39,6 @@ export async function discoverVaultTemplates(
 ): Promise<VaultTemplate[]> {
 	const builtinIds = new Set(WORKSPACE_TEMPLATES.map((template) => template.id));
 	const out: VaultTemplate[] = [];
-	const seen = new Set<string>();
 
 	for (const folder of [WORKSPACE_TEMPLATES_FOLDER, LEGACY_WORKSPACE_TEMPLATES_FOLDER]) {
 		for (const file of io.listFiles(folder)) {
@@ -48,8 +54,6 @@ export async function discoverVaultTemplates(
 					);
 					continue;
 				}
-				if (seen.has(id)) continue;
-				seen.add(id);
 
 				out.push({
 					path: file.path,
@@ -68,6 +72,15 @@ export async function discoverVaultTemplates(
 			}
 		}
 	}
+
+	out.sort((a, b) => {
+		if (a.createdAt && b.createdAt) {
+			return a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0;
+		}
+		if (a.createdAt) return -1;
+		if (b.createdAt) return 1;
+		return 0;
+	});
 
 	return out;
 }

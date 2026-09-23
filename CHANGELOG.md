@@ -5,6 +5,28 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.29 — 2026-09-23
+
+### Added
+
+- **Template gallery cards now collapse their taxonomy/views/dashboards/projects/people preview behind a "Show details" toggle**, closed by default, so the New Workspace grid reads at a glance instead of every card rendering at full height. State isn't persisted — each card reopens closed the next time you visit the gallery.
+- **Vault-authored template cards in the New Workspace gallery now show a task count** ("0 tasks", "12 tasks") in the footer, between Created and Located — so you can tell at a glance whether a template seeds starter tasks or is structure-only (taxonomy, views, dashboards, projects, people), without opening "Show details" or reading the export it came from. Computed fresh from the template's own body every time it's parsed, so it can never drift from what the file actually contains.
+- **Filters and Saved Views can now target task dates — Due, Start, Created, Updated, Completed.** Each date field supports an exact-day match or an exclusive before/after range, both in the query bar (`due:2026-09-19`, `due-before:2026-10-01 due-after:2026-09-01`) and as a chip you can add from "+ Filter", with an On / Before / After editor plus a "No date set" checkbox (hidden for Created/Updated, which — unlike Due/Start/Completed — can never actually be unset on a task).
+- **Every filter field now supports exclusion, not just inclusion.** `-status:done` (or any of Status, Priority, Type, Label, Assignee, Mentions, Project, Parent, Root, and the five date fields above) drops a task that matches the excluded value, independent of — and combinable with — an ordinary include on the same field.
+- **New `root:`/`-root:` Saved View filter scopes a view to a task and everything connected to it** — sub-tasks (descendants only, never ascending to a parent) plus Blocks/Blocked By relations in either direction. `related` links deliberately don't count toward the scope, since they're the loosest connection type in the model and would risk pulling in unrelated parts of the vault. Works everywhere `parent:` already does — the query bar and Saved Views — with no depth cap.
+- **Parent and Root (and their "Not …" excludes) are now full chip-bar filters, not query-bar-only.** Adding any of the four from "+ Filter" opens the same searchable task picker used for Blocks/Blocked-By/Related relations; each task you pick shows as its own removable tag, and you can add as many as you like (OR'd together). Parent previously showed only as a read-only, query-bar-edited tag once set — it now has the same editor as every other filter field.
+- Added a collapsible toggle to the groups in the table layout.
+
+### Changed
+
+- **The New Workspace gallery's example-data checkbox is now called "Populate with content."** The old label ("Populate with example content") described built-in sample data only, but the same checkbox also seeds real tasks carried by your own exported templates — the wording no longer implies they're fake.
+- **"Your templates" in the New Workspace gallery now lists your most recently created template first**, instead of alphabetically by filename — the one you just exported shows up at the top instead of wherever its name happens to sort. A hand-authored template with no `createdAt` sorts to the end, after every dated one.
+- **The "+ Filter" picker now caps its height and scrolls instead of growing without limit**, and groups the new exclude fields under a labeled "Exclude" section below a divider — needed once the field list grew from 9 to 21 with the date and exclusion filters above.
+
+### Fixed
+
+- **A comment or description containing a pasted `:::description`/`:::comment` block of its own — e.g. another template's markdown copied in as a record of what was generated — could corrupt the rest of the export.** The fence-closing scan only looked for the next bare `:::`, so a nested fence's own close was mistaken for the outer one's; everything after that point got kicked back out into top-level scanning and misread as real headings and metadata, occasionally pulling a whole phantom project, its tasks, and its own taxonomy into the exported file. Fence closing is now depth-aware (any nested `:::...` opener, not just description/comment, increments depth) and ignores a literal `:::` inside a pasted ` ``` ` code sample, so nesting to any depth round-trips correctly.
+
 ## 1.0.28 — 2026-09-19
 
 ### Fixed

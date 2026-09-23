@@ -12,6 +12,7 @@ import {
 	projectProgress,
 	projectTaskBreakdown,
 	projectTasks,
+	relationScope,
 	scopeOf,
 	subtaskProgress,
 	topLevelProjectTasks,
@@ -142,6 +143,100 @@ describe("descendants and ancestors", () => {
 			T("2"),
 			T("1"),
 		]);
+	});
+});
+
+describe("relationScope (root: filter traversal)", () => {
+	it("walks hierarchy descendants only", () => {
+		const local: HierarchyScope = {
+			tasks: [
+				task({ path: T("1") }),
+				task({ path: T("2"), parent: T("1") }),
+				task({ path: T("3"), parent: T("2") }),
+				task({ path: T("9") }),
+			],
+			projects: [],
+		};
+		expect(relationScope(local, T("1")).map((t) => t.path).sort()).toEqual([
+			T("2"),
+			T("3"),
+		]);
+	});
+
+	it("walks blocks/blockedBy in either direction, flat structure with no parent/child links", () => {
+		const local: HierarchyScope = {
+			tasks: [
+				task({ path: T("1"), relations: { ...emptyRelations(), blocks: [T("2")] } }),
+				task({
+					path: T("2"),
+					relations: { ...emptyRelations(), blockedBy: [T("1")], blocks: [T("3")] },
+				}),
+				task({ path: T("3"), relations: { ...emptyRelations(), blockedBy: [T("2")] } }),
+				task({ path: T("9") }),
+			],
+			projects: [],
+		};
+		expect(relationScope(local, T("1")).map((t) => t.path).sort()).toEqual([
+			T("2"),
+			T("3"),
+		]);
+		// Walking from the middle node reaches the whole connected component.
+		expect(relationScope(local, T("2")).map((t) => t.path).sort()).toEqual([
+			T("1"),
+			T("3"),
+		]);
+	});
+
+	it("combines hierarchy and dependency edges in a mixed case", () => {
+		const local: HierarchyScope = {
+			tasks: [
+				task({ path: T("1") }),
+				task({ path: T("2"), parent: T("1"), relations: { ...emptyRelations(), blocks: [T("3")] } }),
+				task({
+					path: T("3"),
+					relations: { ...emptyRelations(), blockedBy: [T("2")] },
+				}),
+				task({ path: T("9") }),
+			],
+			projects: [],
+		};
+		expect(relationScope(local, T("1")).map((t) => t.path).sort()).toEqual([
+			T("2"),
+			T("3"),
+		]);
+	});
+
+	it("does not hang on a blocks/blockedBy cycle", () => {
+		const local: HierarchyScope = {
+			tasks: [
+				task({ path: T("1"), relations: { ...emptyRelations(), blocks: [T("2")] } }),
+				task({
+					path: T("2"),
+					relations: { ...emptyRelations(), blockedBy: [T("1")], blocks: [T("1")] },
+				}),
+			],
+			projects: [],
+		};
+		expect(relationScope(local, T("1")).map((t) => t.path)).toEqual([T("2")]);
+	});
+
+	it("excludes related links from membership", () => {
+		const local: HierarchyScope = {
+			tasks: [
+				task({ path: T("1"), relations: { ...emptyRelations(), related: [T("2")] } }),
+				task({ path: T("2"), relations: { ...emptyRelations(), related: [T("1")] } }),
+			],
+			projects: [],
+		};
+		expect(relationScope(local, T("1"))).toEqual([]);
+	});
+
+	it("returns just the root when it has no children or relations", () => {
+		const local: HierarchyScope = {
+			tasks: [task({ path: T("1") }), task({ path: T("9") })],
+			projects: [],
+		};
+		expect(relationScope(local, T("1"))).toEqual([]);
 	});
 });
 

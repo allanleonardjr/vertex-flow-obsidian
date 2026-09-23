@@ -59,7 +59,7 @@ Your exported template never ships gated material unless you ask for it:
   link to travel together, so nothing dangles. Links to anything still excluded
   are dropped rather than left broken.
 - Tasks made the template one that can also **seed new workspaces**: a template
-  that carries tasks shows the gallery's **"Populate with example content"**
+  that carries tasks shows the gallery's **"Populate with content"**
   toggle, just like the built-ins.
 
 You give the template a **name**, **icon**, and **description**, and pick a

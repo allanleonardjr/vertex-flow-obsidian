@@ -7,6 +7,7 @@
  * needs no explanation in the UI.
  */
 
+import { relationScope, type HierarchyScope } from "../hierarchy";
 import { linksMatch } from "../links";
 import { getValue, isOpen, type Taxonomy } from "../taxonomy";
 import { DEFAULT_DEFINITION } from "./defaults";
@@ -106,6 +107,31 @@ function matchesProject(
 	);
 }
 
+/** OR-match an exact-day field, day-truncating a full timestamp. */
+function matchesDateExact(
+	actual: string | null,
+	allowed: string[] | undefined,
+): boolean {
+	if (!allowed || allowed.length === 0) return true;
+	if (actual == null) return allowed.includes(NONE);
+	const day = actual.slice(0, 10);
+	return allowed.some((value) => value === day);
+}
+
+/** Exclusive before/after bound on an (optionally full-timestamp) date field. */
+function matchesDateRange(
+	actual: string | null,
+	before: string | undefined,
+	after: string | undefined,
+): boolean {
+	if (!before && !after) return true;
+	if (actual == null) return false;
+	const day = actual.slice(0, 10);
+	if (before && !(day < before)) return false;
+	if (after && !(day > after)) return false;
+	return true;
+}
+
 export function matchesFilters(
 	task: Task,
 	filters: ViewFilters,
@@ -152,6 +178,100 @@ export function matchesFilters(
 		return false;
 	if (!matchesLink(task.parent, filters.parent)) return false;
 
+	if (!matchesDateExact(task.dueDate, filters.dueDate)) return false;
+	if (!matchesDateRange(task.dueDate, filters.dueDateBefore, filters.dueDateAfter))
+		return false;
+	if (!matchesDateExact(task.startDate, filters.startDate)) return false;
+	if (
+		!matchesDateRange(task.startDate, filters.startDateBefore, filters.startDateAfter)
+	)
+		return false;
+	if (!matchesDateExact(task.createdAt, filters.createdAt)) return false;
+	if (
+		!matchesDateRange(task.createdAt, filters.createdAtBefore, filters.createdAtAfter)
+	)
+		return false;
+	if (!matchesDateExact(task.updatedAt, filters.updatedAt)) return false;
+	if (
+		!matchesDateRange(task.updatedAt, filters.updatedAtBefore, filters.updatedAtAfter)
+	)
+		return false;
+	if (!matchesDateExact(task.completedAt, filters.completedAt)) return false;
+	if (
+		!matchesDateRange(
+			task.completedAt,
+			filters.completedAtBefore,
+			filters.completedAtAfter,
+		)
+	)
+		return false;
+
+	/* -- exclusions: task fails if its value falls in any excluded list -- */
+
+	if (filters.excludeStatus?.length && matchesSingle(task.status, filters.excludeStatus))
+		return false;
+	if (
+		filters.excludePriority?.length &&
+		matchesSingle(task.priority, filters.excludePriority)
+	)
+		return false;
+	if (
+		filters.excludeTaskType?.length &&
+		matchesSingle(task.taskType, filters.excludeTaskType)
+	)
+		return false;
+	if (
+		filters.excludeLabels?.length &&
+		matchesLabels(task.labels, filters.excludeLabels, context.taxonomies.label)
+	)
+		return false;
+
+	if (filters.excludeAssignee && filters.excludeAssignee.length > 0) {
+		const excluded = resolvePeople(filters.excludeAssignee, context);
+		const wantsNone = filters.excludeAssignee.includes(NONE);
+		if (task.assignee == null) {
+			if (wantsNone) return false;
+		} else if (excluded.includes(task.assignee)) {
+			return false;
+		}
+	}
+
+	if (filters.excludeMentions && filters.excludeMentions.length > 0) {
+		const excluded = resolvePeople(filters.excludeMentions, context);
+		if (task.mentions.some((id) => excluded.includes(id))) return false;
+	}
+
+	if (
+		filters.excludeProject?.length &&
+		matchesProject(task.project, filters.excludeProject, context.titles)
+	)
+		return false;
+	if (filters.excludeParent?.length && matchesLink(task.parent, filters.excludeParent))
+		return false;
+
+	if (filters.excludeDueDate?.length && matchesDateExact(task.dueDate, filters.excludeDueDate))
+		return false;
+	if (
+		filters.excludeStartDate?.length &&
+		matchesDateExact(task.startDate, filters.excludeStartDate)
+	)
+		return false;
+	if (
+		filters.excludeCreatedAt?.length &&
+		matchesDateExact(task.createdAt, filters.excludeCreatedAt)
+	)
+		return false;
+	if (
+		filters.excludeUpdatedAt?.length &&
+		matchesDateExact(task.updatedAt, filters.excludeUpdatedAt)
+	)
+		return false;
+	if (
+		filters.excludeCompletedAt?.length &&
+		matchesDateExact(task.completedAt, filters.excludeCompletedAt)
+	)
+		return false;
+
 	if (filters.text && filters.text.trim()) {
 		const needle = filters.text.trim().toLowerCase();
 		const haystack = `${task.title} ${task.id}`.toLowerCase();
@@ -161,12 +281,58 @@ export function matchesFilters(
 	return true;
 }
 
+/**
+ * Build one reachable-path `Set` per distinct root value, so membership
+ * checks become a `Set.has()` lookup per task instead of a fresh
+ * `relationScope` walk per (root × task) pair.
+ */
+function buildRootScopeSets(
+	roots: string[],
+	scope: HierarchyScope,
+): Map<string, Set<string>> {
+	const out = new Map<string, Set<string>>();
+	for (const root of roots) {
+		if (out.has(root)) continue;
+		const rootTask = scope.tasks.find((t) => linksMatch(t.path, root));
+		const paths = new Set<string>();
+		paths.add(rootTask ? rootTask.path : root);
+		for (const task of relationScope(scope, root)) paths.add(task.path);
+		out.set(root, paths);
+	}
+	return out;
+}
+
+/** Does `task.path` fall inside any of these precomputed root scopes? */
+function inAnyScope(task: Task, scopeSets: Map<string, Set<string>>): boolean {
+	for (const paths of scopeSets.values()) {
+		if (paths.has(task.path)) return true;
+	}
+	return false;
+}
+
 export function applyFilters(
 	tasks: Task[],
 	filters: ViewFilters,
 	context: ViewContext,
 ): Task[] {
-	return tasks.filter((task) => matchesFilters(task, filters, context));
+	const scope = context.scope;
+	if (!scope || !(filters.root?.length || filters.excludeRoot?.length)) {
+		return tasks.filter((task) => matchesFilters(task, filters, context));
+	}
+
+	const included = filters.root?.length
+		? buildRootScopeSets(filters.root, scope)
+		: null;
+	const excluded = filters.excludeRoot?.length
+		? buildRootScopeSets(filters.excludeRoot, scope)
+		: null;
+
+	const pool = tasks.filter((task) => {
+		if (included && !inAnyScope(task, included)) return false;
+		if (excluded && inAnyScope(task, excluded)) return false;
+		return true;
+	});
+	return pool.filter((task) => matchesFilters(task, filters, context));
 }
 
 /* ------------------------------------------------------- canonicalisation -- */
@@ -180,7 +346,35 @@ export function applyFilters(
  */
 export type ArrayFilterKey = Exclude<
 	keyof ViewFilters,
-	"text" | "archived" | "openOnly" | "unscheduled" | "recurring"
+	| "text"
+	| "archived"
+	| "openOnly"
+	| "unscheduled"
+	| "recurring"
+	| "dueDateBefore"
+	| "dueDateAfter"
+	| "startDateBefore"
+	| "startDateAfter"
+	| "createdAtBefore"
+	| "createdAtAfter"
+	| "updatedAtBefore"
+	| "updatedAtAfter"
+	| "completedAtBefore"
+	| "completedAtAfter"
+	| "excludeStatus"
+	| "excludePriority"
+	| "excludeTaskType"
+	| "excludeLabels"
+	| "excludeAssignee"
+	| "excludeMentions"
+	| "excludeProject"
+	| "excludeParent"
+	| "excludeRoot"
+	| "excludeDueDate"
+	| "excludeStartDate"
+	| "excludeCreatedAt"
+	| "excludeUpdatedAt"
+	| "excludeCompletedAt"
 >;
 
 export const FILTER_ARRAY_FIELDS: readonly ArrayFilterKey[] = [
@@ -192,7 +386,56 @@ export const FILTER_ARRAY_FIELDS: readonly ArrayFilterKey[] = [
 	"mentions",
 	"project",
 	"parent",
+	"root",
+	"dueDate",
+	"startDate",
+	"createdAt",
+	"updatedAt",
+	"completedAt",
 ];
+
+/** The 13 `ViewFilters` property names that hold excluded values. */
+export type ExcludeFilterKey =
+	| "excludeStatus"
+	| "excludePriority"
+	| "excludeTaskType"
+	| "excludeLabels"
+	| "excludeAssignee"
+	| "excludeMentions"
+	| "excludeProject"
+	| "excludeParent"
+	| "excludeRoot"
+	| "excludeDueDate"
+	| "excludeStartDate"
+	| "excludeCreatedAt"
+	| "excludeUpdatedAt"
+	| "excludeCompletedAt";
+
+/**
+ * `ArrayFilterKey` → the `ViewFilters` property holding its excluded
+ * values. One exhaustive table (like `FILTER_FIELDS` in grammar.ts) so a
+ * new filterable field can't silently skip exclusion support — adding it
+ * to `ArrayFilterKey` forces an entry here too.
+ */
+export const EXCLUDE_FIELD_KEY: Record<ArrayFilterKey, ExcludeFilterKey> = {
+	status: "excludeStatus",
+	priority: "excludePriority",
+	taskType: "excludeTaskType",
+	labels: "excludeLabels",
+	assignee: "excludeAssignee",
+	mentions: "excludeMentions",
+	project: "excludeProject",
+	parent: "excludeParent",
+	root: "excludeRoot",
+	dueDate: "excludeDueDate",
+	startDate: "excludeStartDate",
+	createdAt: "excludeCreatedAt",
+	updatedAt: "excludeUpdatedAt",
+	completedAt: "excludeCompletedAt",
+};
+
+export const EXCLUDE_ARRAY_FIELDS: readonly ExcludeFilterKey[] =
+	Object.values(EXCLUDE_FIELD_KEY);
 
 /**
  * One filter set, one representation.
@@ -219,12 +462,33 @@ export function canonicalizeFilters(filters: ViewFilters): ViewFilters {
 		out[key] = deduped;
 	}
 
+	for (const key of EXCLUDE_ARRAY_FIELDS) {
+		const values = filters[key];
+		if (!values || values.length === 0) continue;
+		const deduped: string[] = [];
+		for (const value of values) {
+			if (!deduped.includes(value)) deduped.push(value);
+		}
+		out[key] = deduped;
+	}
+
 	const text = filters.text?.trim();
 	if (text) out.text = text;
 	if (filters.archived) out.archived = filters.archived;
 	if (filters.openOnly) out.openOnly = true;
 	if (filters.unscheduled) out.unscheduled = true;
 	if (filters.recurring) out.recurring = true;
+
+	if (filters.dueDateBefore) out.dueDateBefore = filters.dueDateBefore;
+	if (filters.dueDateAfter) out.dueDateAfter = filters.dueDateAfter;
+	if (filters.startDateBefore) out.startDateBefore = filters.startDateBefore;
+	if (filters.startDateAfter) out.startDateAfter = filters.startDateAfter;
+	if (filters.createdAtBefore) out.createdAtBefore = filters.createdAtBefore;
+	if (filters.createdAtAfter) out.createdAtAfter = filters.createdAtAfter;
+	if (filters.updatedAtBefore) out.updatedAtBefore = filters.updatedAtBefore;
+	if (filters.updatedAtAfter) out.updatedAtAfter = filters.updatedAtAfter;
+	if (filters.completedAtBefore) out.completedAtBefore = filters.completedAtBefore;
+	if (filters.completedAtAfter) out.completedAtAfter = filters.completedAtAfter;
 
 	return out;
 }
@@ -367,9 +631,39 @@ export function isEmptyFilterSet(filters: ViewFilters): boolean {
 		!filters.assignee?.length &&
 		!filters.project?.length &&
 		!filters.parent?.length &&
+		!filters.root?.length &&
+		!filters.excludeRoot?.length &&
 		!filters.mentions?.length &&
 		!filters.text?.trim() &&
 		!filters.recurring &&
-		filters.archived !== "only"
+		filters.archived !== "only" &&
+		!filters.dueDate?.length &&
+		!filters.startDate?.length &&
+		!filters.createdAt?.length &&
+		!filters.updatedAt?.length &&
+		!filters.completedAt?.length &&
+		!filters.dueDateBefore &&
+		!filters.dueDateAfter &&
+		!filters.startDateBefore &&
+		!filters.startDateAfter &&
+		!filters.createdAtBefore &&
+		!filters.createdAtAfter &&
+		!filters.updatedAtBefore &&
+		!filters.updatedAtAfter &&
+		!filters.completedAtBefore &&
+		!filters.completedAtAfter &&
+		!filters.excludeStatus?.length &&
+		!filters.excludePriority?.length &&
+		!filters.excludeTaskType?.length &&
+		!filters.excludeLabels?.length &&
+		!filters.excludeAssignee?.length &&
+		!filters.excludeMentions?.length &&
+		!filters.excludeProject?.length &&
+		!filters.excludeParent?.length &&
+		!filters.excludeDueDate?.length &&
+		!filters.excludeStartDate?.length &&
+		!filters.excludeCreatedAt?.length &&
+		!filters.excludeUpdatedAt?.length &&
+		!filters.excludeCompletedAt?.length
 	);
 }

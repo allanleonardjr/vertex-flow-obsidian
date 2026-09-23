@@ -666,6 +666,13 @@ export interface ViewFilters {
 	assignee?: string[];
 	project?: string[];
 	parent?: string[];
+	/**
+	 * Scope to a task and everything transitively connected to it via
+	 * sub-task hierarchy (descendants only) and Blocks/Blocked By relations
+	 * (either direction). `related` links do not count toward membership.
+	 * OR'd across multiple roots, like every other array filter.
+	 */
+	root?: string[];
 	/** `[SELF]` powers the "Mentions Me" saved view. */
 	mentions?: string[];
 	/** Free-text match against title. */
@@ -681,6 +688,55 @@ export interface ViewFilters {
 	unscheduled?: boolean;
 	/** Only tasks carrying a live recurrence definition. */
 	recurring?: boolean;
+
+	/**
+	 * Exact-day filters (OR'd) for the five task date fields. Values are
+	 * `YYYY-MM-DD`, or `NONE` for "field unset" (only meaningful on the
+	 * three nullable fields: dueDate, startDate, completedAt).
+	 */
+	dueDate?: string[];
+	startDate?: string[];
+	createdAt?: string[];
+	updatedAt?: string[];
+	completedAt?: string[];
+
+	/**
+	 * Range bounds, exclusive, at calendar-day granularity. `createdAt`/
+	 * `updatedAt`/`completedAt` store full timestamps on `Task`; these
+	 * bounds compare only the first 10 characters (the day) against them.
+	 */
+	dueDateBefore?: IsoDate;
+	dueDateAfter?: IsoDate;
+	startDateBefore?: IsoDate;
+	startDateAfter?: IsoDate;
+	createdAtBefore?: IsoDate;
+	createdAtAfter?: IsoDate;
+	updatedAtBefore?: IsoDate;
+	updatedAtAfter?: IsoDate;
+	completedAtBefore?: IsoDate;
+	completedAtAfter?: IsoDate;
+
+	/**
+	 * Exclusion companions to the array fields above — `-status:done`
+	 * populates `excludeStatus`, not `status`. A task matching any excluded
+	 * value is dropped regardless of what the include list allows; the two
+	 * are independent, not complementary. No companion exists for the
+	 * range-bound fields (`*Before`/`*After`) — see `ArrayFilterKey`.
+	 */
+	excludeStatus?: string[];
+	excludePriority?: string[];
+	excludeTaskType?: string[];
+	excludeLabels?: string[];
+	excludeAssignee?: string[];
+	excludeMentions?: string[];
+	excludeProject?: string[];
+	excludeParent?: string[];
+	excludeRoot?: string[];
+	excludeDueDate?: string[];
+	excludeStartDate?: string[];
+	excludeCreatedAt?: string[];
+	excludeUpdatedAt?: string[];
+	excludeCompletedAt?: string[];
 }
 
 /** Per-Saved-View, not global. */

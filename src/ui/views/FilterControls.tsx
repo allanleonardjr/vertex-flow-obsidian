@@ -22,27 +22,32 @@ import {
 	type Dispatch,
 	type SetStateAction,
 } from "react";
+import { basename } from "../../core/links";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import { NONE } from "../../core/types";
 import type { SavedView, ViewFilters, WorkspaceSnapshot } from "../../core/types";
+import { AddRelationTrigger } from "../components/RelationsEditor";
 import { Popover } from "../components/Popover";
 import { buildTree, TreeList } from "../components/Tree";
 import {
 	FILTER_FIELDS,
 	activeFilterKeys,
 	activeReadonlyFilterKeys,
+	dateBoundKey,
+	dateFamilyAllowsUnset,
 	filterChoices,
 	filterFieldLabel,
+	isDateFamilyKey,
 	summarizeClause,
 	type Choice,
+	type DateFamilyKey,
 	type FilterKey,
-	type ReadonlyFilterKey,
 } from "./viewOptions";
 
 /** Drop a key when its value goes empty, so the view's note stays tidy. */
 function withFilter(
 	filters: ViewFilters,
-	key: FilterKey | ReadonlyFilterKey,
+	key: keyof ViewFilters,
 	value: string[] | string | undefined,
 ): ViewFilters {
 	const next: ViewFilters = { ...filters };
@@ -134,6 +139,15 @@ export function AddFilterTrigger({
 	const availableFields = FILTER_FIELDS.filter(
 		(f) => !shownKeys.includes(f.key),
 	);
+	// Split into the regular fields and their exclude counterparts so the
+	// picker can group them instead of listing all 21+ flat and alphabetic.
+	const standardFields = availableFields.filter((f) => !f.key.startsWith("exclude"));
+	const excludeFields = availableFields.filter((f) => f.key.startsWith("exclude"));
+
+	const addField = (key: FilterKey) => {
+		setPending((keys) => [...keys, key]);
+		setOpenId(key);
+	};
 
 	return (
 		<span className="vf-control-anchor">
@@ -149,20 +163,33 @@ export function AddFilterTrigger({
 			</button>
 			{adding && availableFields.length > 0 && (
 				<Popover align="left" onClose={() => setOpenId(null)}>
-					<div className="vf-option-list">
-						{availableFields.map((field) => (
+					<div className="vf-option-list vf-option-list-capped">
+						{standardFields.map((field) => (
 							<button
 								key={field.key}
 								type="button"
 								className="vf-menu-item"
-								onClick={() => {
-									setPending((keys) => [...keys, field.key]);
-									setOpenId(field.key);
-								}}
+								onClick={() => addField(field.key)}
 							>
 								{field.label}
 							</button>
 						))}
+						{excludeFields.length > 0 && (
+							<>
+								<div className="vf-menu-section-label">Exclude</div>
+								<div className="vf-menu-divider" />
+								{excludeFields.map((field) => (
+									<button
+										key={field.key}
+										type="button"
+										className="vf-menu-item"
+										onClick={() => addField(field.key)}
+									>
+										{field.label}
+									</button>
+								))}
+							</>
+						)}
 					</div>
 				</Popover>
 			)}
@@ -193,6 +220,13 @@ export function FilterControls({
 	const removeClause = (key: FilterKey) => {
 		setPending((keys) => keys.filter((k) => k !== key));
 		if (editing === key) setEditing(null);
+		if (isDateFamilyKey(key)) {
+			let next = withFilter(filters, key, undefined);
+			next = withFilter(next, dateBoundKey(key, "Before"), undefined);
+			next = withFilter(next, dateBoundKey(key, "After"), undefined);
+			setFilters(next);
+			return;
+		}
 		setFilters(withFilter(filters, key, undefined));
 	};
 
@@ -200,7 +234,7 @@ export function FilterControls({
 		<span className="vf-filter-controls">
 			{shownKeys.map((key) => (
 				<span key={key} className="vf-control-anchor">
-					<span className="vf-filter-tag">
+					<span className={`vf-filter-tag${key.startsWith("exclude") ? " is-excluded" : ""}`}>
 						<button
 							type="button"
 							className="vf-filter-tag-face"
@@ -248,7 +282,9 @@ export function FilterControls({
 
 			{readonlyKeys.map((key) => (
 				<span key={key} className="vf-control-anchor">
-					<span className="vf-filter-tag is-readonly">
+					<span
+						className={`vf-filter-tag is-readonly${(key as string).startsWith("exclude") ? " is-excluded" : ""}`}
+					>
 						<span
 							className="vf-filter-tag-face"
 							title="Editable from the query bar"
@@ -328,6 +364,33 @@ function ClauseEditor({
 		);
 	}
 
+	if (isDateFamilyKey(fieldKey)) {
+		return (
+			<DateClauseEditor
+				fieldKey={fieldKey}
+				filters={filters}
+				onChange={onChange}
+			/>
+		);
+	}
+
+	if (
+		fieldKey === "parent" ||
+		fieldKey === "excludeParent" ||
+		fieldKey === "root" ||
+		fieldKey === "excludeRoot"
+	) {
+		return (
+			<TaskArrayFilterEditor
+				fieldKey={fieldKey}
+				snapshot={snapshot}
+				taxonomies={taxonomies}
+				filters={filters}
+				onChange={onChange}
+			/>
+		);
+	}
+
 	const current = filters[fieldKey] ?? [];
 	const toggle = (value: string) =>
 		onChange(
@@ -340,7 +403,12 @@ function ClauseEditor({
 			),
 		);
 
-	if (fieldKey === "labels" || fieldKey === "project") {
+	if (
+		fieldKey === "labels" ||
+		fieldKey === "project" ||
+		fieldKey === "excludeLabels" ||
+		fieldKey === "excludeProject"
+	) {
 		return (
 			<GroupedFilterField
 				choices={filterChoices(fieldKey, snapshot, taxonomies)}
@@ -366,6 +434,162 @@ function ClauseEditor({
 					</button>
 				);
 			})}
+		</div>
+	);
+}
+
+/** `parent`/`root` and their excludes, all backed by the same shape: an
+ *  array of task paths, OR'd together (`ViewFilters.parent`/`.root`). */
+type TaskArrayFilterKey = "parent" | "excludeParent" | "root" | "excludeRoot";
+
+const TASK_ARRAY_FILTER_ADD_LABELS: Record<TaskArrayFilterKey, string> = {
+	parent: "Add parent",
+	excludeParent: "Add excluded parent",
+	root: "Add root",
+	excludeRoot: "Add excluded root",
+};
+
+/**
+ * Shared editor for `parent`/`excludeParent`/`root`/`excludeRoot`: each
+ * selected task shows as a removable tag, and `AddRelationTrigger` — the same
+ * searchable task picker the Relations editor uses — appends another. Takes
+ * no taxonomy-driven choices; it never touches `filterChoices`.
+ */
+function TaskArrayFilterEditor({
+	fieldKey,
+	snapshot,
+	taxonomies,
+	filters,
+	onChange,
+}: {
+	fieldKey: TaskArrayFilterKey;
+	snapshot: WorkspaceSnapshot;
+	taxonomies: WorkspaceTaxonomies;
+	filters: ViewFilters;
+	onChange: (next: ViewFilters) => void;
+}) {
+	const current = filters[fieldKey] ?? [];
+	// Same fallback `summarizeClause` uses for a stale/missing path.
+	const nameOf = (path: string) => {
+		const task = snapshot.tasks.find((t) => t.path === path);
+		return task ? `${task.id} · ${task.title}` : basename(path);
+	};
+
+	return (
+		<div className="vf-task-array-filter-editor">
+			{current.length > 0 && (
+				<div className="vf-option-list">
+					{current.map((path) => (
+						<span key={path} className="vf-filter-tag">
+							<span className="vf-filter-tag-face">{nameOf(path)}</span>
+							<button
+								type="button"
+								className="vf-filter-tag-x"
+								aria-label={`Remove ${nameOf(path)}`}
+								onClick={() =>
+									onChange(
+										withFilter(
+											filters,
+											fieldKey,
+											current.filter((v) => v !== path),
+										),
+									)
+								}
+							>
+								✕
+							</button>
+						</span>
+					))}
+				</div>
+			)}
+			<AddRelationTrigger
+				label={TASK_ARRAY_FILTER_ADD_LABELS[fieldKey]}
+				candidates={snapshot.tasks.filter((t) => !current.includes(t.path))}
+				snapshot={snapshot}
+				taxonomies={taxonomies}
+				onAdd={(path) =>
+					onChange(withFilter(filters, fieldKey, [...current, path]))
+				}
+			/>
+		</div>
+	);
+}
+
+/**
+ * Editor for a date-family clause (Due/Start/Created/Updated/Completed): an
+ * exact "On" date, exclusive "Before"/"After" bounds, and — where the field's
+ * `unsetIsVacuous` in the query grammar allows it — a "No date set" checkbox.
+ * "On" and "No date set" are mutually exclusive here: this editor never
+ * builds the `[value, NONE]` OR-combination the engine supports, since that
+ * needs a list-builder this chip has no room for (see the phase's Non-goals).
+ */
+function DateClauseEditor({
+	fieldKey,
+	filters,
+	onChange,
+}: {
+	fieldKey: DateFamilyKey;
+	filters: ViewFilters;
+	onChange: (next: ViewFilters) => void;
+}) {
+	const exact = filters[fieldKey] ?? [];
+	const isUnset = exact.includes(NONE);
+	const onDate = isUnset ? "" : (exact[0] ?? "");
+	const beforeKey = dateBoundKey(fieldKey, "Before");
+	const afterKey = dateBoundKey(fieldKey, "After");
+
+	const setOnDate = (value: string) => {
+		onChange(withFilter(filters, fieldKey, value ? [value] : undefined));
+	};
+
+	const setUnset = (checked: boolean) => {
+		onChange(withFilter(filters, fieldKey, checked ? [NONE] : undefined));
+	};
+
+	return (
+		<div className="vf-date-clause-editor">
+			<label className="vf-date-clause-row">
+				<span>On</span>
+				<input
+					type="date"
+					className="vf-input"
+					value={onDate}
+					disabled={isUnset}
+					onChange={(event) => setOnDate(event.target.value)}
+				/>
+			</label>
+			<label className="vf-date-clause-row">
+				<span>Before</span>
+				<input
+					type="date"
+					className="vf-input"
+					value={filters[beforeKey] ?? ""}
+					onChange={(event) =>
+						onChange(withFilter(filters, beforeKey, event.target.value))
+					}
+				/>
+			</label>
+			<label className="vf-date-clause-row">
+				<span>After</span>
+				<input
+					type="date"
+					className="vf-input"
+					value={filters[afterKey] ?? ""}
+					onChange={(event) =>
+						onChange(withFilter(filters, afterKey, event.target.value))
+					}
+				/>
+			</label>
+			{dateFamilyAllowsUnset(fieldKey) && (
+				<label className="vf-date-clause-row vf-date-clause-unset">
+					<input
+						type="checkbox"
+						checked={isUnset}
+						onChange={(event) => setUnset(event.target.checked)}
+					/>
+					<span>No date set</span>
+				</label>
+			)}
 		</div>
 	);
 }

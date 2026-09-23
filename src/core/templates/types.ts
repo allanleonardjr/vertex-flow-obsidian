@@ -75,6 +75,10 @@ export interface TemplateMeta {
 	 *  buildExampleContent(). Derived from the same arrays the template feeds
 	 *  its taxonomy from, via settingsFromValues(). */
 	settings: TemplateSetting[];
+	/** Number of tasks the template's `# Tasks` body declares. Computed at
+	 *  parse time from the same body scan `tasks` comes from — never requires
+	 *  buildExampleContent() — so it can't drift from what's actually there. */
+	taskCount: number;
 }
 
 export interface TemplateBuildContext {
@@ -118,7 +122,7 @@ export interface WorkspaceTemplate extends TemplateMeta {
 	 *  Projects ride the returned content as *structure* and are applied whether
 	 *  or not the creator opts into example content; only the returned tasks
 	 *  (and their descriptions/comments) are example material, applied solely
-	 *  when the user ticks "Populate with example content". */
+	 *  when the user ticks "Populate with content". */
 	buildExampleContent(ctx: TemplateBuildContext): TemplateContent;
 }
 

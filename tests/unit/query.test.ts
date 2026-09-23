@@ -63,6 +63,8 @@ describe("round-trip (Invariant A)", () => {
 		["project", withFilters({ project: [project] })],
 		["project with spaces", withFilters({ project: [spacedProject] })],
 		["parent", withFilters({ parent: [taskPath] })],
+		["root", withFilters({ root: [taskPath] })],
+		["excludeRoot", withFilters({ excludeRoot: [taskPath] })],
 		["subtasks nested", def({ subtaskDisplay: "nested" })],
 		["subtasks hidden", def({ subtaskDisplay: "hidden" })],
 		["archived included", withFilters({ archived: "included" })],
@@ -85,6 +87,18 @@ describe("round-trip (Invariant A)", () => {
 		["NONE assignee", withFilters({ assignee: [NONE] })],
 		["NONE project", withFilters({ project: [NONE] })],
 		["NONE parent", withFilters({ parent: [NONE] })],
+		["due date", withFilters({ dueDate: ["2026-09-19"] })],
+		["multi-value due date", withFilters({ dueDate: ["2026-09-19", "2026-09-20"] })],
+		["NONE due date", withFilters({ dueDate: [NONE] })],
+		["start date", withFilters({ startDate: ["2026-09-19"] })],
+		["created date", withFilters({ createdAt: ["2026-09-19"] })],
+		["updated date", withFilters({ updatedAt: ["2026-09-19"] })],
+		["completed date", withFilters({ completedAt: ["2026-09-19"] })],
+		["due-before/after", withFilters({ dueDateBefore: "2026-10-01", dueDateAfter: "2026-09-01" })],
+		["start-before/after", withFilters({ startDateBefore: "2026-10-01", startDateAfter: "2026-09-01" })],
+		["created-before/after", withFilters({ createdAtBefore: "2026-10-01", createdAtAfter: "2026-09-01" })],
+		["updated-before/after", withFilters({ updatedAtBefore: "2026-10-01", updatedAtAfter: "2026-09-01" })],
+		["completed-before/after", withFilters({ completedAtBefore: "2026-10-01", completedAtAfter: "2026-09-01" })],
 		["stale taxonomy id", withFilters({ status: ["long-gone"] })],
 		["stale person", withFilters({ assignee: ["ghost"] })],
 		["board layout", def({ viewType: "board" })],
@@ -1004,5 +1018,168 @@ describe("diagnostics", () => {
 		expect(parseQuery("login screen status:todo", ctx).definition.filters.text).toBe(
 			"login screen",
 		);
+	});
+});
+
+describe("date field filtering", () => {
+	it("parses exact-match date values", () => {
+		const parsed = parseQuery("due:2026-09-19", ctx);
+		expect(parsed.ok).toBe(true);
+		expect(parsed.definition.filters.dueDate).toEqual(["2026-09-19"]);
+	});
+
+	it("OR's comma-separated exact-match values", () => {
+		const parsed = parseQuery("due:2026-09-19,2026-09-20", ctx);
+		expect(parsed.ok).toBe(true);
+		expect(parsed.definition.filters.dueDate).toEqual([
+			"2026-09-19",
+			"2026-09-20",
+		]);
+	});
+
+	it("parses unset on a nullable date field", () => {
+		const parsed = parseQuery("due:unset", ctx);
+		expect(parsed.ok).toBe(true);
+		expect(parsed.definition.filters.dueDate).toEqual([NONE]);
+		expect(parsed.issues.map((i) => i.code)).not.toContain("vacuous-value");
+	});
+
+	it("warns as vacuous on a non-nullable date field", () => {
+		const parsed = parseQuery("created:unset", ctx);
+		expect(parsed.ok).toBe(true);
+		expect(parsed.definition.filters.createdAt).toEqual([NONE]);
+		expect(parsed.issues.map((i) => i.code)).toContain("vacuous-value");
+	});
+
+	it("warns (not errors) on an invalid exact-match date", () => {
+		const parsed = parseQuery("due:not-a-date", ctx);
+		expect(parsed.ok).toBe(true);
+		expect(parsed.issues[0].code).toBe("unknown-value");
+		expect(parsed.definition.filters.dueDate).toEqual(["not-a-date"]);
+	});
+
+	it("errors (not warns) on an invalid range bound", () => {
+		const parsed = parseQuery("due-before:not-a-date", ctx);
+		expect(parsed.ok).toBe(false);
+		expect(parsed.issues[0].code).toBe("unknown-value");
+		expect(parsed.definition.filters.dueDateBefore).toBeUndefined();
+	});
+
+	it("rejects a non-existent calendar day as a range bound", () => {
+		const parsed = parseQuery("due-before:2026-02-30", ctx);
+		expect(parsed.ok).toBe(false);
+		expect(parsed.issues[0].code).toBe("unknown-value");
+	});
+
+	it("warns on a duplicated bound", () => {
+		const parsed = parseQuery("due-before:2026-09-01 due-before:2026-09-05", ctx);
+		expect(parsed.issues.map((i) => i.code)).toContain("duplicate-field");
+		expect(parsed.definition.filters.dueDateBefore).toBe("2026-09-05");
+	});
+
+	it("combines -before and -after into a range", () => {
+		const parsed = parseQuery(
+			"due-after:2026-09-01 due-before:2026-10-01",
+			ctx,
+		);
+		expect(parsed.ok).toBe(true);
+		expect(parsed.definition.filters.dueDateAfter).toBe("2026-09-01");
+		expect(parsed.definition.filters.dueDateBefore).toBe("2026-10-01");
+	});
+
+	it("supports every date field's aliases and bound tokens", () => {
+		const created = parseQuery("created-after:2026-01-01", ctx);
+		expect(created.definition.filters.createdAtAfter).toBe("2026-01-01");
+
+		const updated = parseQuery("updated-before:2026-01-01", ctx);
+		expect(updated.definition.filters.updatedAtBefore).toBe("2026-01-01");
+
+		const completed = parseQuery("completed:2026-01-01", ctx);
+		expect(completed.definition.filters.completedAt).toEqual(["2026-01-01"]);
+
+		const start = parseQuery("start-date:2026-01-01", ctx);
+		expect(start.definition.filters.startDate).toEqual(["2026-01-01"]);
+	});
+
+	it("bypasses date validation with the verbatim prefix", () => {
+		const parsed = parseQuery("due:=not-a-date", ctx);
+		expect(parsed.ok).toBe(true);
+		expect(parsed.issues).toEqual([]);
+		expect(parsed.definition.filters.dueDate).toEqual(["not-a-date"]);
+	});
+});
+
+describe("exclusion filters", () => {
+	it("parses -status:done into excludeStatus, not status", () => {
+		const parsed = parseQuery("-status:done", ctx);
+		expect(parsed.ok).toBe(true);
+		expect(parsed.definition.filters.excludeStatus).toEqual(["done"]);
+		expect(parsed.definition.filters.status).toBeUndefined();
+	});
+
+	it("parses -due:unset as meaningful, without a vacuous warning", () => {
+		const parsed = parseQuery("-due:unset", ctx);
+		expect(parsed.ok).toBe(true);
+		expect(parsed.definition.filters.excludeDueDate).toEqual([NONE]);
+		expect(parsed.issues.map((i) => i.code)).not.toContain("vacuous-value");
+	});
+
+	it("rejects exclusion on a range bound", () => {
+		const parsed = parseQuery("-due-before:2026-09-01", ctx);
+		expect(parsed.ok).toBe(false);
+		expect(parsed.issues[0].code).toBe("not-expressible");
+	});
+
+	it("rejects exclusion on free text", () => {
+		const parsed = parseQuery("-title:foo", ctx);
+		expect(parsed.ok).toBe(false);
+		expect(parsed.issues[0].code).toBe("not-expressible");
+	});
+
+	it("rejects exclusion on a flag", () => {
+		const parsed = parseQuery("-is:open", ctx);
+		expect(parsed.ok).toBe(false);
+		expect(parsed.issues[0].code).toBe("not-expressible");
+	});
+
+	it("warns on a duplicated exclude clause, same as a duplicated include", () => {
+		const parsed = parseQuery("-status:done -status:blocked", ctx);
+		expect(parsed.issues.map((i) => i.code)).toContain("duplicate-field");
+		expect(parsed.definition.filters.excludeStatus).toEqual(["done", "blocked"]);
+	});
+
+	it("treats status:done -status:done as two independent, non-conflicting clauses", () => {
+		const parsed = parseQuery("status:done -status:done", ctx);
+		expect(parsed.issues.map((i) => i.code)).not.toContain("duplicate-field");
+		expect(parsed.definition.filters.status).toEqual(["done"]);
+		expect(parsed.definition.filters.excludeStatus).toEqual(["done"]);
+	});
+
+	it("supports exclusion on every array-valued field, including the date families", () => {
+		const parsed = parseQuery(
+			"-priority:high -type:bug -label:design -assignee:alice -mentions:alice -due:2026-09-19",
+			ctx,
+		);
+		expect(parsed.ok).toBe(true);
+		expect(parsed.definition.filters.excludePriority).toEqual(["high"]);
+		expect(parsed.definition.filters.excludeTaskType).toEqual(["bug"]);
+		expect(parsed.definition.filters.excludeLabels).toEqual(["design"]);
+		expect(parsed.definition.filters.excludeAssignee).toEqual(["alice"]);
+		expect(parsed.definition.filters.excludeMentions).toEqual(["alice"]);
+		expect(parsed.definition.filters.excludeDueDate).toEqual(["2026-09-19"]);
+	});
+
+	it("resolves an excluded project/parent value the same way inclusion does", () => {
+		const parsed = parseQuery(`-project:="${project}" -parent:="${taskPath}"`, ctx);
+		expect(parsed.ok).toBe(true);
+		expect(parsed.definition.filters.excludeProject).toEqual([project]);
+		expect(parsed.definition.filters.excludeParent).toEqual([taskPath]);
+	});
+
+	it("parses root:/-root: like parent:/-parent:", () => {
+		const parsed = parseQuery(`root:="${taskPath}" -root:="${project}"`, ctx);
+		expect(parsed.ok).toBe(true);
+		expect(parsed.definition.filters.root).toEqual([taskPath]);
+		expect(parsed.definition.filters.excludeRoot).toEqual([project]);
 	});
 });

@@ -38,11 +38,13 @@
    both reductions and ends up far shorter than the keyboard alone accounts
    for. Cancel the redundant padding for our own view specifically.
 
-   Obsidian sets that padding as an inline style, which only a more specific
-   inline style or `!important` can override; `:has()` scopes the override
-   to the one `.view-content` hosting Vertex Flow, so a plain note or
-   another plugin's view keeps Obsidian's normal (correct, single) keyboard
-   padding untouched. */
+   Obsidian sets that padding as an inline style, which only a more specific 
+   inline style or !important can override. .vertex-flow is added directly 
+   onto this same .view-content element (see view.tsx), not a descendant of it,
+   so a plain compound selector — not :has() — is what actually scopes this to 
+   the one view hosting Vertex Flow; a plain note or another plugin's view keeps 
+   Obsidian's normal (correct, single) keyboard padding untouched.
+*/
 .is-mobile .view-content:has(.vertex-flow) {
   padding-bottom: env(safe-area-inset-bottom, 0px) !important;
 }
@@ -1469,6 +1471,25 @@ button.vf-nest-chevron {
   gap: 8px;
 }
 
+button.vf-table-group-toggle {
+  width: 100%;
+  justify-content: flex-start;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: none;
+  text-align: left;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 600;
+  color: inherit;
+  cursor: pointer;
+}
+
+button.vf-table-group-toggle:hover {
+  color: var(--text-normal);
+}
+
 .vf-table-empty-row td {
   padding: 16px 12px;
   color: var(--vf-muted);
@@ -2171,6 +2192,7 @@ button.vf-swatch.is-on {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 16px;
+  align-items: start;
 }
 
 /*
@@ -2244,6 +2266,26 @@ button.vf-swatch.is-on {
   line-height: 1.45;
 }
 
+button.vf-template-details-toggle {
+  display: flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 5px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--interactive-accent);
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button.vf-template-details-toggle:hover {
+  color: var(--interactive-accent-hover);
+}
+
 .vf-template-settings {
   display: flex;
   flex-direction: column;
@@ -2307,6 +2349,7 @@ button.vf-swatch.is-on {
 }
 
 .vf-template-card-created,
+.vf-template-card-tasks,
 .vf-template-card-path {
   margin: 0;
 }
@@ -5015,6 +5058,32 @@ button.vf-filter-tag-x:hover {
   cursor: default;
 }
 
+/* An exclude chip/tag ("Not Status", …) — a yellow tint reinforces the "Not "
+   label, it isn't the only cue. */
+.vf-filter-tag.is-excluded {
+  background: color-mix(in srgb, var(--color-yellow) 15%, transparent);
+}
+
+.vf-filter-tag.is-excluded .vf-filter-tag-face strong {
+  color: var(--color-yellow);
+}
+
+/* The parent/root filter clause editor: selected tasks stacked as removable
+   tags, then the same "+ Add relation" trigger the Relations editor uses. */
+.vf-task-array-filter-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vf-task-array-filter-editor .vf-option-list {
+  gap: 4px;
+}
+
+.vf-task-array-filter-editor .vf-filter-tag {
+  align-self: flex-start;
+}
+
 /* -- Text query row ----------------------------------------------------- */
 
 .vf-query-row {
@@ -5105,6 +5174,48 @@ button.vf-query-fix {
 .vf-option-list {
   display: flex;
   flex-direction: column;
+}
+
+.vf-option-list-capped {
+  max-height: min(60vh, 400px);
+  overflow-y: auto;
+}
+
+.vf-menu-section-label {
+  margin: 6px 8px 2px;
+  color: var(--vf-muted);
+  font-size: var(--font-ui-smaller);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* Date-family clause editor (Due/Start/Created/Updated/Completed) — three
+   date inputs plus an optional "No date set" checkbox. */
+.vf-date-clause-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 6px;
+}
+
+.vf-date-clause-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--font-ui-smaller);
+  color: var(--vf-muted);
+}
+
+.vf-date-clause-row .vf-input {
+  flex: 1;
+  max-width: 160px;
+}
+
+.vf-date-clause-unset {
+  justify-content: flex-start;
+  padding-top: 4px;
+  border-top: 1px solid var(--vf-border);
 }
 
 /* Portaled to <body>, positioned from the trigger — the editor rail clips.

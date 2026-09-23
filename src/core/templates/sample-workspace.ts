@@ -513,6 +513,10 @@ export const sampleWorkspaceTemplate: WorkspaceTemplate = {
 	supportsExampleContent: true,
 	workspace: { statuses, taskTypes, labels },
 	views: [sprintBoard],
+	// Matches the `tasks` array `buildExampleContent()` builds above (also
+	// `rankSeq(25)`) — hand-kept in sync like `settings` below, since this
+	// fixture predates parse-time derivation and isn't a gallery card.
+	taskCount: 25,
 	settings: [
 		settingsFromValues("Statuses", statuses),
 		settingsFromValues("Priorities", DEFAULT_PRIORITIES),

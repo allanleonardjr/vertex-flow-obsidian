@@ -104,6 +104,57 @@ describe("discoverVaultTemplates", () => {
 		expect(warnings[0]).toContain("built-in");
 	});
 
+	it("keeps two vault templates that happen to share an id", async () => {
+		const io = fakeIo({
+			"first.md": templateSource("dup"),
+			"second.md": templateSource("dup"),
+		});
+		const found = await discoverVaultTemplates(io);
+		expect(found).toHaveLength(2);
+		expect(found.map((t) => t.path)).toEqual([
+			`${WORKSPACE_TEMPLATES_FOLDER}/first.md`,
+			`${WORKSPACE_TEMPLATES_FOLDER}/second.md`,
+		]);
+	});
+
+	it("orders vault templates by createdAt, newest first", async () => {
+		const older = serializeTemplateMarkdown({
+			meta: { id: "older", name: "older", createdAt: "2026-09-10T08:13:00.000Z" },
+			workspace: snapshot.workspace,
+			views: snapshot.views.filter((v) => !isSystemViewId(v.id)),
+			dashboards: snapshot.dashboards,
+			projects: snapshot.projects,
+			queryContext: queryContext(snapshot),
+		});
+		const newer = serializeTemplateMarkdown({
+			meta: { id: "newer", name: "newer", createdAt: "2026-09-21T16:54:00.000Z" },
+			workspace: snapshot.workspace,
+			views: snapshot.views.filter((v) => !isSystemViewId(v.id)),
+			dashboards: snapshot.dashboards,
+			projects: snapshot.projects,
+			queryContext: queryContext(snapshot),
+		});
+		const io = fakeIo({ "older.md": older, "newer.md": newer });
+		const found = await discoverVaultTemplates(io);
+		expect(found.map((t) => t.id)).toEqual(["newer", "older"]);
+	});
+
+	it("sorts templates without a createdAt after ones that have it", async () => {
+		const io = fakeIo({
+			"no-date.md": templateSource("no-date"),
+			"dated.md": serializeTemplateMarkdown({
+				meta: { id: "dated", name: "dated", createdAt: "2026-09-21T16:54:00.000Z" },
+				workspace: snapshot.workspace,
+				views: snapshot.views.filter((v) => !isSystemViewId(v.id)),
+				dashboards: snapshot.dashboards,
+				projects: snapshot.projects,
+				queryContext: queryContext(snapshot),
+			}),
+		});
+		const found = await discoverVaultTemplates(io);
+		expect(found.map((t) => t.id)).toEqual(["dated", "no-date"]);
+	});
+
 	it("ignores non-markdown files", async () => {
 		const io = fakeIo({ "notes.txt": "x", "t.md": templateSource("t") });
 		const found = await discoverVaultTemplates(io);
@@ -115,14 +166,16 @@ describe("discoverVaultTemplates", () => {
 			"legacy.md": templateSource("legacy"),
 		};
 		const io = {
-			listFiles: () =>
-				Object.entries(entries).map(([name, content]) => ({
-					name,
-					basename: name.replace(/\.md$/, ""),
-					extension: name.split(".").pop() ?? "",
-					path: `${LEGACY_WORKSPACE_TEMPLATES_FOLDER}/${name}`,
-					content,
-				})),
+			listFiles: (folderPath: string) =>
+				folderPath === LEGACY_WORKSPACE_TEMPLATES_FOLDER
+					? Object.entries(entries).map(([name, content]) => ({
+							name,
+							basename: name.replace(/\.md$/, ""),
+							extension: name.split(".").pop() ?? "",
+							path: `${LEGACY_WORKSPACE_TEMPLATES_FOLDER}/${name}`,
+							content,
+						}))
+					: [],
 			read: async (file: { content: string }) => file.content,
 		} as unknown as NoteIO;
 		const found = await discoverVaultTemplates(io);

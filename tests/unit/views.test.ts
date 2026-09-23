@@ -371,6 +371,221 @@ describe("filtering", () => {
 	});
 });
 
+describe("root: filter scope", () => {
+	// A flat "Release epic" structure: no parent/child links, connected only
+	// via Blocks/Blocked By, plus a separate hierarchy-only branch and a
+	// related-only decoy that must never be pulled into scope.
+	const release = task({
+		path: "release",
+		relations: { ...emptyRelations(), blocks: ["featureA"] },
+	});
+	const featureA = task({
+		path: "featureA",
+		relations: { ...emptyRelations(), blockedBy: ["release"], blocks: ["bugB"] },
+	});
+	const bugB = task({
+		path: "bugB",
+		relations: { ...emptyRelations(), blockedBy: ["featureA"] },
+	});
+	const child = task({ path: "child", parent: "release" });
+	const grandchild = task({ path: "grandchild", parent: "child" });
+	const relatedOnly = task({
+		path: "relatedOnly",
+		relations: { ...emptyRelations(), related: ["release"] },
+	});
+	const unrelated = task({ path: "unrelated" });
+
+	const scope: HierarchyScope = {
+		tasks: [release, featureA, bugB, child, grandchild, relatedOnly, unrelated],
+		projects: [],
+	};
+	const rootContext: typeof context = { ...context, scope };
+
+	it("returns the root plus everything transitively reachable via hierarchy + blocks/blockedBy", () => {
+		const result = applyFilters(scope.tasks, { root: ["release"] }, rootContext);
+		expect(result.map((t) => t.path).sort()).toEqual(
+			["bugB", "child", "featureA", "grandchild", "release"].sort(),
+		);
+	});
+
+	it("excludes related-only tasks from the scope", () => {
+		const result = applyFilters(scope.tasks, { root: ["release"] }, rootContext);
+		expect(result.map((t) => t.path)).not.toContain("relatedOnly");
+	});
+
+	it("AND's normally with other filters", () => {
+		const result = applyFilters(
+			scope.tasks,
+			{ root: ["release"], status: ["done"] },
+			rootContext,
+		);
+		expect(result).toEqual([]);
+	});
+
+	it("returns just the root when it has no children or relations", () => {
+		const result = applyFilters(scope.tasks, { root: ["unrelated"] }, rootContext);
+		expect(result.map((t) => t.path)).toEqual(["unrelated"]);
+	});
+
+	it("-root: removes the root and its whole scope, composing with unrelated filters", () => {
+		const result = applyFilters(
+			scope.tasks,
+			{ excludeRoot: ["release"] },
+			rootContext,
+		);
+		expect(result.map((t) => t.path).sort()).toEqual(["relatedOnly", "unrelated"].sort());
+	});
+
+	it("unions scopes across multiple roots", () => {
+		const isolatedRoot = task({ path: "isolatedRoot" });
+		const isolatedChild = task({ path: "isolatedChild", parent: "isolatedRoot" });
+		const multiScope: HierarchyScope = {
+			tasks: [...scope.tasks, isolatedRoot, isolatedChild],
+			projects: [],
+		};
+		const multiContext: typeof context = { ...context, scope: multiScope };
+		const result = applyFilters(
+			multiScope.tasks,
+			{ root: ["release", "isolatedRoot"] },
+			multiContext,
+		);
+		expect(result.map((t) => t.path).sort()).toEqual(
+			["bugB", "child", "featureA", "grandchild", "release", "isolatedRoot", "isolatedChild"].sort(),
+		);
+	});
+
+	it("is a no-op when the context has no scope", () => {
+		const bareContext = viewContext(snapshot.workspace, "alice");
+		expect(bareContext.scope).toBeUndefined();
+		const result = applyFilters(scope.tasks, { root: ["release"] }, bareContext);
+		expect(result).toEqual(scope.tasks);
+	});
+});
+
+describe("date field filtering", () => {
+	it("matches an exact due date", () => {
+		const due = task({ path: "a", dueDate: "2026-09-19" });
+		const other = task({ path: "b", dueDate: "2026-09-20" });
+		expect(matchesFilters(due, { dueDate: ["2026-09-19"] }, context)).toBe(true);
+		expect(matchesFilters(other, { dueDate: ["2026-09-19"] }, context)).toBe(false);
+	});
+
+	it("truncates a full timestamp to its day for exact match", () => {
+		const t = task({
+			path: "a",
+			createdAt: "2026-09-19T22:10:00Z",
+			updatedAt: "2026-09-19T22:10:00Z",
+			completedAt: "2026-09-19T22:10:00Z",
+		});
+		expect(matchesFilters(t, { createdAt: ["2026-09-19"] }, context)).toBe(true);
+		expect(matchesFilters(t, { updatedAt: ["2026-09-19"] }, context)).toBe(true);
+		expect(matchesFilters(t, { completedAt: ["2026-09-19"] }, context)).toBe(true);
+	});
+
+	it("matches unset against a task with no value", () => {
+		const undated = task({ path: "a" });
+		const dated = task({ path: "b", dueDate: "2026-09-19" });
+		expect(matchesFilters(undated, { dueDate: [NONE] }, context)).toBe(true);
+		expect(matchesFilters(dated, { dueDate: [NONE] }, context)).toBe(false);
+	});
+
+	it("excludes the boundary day from a before/after range (exclusive)", () => {
+		const onBefore = task({ path: "a", dueDate: "2026-09-01" });
+		const onAfter = task({ path: "b", dueDate: "2026-10-01" });
+		const inside = task({ path: "c", dueDate: "2026-09-15" });
+		const filters = { dueDateBefore: "2026-10-01", dueDateAfter: "2026-09-01" };
+		expect(matchesFilters(onBefore, filters, context)).toBe(false);
+		expect(matchesFilters(onAfter, filters, context)).toBe(false);
+		expect(matchesFilters(inside, filters, context)).toBe(true);
+	});
+
+	it("never matches a range bound against an absent value", () => {
+		const undated = task({ path: "a" });
+		expect(
+			matchesFilters(undated, { dueDateAfter: "2026-01-01" }, context),
+		).toBe(false);
+	});
+
+	it("day-truncates before/after bounds against a full timestamp", () => {
+		const t = task({ path: "a", createdAt: "2026-09-19T22:10:00Z" });
+		expect(
+			matchesFilters(t, { createdAtAfter: "2026-09-18" }, context),
+		).toBe(true);
+		expect(
+			matchesFilters(t, { createdAtBefore: "2026-09-20" }, context),
+		).toBe(true);
+		expect(
+			matchesFilters(t, { createdAtAfter: "2026-09-19" }, context),
+		).toBe(false);
+	});
+
+	it("treats a date filter as non-empty", () => {
+		expect(isEmptyFilterSet({ dueDate: ["2026-09-19"] })).toBe(false);
+		expect(isEmptyFilterSet({ dueDateBefore: "2026-09-19" })).toBe(false);
+	});
+});
+
+describe("exclusion filters", () => {
+	it("excludes a task by excludeStatus even when it also satisfies status", () => {
+		const t = task({ path: "a", status: "done" });
+		expect(
+			matchesFilters(t, { status: ["done"], excludeStatus: ["done"] }, context),
+		).toBe(false);
+	});
+
+	it("excludeAssignee with unset excludes unassigned tasks", () => {
+		const unassigned = task({ path: "a", assignee: null });
+		const assigned = task({ path: "b", assignee: "alice" });
+		expect(
+			matchesFilters(unassigned, { excludeAssignee: [NONE] }, context),
+		).toBe(false);
+		expect(
+			matchesFilters(assigned, { excludeAssignee: [NONE] }, context),
+		).toBe(true);
+		expect(
+			matchesFilters(assigned, { excludeAssignee: ["alice"] }, context),
+		).toBe(false);
+	});
+
+	it("excludeLabels honours group-wildcard patterns like the include side", () => {
+		const groupContext: typeof context = {
+			...context,
+			taxonomies: {
+				...context.taxonomies,
+				label: createTaxonomy("label", [
+					{ id: "labelA", name: "LabelA", color: "#111111" },
+					{ id: "labelACD", name: "LabelA/C/D", color: "#333333" },
+				]),
+			},
+		};
+		const nested = task({ path: "a", labels: ["labelACD"] });
+		const bare = task({ path: "b", labels: [] });
+		expect(
+			matchesFilters(nested, { excludeLabels: ["LabelA/*"] }, groupContext),
+		).toBe(false);
+		expect(
+			matchesFilters(bare, { excludeLabels: ["LabelA/*"] }, groupContext),
+		).toBe(true);
+	});
+
+	it("treats an exclude-only filter set as non-empty", () => {
+		expect(isEmptyFilterSet({ excludeStatus: ["done"] })).toBe(false);
+		expect(isEmptyFilterSet({ excludeParent: ["a"] })).toBe(false);
+	});
+
+	it("keeps include and exclude independent, not complementary", () => {
+		// status:todo,in-progress -status:blocked — vacuous but harmless.
+		const t = task({ path: "a", status: "todo" });
+		expect(
+			matchesFilters(
+				t,
+				{ status: ["todo", "in-progress"], excludeStatus: ["blocked"] },
+				context,
+			),
+		).toBe(true);
+	});
+});
+
 describe("sorting", () => {
 	it("sorts by rank ascending by default", () => {
 		const sorted = sortTasks(snapshot.tasks, "rank", "asc", context);

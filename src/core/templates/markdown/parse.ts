@@ -812,6 +812,15 @@ function readArchived(raw: string, line: number): ParsedDate | boolean {
 
 const HEADING_RE = /^(#{1,6})[ \t]+(.*?)[ \t]*(?:\{#([^}\s]+)\})?[ \t]*$/;
 
+/** A `:::` line that *opens* a fence, as opposed to `:::` alone (a close).
+ *  Matches any tag — `:::description`, `:::comment Author (date)`, or
+ *  anything following the same convention in the future — without
+ *  hardcoding which ones exist, so nested-fence depth tracking stays correct
+ *  no matter what gets pasted inside a comment or description. */
+function isFenceOpener(trimmedLine: string): boolean {
+	return trimmedLine.startsWith(":::") && trimmedLine !== ":::";
+}
+
 interface BodyResult {
 	projects: ParsedProject[];
 	tasks: ParsedTask[];
@@ -893,12 +902,38 @@ function scanBody(body: string, firstLine: number): BodyResult {
 			const header = trimmed;
 			const content: string[] = [];
 			i += 1;
+			// Depth starts at 1 for the fence just opened. A nested `:::...`
+			// opener — any tag, not just description/comment, so pasting a
+			// whole other template's markdown in here can't reopen this bug
+			// under a different fence name — increments it; only the bare
+			// `:::` that brings depth back to 0 is this fence's real close. A
+			// ``` code span is tracked separately and suspends fence detection
+			// entirely while open, so a literal ":::" inside a pasted code
+			// sample can't count either.
+			let depth = 1;
+			let innerInCode = false;
 			let closed = false;
 			while (i < lines.length) {
-				if (lines[i].trim() === ":::") {
-					closed = true;
+				const innerTrimmed = lines[i].trim();
+				if (innerTrimmed.startsWith("```")) {
+					innerInCode = !innerInCode;
+					content.push(lines[i]);
 					i += 1;
-					break;
+					continue;
+				}
+				if (!innerInCode) {
+					if (innerTrimmed === ":::") {
+						depth -= 1;
+						if (depth === 0) {
+							closed = true;
+							i += 1;
+							break;
+						}
+						content.push(lines[i]);
+						i += 1;
+						continue;
+					}
+					if (isFenceOpener(innerTrimmed)) depth += 1;
 				}
 				content.push(lines[i]);
 				i += 1;
@@ -1420,6 +1455,7 @@ export function parseTemplateMarkdown(source: string): ParsedTemplate {
 		templateVersion: optionalString(data, "templateVersion"),
 		source: optionalString(data, "source"),
 		settings: cardSettings(workspaceOverrides, views, dashboards, projects),
+		taskCount: tasks.length,
 	};
 
 	return {

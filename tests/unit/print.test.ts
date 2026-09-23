@@ -8,7 +8,7 @@ import {
 } from "../../src/core/query";
 import { canonicalizeFilters, viewDefinition } from "../../src/core/views";
 import { defaultViews } from "../../src/core/views/defaults";
-import type { ViewFilters } from "../../src/core/types";
+import { NONE, type ViewFilters } from "../../src/core/types";
 
 const snapshot = sampleSnapshot();
 const ctx = queryContext(snapshot);
@@ -21,6 +21,37 @@ describe("printFilters", () => {
 		["text", { text: "auth" }],
 		["archived + flags", { archived: "only", openOnly: true, recurring: true }],
 		["unset", { labels: ["unset"] }],
+		["due date exact", { dueDate: ["2026-09-19", "2026-09-20"] }],
+		["due date unset", { dueDate: ["unset"] }],
+		[
+			"every date field, exact + bound",
+			{
+				dueDate: ["2026-09-19"],
+				startDate: ["2026-09-01"],
+				createdAt: ["2026-08-01"],
+				updatedAt: ["2026-08-15"],
+				completedAt: ["2026-09-10"],
+				dueDateBefore: "2026-10-01",
+				dueDateAfter: "2026-09-01",
+				startDateBefore: "2026-09-15",
+				startDateAfter: "2026-08-15",
+				createdAtBefore: "2026-08-20",
+				createdAtAfter: "2026-07-20",
+				updatedAtBefore: "2026-09-01",
+				updatedAtAfter: "2026-08-01",
+				completedAtBefore: "2026-09-20",
+				completedAtAfter: "2026-09-01",
+			},
+		],
+		[
+			"include and exclude on the same field",
+			{
+				status: ["todo", "in-progress"],
+				excludeStatus: ["blocked"],
+				priority: ["high"],
+				excludePriority: [NONE],
+			},
+		],
 	];
 
 	for (const [name, filters] of cases) {

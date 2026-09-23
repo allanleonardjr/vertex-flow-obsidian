@@ -133,6 +133,43 @@ export function descendantTasks(
   return out;
 }
 
+/**
+ * Every task connected to `root` through sub-task hierarchy (descendants
+ * only — never ascending to a parent) and Blocks/Blocked By relations
+ * (either direction, since the mutation layer mirrors both sides of a
+ * Blocks relationship). `related` links are deliberately excluded — this
+ * is the traversal behind the `root:` filter, and `related` is the loosest
+ * relation type in the model (see `buildCanvasGraph`'s render-only
+ * treatment of it). Cycle-safe, like `descendantTasks`.
+ */
+export function relationScope(scope: HierarchyScope, root: LinkTarget): Task[] {
+  const out: Task[] = [];
+  const seen = new Set<string>([root]);
+  const queue: LinkTarget[] = [root];
+
+  while (queue.length > 0) {
+    const currentLink = queue.shift() as LinkTarget;
+    const current = scope.tasks.find((t) => linksMatch(t.path, currentLink));
+
+    const neighbors: LinkTarget[] = childTasks(scope, currentLink).map(
+      (t) => t.path,
+    );
+    if (current) {
+      neighbors.push(...current.relations.blocks);
+      neighbors.push(...current.relations.blockedBy);
+    }
+
+    for (const neighborLink of neighbors) {
+      const neighbor = scope.tasks.find((t) => linksMatch(t.path, neighborLink));
+      if (!neighbor || seen.has(neighbor.path)) continue;
+      seen.add(neighbor.path);
+      out.push(neighbor);
+      queue.push(neighbor.path);
+    }
+  }
+  return out;
+}
+
 /** Chain from a task up to its root ancestor, nearest first. Cycle-safe. */
 export function ancestorTasks(scope: HierarchyScope, task: Task): Task[] {
   const byPath = new Map(scope.tasks.map((t) => [t.path, t]));
