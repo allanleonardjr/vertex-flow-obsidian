@@ -38,11 +38,13 @@
    both reductions and ends up far shorter than the keyboard alone accounts
    for. Cancel the redundant padding for our own view specifically.
 
-   Obsidian sets that padding as an inline style, which only a more specific
-   inline style or `!important` can override; `:has()` scopes the override
-   to the one `.view-content` hosting Vertex Flow, so a plain note or
-   another plugin's view keeps Obsidian's normal (correct, single) keyboard
-   padding untouched. */
+   Obsidian sets that padding as an inline style, which only a more specific 
+   inline style or !important can override. .vertex-flow is added directly 
+   onto this same .view-content element (see view.tsx), not a descendant of it,
+   so a plain compound selector — not :has() — is what actually scopes this to 
+   the one view hosting Vertex Flow; a plain note or another plugin's view keeps 
+   Obsidian's normal (correct, single) keyboard padding untouched.
+*/
 .is-mobile .view-content:has(.vertex-flow) {
   padding-bottom: env(safe-area-inset-bottom, 0px) !important;
 }
