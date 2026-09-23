@@ -119,14 +119,17 @@ function ToolResultRowsList({
   }, [rows, target]);
   const resolvedProjects = useMemo(() => {
     if (!target || rows.kind !== "projects") return [];
-    const byPath = new Map(target.projects.map((project) => [project.path, project]));
+    const byPath = new Map(
+      target.projects.map((project) => [project.path, project]),
+    );
     return rows.paths
       .map((path) => byPath.get(path))
       .filter((project): project is Project => project != null);
   }, [rows, target]);
 
   if (!target || !taxonomies) return null;
-  const total = rows.kind === "tasks" ? resolvedTasks.length : resolvedProjects.length;
+  const total =
+    rows.kind === "tasks" ? resolvedTasks.length : resolvedProjects.length;
   if (total === 0) return null;
   const remaining = Math.max(0, total - rows.shown);
 
@@ -147,7 +150,11 @@ function ToolResultRowsList({
         />
       )}
       {remaining > 0 && (
-        <button type="button" className="vf-chat-load-more" onClick={onLoadMore}>
+        <button
+          type="button"
+          className="vf-chat-load-more"
+          onClick={onLoadMore}
+        >
           Load more ({remaining} more)
         </button>
       )}
@@ -156,13 +163,24 @@ function ToolResultRowsList({
 }
 
 /** The collapsed "Used: …" note under an answer — each distinct tool once in the summary, every call in order inside. */
-function ToolsUsed({ calls }: { calls: NonNullable<AiChatBubble["toolCalls"]> }) {
+function ToolsUsed({
+  calls,
+}: {
+  calls: NonNullable<AiChatBubble["toolCalls"]>;
+}) {
   const names = [...new Set(calls.map((call) => call.name || "unknown tool"))];
-  const failed = new Set(calls.filter((call) => call.isError).map((call) => call.name || "unknown tool"));
+  const failed = new Set(
+    calls
+      .filter((call) => call.isError)
+      .map((call) => call.name || "unknown tool"),
+  );
   return (
     <details className="vf-chat-tools-used">
       <summary>
-        Used: {names.map((name) => (failed.has(name) ? `${name} (error)` : name)).join(", ")}
+        Tools:{" "}
+        {names
+          .map((name) => (failed.has(name) ? `${name} (error)` : name))
+          .join(", ")}
       </summary>
       <ol>
         {calls.map((call, index) => (
@@ -190,7 +208,13 @@ const REASONING_STICK_THRESHOLD_PX = 8;
  * A new answer is a new message, so a fresh instance starts expanded; within
  * one answer a collapse sticks across rounds.
  */
-function ChatActivity({ steps, hasAnswerText }: { steps: ChatStep[]; hasAnswerText: boolean }) {
+function ChatActivity({
+  steps,
+  hasAnswerText,
+}: {
+  steps: ChatStep[];
+  hasAnswerText: boolean;
+}) {
   const [now, setNow] = useState(() => Date.now());
   const [collapsed, setCollapsed] = useState(false);
   const bodyRef = useRef<HTMLDivElement | null>(null);
@@ -205,7 +229,8 @@ function ChatActivity({ steps, hasAnswerText }: { steps: ChatStep[]; hasAnswerTe
   const last = steps[steps.length - 1];
   const current = last?.kind === "model" ? last : undefined;
   const reasoning = useThrottledText(current?.reasoning ?? "");
-  const showReasoning = !hasAnswerText && current != null && reasoning.length > 0;
+  const showReasoning =
+    !hasAnswerText && current != null && reasoning.length > 0;
 
   useEffect(() => {
     const body = bodyRef.current;
@@ -243,7 +268,8 @@ function ChatActivity({ steps, hasAnswerText }: { steps: ChatStep[]; hasAnswerTe
                 const el = bodyRef.current;
                 if (!el) return;
                 stickRef.current =
-                  el.scrollHeight - el.scrollTop - el.clientHeight <= REASONING_STICK_THRESHOLD_PX;
+                  el.scrollHeight - el.scrollTop - el.clientHeight <=
+                  REASONING_STICK_THRESHOLD_PX;
               }}
             >
               {reasoning}
@@ -269,7 +295,9 @@ function ChatSteps({ steps }: { steps: ChatStep[] }) {
       </summary>
       <ol>
         {steps.map((step, index) => {
-          const elapsed = formatElapsed((step.endedAt ?? step.startedAt) - step.startedAt);
+          const elapsed = formatElapsed(
+            (step.endedAt ?? step.startedAt) - step.startedAt,
+          );
           if (step.kind === "model") {
             return (
               <li key={index} className="vf-chat-step">
@@ -281,7 +309,9 @@ function ChatSteps({ steps }: { steps: ChatStep[] }) {
                 {step.reasoning && (
                   <details className="vf-chat-step-reasoning">
                     <summary>Reasoning</summary>
-                    <div className="vf-chat-reasoning-body">{step.reasoning}</div>
+                    <div className="vf-chat-reasoning-body">
+                      {step.reasoning}
+                    </div>
                   </details>
                 )}
               </li>
@@ -308,7 +338,11 @@ function ChatSteps({ steps }: { steps: ChatStep[] }) {
   );
 }
 
-export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot }) {
+export function LocalServerChatView({
+  snapshot,
+}: {
+  snapshot: WorkspaceSnapshot;
+}) {
   const plugin = usePlugin();
   const { openScreen, openTask, openProject } = useTabs();
   const writeSettings = useSettingsWriter();
@@ -340,7 +374,8 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
   // The chat's own workspace starts as the pane's. A workspace deleted since
   // falls back to the pane's for display rather than showing nothing.
   useEffect(() => {
-    if (chatWorkspaceRoot == null) setChatWorkspaceRoot(snapshot.workspace.root);
+    if (chatWorkspaceRoot == null)
+      setChatWorkspaceRoot(snapshot.workspace.root);
   }, [chatWorkspaceRoot, setChatWorkspaceRoot, snapshot.workspace.root]);
   const chatRoot = chatWorkspaceRoot ?? snapshot.workspace.root;
   const chatSnapshot = plugin.index.get(chatRoot) ?? snapshot;
@@ -353,7 +388,9 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
     // A refresh keeps the current list on screen instead of flashing back to
     // the full-screen "Connecting…" state.
     setModels((prev) =>
-      prev.status === "ready" ? { ...prev, refreshing: true } : { status: "loading" },
+      prev.status === "ready"
+        ? { ...prev, refreshing: true }
+        : { status: "loading" },
     );
     listModels(baseUrl, getLocalServerKey()).then(
       (ids) => {
@@ -364,7 +401,10 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
         console.error("Vertex Flow: local model server unreachable", error);
         setModels({
           status: "error",
-          message: describeLocalServerError(toLocalServerErrorLike(error), baseUrl),
+          message: describeLocalServerError(
+            toLocalServerErrorLike(error),
+            baseUrl,
+          ),
         });
       },
     );
@@ -383,11 +423,15 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
   }, [messages]);
 
   const modelId =
-    models.status === "ready" ? pickModelId(plugin.settings.localServerModelId, models.ids) : null;
+    models.status === "ready"
+      ? pickModelId(plugin.settings.localServerModelId, models.ids)
+      : null;
 
   // Every updater builds a fresh object — React may replay an updater, and a
   // mutated `prev` would double-append streamed text (see the built-in view).
-  const updateLastAssistant = (patch: (bubble: AiChatBubble) => AiChatBubble) => {
+  const updateLastAssistant = (
+    patch: (bubble: AiChatBubble) => AiChatBubble,
+  ) => {
     setMessages((prev) => {
       const last = prev[prev.length - 1];
       if (last?.role !== "assistant") return prev;
@@ -397,10 +441,17 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
 
   const appendToLastAssistant = (chunk: string) => {
     if (!chunk) return;
-    updateLastAssistant((bubble) => ({ ...bubble, content: bubble.content + chunk }));
+    updateLastAssistant((bubble) => ({
+      ...bubble,
+      content: bubble.content + chunk,
+    }));
   };
 
-  const runTurn = async (history: AiChatBubble[], model: string, signal: AbortSignal) => {
+  const runTurn = async (
+    history: AiChatBubble[],
+    model: string,
+    signal: AbortSignal,
+  ) => {
     // The turn's Steps timeline. This local array is the source of truth;
     // every change replaces the step object (never mutates it) and publishes
     // a fresh copy to the bubble, so a replayed state updater stays correct.
@@ -409,26 +460,43 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
       const published = [...steps];
       updateLastAssistant((bubble) => ({ ...bubble, steps: published }));
     };
-    const patchModelStep = (index: number, patch: (step: ModelStep) => ModelStep) => {
+    const patchModelStep = (
+      index: number,
+      patch: (step: ModelStep) => ModelStep,
+    ) => {
       const step = steps[index];
       if (step?.kind === "model") steps[index] = patch(step);
     };
-    const patchToolStep = (index: number, patch: (step: ToolStep) => ToolStep) => {
+    const patchToolStep = (
+      index: number,
+      patch: (step: ToolStep) => ToolStep,
+    ) => {
       const step = steps[index];
       if (step?.kind === "tool") steps[index] = patch(step);
     };
 
     try {
-      await runRounds(history, model, signal, steps, syncSteps, patchModelStep, patchToolStep);
+      await runRounds(
+        history,
+        model,
+        signal,
+        steps,
+        syncSteps,
+        patchModelStep,
+        patchToolStep,
+      );
     } catch (error) {
       // Close whatever was still open, so Steps never shows a step running
       // forever after a Stop or a failure.
       const reason =
-        signal.aborted || error instanceof LocalServerAbortError ? "stopped" : "failed";
+        signal.aborted || error instanceof LocalServerAbortError
+          ? "stopped"
+          : "failed";
       const endedAt = Date.now();
       steps.forEach((step, index) => {
         if (step.endedAt != null) return;
-        if (step.kind === "model") patchModelStep(index, (s) => ({ ...s, endedAt }));
+        if (step.kind === "model")
+          patchModelStep(index, (s) => ({ ...s, endedAt }));
         else {
           patchToolStep(index, (s) => ({
             ...s,
@@ -448,14 +516,20 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
     signal: AbortSignal,
     steps: ChatStep[],
     syncSteps: () => void,
-    patchModelStep: (index: number, patch: (step: ModelStep) => ModelStep) => void,
+    patchModelStep: (
+      index: number,
+      patch: (step: ModelStep) => ModelStep,
+    ) => void,
     patchToolStep: (index: number, patch: (step: ToolStep) => ToolStep) => void,
   ) => {
     const bridge = await ensureBridge(chatRoot);
     const tools = mcpToolsToOpenAiTools(await bridge.listTools());
     const baseMessages = bubblesToWireMessages(
       history,
-      buildLocalChatSystemPrompt({ workspaceName: chatName, today: localTodayIso() }),
+      buildLocalChatSystemPrompt({
+        workspaceName: chatName,
+        today: localTodayIso(),
+      }),
     );
     // This turn's completed tool exchanges. A round's assistant message and
     // its tool results are only added once every call in it has run — a
@@ -467,7 +541,12 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
       updateLastAssistant((bubble) => ({ ...bubble, content: "" }));
       const modelIndex =
-        steps.push({ kind: "model", round: round + 1, startedAt: Date.now(), reasoning: "" }) - 1;
+        steps.push({
+          kind: "model",
+          round: round + 1,
+          startedAt: Date.now(),
+          reasoning: "",
+        }) - 1;
       syncSteps();
       /** Stamps the round's first content or reasoning fragment; returns whether this was it. */
       const markFirstToken = (): boolean => {
@@ -493,7 +572,10 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
         },
         onReasoningDelta: (text) => {
           markFirstToken();
-          patchModelStep(modelIndex, (s) => ({ ...s, reasoning: s.reasoning + text }));
+          patchModelStep(modelIndex, (s) => ({
+            ...s,
+            reasoning: s.reasoning + text,
+          }));
           syncSteps();
         },
         signal,
@@ -522,7 +604,10 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
           steps.push({
             kind: "tool",
             name: call.name,
-            argsSummary: "error" in parsed ? "invalid arguments" : summarizeToolArgs(parsed.args),
+            argsSummary:
+              "error" in parsed
+                ? "invalid arguments"
+                : summarizeToolArgs(parsed.args),
             startedAt: Date.now(),
           }) - 1;
         syncSteps();
@@ -533,11 +618,18 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
             endedAt,
             outcome: {
               isError: true,
-              summary: summarizeToolResult(parsed.error.replace(/^Error:\s*/, ""), true),
+              summary: summarizeToolResult(
+                parsed.error.replace(/^Error:\s*/, ""),
+                true,
+              ),
             },
           }));
           syncSteps();
-          toolMessages.push({ role: "tool", tool_call_id: call.id, content: parsed.error });
+          toolMessages.push({
+            role: "tool",
+            tool_call_id: call.id,
+            content: parsed.error,
+          });
           toolCalls.push({ name: call.name, isError: true });
         } else {
           const outcome = await bridge.callTool(call.name, parsed.args);
@@ -568,7 +660,11 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
             }
           }
         }
-        updateLastAssistant((bubble) => ({ ...bubble, toolCalls: [...toolCalls], resultRows }));
+        updateLastAssistant((bubble) => ({
+          ...bubble,
+          toolCalls: [...toolCalls],
+          resultRows,
+        }));
       }
 
       wire.push(
@@ -588,7 +684,9 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
 
     updateLastAssistant((bubble) => ({
       ...bubble,
-      content: bubble.content ? `${bubble.content}\n\n${TOOL_CAP_NOTE}` : TOOL_CAP_NOTE,
+      content: bubble.content
+        ? `${bubble.content}\n\n${TOOL_CAP_NOTE}`
+        : TOOL_CAP_NOTE,
     }));
   };
 
@@ -599,24 +697,35 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
     abortRef.current = controller;
     setStopping(false);
     nearBottomRef.current = true;
-    setMessages([...history, { id: crypto.randomUUID(), role: "assistant", content: "" }]);
+    setMessages([
+      ...history,
+      { id: crypto.randomUUID(), role: "assistant", content: "" },
+    ]);
     setSending(true);
 
     void runTurn(history, modelId, controller.signal)
       .catch((error: unknown) => {
-        if (controller.signal.aborted || error instanceof LocalServerAbortError) {
+        if (
+          controller.signal.aborted ||
+          error instanceof LocalServerAbortError
+        ) {
           // Keep whatever streamed, marked the same way the built-in chat
           // marks a stopped reply.
           updateLastAssistant((bubble) => ({
             ...bubble,
-            content: bubble.content ? `${bubble.content} [stopped]` : "Stopped before responding.",
+            content: bubble.content
+              ? `${bubble.content} [stopped]`
+              : "Stopped before responding.",
           }));
           return;
         }
         console.error("Vertex Flow: local model server chat failed", error);
         updateLastAssistant((bubble) => ({
           ...bubble,
-          content: describeLocalServerError(toLocalServerErrorLike(error), baseUrl),
+          content: describeLocalServerError(
+            toLocalServerErrorLike(error),
+            baseUrl,
+          ),
           error: true,
         }));
       })
@@ -630,7 +739,10 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
     const text = input.trim();
     if (!text || sending || !modelId) return;
     setInput("");
-    beginTurn([...messages, { id: crypto.randomUUID(), role: "user", content: text }]);
+    beginTurn([
+      ...messages,
+      { id: crypto.randomUUID(), role: "user", content: text },
+    ]);
   };
 
   const retry = () => {
@@ -656,7 +768,8 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
     void navigator.clipboard.writeText(message.content).then(() => {
       setCopiedId(message.id);
       window.setTimeout(
-        () => setCopiedId((current) => (current === message.id ? null : current)),
+        () =>
+          setCopiedId((current) => (current === message.id ? null : current)),
         COPY_CONFIRM_MS,
       );
     });
@@ -671,7 +784,13 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
     setMessages((prev) =>
       prev.map((message) =>
         message.id === messageId && message.resultRows
-          ? { ...message, resultRows: { ...message.resultRows, shown: message.resultRows.shown * 2 } }
+          ? {
+              ...message,
+              resultRows: {
+                ...message.resultRows,
+                shown: message.resultRows.shown * 2,
+              },
+            }
           : message,
       ),
     );
@@ -724,7 +843,10 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
             ? models.message
             : "The server is running but lists no models. Download or load one in your server app."
         }
-        action={{ label: "Retry", onClick: () => setModelsRequest((n) => n + 1) }}
+        action={{
+          label: "Retry",
+          onClick: () => setModelsRequest((n) => n + 1),
+        }}
         secondaryAction={{ label: "Open Settings", onClick: openSettings }}
       />
     );
@@ -734,7 +856,9 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
     (found, message, index) => (message.role === "assistant" ? index : found),
     -1,
   );
-  const lastTokens = [...messages].reverse().find((message) => message.role === "assistant")?.tokens;
+  const lastTokens = [...messages]
+    .reverse()
+    .find((message) => message.role === "assistant")?.tokens;
 
   return (
     <div className="vf-settings">
@@ -751,7 +875,10 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
             onChange={(event) => changeWorkspace(event.target.value)}
           >
             {workspaces.map((workspace) => (
-              <option key={workspace.workspace.root} value={workspace.workspace.root}>
+              <option
+                key={workspace.workspace.root}
+                value={workspace.workspace.root}
+              >
                 {workspace.workspace.name}
               </option>
             ))}
@@ -761,7 +888,9 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
             aria-label="Model"
             value={modelId ?? ""}
             disabled={sending}
-            onChange={(event) => writeSettings({ localServerModelId: event.target.value })}
+            onChange={(event) =>
+              writeSettings({ localServerModelId: event.target.value })
+            }
           >
             {models.ids.map((id) => (
               <option key={id} value={id}>
@@ -789,7 +918,8 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
           const el = bodyRef.current;
           if (!el) return;
           nearBottomRef.current =
-            el.scrollHeight - el.scrollTop - el.clientHeight <= NEAR_BOTTOM_THRESHOLD_PX;
+            el.scrollHeight - el.scrollTop - el.clientHeight <=
+            NEAR_BOTTOM_THRESHOLD_PX;
         }}
       >
         {messages.length === 0 ? (
@@ -801,7 +931,9 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
             // The live answer: `ChatActivity` shows its progress, and its
             // Steps wait until the turn ends.
             const isLive =
-              sending && index === messages.length - 1 && message.role === "assistant";
+              sending &&
+              index === messages.length - 1 &&
+              message.role === "assistant";
             return (
               <div
                 key={message.id}
@@ -825,7 +957,10 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
                   </div>
                 )}
                 {isLive && (
-                  <ChatActivity steps={message.steps ?? []} hasAnswerText={!!message.content} />
+                  <ChatActivity
+                    steps={message.steps ?? []}
+                    hasAnswerText={!!message.content}
+                  />
                 )}
                 {message.toolCalls && message.toolCalls.length > 0 && (
                   <ToolsUsed calls={message.toolCalls} />
@@ -863,7 +998,12 @@ export function LocalServerChatView({ snapshot }: { snapshot: WorkspaceSnapshot 
           }}
         />
         {sending ? (
-          <button type="button" className="mod-warning" disabled={stopping} onClick={stop}>
+          <button
+            type="button"
+            className="mod-warning"
+            disabled={stopping}
+            onClick={stop}
+          >
             {stopping ? "Stopping…" : "Stop"}
           </button>
         ) : (
