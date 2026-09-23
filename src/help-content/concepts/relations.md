@@ -25,3 +25,8 @@ They're informative links, not automation.
 > A task still has exactly one primary parent (a Project or a parent Task).
 > Use relations for cross-cutting links and Labels for associating a task with
 > other projects.
+
+To see a task plus everything connected to it — sub-tasks, and Blocks/Blocked
+By in either direction — filter a [Saved View](help://views-saved-views) with
+`root:`. "Related" links don't count toward that scope; they're the loosest
+connection type on purpose.

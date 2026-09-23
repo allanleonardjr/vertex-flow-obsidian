@@ -675,6 +675,13 @@ export interface ViewFilters {
 	assignee?: string[];
 	project?: string[];
 	parent?: string[];
+	/**
+	 * Scope to a task and everything transitively connected to it via
+	 * sub-task hierarchy (descendants only) and Blocks/Blocked By relations
+	 * (either direction). `related` links do not count toward membership.
+	 * OR'd across multiple roots, like every other array filter.
+	 */
+	root?: string[];
 	/** `[SELF]` powers the "Mentions Me" saved view. */
 	mentions?: string[];
 	/** Free-text match against title. */
@@ -733,6 +740,7 @@ export interface ViewFilters {
 	excludeMentions?: string[];
 	excludeProject?: string[];
 	excludeParent?: string[];
+	excludeRoot?: string[];
 	excludeDueDate?: string[];
 	excludeStartDate?: string[];
 	excludeCreatedAt?: string[];

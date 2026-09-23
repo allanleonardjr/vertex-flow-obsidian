@@ -371,6 +371,97 @@ describe("filtering", () => {
 	});
 });
 
+describe("root: filter scope", () => {
+	// A flat "Release epic" structure: no parent/child links, connected only
+	// via Blocks/Blocked By, plus a separate hierarchy-only branch and a
+	// related-only decoy that must never be pulled into scope.
+	const release = task({
+		path: "release",
+		relations: { ...emptyRelations(), blocks: ["featureA"] },
+	});
+	const featureA = task({
+		path: "featureA",
+		relations: { ...emptyRelations(), blockedBy: ["release"], blocks: ["bugB"] },
+	});
+	const bugB = task({
+		path: "bugB",
+		relations: { ...emptyRelations(), blockedBy: ["featureA"] },
+	});
+	const child = task({ path: "child", parent: "release" });
+	const grandchild = task({ path: "grandchild", parent: "child" });
+	const relatedOnly = task({
+		path: "relatedOnly",
+		relations: { ...emptyRelations(), related: ["release"] },
+	});
+	const unrelated = task({ path: "unrelated" });
+
+	const scope: HierarchyScope = {
+		tasks: [release, featureA, bugB, child, grandchild, relatedOnly, unrelated],
+		projects: [],
+	};
+	const rootContext: typeof context = { ...context, scope };
+
+	it("returns the root plus everything transitively reachable via hierarchy + blocks/blockedBy", () => {
+		const result = applyFilters(scope.tasks, { root: ["release"] }, rootContext);
+		expect(result.map((t) => t.path).sort()).toEqual(
+			["bugB", "child", "featureA", "grandchild", "release"].sort(),
+		);
+	});
+
+	it("excludes related-only tasks from the scope", () => {
+		const result = applyFilters(scope.tasks, { root: ["release"] }, rootContext);
+		expect(result.map((t) => t.path)).not.toContain("relatedOnly");
+	});
+
+	it("AND's normally with other filters", () => {
+		const result = applyFilters(
+			scope.tasks,
+			{ root: ["release"], status: ["done"] },
+			rootContext,
+		);
+		expect(result).toEqual([]);
+	});
+
+	it("returns just the root when it has no children or relations", () => {
+		const result = applyFilters(scope.tasks, { root: ["unrelated"] }, rootContext);
+		expect(result.map((t) => t.path)).toEqual(["unrelated"]);
+	});
+
+	it("-root: removes the root and its whole scope, composing with unrelated filters", () => {
+		const result = applyFilters(
+			scope.tasks,
+			{ excludeRoot: ["release"] },
+			rootContext,
+		);
+		expect(result.map((t) => t.path).sort()).toEqual(["relatedOnly", "unrelated"].sort());
+	});
+
+	it("unions scopes across multiple roots", () => {
+		const isolatedRoot = task({ path: "isolatedRoot" });
+		const isolatedChild = task({ path: "isolatedChild", parent: "isolatedRoot" });
+		const multiScope: HierarchyScope = {
+			tasks: [...scope.tasks, isolatedRoot, isolatedChild],
+			projects: [],
+		};
+		const multiContext: typeof context = { ...context, scope: multiScope };
+		const result = applyFilters(
+			multiScope.tasks,
+			{ root: ["release", "isolatedRoot"] },
+			multiContext,
+		);
+		expect(result.map((t) => t.path).sort()).toEqual(
+			["bugB", "child", "featureA", "grandchild", "release", "isolatedRoot", "isolatedChild"].sort(),
+		);
+	});
+
+	it("is a no-op when the context has no scope", () => {
+		const bareContext = viewContext(snapshot.workspace, "alice");
+		expect(bareContext.scope).toBeUndefined();
+		const result = applyFilters(scope.tasks, { root: ["release"] }, bareContext);
+		expect(result).toEqual(scope.tasks);
+	});
+});
+
 describe("date field filtering", () => {
 	it("matches an exact due date", () => {
 		const due = task({ path: "a", dueDate: "2026-09-19" });

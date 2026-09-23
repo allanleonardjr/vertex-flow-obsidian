@@ -38,12 +38,20 @@ text form freely.
 | `assignee:` | `assigned`, `owner` | By assignee |
 | `mentions:` | `mention` | By who a task mentions |
 | `project:` | — | By project |
-| `parent:` | `subtaskof` | By parent task |
+| `parent:` | `subtaskof` | Direct sub-tasks of a task |
+| `root:` | — | A task plus everything connected to it, sub-tasks and Blocks/Blocked By relations alike (`related` links don't count) |
 
 A `field:` with no value means its list is empty. `me` / `self` resolves to the
 person marked as **you** in the People register; `=unset` matches a field that
 has no value (or a taxonomy value literally named "unset" — prefix with `=` for
-the verbatim name).
+the verbatim name). Prefixing any field with `-` excludes instead of includes
+— `-parent:TSK-0104` hides that task's direct sub-tasks, `-root:TSK-0104`
+hides its whole connected scope.
+
+Both **Parent** and **Root** are also addable from the chip bar's **+ Filter**
+menu: picking either opens the same searchable task picker used for Blocks/
+Blocked-By/Related relations, and each task you pick shows as its own
+removable tag — add as many as you like, OR'd together.
 
 ### Sort, group, layout
 

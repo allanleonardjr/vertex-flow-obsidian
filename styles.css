@@ -6073,6 +6073,22 @@ button.vf-filter-tag-x:hover {
   color: var(--color-yellow);
 }
 
+/* The parent/root filter clause editor: selected tasks stacked as removable
+   tags, then the same "+ Add relation" trigger the Relations editor uses. */
+.vf-task-array-filter-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vf-task-array-filter-editor .vf-option-list {
+  gap: 4px;
+}
+
+.vf-task-array-filter-editor .vf-filter-tag {
+  align-self: flex-start;
+}
+
 /* -- Text query row ----------------------------------------------------- */
 
 .vf-query-row {

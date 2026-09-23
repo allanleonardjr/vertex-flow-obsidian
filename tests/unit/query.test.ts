@@ -63,6 +63,8 @@ describe("round-trip (Invariant A)", () => {
 		["project", withFilters({ project: [project] })],
 		["project with spaces", withFilters({ project: [spacedProject] })],
 		["parent", withFilters({ parent: [taskPath] })],
+		["root", withFilters({ root: [taskPath] })],
+		["excludeRoot", withFilters({ excludeRoot: [taskPath] })],
 		["subtasks nested", def({ subtaskDisplay: "nested" })],
 		["subtasks hidden", def({ subtaskDisplay: "hidden" })],
 		["archived included", withFilters({ archived: "included" })],
@@ -1211,5 +1213,12 @@ describe("exclusion filters", () => {
 		expect(parsed.ok).toBe(true);
 		expect(parsed.definition.filters.excludeProject).toEqual([project]);
 		expect(parsed.definition.filters.excludeParent).toEqual([taskPath]);
+	});
+
+	it("parses root:/-root: like parent:/-parent:", () => {
+		const parsed = parseQuery(`root:="${taskPath}" -root:="${project}"`, ctx);
+		expect(parsed.ok).toBe(true);
+		expect(parsed.definition.filters.root).toEqual([taskPath]);
+		expect(parsed.definition.filters.excludeRoot).toEqual([project]);
 	});
 });
