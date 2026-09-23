@@ -187,6 +187,8 @@ export type FilterKey =
   | "assignee"
   | "mentions"
   | "project"
+  | "parent"
+  | "root"
   | "archived"
   | "text"
   | "dueDate"
@@ -200,7 +202,9 @@ export type FilterKey =
   | "excludeLabels"
   | "excludeAssignee"
   | "excludeMentions"
-  | "excludeProject";
+  | "excludeProject"
+  | "excludeParent"
+  | "excludeRoot";
 
 export const FILTER_FIELDS: { key: FilterKey; label: string }[] = [
   { key: "status", label: "Status" },
@@ -210,6 +214,8 @@ export const FILTER_FIELDS: { key: FilterKey; label: string }[] = [
   { key: "assignee", label: "Assignee" },
   { key: "mentions", label: "Mentions" },
   { key: "project", label: "Project" },
+  { key: "parent", label: "Parent" },
+  { key: "root", label: "Root" },
   { key: "archived", label: "Archived" },
   { key: "text", label: "Title" },
   { key: "dueDate", label: "Due date" },
@@ -224,23 +230,24 @@ export const FILTER_FIELDS: { key: FilterKey; label: string }[] = [
   { key: "excludeAssignee", label: "Not Assignee" },
   { key: "excludeMentions", label: "Not Mentions" },
   { key: "excludeProject", label: "Not Project" },
+  { key: "excludeParent", label: "Not Parent" },
+  { key: "excludeRoot", label: "Not Root" },
 ];
 
 /**
  * Filter keys the query bar can set but the chip bar has no editor for — shown
  * as a read-only tag with a ✕ so a query-only filter is never invisible and
- * unremovable. `parent` needs a picker over the whole task list; `excludeParent`
- * gets the same treatment as its include counterpart, for the same reason.
+ * unremovable. Currently empty: `parent`/`excludeParent`/`root`/`excludeRoot`
+ * moved to `FilterKey` once `TaskArrayFilterEditor` gave them a real chip-bar
+ * editor. Left in place, unused, as generic infrastructure for a future field
+ * that doesn't warrant a full editor.
  */
-export type ReadonlyFilterKey = "parent" | "excludeParent";
+export type ReadonlyFilterKey = never;
 
 export const READONLY_FILTER_FIELDS: {
   key: ReadonlyFilterKey;
   label: string;
-}[] = [
-  { key: "parent", label: "Parent" },
-  { key: "excludeParent", label: "Not Parent" },
-];
+}[] = [];
 
 /** The 5 date-family filter keys — each backed by `<key>`/`<key>Before`/`<key>After`. */
 export const DATE_FAMILY_KEYS = [
@@ -281,9 +288,9 @@ export function dateBoundKey<K extends DateFamilyKey, B extends "Before" | "Afte
   return `${key}${bound}`;
 }
 
-export const filterFieldLabel = (key: FilterKey | ReadonlyFilterKey): string =>
+export const filterFieldLabel = (key: FilterKey): string =>
   FILTER_FIELDS.find((f) => f.key === key)?.label ??
-  READONLY_FILTER_FIELDS.find((f) => f.key === key)?.label ??
+  READONLY_FILTER_FIELDS.find((f) => (f.key as string) === key)?.label ??
   key;
 
 export interface Choice {
@@ -358,7 +365,7 @@ export function filterChoices(
 
 /** A short human summary of a clause's current value, for the pill face. */
 export function summarizeClause(
-  key: FilterKey | ReadonlyFilterKey,
+  key: FilterKey,
   filters: ViewFilters,
   snapshot: WorkspaceSnapshot,
   taxonomies: WorkspaceTaxonomies,
@@ -371,7 +378,12 @@ export function summarizeClause(
         ? "Included"
         : "Hidden";
   }
-  if (key === "parent" || key === "excludeParent") {
+  if (
+    key === "parent" ||
+    key === "excludeParent" ||
+    key === "root" ||
+    key === "excludeRoot"
+  ) {
     const values = filters[key] ?? [];
     if (values.length === 0) return "any";
     const name = (v: string) =>
@@ -419,7 +431,8 @@ export function activeFilterKeys(filters: ViewFilters): FilterKey[] {
 export function activeReadonlyFilterKeys(
   filters: ViewFilters,
 ): ReadonlyFilterKey[] {
-  return READONLY_FILTER_FIELDS.map((f) => f.key).filter(
-    (key) => (filters[key]?.length ?? 0) > 0,
-  );
+  return READONLY_FILTER_FIELDS.map((f) => f.key).filter((key) => {
+    const value = (filters as Record<string, string[] | undefined>)[key];
+    return (value?.length ?? 0) > 0;
+  });
 }

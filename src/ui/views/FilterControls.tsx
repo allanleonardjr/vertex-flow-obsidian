@@ -22,9 +22,11 @@ import {
 	type Dispatch,
 	type SetStateAction,
 } from "react";
+import { basename } from "../../core/links";
 import type { WorkspaceTaxonomies } from "../../core/taxonomy";
 import { NONE } from "../../core/types";
 import type { SavedView, ViewFilters, WorkspaceSnapshot } from "../../core/types";
+import { AddRelationTrigger } from "../components/RelationsEditor";
 import { Popover } from "../components/Popover";
 import { buildTree, TreeList } from "../components/Tree";
 import {
@@ -281,7 +283,7 @@ export function FilterControls({
 			{readonlyKeys.map((key) => (
 				<span key={key} className="vf-control-anchor">
 					<span
-						className={`vf-filter-tag is-readonly${key.startsWith("exclude") ? " is-excluded" : ""}`}
+						className={`vf-filter-tag is-readonly${(key as string).startsWith("exclude") ? " is-excluded" : ""}`}
 					>
 						<span
 							className="vf-filter-tag-face"
@@ -372,6 +374,23 @@ function ClauseEditor({
 		);
 	}
 
+	if (
+		fieldKey === "parent" ||
+		fieldKey === "excludeParent" ||
+		fieldKey === "root" ||
+		fieldKey === "excludeRoot"
+	) {
+		return (
+			<TaskArrayFilterEditor
+				fieldKey={fieldKey}
+				snapshot={snapshot}
+				taxonomies={taxonomies}
+				filters={filters}
+				onChange={onChange}
+			/>
+		);
+	}
+
 	const current = filters[fieldKey] ?? [];
 	const toggle = (value: string) =>
 		onChange(
@@ -415,6 +434,83 @@ function ClauseEditor({
 					</button>
 				);
 			})}
+		</div>
+	);
+}
+
+/** `parent`/`root` and their excludes, all backed by the same shape: an
+ *  array of task paths, OR'd together (`ViewFilters.parent`/`.root`). */
+type TaskArrayFilterKey = "parent" | "excludeParent" | "root" | "excludeRoot";
+
+const TASK_ARRAY_FILTER_ADD_LABELS: Record<TaskArrayFilterKey, string> = {
+	parent: "Add parent",
+	excludeParent: "Add excluded parent",
+	root: "Add root",
+	excludeRoot: "Add excluded root",
+};
+
+/**
+ * Shared editor for `parent`/`excludeParent`/`root`/`excludeRoot`: each
+ * selected task shows as a removable tag, and `AddRelationTrigger` — the same
+ * searchable task picker the Relations editor uses — appends another. Takes
+ * no taxonomy-driven choices; it never touches `filterChoices`.
+ */
+function TaskArrayFilterEditor({
+	fieldKey,
+	snapshot,
+	taxonomies,
+	filters,
+	onChange,
+}: {
+	fieldKey: TaskArrayFilterKey;
+	snapshot: WorkspaceSnapshot;
+	taxonomies: WorkspaceTaxonomies;
+	filters: ViewFilters;
+	onChange: (next: ViewFilters) => void;
+}) {
+	const current = filters[fieldKey] ?? [];
+	// Same fallback `summarizeClause` uses for a stale/missing path.
+	const nameOf = (path: string) => {
+		const task = snapshot.tasks.find((t) => t.path === path);
+		return task ? `${task.id} · ${task.title}` : basename(path);
+	};
+
+	return (
+		<div className="vf-task-array-filter-editor">
+			{current.length > 0 && (
+				<div className="vf-option-list">
+					{current.map((path) => (
+						<span key={path} className="vf-filter-tag">
+							<span className="vf-filter-tag-face">{nameOf(path)}</span>
+							<button
+								type="button"
+								className="vf-filter-tag-x"
+								aria-label={`Remove ${nameOf(path)}`}
+								onClick={() =>
+									onChange(
+										withFilter(
+											filters,
+											fieldKey,
+											current.filter((v) => v !== path),
+										),
+									)
+								}
+							>
+								✕
+							</button>
+						</span>
+					))}
+				</div>
+			)}
+			<AddRelationTrigger
+				label={TASK_ARRAY_FILTER_ADD_LABELS[fieldKey]}
+				candidates={snapshot.tasks.filter((t) => !current.includes(t.path))}
+				snapshot={snapshot}
+				taxonomies={taxonomies}
+				onAdd={(path) =>
+					onChange(withFilter(filters, fieldKey, [...current, path]))
+				}
+			/>
 		</div>
 	);
 }

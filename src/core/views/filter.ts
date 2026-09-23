@@ -7,6 +7,7 @@
  * needs no explanation in the UI.
  */
 
+import { relationScope, type HierarchyScope } from "../hierarchy";
 import { linksMatch } from "../links";
 import { getValue, isOpen, type Taxonomy } from "../taxonomy";
 import { DEFAULT_DEFINITION } from "./defaults";
@@ -280,12 +281,58 @@ export function matchesFilters(
 	return true;
 }
 
+/**
+ * Build one reachable-path `Set` per distinct root value, so membership
+ * checks become a `Set.has()` lookup per task instead of a fresh
+ * `relationScope` walk per (root × task) pair.
+ */
+function buildRootScopeSets(
+	roots: string[],
+	scope: HierarchyScope,
+): Map<string, Set<string>> {
+	const out = new Map<string, Set<string>>();
+	for (const root of roots) {
+		if (out.has(root)) continue;
+		const rootTask = scope.tasks.find((t) => linksMatch(t.path, root));
+		const paths = new Set<string>();
+		paths.add(rootTask ? rootTask.path : root);
+		for (const task of relationScope(scope, root)) paths.add(task.path);
+		out.set(root, paths);
+	}
+	return out;
+}
+
+/** Does `task.path` fall inside any of these precomputed root scopes? */
+function inAnyScope(task: Task, scopeSets: Map<string, Set<string>>): boolean {
+	for (const paths of scopeSets.values()) {
+		if (paths.has(task.path)) return true;
+	}
+	return false;
+}
+
 export function applyFilters(
 	tasks: Task[],
 	filters: ViewFilters,
 	context: ViewContext,
 ): Task[] {
-	return tasks.filter((task) => matchesFilters(task, filters, context));
+	const scope = context.scope;
+	if (!scope || !(filters.root?.length || filters.excludeRoot?.length)) {
+		return tasks.filter((task) => matchesFilters(task, filters, context));
+	}
+
+	const included = filters.root?.length
+		? buildRootScopeSets(filters.root, scope)
+		: null;
+	const excluded = filters.excludeRoot?.length
+		? buildRootScopeSets(filters.excludeRoot, scope)
+		: null;
+
+	const pool = tasks.filter((task) => {
+		if (included && !inAnyScope(task, included)) return false;
+		if (excluded && inAnyScope(task, excluded)) return false;
+		return true;
+	});
+	return pool.filter((task) => matchesFilters(task, filters, context));
 }
 
 /* ------------------------------------------------------- canonicalisation -- */
@@ -322,6 +369,7 @@ export type ArrayFilterKey = Exclude<
 	| "excludeMentions"
 	| "excludeProject"
 	| "excludeParent"
+	| "excludeRoot"
 	| "excludeDueDate"
 	| "excludeStartDate"
 	| "excludeCreatedAt"
@@ -338,6 +386,7 @@ export const FILTER_ARRAY_FIELDS: readonly ArrayFilterKey[] = [
 	"mentions",
 	"project",
 	"parent",
+	"root",
 	"dueDate",
 	"startDate",
 	"createdAt",
@@ -355,6 +404,7 @@ export type ExcludeFilterKey =
 	| "excludeMentions"
 	| "excludeProject"
 	| "excludeParent"
+	| "excludeRoot"
 	| "excludeDueDate"
 	| "excludeStartDate"
 	| "excludeCreatedAt"
@@ -376,6 +426,7 @@ export const EXCLUDE_FIELD_KEY: Record<ArrayFilterKey, ExcludeFilterKey> = {
 	mentions: "excludeMentions",
 	project: "excludeProject",
 	parent: "excludeParent",
+	root: "excludeRoot",
 	dueDate: "excludeDueDate",
 	startDate: "excludeStartDate",
 	createdAt: "excludeCreatedAt",
@@ -580,6 +631,8 @@ export function isEmptyFilterSet(filters: ViewFilters): boolean {
 		!filters.assignee?.length &&
 		!filters.project?.length &&
 		!filters.parent?.length &&
+		!filters.root?.length &&
+		!filters.excludeRoot?.length &&
 		!filters.mentions?.length &&
 		!filters.text?.trim() &&
 		!filters.recurring &&
