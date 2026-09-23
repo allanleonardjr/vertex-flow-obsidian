@@ -625,8 +625,10 @@ button.vf-nav-row-menu:hover {
   transform: translateY(-50%);
   pointer-events: none;
   background-color: var(--text-muted);
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='3,6 8,11 13,6'/%3E%3C/svg%3E") center / contain no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='3,6 8,11 13,6'/%3E%3C/svg%3E") center / contain no-repeat;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='3,6 8,11 13,6'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='3,6 8,11 13,6'/%3E%3C/svg%3E")
+    center / contain no-repeat;
 }
 
 .vf-select-wrap:hover::after {
@@ -5114,7 +5116,7 @@ input.vf-editable-title-input {
    the list-to-bubble-bottom gap is that same padding value, so top and bottom
    read symmetric. */
 .vf-chat-task-list {
-  margin-top: 5px;
+  margin: 20px 0;
   flex: none;
   padding-bottom: 0;
   border: 1px solid var(--vf-border);
@@ -5149,7 +5151,7 @@ input.vf-editable-title-input {
    treatment as `.vf-chat-task-list`, but with no `TaskList`-equivalent
    component to lean on for projects, so the rows are styled directly here. */
 .vf-chat-project-list {
-  margin-top: 5px;
+  margin: 20px 0;
   border: 1px solid var(--vf-border);
   border-radius: var(--vf-radius);
   overflow: hidden;
@@ -5187,6 +5189,7 @@ input.vf-editable-title-input {
 .vf-chat-bubble-assistant {
   background: var(--background-secondary);
   color: var(--text-normal);
+  margin-bottom: 10px;
 }
 
 .vf-chat-actions {
