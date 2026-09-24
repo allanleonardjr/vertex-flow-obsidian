@@ -5,6 +5,8 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 1.0.29 — 2026-09-23
+
 ### Added
 
 - **Deeper MCP analytics** — ten new read-only tools (`count_tasks` with per-status/priority/type/label/assignee/project breakdowns, `count_projects`, `get_summary`, `get_stats`, `list_recurring`, `run_view`, `find`, `get_index_report`, `search_descriptions`, `read_dashboard`) take the tool surface from 17 to 27. `run_view` evaluates a saved view through the plugin's own filter/sort/group engine (so "what does the Board show?" gets the exact UI answer, board columns included), `read_dashboard` returns each widget's *computed* chart data rather than its config, `get_summary`/`get_stats` give uncapped counts plus overdue/due-today/near-due work against the user's local date, `list_recurring` reports each recurring series' next occurrence, and `find` mirrors the quick-switcher search across tasks, projects, views, dashboards, labels, and people. `list_tasks` now honours the `sort:comments` / `sort:subtasks` clauses and the `show:recurring` preview, and every `get_*` detail (task, project, view, dashboard) resolves taxonomy ids into display names.

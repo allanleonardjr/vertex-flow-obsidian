@@ -1,6 +1,6 @@
 {
   "name": "vertex-flow-obsidian",
-  "version": "1.0.28",
+  "version": "1.0.29",
   "description": "A keyboard-first task manager stored entirely as Markdown: projects, tasks, recurring schedules, six task layouts (list, board, table, timeline, calendar, canvas), chart dashboards, saved views, activity history, and an offline help system",
   "main": "main.js",
   "private": true,
