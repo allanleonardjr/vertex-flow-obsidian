@@ -57,7 +57,8 @@ export type BrowseKind =
   | "labels"
   | "people"
   | "history"
-  | "recurring";
+  | "recurring"
+  | "ai-chat";
 
 export type Tab =
   | { id: BrowseKind; kind: BrowseKind }
