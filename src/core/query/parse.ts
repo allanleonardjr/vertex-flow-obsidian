@@ -40,6 +40,9 @@ import {
 	FILTER_FIELDS,
 	FILTER_FIELD_BY_TOKEN,
 	FLAG_FIELD_ALIASES,
+	KIND_FIELD,
+	RESULT_KINDS,
+	selfField,
 	FLAG_TOKENS,
 	GROUP_BY_TOKEN,
 	LAYOUT_BY_TOKEN,
@@ -151,7 +154,28 @@ export function parseQuery(
 			continue;
 		}
 
-		const field = FLAG_FIELD_ALIASES[token.field] ?? token.field;
+		// `task.status:` is `status:` -- a task query's own fields are the task's.
+		const field = selfField(FLAG_FIELD_ALIASES[token.field] ?? token.field);
+
+		// `kind:task` is what a task query finds, so it changes nothing; another
+		// kind can't be found here. A value that isn't a kind is still a type.
+		if (
+			field === KIND_FIELD &&
+			token.values.length > 0 &&
+			token.values.every((value) => !value.verbatim && (RESULT_KINDS as readonly string[]).includes(value.text.trim().toLowerCase()))
+		) {
+			noteDuplicate(KIND_FIELD, token.span);
+			const kinds = token.values.map((value) => value.text.trim().toLowerCase());
+			if (token.excluded ? kinds.includes("task") : !kinds.includes("task")) {
+				fail(
+					"not-expressible",
+					token.excluded ? `"-kind:task" leaves nothing - this query finds tasks` : `This query finds tasks, not ${kinds.join(" or ")}`,
+					token.span,
+					"kind:task",
+				);
+			}
+			continue;
+		}
 
 		// Tokens that name something ViewFilters genuinely cannot express.
 		if (token.values.length === 1) {
@@ -248,6 +272,7 @@ export function parseQuery(
 				descending = true;
 				raw = raw.slice(1);
 			}
+			raw = selfField(raw);
 
 			// Closed unions, unlike taxonomy ids — a stale one would just be
 			// coerced away on save, so there's nothing to preserve verbatim.
@@ -316,7 +341,7 @@ export function parseQuery(
 			}
 			noteDuplicate("hide", token.span);
 			for (const value of token.values) {
-				const raw = value.text.trim().toLowerCase();
+				const raw = selfField(value.text.trim());
 				const match = FIELD_BY_TOKEN.get(raw);
 				if (!match) {
 					fail("unknown-value", `"${raw}" isn't a task field`, value.span);

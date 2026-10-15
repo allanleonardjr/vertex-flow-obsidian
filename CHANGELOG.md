@@ -5,6 +5,10 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Changed
+
+- **The query bar reads and writes Plan Things Better's one form of the query language.** A task's name is written `name:` (only when it isn't plain words), and `sort:name` sorts by it. `title:`, `text:`, `search:` and `sort:title` still read as before, so saved views keep their meaning. PTB's spellings also read: `projectKey:` / `project.key:`, `taskParentKey:` / `parent.key:`, `taskRootKey:` / `root.key:`, `label.key:`, `assignee.key:`, `task.` in front of any field (`task.status:done`), and `kind:task`, which says what a query finds. Note: a vault opened by an older version of the plugin won't read a view saved as `name:` or `sort:name`.
+
 ## 1.0.29 — 2026-09-23
 
 ### Added

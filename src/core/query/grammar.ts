@@ -67,13 +67,13 @@ export const FILTER_FIELDS: Record<ArrayFilterKey, FilterFieldSpec> = {
 	},
 	labels: {
 		token: "label",
-		aliases: ["labels", "tag", "tags"],
+		aliases: ["labels", "tag", "tags", "label.key"],
 		resolveAs: "label",
 		unsetIsVacuous: false,
 	},
 	assignee: {
 		token: "assignee",
-		aliases: ["assigned", "owner"],
+		aliases: ["assigned", "owner", "assignee.key"],
 		resolveAs: "person",
 		unsetIsVacuous: false,
 	},
@@ -85,19 +85,19 @@ export const FILTER_FIELDS: Record<ArrayFilterKey, FilterFieldSpec> = {
 	},
 	project: {
 		token: "project",
-		aliases: [],
+		aliases: ["projectkey", "project.key"],
 		resolveAs: "project",
 		unsetIsVacuous: false,
 	},
 	parent: {
 		token: "parent",
-		aliases: ["subtaskof"],
+		aliases: ["subtaskof", "taskparentkey", "parent.key"],
 		resolveAs: "task",
 		unsetIsVacuous: false,
 	},
 	root: {
 		token: "root",
-		aliases: [],
+		aliases: ["taskrootkey", "root.key"],
 		resolveAs: "task",
 		unsetIsVacuous: false,
 	},
@@ -134,7 +134,10 @@ export const FILTER_FIELDS: Record<ArrayFilterKey, FilterFieldSpec> = {
 };
 
 /** The free-text field. Not in `FILTER_FIELDS` — its value isn't a list. */
-export const TEXT_FIELD = { token: "title", aliases: ["text", "search"] };
+/** A task's name, as free text. Written `name:` - the same word for every
+ *  kind's display name in Plan Things Better's query language - and
+ *  `title:` (written before), `text:` and `search:` still read as it. */
+export const TEXT_FIELD = { token: "name", aliases: ["title", "text", "search", "tasktitle", "task.name", "task.title"] };
 
 export interface EnumValueSpec {
 	token: string;
@@ -155,7 +158,7 @@ export const SORT_VALUES: Record<SortField, EnumValueSpec> = {
 	rank: { token: "rank", aliases: ["manual"] },
 	priority: { token: "priority", aliases: [] },
 	status: { token: "status", aliases: [] },
-	title: { token: "title", aliases: ["name"] },
+	title: { token: "name", aliases: ["title", "task.name"] },
 	id: { token: "id", aliases: [] },
 	dueDate: { token: "due", aliases: ["duedate"] },
 	startDate: { token: "start", aliases: ["startdate"] },
@@ -356,7 +359,7 @@ export const FILTER_FIELD_BY_TOKEN: Map<string, ArrayFilterKey | "text"> =
 			Object.entries(FILTER_FIELDS) as [ArrayFilterKey, FilterFieldSpec][],
 		) as Map<string, ArrayFilterKey | "text">;
 		map.set(TEXT_FIELD.token, "text");
-		for (const alias of TEXT_FIELD.aliases) map.set(alias, "text");
+		for (const alias of TEXT_FIELD.aliases) map.set(alias.toLowerCase(), "text");
 		return map;
 	})();
 
@@ -449,3 +452,21 @@ export const ALL_FIELD_TOKENS: readonly string[] = [
 	"show",
 	"include",
 ];
+
+/**
+ * A field as the parser looks it up, in the one form Plan Things Better's
+ * query language uses: lowercase, with a leading `task.` dropped, since a
+ * task query's own fields are the task's -- `task.status:` is `status:`.
+ * `task.name` and `task.title` keep it (they're spellings of their own).
+ */
+export function selfField(field: string): string {
+	const lowered = field.toLowerCase();
+	if (!lowered.startsWith("task.")) return lowered;
+	const rest = lowered.slice("task.".length);
+	return rest === "name" || rest === "title" || rest === "" ? lowered : rest;
+}
+
+/** `kind:task` says what a query finds: a task query finds tasks, so it
+ *  changes nothing, and another kind can't be found here. */
+export const KIND_FIELD = "kind";
+export const RESULT_KINDS = ["task", "project", "milestone", "doc", "view", "dashboard", "label", "space", "member", "channel", "template", "form", "link", "activity"] as const;
